@@ -94,7 +94,7 @@ export class FirestoreGameSync implements GameSyncActions {
   private balancesByUid: Record<string, number> = {};
 
   private stateListeners = new Set<(state: GameState) => void>();
-  private playCardListeners = new Set<(play: { playerIdx: number; cardIdx: number; card: Card }) => void>();
+  private playCardListeners = new Set<(play: { playerIdx: number; cardIdx: number; card: Card; playId?: string }) => void>();
   private trickEndListeners = new Set<(winnerIdx: number) => void>();
   private roundEndListeners = new Set<(result: Result) => void>();
   private timerListeners = new Set<(seconds: number) => void>();
@@ -108,6 +108,9 @@ export class FirestoreGameSync implements GameSyncActions {
   private lastEmittedPlayId: string | null = null;
   private lastEmittedResultKey: string | null = null;
   private lastTrickEndKey: string | null = null;
+  private emittedPlayIds = new Set<string>();
+  private optimisticAppliedPlayIds = new Set<string>();
+  private optimisticDrops = new Map<string, Pick<DepositedCard, "dropRot" | "dx" | "dy">>();
   private processingPlayIds = new Set<string>();
   private rematchStarting = false;
 
@@ -147,18 +150,22 @@ export class FirestoreGameSync implements GameSyncActions {
     if (!card) return;
 
     const playId = `${Date.now()}-${uid}-${card.id}-${cardIdx}`;
-    this.lastEmittedPlayId = playId;
-    this.playCardListeners.forEach((cb) => cb({ playerIdx: 0, cardIdx, card }));
+    const pendingPlay: PendingPlay = {
+      playerIdx: this.myIdx,
+      cardIdx,
+      uid,
+      playId,
+      createdAt: Date.now(),
+    };
+
+    this.emitPlayEventOnce({ playerIdx: this.myIdx, cardIdx, card, playId });
+    if (this.applyOptimisticPlay(pendingPlay)) {
+      this.emitState();
+    }
 
     const gameRef = doc(db, "rooms", this.opts.roomId, "game", "current");
     void updateDoc(gameRef, {
-      pendingPlay: {
-        playerIdx: this.myIdx,
-        cardIdx,
-        uid,
-        playId,
-        createdAt: Date.now(),
-      } satisfies PendingPlay,
+      pendingPlay,
       updatedAt: Date.now(),
     });
   };
@@ -190,36 +197,63 @@ export class FirestoreGameSync implements GameSyncActions {
     const firstSnapshot = !this.sawFirstSnapshot;
     this.sawFirstSnapshot = true;
 
+    if (game.phase === "dealing" && !game.pendingPlay && !game.lastPlay) {
+      this.emittedPlayIds.clear();
+      this.optimisticAppliedPlayIds.clear();
+      this.optimisticDrops.clear();
+      this.lastEmittedPlayId = null;
+      this.lastTrickEndKey = null;
+    }
+
     if (previousPhase === "result" && game.phase !== "result") {
       this.lastEmittedResultKey = null;
       this.opts.onRoundRestart?.();
     }
 
     if (firstSnapshot) {
-      this.lastEmittedPlayId = game.lastPlay?.playId ?? null;
-    } else if (game.lastPlay && game.lastPlay.playId !== this.lastEmittedPlayId) {
-      this.lastEmittedPlayId = game.lastPlay.playId;
-      this.emitPlayEvent(game.lastPlay);
+      if (game.lastPlay?.playId) {
+        this.emittedPlayIds.add(game.lastPlay.playId);
+        this.lastEmittedPlayId = game.lastPlay.playId;
+      }
+    } else if (game.lastPlay) {
+      this.emitPlayEventOnce(game.lastPlay);
     }
 
-    const trickEndKey = `${game.trickNo}:${game.dominantIdx ?? "none"}:${game.trickPlays.length}`;
-    if (game.phase === "trickEnd" && game.dominantIdx != null && trickEndKey !== this.lastTrickEndKey) {
-      this.lastTrickEndKey = trickEndKey;
-      this.trickEndListeners.forEach((cb) => cb(this.toUiIdx(game.dominantIdx!)));
+    const pendingIsUnconfirmed =
+      !!game.pendingPlay && game.lastPlay?.playId !== game.pendingPlay.playId;
+
+    let localStateAdvanced = false;
+    if (pendingIsUnconfirmed && game.pendingPlay) {
+      const pendingCard = this.getPendingCard(game.pendingPlay);
+      if (pendingCard) {
+        this.emitPlayEventOnce({
+          playerIdx: game.pendingPlay.playerIdx,
+          cardIdx: game.pendingPlay.cardIdx,
+          card: pendingCard,
+          playId: game.pendingPlay.playId,
+        });
+      }
     }
 
+    if (this.isHost && game.pendingPlay) {
+      const before = this.stateSignature();
+      void this.hostProcessPendingPlay(game.pendingPlay, game);
+      localStateAdvanced = this.stateSignature() !== before;
+    } else if (pendingIsUnconfirmed && game.pendingPlay) {
+      localStateAdvanced = this.applyOptimisticPlay(game.pendingPlay);
+    }
+
+    this.emitTrickEndIfNeeded();
     this.emitState();
-    this.syncTimer(game);
+    if (!localStateAdvanced) {
+      this.syncTimer(game);
+    }
 
     if (game.result) {
       this.emitResultOnce(game.result);
     }
 
     this.syncRematch(game);
-
-    if (this.isHost && game.pendingPlay) {
-      void this.hostProcessPendingPlay(game.pendingPlay, game);
-    }
 
     if (this.isHost && game.phase === "result" && game.rematch) {
       this.hostMaybeStartRematch(game);
@@ -265,6 +299,92 @@ export class FirestoreGameSync implements GameSyncActions {
       card: { ...play.card },
     }));
     this.dominantIdx = game.dominantIdx ?? null;
+  }
+
+  private getPendingCard(pending: PendingPlay): Card | null {
+    const validPlayer = this.opts.roomPlayers[pending.playerIdx];
+    if (!validPlayer || validPlayer.uid !== pending.uid) return null;
+    const card = this.allHands[pending.uid]?.[pending.cardIdx];
+    return card ? { ...card } : null;
+  }
+
+  private applyOptimisticPlay(pending: PendingPlay): boolean {
+    const validPlayer = this.opts.roomPlayers[pending.playerIdx];
+    if (
+      this.phase !== "turns"
+      || pending.playerIdx !== this.turnIdx
+      || !validPlayer
+      || validPlayer.uid !== pending.uid
+    ) {
+      return false;
+    }
+
+    const hand = [...(this.allHands[pending.uid] ?? [])];
+    const card = hand[pending.cardIdx];
+    const led = this.trickPlays[0]?.card.suit ?? null;
+    if (!card || !legalCards(hand, led).includes(pending.cardIdx)) return false;
+
+    if (this.trickPlays.some((play) => play.playerIdx === pending.playerIdx && play.card.id === card.id)) {
+      return true;
+    }
+
+    const removed = hand.splice(pending.cardIdx, 1)[0] ?? card;
+    const drop = this.dropForPlay(pending.playId);
+    const existingDeposit = this.depositsByUid[pending.uid] ?? [];
+    this.allHands[pending.uid] = hand;
+    this.depositsByUid[pending.uid] = existingDeposit.some((deposited) => deposited.id === removed.id)
+      ? existingDeposit
+      : [...existingDeposit, { ...removed, ...drop }];
+    this.trickPlays = [...this.trickPlays, { playerIdx: pending.playerIdx, card: { ...removed } }];
+    this.optimisticAppliedPlayIds.add(pending.playId);
+    this.refreshPlayersFromCollections();
+
+    if (this.trickPlays.length === this.opts.roomPlayers.length) {
+      const win = trickWinner(this.trickPlays, this.trickPlays[0].card.suit);
+      this.phase = "trickEnd";
+      this.dominantIdx = win;
+      this.stopTimer();
+    } else {
+      this.turnIdx = (pending.playerIdx + 1) % this.opts.roomPlayers.length;
+      this.seconds = this.opts.cfg.turnSeconds;
+      this.startTimer();
+    }
+
+    return true;
+  }
+
+  private dropForPlay(playId: string): Pick<DepositedCard, "dropRot" | "dx" | "dy"> {
+    const existing = this.optimisticDrops.get(playId);
+    if (existing) return existing;
+    const drop = {
+      dropRot: Math.random() * 18 - 9,
+      dx: Math.random() * 12 - 6,
+      dy: Math.random() * 8 - 4,
+    };
+    this.optimisticDrops.set(playId, drop);
+    return drop;
+  }
+
+  private refreshPlayersFromCollections() {
+    this.players = this.players.map((player, idx) => {
+      const uid = this.opts.roomPlayers[idx]?.uid;
+      if (!uid) return player;
+      return {
+        ...player,
+        hand: this.allHands[uid] ?? [],
+        deposit: this.depositsByUid[uid] ?? [],
+      };
+    });
+  }
+
+  private stateSignature(): string {
+    return [
+      this.phase,
+      this.turnIdx,
+      this.trickNo,
+      this.dominantIdx ?? "none",
+      this.trickPlays.map((play) => `${play.playerIdx}:${play.card.id}`).join("|"),
+    ].join(":");
   }
 
   private syncTimer(game: GameDoc) {
@@ -488,14 +608,11 @@ export class FirestoreGameSync implements GameSyncActions {
     const removed = hand.splice(cardIdx, 1)[0] ?? expectedCard;
     if (!removed) return;
 
-    const drop = {
-      dropRot: Math.random() * 18 - 9,
-      dx: Math.random() * 12 - 6,
-      dy: Math.random() * 8 - 4,
-    };
+    const drop = this.dropForPlay(playId);
     const depCard: DepositedCard = { ...removed, ...drop };
     this.depositsByUid[player.uid] = [...(this.depositsByUid[player.uid] ?? []), depCard];
     this.trickPlays = [...this.trickPlays, { playerIdx, card: { ...removed } }];
+    this.refreshPlayersFromCollections();
 
     const gameRef = doc(db, "rooms", roomId, "game", "current");
     const lastPlay: LastPlay = {
@@ -531,6 +648,7 @@ export class FirestoreGameSync implements GameSyncActions {
     this.turnIdx = (playerIdx + 1) % roomPlayers.length;
     this.seconds = cfg.turnSeconds;
     this.stopTimer();
+    this.startTimer();
 
     await updateDoc(gameRef, {
       hands: cloneHands(this.allHands),
@@ -679,11 +797,29 @@ export class FirestoreGameSync implements GameSyncActions {
   }
 
   private emitPlayEvent(lastPlay: LastPlay) {
+    this.emitPlayEventOnce(lastPlay);
+  }
+
+  private emitPlayEventOnce(lastPlay: LastPlay) {
+    if (this.emittedPlayIds.has(lastPlay.playId)) return;
+    this.emittedPlayIds.add(lastPlay.playId);
+    this.lastEmittedPlayId = lastPlay.playId;
     this.playCardListeners.forEach((cb) => cb({
       playerIdx: this.toUiIdx(lastPlay.playerIdx),
       cardIdx: lastPlay.cardIdx,
       card: lastPlay.card,
+      playId: lastPlay.playId,
     }));
+  }
+
+  private emitTrickEndIfNeeded() {
+    const trickEndKey = `${this.trickNo}:${this.dominantIdx ?? "none"}:${this.trickPlays.length}`;
+    if (this.phase !== "trickEnd" || this.dominantIdx == null || trickEndKey === this.lastTrickEndKey) {
+      return;
+    }
+
+    this.lastTrickEndKey = trickEndKey;
+    this.trickEndListeners.forEach((cb) => cb(this.toUiIdx(this.dominantIdx!)));
   }
 
   private emitResultOnce(result: Result) {
@@ -761,7 +897,7 @@ export class FirestoreGameSync implements GameSyncActions {
     return () => this.stateListeners.delete(cb);
   };
 
-  onPlayCard = (cb: (play: { playerIdx: number; cardIdx: number; card: Card }) => void): Unsubscribe => {
+  onPlayCard = (cb: (play: { playerIdx: number; cardIdx: number; card: Card; playId?: string }) => void): Unsubscribe => {
     this.playCardListeners.add(cb);
     return () => this.playCardListeners.delete(cb);
   };

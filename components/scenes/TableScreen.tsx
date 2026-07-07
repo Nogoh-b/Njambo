@@ -103,6 +103,7 @@ export function TableScreen({
   const playersRef = useRef<GameState["players"]>([]);
   const turnIdxRef = useRef(0);
   const delayedStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const animatedPlayIdsRef = useRef<Set<string>>(new Set());
 
   /* ----- Dérivés de l'état ----- */
   const { players, phase, trickNo, trickPlays, turnIdx, pot, dominantIdx } = gameState;
@@ -232,6 +233,7 @@ export function TableScreen({
     }
 
     syncRef.current = sync;
+    const animatedPlayIds = animatedPlayIdsRef.current;
 
     // Écouter les événements du sync
     const unsubState = sync.onStateUpdate((state) => {
@@ -247,7 +249,12 @@ export function TableScreen({
       setGameState(state);
     });
 
-    const unsubPlay = sync.onPlayCard(({ playerIdx, cardIdx, card }) => {
+    const unsubPlay = sync.onPlayCard(({ playerIdx, cardIdx, card, playId }) => {
+      if (playId) {
+        if (animatedPlayIds.has(playId)) return;
+        animatedPlayIds.add(playId);
+      }
+
       sfx((s) => s.card());
       const handEl = handRefs.current[playerIdx];
       const depEl = depositRefs.current[playerIdx];
@@ -257,6 +264,7 @@ export function TableScreen({
         animatingRef.current = true;
         const from = (srcEl as HTMLElement).getBoundingClientRect();
         const to = (depEl as HTMLElement).getBoundingClientRect();
+        const dropRot = Math.random() * 18 - 9;
         setFlyingSrc({ playerIdx, cardIdx });
         setFlights((f) => [
           ...f,
@@ -267,7 +275,7 @@ export function TableScreen({
             to,
             w: depW,
             angle: seatAngle[seatEdge(playerIdx)],
-            dropRot: Math.random() * 18 - 9,
+            dropRot,
             isYou: playerIdx === 0,
           },
         ]);
@@ -303,6 +311,7 @@ export function TableScreen({
       unsubTrickEnd();
       unsubTimer();
       if (delayedStateTimerRef.current) clearTimeout(delayedStateTimerRef.current);
+      animatedPlayIds.clear();
       // unsubRoundEnd n'a pas de retour — le sync appelle onResult directement
       syncRef.current = null;
       sync.destroy();

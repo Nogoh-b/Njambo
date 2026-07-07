@@ -251,7 +251,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
           playerUids: updatedPlayers.map((p) => p.uid),
         });
 
-        return { ...room, players: updatedPlayers };
+        return { ...room, players: updatedPlayers, playerUids: updatedPlayers.map((p) => p.uid) };
       });
     } catch (err) {
       const message = err instanceof Error && err.message

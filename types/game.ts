@@ -204,7 +204,7 @@ export interface GameSyncActions {
 
   /** Événements entrants — retourne une fonction de désabonnement */
   onStateUpdate: (cb: (state: GameState) => void) => () => void;
-  onPlayCard: (cb: (play: { playerIdx: number; cardIdx: number; card: Card }) => void) => () => void;
+  onPlayCard: (cb: (play: { playerIdx: number; cardIdx: number; card: Card; playId?: string }) => void) => () => void;
   onTrickEnd: (cb: (winnerIdx: number) => void) => () => void;
   onRoundEnd: (cb: (result: Result) => void) => () => void;
   onTimerTick: (cb: (seconds: number) => void) => () => void;
