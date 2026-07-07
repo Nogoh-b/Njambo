@@ -44,6 +44,7 @@ export function HistoryScreen() {
         <div className="nj-phone">
           <ScreenHeader title="Historique" kicker="Dernieres parties" icon="history" tone="pink" onBack={() => navigateTo("menu")} backLabel="Retour" />
           <Surface
+            scrollable={matches.length > 0}
             style={{
               minHeight: 360,
               display: matches.length === 0 ? "grid" : "block",

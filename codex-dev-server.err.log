@@ -1,8 +1,8 @@
 ⨯ Another next dev server is already running.
 
 - Local:        http://localhost:3000
-- PID:          31796
+- PID:          13160
 - Dir:          E:\Brice\BiSoft\Njambo\njambo-app
 - Log:          .next\dev\logs\next-development.log
 
-Run taskkill /PID 31796 /F to stop it.
+Run taskkill /PID 13160 /F to stop it.

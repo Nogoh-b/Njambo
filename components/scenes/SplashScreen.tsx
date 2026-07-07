@@ -16,7 +16,7 @@ export function SplashScreen() {
   }, []);
 
   return (
-    <Shell scroll={false} className="nj-shell-splash">
+    <Shell className="nj-shell-splash">
       <div
         style={{
           position: "fixed",

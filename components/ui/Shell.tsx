@@ -17,12 +17,11 @@ interface ShellProps {
   children: ReactNode;
   style?: CSSProperties;
   className?: string;
-  scroll?: boolean;
 }
 
-export function Shell({ children, style, className, scroll = true }: ShellProps) {
+export function Shell({ children, style, className }: ShellProps) {
   return (
-    <main className={`nj-shell${scroll ? " nj-shell-scroll" : ""}${className ? ` ${className}` : ""}`} style={style}>
+    <main className={`nj-shell${className ? ` ${className}` : ""}`} style={style}>
       {children}
     </main>
   );
@@ -74,11 +73,16 @@ interface SurfaceProps {
   children: ReactNode;
   style?: CSSProperties;
   className?: string;
+  /** If true, this surface can scroll internally when content overflows */
+  scrollable?: boolean;
 }
 
-export function Surface({ children, style, className }: SurfaceProps) {
+export function Surface({ children, style, className, scrollable }: SurfaceProps) {
   return (
-    <section className={`nj-surface nj-panel-pad${className ? ` ${className}` : ""}`} style={style}>
+    <section
+      className={`nj-surface nj-panel-pad${scrollable ? " nj-surface-scroll" : ""}${className ? ` ${className}` : ""}`}
+      style={style}
+    >
       {children}
     </section>
   );

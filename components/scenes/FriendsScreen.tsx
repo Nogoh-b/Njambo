@@ -53,7 +53,7 @@ export function FriendsScreen() {
       <div className="nj-safe">
         <div className="nj-phone">
           <ScreenHeader title="Amis" kicker={`${friends.length} amis · ${incomingCount} demande${incomingCount > 1 ? "s" : ""}`} icon="friends" tone="teal" onBack={() => navigateTo("menu")} backLabel="Retour" />
-          <Surface>
+          <Surface scrollable>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 12 }}>
               <Btn variant={tab === "friends" ? "gold" : "ghost"} onClick={() => setTab("friends")}>Amis</Btn>
               <Btn variant={tab === "requests" ? "pink" : "ghost"} onClick={() => setTab("requests")}>Demandes</Btn>

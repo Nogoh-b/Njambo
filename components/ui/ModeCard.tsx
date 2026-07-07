@@ -10,13 +10,15 @@ interface ModeCardProps {
   title: string;
   subtitle: string;
   tone: "gold" | "teal" | "pink" | "cobalt";
+  image?: string;
+  imagePosition?: string;
   badge?: ReactNode;
   onClick?: () => void;
   muted?: boolean;
   delay?: number;
 }
 
-export function ModeCard({ icon, title, subtitle, tone, badge, onClick, muted, delay = 0 }: ModeCardProps) {
+export function ModeCard({ icon, title, subtitle, tone, image, imagePosition = "center", badge, onClick, muted, delay = 0 }: ModeCardProps) {
   const toneColor = { gold: T.gold, teal: T.teal, pink: T.pink, cobalt: T.cobalt }[tone];
   const cardStyle = {
     "--mode-tone": toneColor,
@@ -32,7 +34,7 @@ export function ModeCard({ icon, title, subtitle, tone, badge, onClick, muted, d
         ...cardStyle,
         position: "relative",
         minWidth: 0,
-        minHeight: 158,
+        minHeight: 142,
         borderRadius: 20,
         border: `1px solid ${toneColor}55`,
         cursor: "pointer",
@@ -52,6 +54,16 @@ export function ModeCard({ icon, title, subtitle, tone, badge, onClick, muted, d
           rgba(5,5,12,.28)`,
       }}
     >
+      {image && (
+        <span
+          className="mode-card-media"
+          style={{
+            backgroundImage: `linear-gradient(180deg, rgba(5,5,12,.12), rgba(5,5,12,.78)), url("${image}")`,
+            backgroundPosition: imagePosition,
+          }}
+          aria-hidden="true"
+        />
+      )}
       <span
         className="mode-card-weave"
         style={{

@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenLeaderboard } from "@/lib/playerData";
 import { FCFA } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
@@ -30,7 +31,7 @@ export function LeaderboardScreen() {
       <div className="nj-safe">
         <div className="nj-phone">
           <ScreenHeader title="Classement" kicker="Les forts du quartier" icon="trophy" tone="gold" onBack={() => navigateTo("menu")} backLabel="Retour" />
-          <Surface>
+          <Surface scrollable>
             <div className="nj-stack" style={{ gap: 10 }}>
               {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement du classement...</div>}
               {!loading && players.length === 0 && (
@@ -40,6 +41,7 @@ export function LeaderboardScreen() {
               )}
               {players.map((p, i) => {
                 const isYou = p.uid === user?.uid;
+                const level = getPlayerLevel(p.stats, p.balance);
                 return (
                   <div
                     key={p.uid}
@@ -75,7 +77,10 @@ export function LeaderboardScreen() {
                       <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
                         {p.name}
                       </div>
-                      {isYou && <Chip strong style={{ minHeight: 22, fontSize: 10, marginTop: 4 }}>Toi</Chip>}
+                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
+                        <Chip strong style={{ minHeight: 22, fontSize: 10 }}>Niv. {level.level}</Chip>
+                        {isYou && <Chip strong style={{ minHeight: 22, fontSize: 10 }}>Toi</Chip>}
+                      </div>
                     </div>
                     <div style={{ ...displayFont, color: T.gold, fontWeight: 900, fontSize: 19, whiteSpace: "nowrap" }}>
                       {FCFA(p.balance)}

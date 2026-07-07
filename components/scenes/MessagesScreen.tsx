@@ -33,7 +33,7 @@ export function MessagesScreen() {
       <div className="nj-safe">
         <div className="nj-phone">
           <ScreenHeader title="Messages" kicker="Discussions" icon="message" tone="teal" onBack={() => navigateTo("menu")} backLabel="Retour" />
-          <Surface>
+          <Surface scrollable>
             <div className="nj-stack" style={{ gap: 10 }}>
               {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement...</div>}
               {!loading && conversations.length === 0 && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Aucune conversation.</div>}

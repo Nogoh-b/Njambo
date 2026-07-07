@@ -5,5 +5,6 @@
 ▲ Next.js 16.2.10 (Turbopack)
 - Local:         http://127.0.0.1:3000
 - Network:       http://127.0.0.1:3000
-✓ Ready in 6.8s
+- Environments: .env.local
+✓ Ready in 2.2s
 [?25h
