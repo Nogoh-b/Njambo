@@ -30,7 +30,7 @@ interface LobbyContextValue {
   roomError: string | null;
   clearError: () => void;
 
-  createRoom: (stake: number, maxPlayers: number) => Promise<string>;
+  createRoom: (stake: number, maxPlayers: number, roomType?: "online" | "friends") => Promise<string>;
   joinRoomByCode: (code: string) => Promise<string | null>;
   joinRoomById: (roomId: string) => Promise<boolean>;
   leaveRoom: () => Promise<void>;
@@ -60,6 +60,7 @@ function roomFromDoc(d: { id: string; data: () => unknown }): RoomDoc {
 
 function isJoinable(room: RoomDoc): boolean {
   return room.status === "waiting"
+    && room.roomType !== "friends"
     && Array.isArray(room.players)
     && room.players.length < room.maxPlayers;
 }
@@ -165,7 +166,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
   }, [currentRoom?.status]);
 
   /* ── Créer une salle ── */
-  const createRoom = useCallback(async (stake: number, maxPlayers: number): Promise<string> => {
+  const createRoom = useCallback(async (stake: number, maxPlayers: number, roomType: "online" | "friends" = "online"): Promise<string> => {
     if (!user) throw new Error("Non connecté");
     setRoomError(null);
 
@@ -183,6 +184,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       hostId: user.uid,
       stake,
       status: "waiting" as const,
+      roomType,
       maxPlayers,
       players: [player],
       playerUids: [user.uid],

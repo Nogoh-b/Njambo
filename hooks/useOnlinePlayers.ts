@@ -1,36 +1,31 @@
 "use client";
 
-import { useMemo } from "react";
-import { MOCK_FRIENDS } from "@/data/mock";
-
-/* ═══════════════ useOnlinePlayers — stub pour Firebase (joueurs en ligne) ═══════════════
-   Prêt à être remplacé par une implémentation Firebase réelle
-   (Firestore onSnapshot sur la collection "players"). */
-
-interface OnlinePlayer {
-  uid: string;
-  name: string;
-  emoji: string;
-  online: boolean;
-}
+import { useEffect, useMemo, useState } from "react";
+import { listenPlayers } from "@/lib/playerData";
+import { useAuth } from "@/hooks/useAuth";
+import type { OnlinePlayerProfile } from "@/types/game";
 
 interface UseOnlinePlayersReturn {
-  players: OnlinePlayer[];
+  players: OnlinePlayerProfile[];
   onlineCount: number;
+  loading: boolean;
 }
 
 export function useOnlinePlayers(): UseOnlinePlayersReturn {
-  const players = useMemo<OnlinePlayer[]>(() =>
-    MOCK_FRIENDS.map((f, i) => ({
-      uid: "mock_" + i,
-      name: f.name,
-      emoji: f.emoji,
-      online: f.online,
-    })),
-    [],
-  );
+  const { user } = useAuth();
+  const [players, setPlayers] = useState<OnlinePlayerProfile[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    setLoading(true);
+    const unsub = listenPlayers(user?.uid, (nextPlayers) => {
+      setPlayers(nextPlayers);
+      setLoading(false);
+    });
+    return unsub;
+  }, [user?.uid]);
 
   const onlineCount = useMemo(() => players.filter((p) => p.online).length, [players]);
 
-  return { players, onlineCount };
+  return { players, onlineCount, loading };
 }

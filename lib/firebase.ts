@@ -7,15 +7,15 @@ import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
-/* ── Config Firebase ── */
+/* ── Config Firebase (variables d'environnement) ── */
 const firebaseConfig = {
-  apiKey: "AIzaSyDcDtuRP3CKAW4agB8RjYyrI4QGEE_Rk7o",
-  authDomain: "njambo.firebaseapp.com",
-  projectId: "njambo",
-  storageBucket: "njambo.firebasestorage.app",
-  messagingSenderId: "686025763182",
-  appId: "1:686025763182:web:7a63906b21006d6da3397f",
-  measurementId: "G-Z93R6VRC6L",
+  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY!,
+  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN!,
+  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID!,
+  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET!,
+  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID!,
+  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID!,
+  measurementId: process.env.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,
 };
 
 /* ── Singletons (évite les réinitialisations en dev avec HMR) ── */

@@ -16,10 +16,14 @@ export type NjamboIconName =
   | "history"
   | "home"
   | "language"
+  | "message"
   | "music"
+  | "notification"
   | "online"
   | "play"
+  | "plus"
   | "profile"
+  | "search"
   | "settings"
   | "sound"
   | "spark"
@@ -132,6 +136,34 @@ function renderIcon(name: NjamboIconName, color: string) {
         <>
           <path d="M12 13h24v27H12z" fill={soft} {...stroke} />
           <path d="M17 9v8M31 9v8M17 24h14M17 31h10" fill="none" {...stroke} />
+        </>
+      );
+    case "notification":
+      return (
+        <>
+          <path d="M15 34h18l-3-5V20c0-6-3-10-6-10s-6 4-6 10v9l-3 5Z" fill={soft} {...stroke} />
+          <path d="M21 38c1 2 5 2 6 0M30 12c3 2 5 5 5 9" fill="none" {...stroke} />
+        </>
+      );
+    case "message":
+      return (
+        <>
+          <path d="M10 12h28v21H20l-8 7v-7h-2V12Z" fill={soft} {...stroke} />
+          <path d="M17 21h14M17 27h9" fill="none" {...stroke} />
+        </>
+      );
+    case "search":
+      return (
+        <>
+          <circle cx="21" cy="21" r="11" fill={soft} {...stroke} />
+          <path d="m30 30 9 9" fill="none" {...stroke} />
+        </>
+      );
+    case "plus":
+      return (
+        <>
+          <circle cx="24" cy="24" r="15" fill={soft} {...stroke} />
+          <path d="M24 16v16M16 24h16" fill="none" {...stroke} />
         </>
       );
     case "settings":

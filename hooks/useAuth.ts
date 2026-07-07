@@ -14,6 +14,7 @@ import {
 import { EmailAuthProvider } from "firebase/auth";
 import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "@/lib/firebase";
+import { setPlayerPresence } from "@/lib/playerData";
 import type { AuthUser } from "@/types/game";
 
 /* ═══════════════ useAuth — Firebase Auth ═══════════════
@@ -76,6 +77,7 @@ async function getUserProfile(uid: string, fbUser?: User | null): Promise<UserPr
 /** Crée ou met à jour le profil Firestore */
 async function saveUserProfile(uid: string, profile: Partial<UserProfile>): Promise<void> {
   const existing = await getUserProfile(uid, auth.currentUser);
+  const now = Date.now();
   const payload = {
     ...existing,
     ...profile,
@@ -86,6 +88,8 @@ async function saveUserProfile(uid: string, profile: Partial<UserProfile>): Prom
   await setDoc(doc(db, "players", uid), {
     ...payload,
     uid,
+    online: true,
+    lastSeen: now,
   }, { merge: true });
 }
 
@@ -100,6 +104,12 @@ export function useAuth(): UseAuthReturn {
       if (cancelled) return;
       if (fbUser) {
         const profile = await getUserProfile(fbUser.uid, fbUser);
+        await saveUserProfile(fbUser.uid, {
+          name: profile.name,
+          emoji: profile.emoji,
+          balance: profile.balance,
+          stats: profile.stats,
+        });
         if (cancelled) return;
         setUser({
           uid: fbUser.uid,
@@ -117,6 +127,20 @@ export function useAuth(): UseAuthReturn {
       unsub();
     };
   }, []);
+
+  useEffect(() => {
+    if (!user?.uid) return;
+
+    void setPlayerPresence(user.uid, true);
+    const interval = setInterval(() => {
+      void setPlayerPresence(user.uid, true);
+    }, 30000);
+
+    return () => {
+      clearInterval(interval);
+      void setPlayerPresence(user.uid, false);
+    };
+  }, [user?.uid]);
 
   /* ── Connexion anonyme ── */
   const login = useCallback(async (name: string, emoji: string) => {
@@ -197,6 +221,8 @@ export function useAuth(): UseAuthReturn {
 
   /* ── Déconnexion ── */
   const logout = useCallback(async () => {
+    const uid = auth.currentUser?.uid;
+    if (uid) await setPlayerPresence(uid, false);
     await signOut(auth);
     setUser(null);
   }, []);

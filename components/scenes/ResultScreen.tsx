@@ -8,7 +8,9 @@ import { Chip } from "@/components/ui/Chip";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { displayFont } from "@/components/ui/Shell";
-import type { Result } from "@/types/game";
+import { SocialActions } from "@/components/social/SocialActions";
+import { useAuth } from "@/hooks/useAuth";
+import type { Result, RoomPlayer } from "@/types/game";
 
 interface ResultScreenProps {
   result: Result;
@@ -17,9 +19,11 @@ interface ResultScreenProps {
   onMenu: () => void;
   canNext: boolean;
   nextRequiresConsensus?: boolean;
+  socialPlayers?: RoomPlayer[];
 }
 
-export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequiresConsensus = false }: ResultScreenProps) {
+export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequiresConsensus = false, socialPlayers = [] }: ResultScreenProps) {
+  const { user } = useAuth();
   const win = result.winner;
   const [nextRequested, setNextRequested] = useState(false);
   const pieces = useRef(
@@ -124,6 +128,17 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
           + {FCFA(totalGain)}
         </div>
         <div className="nj-subtle">{result.doubles ? "pot + pénalités doublées" : "le pot rentre au ngata"}</div>
+
+        {socialPlayers.filter((player) => player.uid !== user?.uid).length > 0 && (
+          <div style={{ marginTop: 18, display: "grid", gap: 8 }}>
+            {socialPlayers.filter((player) => player.uid !== user?.uid).map((player) => (
+              <div key={player.uid} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 8, borderRadius: 12, background: "rgba(255,248,232,.055)" }}>
+                <span style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{player.name}</span>
+                <SocialActions player={player} compact />
+              </div>
+            ))}
+          </div>
+        )}
 
         <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap", marginTop: 24 }}>
           <Btn variant="pink" onClick={handleNext} disabled={!canNext || nextRequested} style={{ minWidth: 176 }}>

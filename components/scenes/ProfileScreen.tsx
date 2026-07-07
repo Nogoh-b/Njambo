@@ -24,22 +24,37 @@ const AVATARS = [
 
 export function ProfileScreen() {
   const { profile, setProfile, navigateTo } = useGame();
-  const { updateUserProfile } = useAuth();
+  const { user, updateUserProfile } = useAuth();
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(profile.name);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   const saveProfile = async (next: typeof profile) => {
+    /* Toujours sauvegarder en local (localStorage via GameContext) */
     setProfile(next);
-    try {
-      await updateUserProfile({ name: next.name, emoji: next.emoji });
-    } catch {
-      // Local profile still updates; online screens will require auth to persist.
+    setSaving(true);
+    setError("");
+
+    /* Sauvegarder dans Firebase si connecté */
+    if (user) {
+      try {
+        await updateUserProfile({ name: next.name, emoji: next.emoji });
+      } catch (err: unknown) {
+        const msg = (err as Error)?.message ?? "Erreur";
+        setError(`Sauvegarde en ligne échouée : ${msg}`);
+      }
     }
+    setSaving(false);
   };
 
   const save = () => {
-    const next = { ...profile, name: draftName.trim() || profile.name };
-    void saveProfile(next);
+    const trimmed = draftName.trim();
+    if (!trimmed) {
+      setError("Le pseudo ne peut pas être vide.");
+      return;
+    }
+    void saveProfile({ ...profile, name: trimmed });
     setEditing(false);
   };
 
@@ -50,6 +65,21 @@ export function ProfileScreen() {
           <ScreenHeader title="Mon profil" kicker="Identité joueur" icon="profile" tone="gold" onBack={() => navigateTo("menu")} backLabel="Retour" />
 
           <div className="nj-stack">
+            {/* Indicateur connexion */}
+            {user && (
+              <div style={{
+                fontSize: 12,
+                textAlign: "center",
+                padding: "6px 12px",
+                borderRadius: 10,
+                background: `${T.good}15`,
+                color: T.good,
+                fontWeight: 700,
+              }}>
+                ✦ Connecté{user.email ? ` · ${user.email}` : " (anonyme)"}
+              </div>
+            )}
+
             <Surface style={{ textAlign: "center" }}>
               <AvatarIllustration seed={profile.emoji} size={128} active />
               <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 9 }}>
@@ -80,15 +110,15 @@ export function ProfileScreen() {
               <div style={{ fontWeight: 900, marginBottom: 10 }}>Pseudo</div>
               {editing ? (
                 <div style={{ display: "flex", gap: 8 }}>
-                  <input value={draftName} onChange={(e) => setDraftName(e.target.value)} className="nj-input" maxLength={22} />
-                  <Btn variant="gold" onClick={save}>
-                    OK
+                  <input value={draftName} onChange={(e) => { setDraftName(e.target.value); setError(""); }} className="nj-input" maxLength={22} />
+                  <Btn variant="gold" onClick={save} disabled={saving}>
+                    {saving ? "…" : "OK"}
                   </Btn>
                 </div>
               ) : (
                 <button
                   type="button"
-                  onClick={() => setEditing(true)}
+                  onClick={() => { setDraftName(profile.name); setEditing(true); setError(""); }}
                   className="nj-choice"
                   style={{
                     width: "100%",
@@ -111,6 +141,20 @@ export function ProfileScreen() {
                 </button>
               )}
             </Surface>
+
+            {/* Erreur */}
+            {error && (
+              <div style={{
+                color: T.bad,
+                fontSize: 13,
+                textAlign: "center",
+                padding: "8px 12px",
+                borderRadius: 10,
+                background: `${T.bad}12`,
+              }}>
+                {error}
+              </div>
+            )}
 
             <Surface>
               <div style={{ fontWeight: 900, marginBottom: 14 }}>Statistiques</div>

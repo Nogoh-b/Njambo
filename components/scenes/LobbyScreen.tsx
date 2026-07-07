@@ -9,6 +9,7 @@ import { NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
+import { SocialActions } from "@/components/social/SocialActions";
 
 /* ═══════════════ LobbyScreen — salle d&apos;attente ═══════════════
    Affichée entre le setup et le début de la partie.
@@ -175,6 +176,7 @@ export function LobbyScreen({
                           background: isReady ? T.teal : "rgba(255,255,255,.25)",
                         }}
                       />
+                      {p.uid !== user?.uid && <SocialActions player={p} compact />}
                     </div>
                   );
                 })}

@@ -1,25 +1,37 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
+import { useAuth } from "@/hooks/useAuth";
+import { listenDiscoverPlayers } from "@/lib/socialData";
 import { FCFA } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
-import { NjamboIcon } from "@/components/ui/Art";
+import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import { AuthGate } from "@/components/ui/AuthGate";
+import { SocialActions } from "@/components/social/SocialActions";
+import type { PublicPlayerProfile } from "@/types/game";
 
 /* ═══════════════ OnlineSetupScreen — matchmaking en ligne ═══════════════ */
 
 export function OnlineSetupScreen() {
   const { navigateTo, cfg } = useGame();
+  const { user } = useAuth();
   const { createRoom, joinRoomByCode, joinRoomById, findAvailableRoom, publicRooms, roomError, clearError } = useLobby();
   const [joinCode, setJoinCode] = useState("");
+  const [playerSearch, setPlayerSearch] = useState("");
+  const [players, setPlayers] = useState<PublicPlayerProfile[]>([]);
   const [selectedStake, setSelectedStake] = useState(cfg.stakes[1]);
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    const unsub = listenDiscoverPlayers(user?.uid, playerSearch, setPlayers);
+    return unsub;
+  }, [playerSearch, user?.uid]);
 
   /* ---- Navigation helpers ---- */
   const goBack = () => navigateTo("menu");
@@ -182,6 +194,47 @@ export function OnlineSetupScreen() {
                       </Btn>
                     ))}
                   </div>
+                </div>
+              </Surface>
+
+              <Surface>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                  <div>
+                    <div style={{ fontWeight: 900 }}>Joueurs</div>
+                    <div className="nj-subtle">Ajoute, invite ou envoie un message.</div>
+                  </div>
+                  <Chip tone="teal">{players.length}</Chip>
+                </div>
+                <input
+                  value={playerSearch}
+                  onChange={(e) => setPlayerSearch(e.target.value)}
+                  placeholder="Rechercher un joueur"
+                  className="nj-input"
+                  style={{ width: "100%", marginBottom: 10 }}
+                />
+                <div className="nj-stack" style={{ gap: 8 }}>
+                  {players.slice(0, 6).map((player, i) => (
+                    <div
+                      key={player.uid}
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 10,
+                        padding: "10px",
+                        borderRadius: 15,
+                        background: "rgba(255,248,232,.052)",
+                        border: player.online ? `1px solid ${T.teal}55` : "1px solid rgba(255,248,232,.1)",
+                        animation: `riseIn .3s ${i * 0.04}s both`,
+                      }}
+                    >
+                      <AvatarIllustration seed={player.emoji} size={42} online={player.online} />
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{player.name}</div>
+                        <div className="nj-subtle">{player.online ? "En ligne" : "Hors ligne"}</div>
+                      </div>
+                      <SocialActions player={player} compact />
+                    </div>
+                  ))}
                 </div>
               </Surface>
 

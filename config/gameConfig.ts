@@ -28,7 +28,7 @@ export const GAME_CONFIG: GameConfig = {
     // vitesses d'animation (ms) — réglables
     dealPerCard: 160, // décalage entre chaque carte distribuée
     dealFlight: 700, // durée du vol d'une carte à la donne
-    dropFlight: 620, // durée du vol main → dépôt
+    dropFlight: 500, // durée du vol main → dépôt
     trickPause: 1600, // pause après résolution d'un tour
   },
 };

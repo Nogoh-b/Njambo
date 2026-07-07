@@ -4,40 +4,42 @@ import { useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
-import { FCFA, MOCK_FRIENDS } from "@/data/mock";
+import { useOnlinePlayers } from "@/hooks/useOnlinePlayers";
+import { FCFA } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
 import { AuthGate } from "@/components/ui/AuthGate";
 
-/* ═══════════════ FriendsSetupScreen — inviter des amis ═══════════════ */
-
 export function FriendsSetupScreen() {
   const { navigateTo, profile, cfg } = useGame();
   const { createRoom, joinRoomByCode, roomError, clearError } = useLobby();
+  const { players, loading } = useOnlinePlayers();
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [joinCode, setJoinCode] = useState("");
   const [mise, setMise] = useState(cfg.stakes[1]);
   const [busy, setBusy] = useState(false);
 
-  const toggleFriend = (name: string) => {
+  const toggleFriend = (uid: string, online: boolean) => {
+    if (!online) return;
     setSelected((prev) => {
       const next = new Set(prev);
-      if (next.has(name)) next.delete(name);
-      else if (next.size < 3) next.add(name);
+      if (next.has(uid)) next.delete(uid);
+      else if (next.size < 3) next.add(uid);
       return next;
     });
   };
 
   const totalPlayers = selected.size + 1;
+  const canCreate = !busy && profile.balance >= mise && totalPlayers >= 2;
 
-  /* ---- Créer une salle ---- */
   const handleCreate = async () => {
+    if (!canCreate) return;
     try {
       setBusy(true);
       clearError();
-      await createRoom(mise, totalPlayers);
+      await createRoom(mise, totalPlayers, "friends");
       navigateTo("lobby");
     } catch {
       // Error handled by useLobby
@@ -46,7 +48,6 @@ export function FriendsSetupScreen() {
     }
   };
 
-  /* ---- Rejoindre par code ---- */
   const handleJoin = async () => {
     if (joinCode.length < 4) return;
     try {
@@ -67,7 +68,7 @@ export function FriendsSetupScreen() {
         <div className="nj-phone">
           <ScreenHeader
             title="Inviter des amis"
-            kicker="Table privée"
+            kicker="Table privee"
             icon="friends"
             tone="pink"
             onBack={() => navigateTo("menu")}
@@ -75,23 +76,29 @@ export function FriendsSetupScreen() {
 
           <div className="nj-stack">
             <AuthGate>
-              {/* Amis disponibles */}
               <Surface>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, marginBottom: 12 }}>
                   <div>
-                    <div style={{ fontWeight: 900 }}>Amis disponibles</div>
-                    <div className="nj-subtle">Sélectionne jusqu&apos;à 3 amis.</div>
+                    <div style={{ fontWeight: 900 }}>Joueurs disponibles</div>
+                    <div className="nj-subtle">Selectionne jusqu&apos;a 3 joueurs en ligne.</div>
                   </div>
                   <Chip tone="pink">{selected.size}/3</Chip>
                 </div>
                 <div className="nj-stack" style={{ gap: 9 }}>
-                  {MOCK_FRIENDS.map((f, i) => {
-                    const isSelected = selected.has(f.name);
+                  {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 14 }}>Chargement des joueurs...</div>}
+                  {!loading && players.length === 0 && (
+                    <div className="nj-subtle" style={{ textAlign: "center", padding: 14 }}>
+                      Aucun autre joueur inscrit pour le moment.
+                    </div>
+                  )}
+                  {players.map((f, i) => {
+                    const isSelected = selected.has(f.uid);
                     return (
                       <button
                         type="button"
-                        key={f.name}
-                        onClick={() => toggleFriend(f.name)}
+                        key={f.uid}
+                        onClick={() => toggleFriend(f.uid, f.online)}
+                        disabled={!f.online}
                         style={{
                           display: "flex",
                           alignItems: "center",
@@ -102,7 +109,8 @@ export function FriendsSetupScreen() {
                           background: isSelected ? `${T.pink}1f` : "rgba(255,248,232,.055)",
                           border: isSelected ? `1.5px solid ${T.pink}` : "1px solid rgba(255,248,232,.11)",
                           color: T.text,
-                          cursor: "pointer",
+                          cursor: f.online ? "pointer" : "not-allowed",
+                          opacity: f.online ? 1 : 0.55,
                           textAlign: "left",
                           animation: `riseIn .3s ${i * 0.05}s both`,
                         }}
@@ -134,20 +142,19 @@ export function FriendsSetupScreen() {
                 </div>
               </Surface>
 
-              {/* Code de table */}
               <Surface>
                 <div style={{ fontWeight: 900, marginBottom: 12 }}>Code de table</div>
                 <div className="nj-stack" style={{ gap: 12 }}>
                   <div>
-                    <div className="nj-subtle" style={{ marginBottom: 7 }}>Crée une salle et partage le code.</div>
+                    <div className="nj-subtle" style={{ marginBottom: 7 }}>Cree une salle et partage le code.</div>
                     <Btn
                       variant="gold"
                       onClick={handleCreate}
-                      disabled={busy}
+                      disabled={!canCreate}
                       style={{ width: "100%" }}
                       icon={<NjamboIcon name="home" tone="gold" size={20} />}
                     >
-                      {busy ? "Création…" : "Créer une salle privée"}
+                      {busy ? "Creation..." : "Creer une salle privee"}
                     </Btn>
                   </div>
                   <div style={{ display: "flex", alignItems: "center", height: 1, background: "rgba(255,255,255,.08)" }} />
@@ -170,14 +177,13 @@ export function FriendsSetupScreen() {
                         }}
                       />
                       <Btn variant="pink" onClick={handleJoin} disabled={busy || joinCode.length < 4}>
-                        {busy ? "…" : "Rejoindre"}
+                        {busy ? "..." : "Rejoindre"}
                       </Btn>
                     </div>
                   </div>
                 </div>
               </Surface>
 
-              {/* Mise */}
               <Surface>
                 <div style={{ fontWeight: 900, marginBottom: 12 }}>Mise par manche</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
@@ -189,27 +195,25 @@ export function FriendsSetupScreen() {
                 </div>
               </Surface>
 
-              {/* Info */}
               <Surface style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center" }}>
                 <span>
-                  <span className="nj-subtle">{totalPlayers} joueur{totalPlayers > 1 ? "s" : ""} à table</span>
+                  <span className="nj-subtle">{totalPlayers} joueur{totalPlayers > 1 ? "s" : ""} a table</span>
                   <span style={{ ...displayFont, display: "block", color: T.gold, fontWeight: 900, fontSize: "clamp(20px, 6vw, 24px)", whiteSpace: "nowrap" }}>
                     Pot {FCFA(mise * totalPlayers)}
                   </span>
                 </span>
-                <Chip strong={profile.balance >= mise && totalPlayers >= 2}>
-                  {profile.balance >= mise && totalPlayers >= 2 ? "Prêt" : totalPlayers < 2 ? "2 min." : "Solde bas"}
+                <Chip strong={canCreate}>
+                  {canCreate ? "Pret" : totalPlayers < 2 ? "2 min." : "Solde bas"}
                 </Chip>
               </Surface>
 
-              {/* Erreur */}
               {roomError && (
                 <div style={{ color: T.bad, fontSize: 13, textAlign: "center" }}>{roomError}</div>
               )}
 
               <div className="nj-action-row">
                 <Btn variant="ghost" onClick={() => navigateTo("menu")}>
-                  ← Menu
+                  Menu
                 </Btn>
               </div>
             </AuthGate>

@@ -3,17 +3,20 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createSound } from "@/lib/sound";
 import { GAME_CONFIG } from "@/config/gameConfig";
-import type { Profile, SceneName } from "@/types/game";
+import type { Profile, SceneName, SocialTarget } from "@/types/game";
 
 /* ═══════════════ Contexte global du jeu Njambo ═══════════════
    Partagé par toutes les scènes : profil, préférences audio,
-   navigation entre scènes, config du jeu. */
+   navigation entre scènes, config du jeu.
+   Le profil est persisté dans localStorage + synchronisé avec Firebase. */
 
 interface GameContextValue {
   /* Navigation */
   scene: SceneName;
   transitioning: boolean;
   navigateTo: (target: SceneName) => void;
+  socialTarget: SocialTarget;
+  setSocialTarget: (target: SocialTarget | ((prev: SocialTarget) => SocialTarget)) => void;
 
   /* Profil joueur */
   profile: Profile;
@@ -32,17 +35,65 @@ interface GameContextValue {
 
 const GameContext = createContext<GameContextValue | null>(null);
 
+const STORAGE_KEY = "njambo-profile";
+
+/** Lit le profil depuis localStorage (fallback = défaut) */
+function loadStoredProfile(): Profile {
+  if (typeof window === "undefined") {
+    return {
+      name: "Nogoh",
+      emoji: "you-nogoh",
+      balance: GAME_CONFIG.startingBalance,
+    };
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw) as Profile;
+      return {
+        name: typeof parsed.name === "string" && parsed.name ? parsed.name : "Nogoh",
+        emoji: typeof parsed.emoji === "string" && parsed.emoji ? parsed.emoji : "you-nogoh",
+        balance: typeof parsed.balance === "number" ? parsed.balance : GAME_CONFIG.startingBalance,
+      };
+    }
+  } catch {
+    // Corrupted data — ignore
+  }
+  return {
+    name: "Nogoh",
+    emoji: "you-nogoh",
+    balance: GAME_CONFIG.startingBalance,
+  };
+}
+
+/** Sauvegarde le profil dans localStorage */
+function storeProfile(p: Profile) {
+  try {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
+    }
+  } catch {
+    // localStorage full or unavailable — ignore
+  }
+}
+
 export function GameProvider({ children }: { children: ReactNode }) {
   const cfg = GAME_CONFIG;
   const [scene, setScene] = useState<SceneName>("splashscreen");
   const [transitioning, setTransitioning] = useState(false);
-  const [profile, setProfile] = useState<Profile>({
-    name: "Nogoh",
-    emoji: "you-nogoh",
-    balance: cfg.startingBalance,
-  });
+  const [profile, setProfileRaw] = useState<Profile>(() => loadStoredProfile());
+  const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>({});
   const [musicOn, setMusicOn] = useState(false);
   const [sfxOn, setSfxOn] = useState(true);
+
+  /* Sauvegarder dans localStorage à chaque changement de profil */
+  const setProfile = useCallback((p: Profile | ((prev: Profile) => Profile)) => {
+    setProfileRaw((prev) => {
+      const next = typeof p === "function" ? p(prev) : p;
+      storeProfile(next);
+      return next;
+    });
+  }, []);
 
   /* Sound singleton + music effect */
   const soundRef = useRef<ReturnType<typeof createSound> | null>(null);
@@ -73,12 +124,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }, 300);
   }, []);
 
+  const setSocialTarget = useCallback((target: SocialTarget | ((prev: SocialTarget) => SocialTarget)) => {
+    setSocialTargetRaw((prev) => typeof target === "function" ? target(prev) : target);
+  }, []);
+
   return (
     <GameContext.Provider
       value={{
         scene,
         transitioning,
         navigateTo,
+        socialTarget,
+        setSocialTarget,
         profile,
         setProfile,
         musicOn,

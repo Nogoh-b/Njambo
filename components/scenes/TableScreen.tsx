@@ -97,6 +97,7 @@ export function TableScreen({
   const [banner, setBanner] = useState("");
   const [seconds, setSeconds] = useState(cfg.turnSeconds);
   const animatingRef = useRef(false);
+  const animationEndsAtRef = useRef(0);
   const handRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const depositRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const syncRef = useRef<GameSyncActions | null>(null);
@@ -240,10 +241,12 @@ export function TableScreen({
       setBanner("");
       if (animatingRef.current) {
         if (delayedStateTimerRef.current) clearTimeout(delayedStateTimerRef.current);
+        const revealBeforeLandingMs = 120;
+        const delay = Math.max(0, animationEndsAtRef.current - Date.now() - revealBeforeLandingMs);
         delayedStateTimerRef.current = setTimeout(() => {
           setGameState(state);
           delayedStateTimerRef.current = null;
-        }, A.dropFlight);
+        }, delay);
         return;
       }
       setGameState(state);
@@ -262,6 +265,7 @@ export function TableScreen({
 
       if (srcEl && depEl) {
         animatingRef.current = true;
+        animationEndsAtRef.current = Date.now() + A.dropFlight;
         const from = (srcEl as HTMLElement).getBoundingClientRect();
         const to = (depEl as HTMLElement).getBoundingClientRect();
         const dropRot = Math.random() * 18 - 9;
@@ -283,7 +287,7 @@ export function TableScreen({
           animatingRef.current = false;
           setFlights((f) => f.slice(1));
           setFlyingSrc(null);
-        }, A.dropFlight + 30);
+        }, A.dropFlight);
       }
     });
 

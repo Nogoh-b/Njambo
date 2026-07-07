@@ -33,7 +33,8 @@ export type Screen = "menu" | "setup" | "table";
 export type SceneName =
   | "splashscreen" | "menu" | "setup" | "table" | "result"
   | "bot_setup" | "online_setup" | "friends_invite" | "lobby"
-  | "profile" | "leaderboard" | "friends" | "options" | "history";
+  | "profile" | "leaderboard" | "friends" | "options" | "history"
+  | "players" | "friend_requests" | "notifications" | "messages" | "chat" | "public_profile";
 export type Phase = "idle" | "dealing" | "turns" | "trickEnd" | "result";
 export type Panel = "leaderboard" | "friends" | "options" | "rules" | null;
 export type GameMode = "online" | "friends" | "bot";
@@ -63,6 +64,101 @@ export interface FriendEntry {
   name: string;
   emoji: string;
   online: boolean;
+}
+
+export interface PlayerStats {
+  played: number;
+  won: number;
+  bestWin: number;
+}
+
+export interface OnlinePlayerProfile {
+  uid: string;
+  name: string;
+  emoji: string;
+  balance: number;
+  online: boolean;
+  lastSeen: number;
+  stats: PlayerStats;
+}
+
+export type PublicPlayerProfile = OnlinePlayerProfile;
+
+export interface SocialUserLite {
+  uid: string;
+  name: string;
+  emoji: string;
+}
+
+export interface SocialTarget {
+  playerUid?: string;
+  conversationId?: string;
+  peerUid?: string;
+  peerName?: string;
+  peerEmoji?: string;
+}
+
+export interface SocialFriendEntry extends SocialUserLite {
+  online: boolean;
+  lastSeen: number;
+  createdAt: number;
+}
+
+export interface FriendRequest {
+  id: string;
+  fromUid: string;
+  fromName: string;
+  fromEmoji: string;
+  toUid: string;
+  toName: string;
+  toEmoji: string;
+  status: "pending" | "accepted" | "rejected" | "cancelled";
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface NotificationEntry {
+  id: string;
+  type: "friend_request" | "friend_accept" | "room_invite" | "message";
+  actorUid: string;
+  actorName: string;
+  actorEmoji: string;
+  title: string;
+  body: string;
+  read: boolean;
+  roomId?: string;
+  conversationId?: string;
+  createdAt: number;
+}
+
+export interface ConversationEntry {
+  id: string;
+  participants: string[];
+  participantMeta: Record<string, { name: string; emoji: string }>;
+  lastMessage: string;
+  lastMessageAt: number;
+  unreadBy?: Record<string, boolean>;
+}
+
+export interface ChatMessage {
+  id: string;
+  fromUid: string;
+  text: string;
+  createdAt: number;
+}
+
+export interface MatchHistoryEntry {
+  id: string;
+  mode: GameMode;
+  stake: number;
+  gain: number;
+  won: boolean;
+  winnerName: string;
+  playersCount: number;
+  resultType: ResultType;
+  doubles: boolean;
+  roomId?: string;
+  createdAt: number;
 }
 
 /** Carte en vol (main → dépôt). */
@@ -132,6 +228,7 @@ export interface RoomDoc {
   hostId: string;
   stake: number;
   status: "waiting" | "playing";
+  roomType?: "online" | "friends";
   maxPlayers: number;
   players: RoomPlayer[];
   playerUids?: string[];

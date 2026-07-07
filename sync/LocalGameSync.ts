@@ -152,8 +152,7 @@ export class LocalGameSync implements GameSyncActions {
     // Émettre l'événement playCard pour l'animation
     this.playCardListeners.forEach((cb) => cb({ playerIdx, cardIdx, card }));
 
-    // Commit après un délai (pour laisser l'animation se jouer)
-    setTimeout(() => this.commitPlay(playerIdx, cardIdx, drop), this.opts.cfg.anim.dropFlight);
+    this.commitPlay(playerIdx, cardIdx, drop);
   }
 
   private commitPlay(playerIdx: number, cardIdx: number, drop: { dropRot?: number; dx?: number; dy?: number }) {
