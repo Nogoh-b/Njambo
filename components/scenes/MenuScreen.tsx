@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useState, type CSSProperties } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getPlayerLevel } from "@/lib/playerLevel";
@@ -161,25 +161,6 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
         </header>
 
         <main className="nj-game-home-stage">
-          <div className="nj-home-side-rail nj-home-side-left" aria-label="Raccourcis gauche">
-            {SIDE_LEFT.map((link) => (
-              <button type="button" key={link.scene} className="nj-home-side-btn" onClick={() => openLink(link.scene)} aria-label={link.label}>
-                <NjamboIcon name={link.icon} tone={link.tone} size={24} />
-                <span>{link.label}</span>
-              </button>
-            ))}
-          </div>
-
-          <div className="nj-home-side-rail nj-home-side-right" aria-label="Raccourcis droite">
-            {SIDE_RIGHT.map((link) => (
-              <button type="button" key={link.scene} className="nj-home-side-btn" onClick={() => openLink(link.scene)} aria-label={link.label}>
-                <NjamboIcon name={link.icon} tone={link.tone} size={24} />
-                <span>{link.label}</span>
-                {link.badge && <CountBadge count={socialCounts[link.badge]} />}
-              </button>
-            ))}
-          </div>
-
           <section className="nj-home-logo-scene" aria-label="Njambo">
             <div className="nj-home-table-art" aria-hidden="true">
               <Image src="/assets/njambo/table-oval.webp" alt="" width={330} height={214} priority className="nj-home-table-img" />
@@ -189,25 +170,50 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
               <span className="nj-home-brand-kicker">KMER TABLE</span>
               <h1 style={displayFont}>NJAMBO</h1>
             </div>
+
+            <div className="nj-home-side-rail nj-home-side-left" aria-label="Raccourcis gauche">
+              {SIDE_LEFT.map((link) => (
+                <button type="button" key={link.scene} className={`nj-home-side-btn nj-side-${link.tone}`} onClick={() => openLink(link.scene)} aria-label={link.label} title={link.label}>
+                  <NjamboIcon name={link.icon} tone={link.tone} size={22} />
+                </button>
+              ))}
+            </div>
+
+            <div className="nj-home-side-rail nj-home-side-right" aria-label="Raccourcis droite">
+              {SIDE_RIGHT.map((link) => (
+                <button type="button" key={link.scene} className={`nj-home-side-btn nj-side-${link.tone}`} onClick={() => openLink(link.scene)} aria-label={link.label} title={link.label}>
+                  <NjamboIcon name={link.icon} tone={link.tone} size={22} />
+                  {link.badge && <CountBadge count={socialCounts[link.badge]} />}
+                </button>
+              ))}
+            </div>
           </section>
 
-          <section className="nj-home-mode-grid" aria-label="Modes de jeu">
+          <section className="nj-home-mode-rail" aria-label="Modes de jeu">
             {MODE_LINKS.map((mode, index) => (
               <button
                 type="button"
                 key={mode.scene}
-                className={`nj-home-mode-tile nj-home-mode-${mode.tone}`}
+                className={`nj-mode-plank nj-mode-${mode.tone}`}
                 onClick={() => openLink(mode.scene)}
-                style={{ animationDelay: `${0.08 + index * 0.06}s` }}
+                style={{
+                  "--plank-image": `url("${mode.image}")`,
+                  "--plank-delay": `${0.08 + index * 0.07}s`,
+                } as CSSProperties}
               >
-                <span className="nj-home-mode-art">
-                  <Image src={mode.image} alt="" width={180} height={106} />
-                  <span className="nj-home-mode-icon">
-                    <NjamboIcon name={mode.icon} tone={mode.tone} size={24} />
-                  </span>
+                <span className="nj-mode-plank-media" aria-hidden="true" />
+                <span className="nj-mode-plank-scrim" aria-hidden="true" />
+                <span className="nj-mode-plank-shine" aria-hidden="true" />
+                <span className="nj-mode-plank-glyph">
+                  <NjamboIcon name={mode.icon} tone={mode.tone} size={24} />
                 </span>
-                <span className="nj-home-mode-label" style={displayFont}>{mode.label}</span>
-                <span className="nj-home-mode-subtitle">{mode.subtitle}</span>
+                <span className="nj-mode-plank-body">
+                  <span className="nj-mode-plank-label" style={displayFont}>{mode.label}</span>
+                  <span className="nj-mode-plank-sub">{mode.subtitle}</span>
+                </span>
+                <span className="nj-mode-plank-go" aria-hidden="true">
+                  <NjamboIcon name="play" tone="light" size={16} />
+                </span>
               </button>
             ))}
           </section>
