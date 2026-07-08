@@ -54,7 +54,7 @@ const MODE_LINKS: Array<HomeLink & { image: string; subtitle: string }> = [
     label: "Online",
     subtitle: "Table rapide",
     tone: "teal",
-    image: "/assets/njambo/table-desktop.webp",
+    image: "/assets/njambo/menu/mode-online.png",
   },
   {
     scene: "friends_invite",
@@ -62,7 +62,7 @@ const MODE_LINKS: Array<HomeLink & { image: string; subtitle: string }> = [
     label: "Amis",
     subtitle: "Invite",
     tone: "pink",
-    image: "/assets/njambo/bg-app-portrait.webp",
+    image: "/assets/njambo/menu/mode-friends.png",
   },
   {
     scene: "bot_setup",
@@ -70,7 +70,7 @@ const MODE_LINKS: Array<HomeLink & { image: string; subtitle: string }> = [
     label: "IA",
     subtitle: "Solo",
     tone: "gold",
-    image: "/assets/njambo/card-back.webp",
+    image: "/assets/njambo/menu/mode-ai.png",
   },
 ];
 
