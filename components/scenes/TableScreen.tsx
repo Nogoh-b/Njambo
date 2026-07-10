@@ -625,26 +625,36 @@ export function TableScreen({
     prevTurnIdxFxRef.current = turnIdx;
 
     const activePlayer = players[turnIdx];
-    if (turnIdx === 0) {
-      sfxRef.current((sound) => sound.turnStart());
-      showMomentOverlay({
-        type: "yourTurn",
-        title: "À TOI",
-        subtitle: ledSuit ? `Suis ${ledSuit}` : "Donne la tendance",
-        tone: "teal",
-        asset: "cards",
-      }, 1500);
-      showTableReaction(
-        ledSuit ? `Suis ${ledSuit}` : "A toi de jouer",
-        "teal",
-        ledSuit ? "Pose la bonne couleur" : "Donne la tendance",
-      );
+
+    // Annonce du tour (À TOI / réaction) DIFFÉRÉE jusqu'à ce que la carte du
+    // joueur précédent soit posée : sinon l'overlay démarre pendant le vol.
+    const announceTurn = () => {
+      if (turnIdx === 0) {
+        sfxRef.current((sound) => sound.turnStart());
+        showMomentOverlay({
+          type: "yourTurn",
+          title: "À TOI",
+          subtitle: ledSuit ? `Suis ${ledSuit}` : "Donne la tendance",
+          tone: "teal",
+          asset: "cards",
+        }, 1500);
+        showTableReaction(
+          ledSuit ? `Suis ${ledSuit}` : "A toi de jouer",
+          "teal",
+          ledSuit ? "Pose la bonne couleur" : "Donne la tendance",
+        );
+      } else if (animationsOn && activePlayer) {
+        showTableReaction("Tour en cours", "gold", activePlayer.name);
+      }
+    };
+
+    const landDelay = Math.max(0, animationEndsAtRef.current - Date.now()) + A.landSettle;
+    if (landDelay <= 0) {
+      announceTurn();
       return;
     }
-
-    if (animationsOn && activePlayer) {
-      showTableReaction("Tour en cours", "gold", activePlayer.name);
-    }
+    const t = setTimeout(announceTurn, landDelay);
+    return () => clearTimeout(t);
   }, [animationsOn, ledSuit, phase, players, showMomentOverlay, showTableReaction, turnIdx]);
 
   /* ----- Initialiser le sync adapter ----- */

@@ -29,7 +29,7 @@ export const GAME_CONFIG: GameConfig = {
     // respire (vol → pose → settle → annonce → pause → coup suivant).
     dealPerCard: 175, // décalage entre chaque carte distribuée
     dealFlight: 720, // durée du vol d'une carte à la donne
-    dropFlight: 680, // durée du vol main → dépôt (plus ample, plus de poids)
+    dropFlight: 500, // durée du vol main → dépôt (vif)
     trickPause: 2200, // pause après résolution d'un tour (contient pose+settle+moment)
     landSettle: 260, // beat de pose avant l'annonce du gagnant
     powerBeat: 900, // lecture du FX carte pouvoir avant le coup du bot

@@ -57,7 +57,7 @@ export const DepositZone = forwardRef<HTMLDivElement, DepositZoneProps>(function
             {/* Wrapper interne = pose (landPop) : n'écrase PAS le positionnement. */}
             <div
               className={effects && top ? "nj-deposit-card-landed" : undefined}
-              style={{ animation: effects && top ? "landPop .42s cubic-bezier(.2,.8,.3,1) both" : "none" }}
+              style={{ animation: effects && top ? "landPop .28s both" : "none" }}
             >
               <PlayCard card={c} w={w} glow={effects && top && active} />
               {top && isDominant && (
