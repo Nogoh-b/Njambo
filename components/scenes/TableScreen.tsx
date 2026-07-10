@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
-import { loadGsap, useGsapTimeline } from "@/lib/motion";
+import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
@@ -97,16 +97,27 @@ interface MomentOverlayRequest {
 const ROUND_INTRO_MS = 1550;
 const MOMENT_DEFAULT_MS = 1500;
 
-function GameMomentOverlay({ moment }: { moment: MomentOverlay }) {
+function isLiteMotion(level: MotionLevel): boolean {
+  return level === "lite";
+}
+
+function isBalancedMotion(level: MotionLevel): boolean {
+  return level === "balanced";
+}
+
+function GameMomentOverlay({ moment, motionLevel }: { moment: MomentOverlay; motionLevel: MotionLevel }) {
   const rootRef = useRef<HTMLDivElement>(null);
+  const lite = isLiteMotion(motionLevel);
+  const balanced = isBalancedMotion(motionLevel);
 
   /* Séquence scriptée GSAP : fond, halo, cartes qui balayent, sceau, titre,
      sous-titre — entrée, MAINTIEN (étiré selon la durée d'affichage), sortie.
      Le reflet du titre (::after) et l'éclat de particules restent en CSS. */
   useGsapTimeline(true, rootRef, (gsap) => {
-    const durationSec = (moment.durationMs ?? 1550) / 1000;
+    const durationSec = Math.max(0.72, (moment.durationMs ?? 1550) / 1000 * (lite ? 0.62 : balanced ? 0.8 : 1));
     // La sortie démarre ~0,34s avant l'unmount ; le maintien remplit le reste.
-    const exitAt = Math.max(0.9, durationSec - 0.34);
+    const exitLead = lite ? 0.22 : balanced ? 0.28 : 0.34;
+    const exitAt = Math.max(lite ? 0.48 : 0.72, durationSec - exitLead);
     const cross = exitAt + 0.34; // les cartes dérivent sur toute la fenêtre
 
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
@@ -150,12 +161,16 @@ function GameMomentOverlay({ moment }: { moment: MomentOverlay }) {
   return (
     <div ref={rootRef} className={`nj-moment-overlay nj-moment-${moment.tone} nj-moment-${moment.type}`} aria-hidden="true">
       <div className="nj-moment-halo" />
-      <div className="nj-moment-card-sweep nj-moment-card-sweep-left">
-        <PlayCard hidden w={52} />
-      </div>
-      <div className="nj-moment-card-sweep nj-moment-card-sweep-right">
-        <PlayCard hidden w={46} />
-      </div>
+      {!lite && (
+        <>
+          <div className="nj-moment-card-sweep nj-moment-card-sweep-left">
+            <PlayCard hidden w={52} />
+          </div>
+          <div className="nj-moment-card-sweep nj-moment-card-sweep-right">
+            <PlayCard hidden w={46} />
+          </div>
+        </>
+      )}
       <div className="nj-moment-asset">
         {moment.asset === "mark" && <NjamboMark size={94} compact />}
         {moment.asset === "cards" && <NjamboIcon name="cards" tone="gold" size={78} />}
@@ -168,7 +183,7 @@ function GameMomentOverlay({ moment }: { moment: MomentOverlay }) {
         {moment.subtitle && <span>{moment.subtitle}</span>}
       </div>
       <div className="nj-moment-particles">
-        {Array.from({ length: 8 }, (_, index) => (
+        {Array.from({ length: lite ? 4 : balanced ? 6 : 8 }, (_, index) => (
           <i
             key={index}
             style={{
@@ -195,7 +210,8 @@ export function TableScreen({
   roomHostId,
   onNextRoundRef,
 }: TableScreenProps) {
-  const { profile, setProfile, cfg, sfx, animationsOn } = useGame();
+  const { profile, setProfile, cfg, sfx } = useGame();
+  const motion = useMotionProfile();
   const { user: authUser } = useAuth();
   const authUid = authUser?.uid ?? "";
   const A = cfg.anim;
@@ -273,7 +289,7 @@ export function TableScreen({
   const turnIdxRef = useRef(0);
   const delayedStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const animatedPlayIdsRef = useRef<Set<string>>(new Set());
-  const animationsOnRef = useRef(animationsOn);
+  const animationsOnRef = useRef(motion.enabled);
   const sfxRef = useRef(sfx);
   const burstTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const prevPhaseRef = useRef<Phase>("idle");
@@ -295,6 +311,12 @@ export function TableScreen({
   const ledInfo: Suit | undefined = ledSuit ? cfg.suits.find((s) => s.s === ledSuit) : undefined;
   const isYourTurn = phase === "turns" && turnIdx === 0;
   const yourLegal = you && isYourTurn ? legalCards(you.hand, ledSuit) : null;
+  const motionEnabled = motion.enabled;
+  const motionLevel = motion.level;
+  const liteMotion = isLiteMotion(motionLevel);
+  const balancedMotion = isBalancedMotion(motionLevel);
+  const premiumFxAllowed = motionLevel === "full";
+  const activeTableFx = roundIntro || phase === "dealing" || flights.length > 0 || !!momentOverlay || !!tableReaction || !!powerFx || !!powerOverlay;
 
   useEffect(() => {
     playersRef.current = players;
@@ -302,8 +324,8 @@ export function TableScreen({
   }, [players, turnIdx]);
 
   useEffect(() => {
-    animationsOnRef.current = animationsOn;
-  }, [animationsOn]);
+    animationsOnRef.current = motionEnabled;
+  }, [motionEnabled]);
 
   useEffect(() => {
     sfxRef.current = sfx;
@@ -391,7 +413,7 @@ export function TableScreen({
 
   /* Précharge GSAP dès que les animations sont actives (client-only). */
   useEffect(() => {
-    if (!animationsOn) return;
+    if (!motionEnabled) return;
     let mounted = true;
     loadGsap().then((g) => {
       if (mounted) gsapRef.current = g;
@@ -399,7 +421,7 @@ export function TableScreen({
     return () => {
       mounted = false;
     };
-  }, [animationsOn]);
+  }, [motionEnabled]);
 
   /* Secousse d'impact GSAP sur toute la table (fin de pli, victoire). */
   const impactShake = useCallback((intensity = 8) => {
@@ -436,7 +458,7 @@ export function TableScreen({
   /* Révélation d'ouverture de manche (GSAP) : les mains puis les sièges
      apparaissent en cascade (stagger). On n'anime QUE opacity + filter —
      jamais transform, qui porte le positionnement de chaque siège/main. */
-  useGsapTimeline(animationsOn && roundIntro && n > 0, tableRootRef, (gsap) => {
+  useGsapTimeline(motionEnabled && roundIntro && n > 0, tableRootRef, (gsap) => {
     gsap.fromTo(".nj-round-hand-reveal",
       { opacity: 0, filter: "brightness(1.32)" },
       { opacity: 1, filter: "brightness(1)", duration: 0.62, ease: "power2.out", stagger: 0.05 });
@@ -589,7 +611,7 @@ export function TableScreen({
   }, []);
 
   useEffect(() => {
-    if (animationsOn) return;
+    if (motionEnabled) return;
     momentOverlayQueueRef.current = [];
     momentOverlayActiveRef.current = false;
     if (momentOverlayTimerRef.current) {
@@ -597,7 +619,7 @@ export function TableScreen({
       momentOverlayTimerRef.current = null;
     }
     setMomentOverlay(null);
-  }, [animationsOn]);
+  }, [motionEnabled]);
 
   useEffect(() => {
     const previousPhase = prevPhaseRef.current;
@@ -617,7 +639,7 @@ export function TableScreen({
     }
 
     prevPhaseRef.current = phase;
-  }, [animationsOn, phase, showTableReaction]);
+  }, [motionEnabled, phase, showTableReaction]);
 
   useEffect(() => {
     if (phase !== "turns") return;
@@ -643,7 +665,7 @@ export function TableScreen({
           "teal",
           ledSuit ? "Pose la bonne couleur" : "Donne la tendance",
         );
-      } else if (animationsOn && activePlayer) {
+      } else if (motionEnabled && activePlayer) {
         showTableReaction("Tour en cours", "gold", activePlayer.name);
       }
     };
@@ -655,7 +677,7 @@ export function TableScreen({
     }
     const t = setTimeout(announceTurn, landDelay);
     return () => clearTimeout(t);
-  }, [animationsOn, ledSuit, phase, players, showMomentOverlay, showTableReaction, turnIdx]);
+  }, [A.landSettle, motionEnabled, ledSuit, phase, players, showMomentOverlay, showTableReaction, turnIdx]);
 
   /* ----- Initialiser le sync adapter ----- */
   useEffect(() => {
@@ -1006,6 +1028,7 @@ export function TableScreen({
   return (
     <div
       ref={tableRootRef}
+      className={activeTableFx ? "nj-table-active-fx" : undefined}
       style={{
         position: "fixed",
         inset: 0,
@@ -1016,7 +1039,7 @@ export function TableScreen({
           linear-gradient(150deg, rgba(16, 20, 45, 0.12), rgba(5, 5, 12, 0.52)),
           var(--nj-bg-app),
           linear-gradient(150deg, ${T.night2}, ${T.night1} 58%, ${T.deep})`,
-        animation: animationsOn
+        animation: motionEnabled
           ? screenEffect === "lose"
             ? "screenShake 0.4s ease both"
             : screenEffect === "win"
@@ -1027,7 +1050,7 @@ export function TableScreen({
     >
       {/* Feutre : grande ellipse teal */}
       <div
-        className={`nj-table-image${animationsOn && roundIntro ? " nj-table-image-ceremony" : ""}`}
+        className={`nj-table-image${motionEnabled && premiumFxAllowed && roundIntro ? " nj-table-image-ceremony" : ""}`}
         style={{
           position: "absolute",
           inset: tableInset,
@@ -1054,7 +1077,7 @@ export function TableScreen({
         />
 
         {/* Gold Flash sur le feutre quand un joueur domine */}
-        {goldFlash && animationsOn && (
+        {goldFlash && motionEnabled && !liteMotion && (
           <div
             className="gold-flash-overlay"
             style={{
@@ -1107,7 +1130,7 @@ export function TableScreen({
 
       {/* Centre : deck + pot + tendance */}
       <div
-        className={animationsOn && (roundIntro || phase === "dealing") ? "nj-pot-cluster nj-pot-cluster-ready" : "nj-pot-cluster"}
+        className={motionEnabled && !liteMotion && (roundIntro || phase === "dealing") ? "nj-pot-cluster nj-pot-cluster-ready" : "nj-pot-cluster"}
         style={{
           position: "absolute",
           top: "45%",
@@ -1119,7 +1142,7 @@ export function TableScreen({
           zIndex: 5,
         }}
       >
-        <div style={{ position: "relative", animation: animationsOn && (roundIntro || phase === "dealing") ? "deckDeal .26s infinite" : "none" }}>
+        <div style={{ position: "relative", animation: motionEnabled && premiumFxAllowed && (roundIntro || phase === "dealing") ? "deckDeal .26s infinite" : "none" }}>
           <div style={{ position: "absolute", top: -3, left: 3, zIndex: -1 }}>
             <PlayCard hidden w={deckW} />
           </div>
@@ -1148,7 +1171,7 @@ export function TableScreen({
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 60,
-            animation: animationsOn ? "popIn .3s both" : "none",
+            animation: motionEnabled ? "popIn .3s both" : "none",
           }}
         >
           <Chip strong style={{ fontSize: 13, padding: "8px 18px" }}>
@@ -1162,7 +1185,7 @@ export function TableScreen({
         const edge = seatEdge(i);
         const dp = depositPos(edge);
         const active = trickPlays.some((tp) => tp.playerIdx === i);
-        const depositClass = animationsOn
+        const depositClass = motionEnabled
           ? dominantIdx === i
             ? "nj-deposit-seat nj-deposit-seat-dominant"
             : active
@@ -1189,7 +1212,7 @@ export function TableScreen({
               w={depW}
               active={active}
               isDominant={dominantIdx === i}
-              effects={animationsOn}
+              effects={motionEnabled && !liteMotion}
             />
           </div>
         );
@@ -1202,7 +1225,7 @@ export function TableScreen({
         return (
           <div
             key={"fan" + p.name}
-            className={animationsOn && roundIntro ? "nj-round-hand-reveal" : undefined}
+            className={motionEnabled && !liteMotion && roundIntro ? "nj-round-hand-reveal" : undefined}
             style={{
               position: "absolute",
               left: a.left,
@@ -1224,12 +1247,12 @@ export function TableScreen({
                 faceUp={p.isYou}
                 seatIdx={i}
                 playerCount={n}
-                dealing={animationsOn && phase === "dealing"}
+                dealing={motionEnabled && phase === "dealing"}
                 legal={p.isYou ? yourLegal : null}
                 onCardClick={(ci) => handleCardClick(ci)}
                 hiddenIdx={flyingSrc?.playerIdx === i ? flyingSrc.cardIdx : null}
                 recommendedIdx={p.isYou ? recommendedCardIdx : null}
-                motionOn={animationsOn}
+                motionOn={motionEnabled}
                 getDropRect={p.isYou ? () => depositRefs.current[i]?.getBoundingClientRect() ?? null : undefined}
               />
             </div>
@@ -1246,9 +1269,9 @@ export function TableScreen({
             key={"av" + p.name}
             className={[
               "nj-avatar-seat",
-              animationsOn && active ? "nj-avatar-seat-active" : "",
-              animationsOn && active && seconds <= 5 ? "nj-avatar-seat-urgent" : "",
-              animationsOn && roundIntro ? "nj-round-seat-reveal" : "",
+              motionEnabled && active ? "nj-avatar-seat-active" : "",
+              motionEnabled && active && seconds <= 5 ? "nj-avatar-seat-urgent" : "",
+              motionEnabled && !liteMotion && roundIntro ? "nj-round-seat-reveal" : "",
             ].filter(Boolean).join(" ")}
             style={{
               position: "absolute",
@@ -1271,14 +1294,14 @@ export function TableScreen({
       {/* Indication de tour */}
       {isYourTurn && (
         <div
-          className={animationsOn ? "nj-turn-prompt" : undefined}
+          className={motionEnabled ? "nj-turn-prompt" : undefined}
           style={{
             position: "absolute",
             bottom: fanHy * 0.78,
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 45,
-            animation: animationsOn ? "popIn .25s both" : "none",
+            animation: motionEnabled ? "popIn .25s both" : "none",
           }}
         >
           <Chip strong style={{ fontSize: 13, padding: "7px 16px" }}>
@@ -1294,10 +1317,10 @@ export function TableScreen({
         </div>
       )}
 
-      {animationsOn && momentOverlay && <GameMomentOverlay key={momentOverlay.key} moment={momentOverlay} />}
+      {motionEnabled && momentOverlay && <GameMomentOverlay key={momentOverlay.key} moment={momentOverlay} motionLevel={motionLevel} />}
 
       {/* Effet d'activation d'une carte pouvoir : flash teinté + éclat de particules. */}
-      {animationsOn && powerFx && (
+      {motionEnabled && powerFx && (
         <div
           key={powerFx.key}
           aria-hidden="true"
@@ -1312,11 +1335,11 @@ export function TableScreen({
             animation: "fadeIn .18s ease both",
           }}
         >
-          <PowerParticles variant="power" tone={powerFx.tone} zIndex={261} />
+          {!liteMotion && <PowerParticles variant="power" tone={powerFx.tone} zIndex={261} intensity={balancedMotion ? "balanced" : "full"} />}
         </div>
       )}
 
-      {animationsOn && powerOverlay && POWER_CARDS_BY_ID[powerOverlay.cardId] && (
+      {motionEnabled && powerOverlay && POWER_CARDS_BY_ID[powerOverlay.cardId] && (
         <div key={powerOverlay.key} className="nj-power-activation-overlay" aria-hidden="true">
           <div className="nj-power-activation-card">
             <PowerCardView card={POWER_CARDS_BY_ID[powerOverlay.cardId]} showMeta={false} />
@@ -1328,7 +1351,7 @@ export function TableScreen({
         </div>
       )}
 
-      {animationsOn && tableReaction && (
+      {motionEnabled && !liteMotion && tableReaction && (
         <div
           key={tableReaction.key}
           className={`nj-table-reaction nj-table-reaction-${tableReaction.tone}`}
@@ -1341,10 +1364,10 @@ export function TableScreen({
 
       {/* Cartes en vol */}
       {flights.map((f) => (
-        <FlyingCard key={f.key} f={f} effects={animationsOn} />
+        <FlyingCard key={f.key} f={f} effects={motionEnabled && !liteMotion} />
       ))}
 
-      {animationsOn && cardBursts.map((burst) => (
+      {motionEnabled && !liteMotion && cardBursts.map((burst) => (
         <div
           key={burst.key}
           className="nj-card-burst"

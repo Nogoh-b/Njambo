@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { T } from "@/config/theme";
 import { FCFA } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
@@ -14,7 +14,7 @@ interface AvatarProps {
   size?: number;
 }
 
-export function Avatar({ p, active, seconds, turnSeconds, size = 58 }: AvatarProps) {
+export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, size = 58 }: AvatarProps) {
   const R = size / 2 - 5;
   const S = size;
   const C = 2 * Math.PI * R;
@@ -134,4 +134,4 @@ export function Avatar({ p, active, seconds, turnSeconds, size = 58 }: AvatarPro
       </div>
     </div>
   );
-}
+});

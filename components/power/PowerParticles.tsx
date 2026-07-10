@@ -21,6 +21,7 @@ interface PowerParticlesProps {
   tone?: Tone;
   /** z-index de la couche (au-dessus du feutre, sous les panneaux). */
   zIndex?: number;
+  intensity?: "full" | "balanced";
 }
 
 /* Enregistre le moteur `slim` (idempotent — tsparticles ignore les doublons). */
@@ -31,7 +32,8 @@ async function initEngine(engine: Engine): Promise<void> {
 const CONFETTI_COLORS = [T.gold, T.pink, T.teal, T.copper, T.cobalt];
 const TONE_HEX: Record<Tone, string> = { gold: T.gold, pink: T.pink, teal: T.teal, cobalt: T.cobalt };
 
-function buildOptions(variant: Variant, tone: Tone): ISourceOptions {
+function buildOptions(variant: Variant, tone: Tone, intensity: "full" | "balanced"): ISourceOptions {
+  const factor = intensity === "balanced" ? 0.58 : 1;
   if (variant === "power") {
     const hex = TONE_HEX[tone];
     return {
@@ -47,17 +49,17 @@ function buildOptions(variant: Variant, tone: Tone): ISourceOptions {
         life: { duration: { sync: false, value: 1.1 }, count: 1 },
         move: {
           enable: true,
-          speed: { min: 6, max: 22 },
+          speed: { min: 6, max: intensity === "balanced" ? 16 : 22 },
           direction: "none",
           outModes: { default: "destroy" },
           decay: 0.06,
         },
-        rotate: { value: { min: 0, max: 360 }, animation: { enable: true, speed: 40 } },
+        rotate: { value: { min: 0, max: 360 }, animation: { enable: true, speed: intensity === "balanced" ? 24 : 40 } },
       },
       emitters: {
         direction: "none",
         life: { count: 1, duration: 0.35, delay: 0 },
-        rate: { delay: 0, quantity: 60 },
+        rate: { delay: 0, quantity: Math.round(60 * factor) },
         size: { width: 0, height: 0 },
         position: { x: 50, y: 50 },
       },
@@ -79,26 +81,26 @@ function buildOptions(variant: Variant, tone: Tone): ISourceOptions {
       move: {
         enable: true,
         gravity: { enable: true, acceleration: 9 },
-        speed: { min: 18, max: 42 },
+        speed: { min: 18, max: intensity === "balanced" ? 28 : 42 },
         direction: "bottom",
         outModes: { default: "destroy", top: "none" },
       },
-      rotate: { value: { min: 0, max: 360 }, animation: { enable: true, speed: 26 } },
-      tilt: { enable: true, value: { min: 0, max: 360 }, animation: { enable: true, speed: 30 } },
-      wobble: { enable: true, distance: 12, speed: { min: -8, max: 8 } },
+      rotate: { value: { min: 0, max: 360 }, animation: { enable: true, speed: intensity === "balanced" ? 18 : 26 } },
+      tilt: { enable: true, value: { min: 0, max: 360 }, animation: { enable: true, speed: intensity === "balanced" ? 18 : 30 } },
+      wobble: intensity === "balanced" ? { enable: false, distance: 0, speed: { min: 0, max: 0 } } : { enable: true, distance: 12, speed: { min: -8, max: 8 } },
     },
     emitters: {
       direction: "bottom",
       life: { count: 0, duration: 0.2, delay: 0.1 },
-      rate: { delay: 0.09, quantity: 5 },
+      rate: { delay: intensity === "balanced" ? 0.12 : 0.09, quantity: Math.max(2, Math.round(5 * factor)) },
       size: { width: 100, height: 0 },
       position: { x: 50, y: -5 },
     },
   };
 }
 
-export default function PowerParticles({ variant = "confetti", tone = "gold", zIndex = 1 }: PowerParticlesProps) {
-  const options = useMemo(() => buildOptions(variant, tone), [variant, tone]);
+export default function PowerParticles({ variant = "confetti", tone = "gold", zIndex = 1, intensity = "full" }: PowerParticlesProps) {
+  const options = useMemo(() => buildOptions(variant, tone, intensity), [intensity, tone, variant]);
 
   return (
     <ParticlesProvider init={initEngine}>

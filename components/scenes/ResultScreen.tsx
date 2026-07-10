@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { T } from "@/config/theme";
-import { useGsapTimeline } from "@/lib/motion";
+import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
 import { FCFA } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
@@ -30,7 +30,8 @@ interface ResultScreenProps {
 
 export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequiresConsensus = false, socialPlayers = [] }: ResultScreenProps) {
   const { user } = useAuth();
-  const { animationsOn, sfx } = useGame();
+  const { sfx } = useGame();
+  const motion = useMotionProfile();
   const win = result.winner;
   const [nextRequested, setNextRequested] = useState(false);
 
@@ -43,7 +44,7 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
   const markRef = useRef<HTMLSpanElement>(null);
   const gainRef = useRef<HTMLDivElement>(null);
 
-  useGsapTimeline(animationsOn, rootRef, (gsap) => {
+  useGsapTimeline(motion.enabled, rootRef, (gsap) => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
     if (panelRef.current) {
       tl.fromTo(panelRef.current, { opacity: 0, y: 20, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.5 }, 0);
@@ -64,7 +65,7 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
           onComplete: () => { gain.textContent = `+ ${FCFA(totalGain)}`; },
         }, 0.3);
     }
-  }, [animationsOn, totalGain]);
+  }, [motion.enabled, totalGain]);
 
   useEffect(() => {
     sfx((sound) => {
@@ -89,19 +90,19 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
         background: `radial-gradient(ellipse at 50% 30%, ${T.night3}f7, ${T.night1}fc)`,
         display: "grid",
         placeItems: "center",
-        animation: animationsOn ? "fadeIn .35s both" : "none",
+        animation: motion.enabled ? "fadeIn .35s both" : "none",
         padding: "24px 16px",
         color: T.text,
       }}
     >
-      {animationsOn && <div className="nj-result-aura" aria-hidden="true" />}
+      {motion.enabled && motion.level !== "lite" && <div className="nj-result-aura" aria-hidden="true" />}
 
       {/* Célébration : pluie de confettis tsparticles quand le joueur gagne. */}
-      {animationsOn && win.isYou && <PowerParticles variant="confetti" zIndex={1} />}
+      {motion.enabled && motion.level === "full" && win.isYou && <PowerParticles variant="confetti" zIndex={1} />}
 
       <section
         ref={panelRef}
-        className={`nj-surface nj-panel-pad${animationsOn ? " nj-result-panel" : ""}`}
+        className={`nj-surface nj-panel-pad${motion.enabled ? " nj-result-panel" : ""}`}
         style={{
           width: "min(92vw, 430px)",
           maxHeight: "88svh",
@@ -109,7 +110,7 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
           textAlign: "center",
           // Entrée pilotée par GSAP (voir useGsapTimeline) ; opacité 0 au départ
           // pour éviter le flash avant que la timeline ne prenne la main.
-          opacity: animationsOn ? 0 : 1,
+          opacity: motion.enabled ? 0 : 1,
         }}
       >
         <div style={{ display: "grid", placeItems: "center", marginBottom: 8 }}>
@@ -151,12 +152,12 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
           </div>
         )}
 
-        <div ref={gainRef} className={animationsOn ? "nj-result-gain" : undefined} style={{ ...displayFont, fontSize: "clamp(26px, 7vw, 36px)", fontWeight: 900, color: T.text, marginTop: 10, opacity: animationsOn ? 0 : 1 }}>
+        <div ref={gainRef} className={motion.enabled ? "nj-result-gain" : undefined} style={{ ...displayFont, fontSize: "clamp(26px, 7vw, 36px)", fontWeight: 900, color: T.text, marginTop: 10, opacity: motion.enabled ? 0 : 1 }}>
           + {FCFA(totalGain)}
         </div>
         <div className="nj-subtle">{result.doubles ? "pot + pénalités doublées" : "le pot rentre au ngata"}</div>
 
-        {animationsOn && <div className="nj-result-nudge">Revanche ?</div>}
+        {motion.enabled && <div className="nj-result-nudge">Revanche ?</div>}
 
         {socialPlayers.filter((player) => player.uid !== user?.uid).length > 0 && (
           <div style={{ marginTop: 18, display: "grid", gap: 8 }}>

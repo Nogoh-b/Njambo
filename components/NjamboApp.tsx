@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { sceneVariants } from "@/lib/motion";
+import { sceneVariants, useMotionProfile } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -40,6 +40,7 @@ import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/typ
 
 function SceneRouter() {
   const { scene, navigateTo, endTransition, profile, setProfile, cfg, animationsOn } = useGame();
+  const motionProfile = useMotionProfile();
   const { currentRoom, resumeActiveRoom } = useLobby();
   const { user } = useAuth();
 
@@ -194,12 +195,16 @@ function SceneRouter() {
   };
 
   return (
-    <MotionConfig reducedMotion={animationsOn ? "user" : "always"}>
+    <MotionConfig reducedMotion={motionProfile.enabled ? "user" : "always"}>
       <div
-        className={animationsOn ? "nj-motion-on" : "nj-motion-off"}
+        className={[
+          motionProfile.enabled ? "nj-motion-on" : "nj-motion-off",
+          `nj-motion-level-${motionProfile.level}`,
+          animationsOn ? "nj-animations-enabled" : "nj-animations-disabled",
+        ].join(" ")}
         style={{ minHeight: "100vh", position: "relative" }}
       >
-        {animationsOn ? (
+        {motionProfile.enabled ? (
           <AnimatePresence mode="wait" onExitComplete={endTransition}>
             <motion.div
               key={scene}

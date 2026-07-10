@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { T } from "@/config/theme";
-import { useGsapTimeline } from "@/lib/motion";
+import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getPlayerLevel } from "@/lib/playerLevel";
@@ -85,7 +85,8 @@ function CountBadge({ count }: { count: number }) {
 }
 
 export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenProps) {
-  const { profile, setProfile, navigateTo, animationsOn, cfg } = useGame();
+  const { profile, setProfile, navigateTo, cfg } = useGame();
+  const motion = useMotionProfile();
   const { user, logout } = useAuth();
   const [socialCounts, setSocialCounts] = useState<SocialCounts>({ notifications: 0, messages: 0, requests: 0 });
   const [onlineProfile, setOnlineProfile] = useState<PublicPlayerProfile | null>(null);
@@ -153,7 +154,7 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
      transform sur des éléments SANS boucle transform (le plateau ne reçoit
      qu'un fondu car il flotte déjà via menuMarkFloat). ----- */
   const stageRef = useRef<HTMLElement>(null);
-  useGsapTimeline(animationsOn, stageRef, (gsap) => {
+  useGsapTimeline(motion.enabled, stageRef, (gsap) => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
     tl.fromTo(".nj-home-table-art", { opacity: 0 }, { opacity: 0.96, duration: 0.55 }, 0)
       .fromTo(".nj-home-brand-lockup", { opacity: 0, y: -18 }, { opacity: 1, y: 0, duration: 0.5 }, 0.08)
@@ -217,7 +218,7 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
 
         <main className="nj-game-home-stage" ref={stageRef}>
           <section className="nj-home-logo-scene" aria-label="Njambo">
-            {animationsOn && (
+            {motion.enabled && motion.level !== "lite" && (
               <div className="nj-menu-sparkles" aria-hidden="true">
                 {MENU_SPARKS.map((spark, index) => (
                   <span
@@ -289,7 +290,7 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
             ))}
           </section>
 
-          <button type="button" className={`nj-home-play-button${animationsOn ? " nj-special-play" : ""}`} onClick={mainPlay}>
+          <button type="button" className={`nj-home-play-button${motion.enabled ? " nj-special-play" : ""}`} onClick={mainPlay}>
             <span style={displayFont}>{mainPlayLabel}</span>
           </button>
 

@@ -1,6 +1,6 @@
 "use client";
 
-import type { CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { CEREMONIAL_STRIP, RAFFIA_WEAVE, T } from "@/config/theme";
 import type { Card } from "@/types/game";
@@ -17,7 +17,7 @@ export interface PlayCardProps {
   dealDelay?: number | null;
 }
 
-export function PlayCard({
+export const PlayCard = memo(function PlayCard({
   card,
   hidden,
   w = 58,
@@ -146,7 +146,7 @@ export function PlayCard({
       </div>
     </div>
   );
-}
+});
 
 function Corner({ rank, suit, size, color }: { rank: string; suit: string; size: number; color: string }) {
   return (

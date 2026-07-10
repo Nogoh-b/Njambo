@@ -1,6 +1,6 @@
 "use client";
 
-import { type CSSProperties } from "react";
+import { memo, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { PlayCard } from "@/components/cards/PlayCard";
@@ -18,7 +18,7 @@ interface FlyingCardProps {
   effects?: boolean;
 }
 
-export function FlyingCard({ f, effects = true }: FlyingCardProps) {
+export const FlyingCard = memo(function FlyingCard({ f, effects = true }: FlyingCardProps) {
   const dur = GAME_CONFIG.anim.dropFlight;
   const w = f.w;
   const h = w * 1.45;
@@ -78,10 +78,10 @@ export function FlyingCard({ f, effects = true }: FlyingCardProps) {
       } as CSSProperties}
     >
       {effects && <span className="nj-flying-card-trail" aria-hidden="true" />}
-      <div style={{ filter: "drop-shadow(0 16px 20px rgba(0,0,0,.55))" }}>
+      <div style={effects ? { filter: "drop-shadow(0 16px 20px rgba(0,0,0,.55))" } : undefined}>
         {/* Les bots montrent le dos pendant le vol, le joueur montre la face */}
         <PlayCard card={f.card} w={w} hidden={!f.isYou} />
       </div>
     </motion.div>
   );
-}
+});

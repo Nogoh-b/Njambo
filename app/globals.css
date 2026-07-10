@@ -3537,6 +3537,61 @@ button.nj-list-card {
   transition: none !important;
 }
 
+.nj-motion-level-balanced .nj-menu-hero::before,
+.nj-motion-level-balanced .nj-menu-mark::before,
+.nj-motion-level-balanced .nj-mode-plank-shine,
+.nj-motion-level-balanced .nj-result-panel::after,
+.nj-motion-level-balanced .nj-power-card-sheen {
+  opacity: 0.72;
+}
+
+.nj-motion-level-balanced .nj-flying-card-trail {
+  opacity: 0.64;
+}
+
+.nj-motion-level-balanced .nj-flying-card-trail,
+.nj-motion-level-balanced .nj-recommended-card,
+.nj-motion-level-balanced .nj-reaction-bubble,
+.nj-motion-level-balanced .nj-avatar-seat-active::before {
+  filter: none;
+}
+
+.nj-motion-level-lite .nj-menu-hero::before,
+.nj-motion-level-lite .nj-menu-mark,
+.nj-motion-level-lite .nj-menu-mark::before,
+.nj-motion-level-lite .nj-menu-sparkles,
+.nj-motion-level-lite .nj-mode-plank-shine,
+.nj-motion-level-lite .nj-result-aura,
+.nj-motion-level-lite .nj-result-panel::after,
+.nj-motion-level-lite .nj-result-nudge,
+.nj-motion-level-lite .nj-power-card-sheen,
+.nj-motion-level-lite .nj-flying-card-trail,
+.nj-motion-level-lite .nj-avatar-seat-active::before,
+.nj-motion-level-lite .nj-avatar-seat-urgent::after,
+.nj-motion-level-lite .nj-recommended-card,
+.nj-motion-level-lite .nj-recommended-card::after,
+.nj-motion-level-lite .nj-reaction-bubble,
+.nj-motion-level-lite .nj-table-reaction,
+.nj-motion-level-lite .nj-card-burst {
+  animation: none !important;
+  transition: none !important;
+  filter: none !important;
+}
+
+.nj-motion-level-lite .nj-recommended-card,
+.nj-motion-level-lite .nj-avatar-seat-active::before,
+.nj-motion-level-lite .nj-avatar-seat-urgent::after {
+  box-shadow: none !important;
+}
+
+.nj-table-active-fx .nj-recommended-card,
+.nj-table-active-fx .nj-recommended-card::after,
+.nj-table-active-fx .nj-avatar-seat-active::before,
+.nj-table-active-fx .nj-avatar-seat-urgent::after {
+  animation: none !important;
+  filter: none !important;
+}
+
 @media (max-width: 520px) {
   :root {
     --nj-bg-app: url("/assets/njambo/bg-app-portrait.webp") center / cover no-repeat;

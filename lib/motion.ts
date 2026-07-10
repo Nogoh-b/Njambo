@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useRef } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
 import { useGame } from "@/contexts/GameContext";
@@ -11,10 +11,69 @@ import { useGame } from "@/contexts/GameContext";
    le toggle utilisateur `animationsOn` ET la préférence système `prefers-reduced-motion`. */
 
 /** Vrai si les animations doivent jouer : toggle app activé ET pas de reduced-motion système. */
-export function useMotionEnabled(): boolean {
+export type MotionLevel = "full" | "balanced" | "lite";
+
+interface MotionProfile {
+  enabled: boolean;
+  level: MotionLevel;
+}
+
+interface MotionEnv {
+  width: number;
+  height: number;
+  hardwareConcurrency: number;
+  deviceMemory: number | null;
+}
+
+function getMotionEnv(): MotionEnv {
+  if (typeof window === "undefined") {
+    return { width: 1280, height: 720, hardwareConcurrency: 8, deviceMemory: 8 };
+  }
+  const nav = window.navigator as Navigator & { deviceMemory?: number };
+  return {
+    width: window.innerWidth,
+    height: window.innerHeight,
+    hardwareConcurrency: nav.hardwareConcurrency || 8,
+    deviceMemory: typeof nav.deviceMemory === "number" ? nav.deviceMemory : null,
+  };
+}
+
+function deriveMotionLevel({ width, height, hardwareConcurrency, deviceMemory }: MotionEnv): MotionLevel {
+  const smallestSide = Math.min(width, height);
+  const isCompact = width < 640 || smallestSide < 430;
+  const lowCpu = hardwareConcurrency <= 4;
+  const mediumCpu = hardwareConcurrency <= 8;
+  const lowMemory = deviceMemory != null && deviceMemory <= 4;
+  const mediumMemory = deviceMemory != null && deviceMemory <= 8;
+
+  if ((isCompact && (lowCpu || lowMemory)) || (lowCpu && lowMemory)) return "lite";
+  if (isCompact || mediumCpu || mediumMemory) return "balanced";
+  return "full";
+}
+
+export function useMotionProfile(): MotionProfile {
   const { animationsOn } = useGame();
   const prefersReduced = useReducedMotion();
-  return animationsOn && !prefersReduced;
+  const [env, setEnv] = useState<MotionEnv>(getMotionEnv);
+
+  useEffect(() => {
+    const onResize = () => setEnv(getMotionEnv());
+    window.addEventListener("resize", onResize);
+    window.addEventListener("orientationchange", onResize);
+    return () => {
+      window.removeEventListener("resize", onResize);
+      window.removeEventListener("orientationchange", onResize);
+    };
+  }, []);
+
+  return useMemo(() => {
+    if (!animationsOn || prefersReduced) return { enabled: false, level: "lite" as const };
+    return { enabled: true, level: deriveMotionLevel(env) };
+  }, [animationsOn, env, prefersReduced]);
+}
+
+export function useMotionEnabled(): boolean {
+  return useMotionProfile().enabled;
 }
 
 /* GSAP est chargé dynamiquement côté client uniquement (jamais au SSR). */

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { MotionCard } from "@/components/cards/MotionCard";
 import type { PanInfo } from "motion/react";
@@ -37,7 +38,7 @@ function pointInside(point: { x: number; y: number }, r: DOMRect, pad = 60): boo
   );
 }
 
-export function Fan({
+export const Fan = memo(function Fan({
   cards,
   w,
   faceUp,
@@ -97,4 +98,4 @@ export function Fan({
       })}
     </div>
   );
-}
+});
