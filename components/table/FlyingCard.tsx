@@ -1,22 +1,24 @@
 "use client";
 
-import { useEffect, useRef, type CSSProperties } from "react";
+import { type CSSProperties } from "react";
+import { motion } from "motion/react";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { PlayCard } from "@/components/cards/PlayCard";
 import type { Flight } from "@/types/game";
 
 /* ═══════════════ FILE: components/table/FlyingCard.tsx ═══════════════
-   Vol main → dépôt. Fluide : élément de taille FIXE, on n'anime QUE
-   `transform` (translate3d + rotate + scale) + `opacity` via la Web
-   Animations API → tout reste sur le compositeur (GPU), aucun recalcul de
-   layout par frame (contrairement à animer left/top/width/height). */
+   Vol main → dépôt piloté par Framer Motion. On garde l'architecture
+   optimisée : élément de taille FIXE, on n'anime QUE `transform`
+   (x/y/rotate/scale) + la traînée → tout reste sur le compositeur (GPU),
+   aucun recalcul de layout par frame. Le cycle de vie du vol (création à
+   partir des rects source/cible figés, retrait après `dropFlight`, timing
+   de la sync) reste géré par TableScreen — ce composant ne fait qu'animer. */
 interface FlyingCardProps {
   f: Flight;
   effects?: boolean;
 }
 
 export function FlyingCard({ f, effects = true }: FlyingCardProps) {
-  const ref = useRef<HTMLDivElement>(null);
   const dur = GAME_CONFIG.anim.dropFlight;
   const w = f.w;
   const h = w * 1.45;
@@ -35,36 +37,34 @@ export function FlyingCard({ f, effects = true }: FlyingCardProps) {
   // Hauteur de l'arc proportionnelle à la distance parcourue (borne raisonnable)
   const arc = -Math.min(90, Math.max(34, Math.hypot(dx, dy) * 0.18));
 
-  useEffect(() => {
-    const el = ref.current;
-    if (!el) return;
+  // Keyframes transform : arc en 3 temps (avec effets) ou trajet direct.
+  const initial: Record<string, number> = effects
+    ? { x: 0, y: 0, rotate: startRot - 12, scale: startScale * 1.08 }
+    : { x: 0, y: 0, rotate: startRot, scale: startScale };
 
-    const keyframes: Keyframe[] = effects
-      ? [
-          { transform: `translate3d(0,0,0) rotate(${startRot - 12}deg) scale(${startScale * 1.08})`, offset: 0 },
-          {
-            transform: `translate3d(${dx * 0.5}px, ${dy * 0.5 + arc}px, 0) rotate(${(startRot + f.dropRot) / 2}deg) scale(1.05)`,
-            offset: 0.5,
-          },
-          { transform: `translate3d(${dx}px, ${dy}px, 0) rotate(${f.dropRot}deg) scale(1)`, offset: 1 },
-        ]
-      : [
-          { transform: `translate3d(0,0,0) rotate(${startRot}deg) scale(${startScale})`, offset: 0 },
-          { transform: `translate3d(${dx}px, ${dy}px, 0) rotate(${f.dropRot}deg) scale(1)`, offset: 1 },
-        ];
-
-    const anim = el.animate(keyframes, {
-      duration: dur,
-      easing: "cubic-bezier(.3,.75,.35,1)",
-      fill: "forwards",
-    });
-    return () => anim.cancel();
-    // f est stable pour la durée du vol (une nouvelle carte = un nouveau key)
-  }, [dx, dy, startScale, startRot, f.dropRot, arc, dur, effects]);
+  const animate = effects
+    ? {
+        x: [0, dx * 0.5, dx],
+        y: [0, dy * 0.5 + arc, dy],
+        rotate: [startRot - 12, (startRot + f.dropRot) / 2, f.dropRot],
+        scale: [startScale * 1.08, 1.05, 1],
+      }
+    : {
+        x: [0, dx],
+        y: [0, dy],
+        rotate: [startRot, f.dropRot],
+        scale: [startScale, 1],
+      };
 
   return (
-    <div
-      ref={ref}
+    <motion.div
+      initial={initial}
+      animate={animate}
+      transition={{
+        duration: dur / 1000,
+        ease: [0.3, 0.75, 0.35, 1],
+        times: effects ? [0, 0.5, 1] : [0, 1],
+      }}
       style={{
         position: "fixed",
         left: fromCx - w / 2,
@@ -74,8 +74,6 @@ export function FlyingCard({ f, effects = true }: FlyingCardProps) {
         zIndex: 300,
         pointerEvents: "none",
         willChange: "transform",
-        // état initial avant le 1er frame de l'animation (évite un flash au centre final)
-        transform: `rotate(${startRot}deg) scale(${startScale})`,
         "--flight-dur": `${dur}ms`,
       } as CSSProperties}
     >
@@ -84,6 +82,6 @@ export function FlyingCard({ f, effects = true }: FlyingCardProps) {
         {/* Les bots montrent le dos pendant le vol, le joueur montre la face */}
         <PlayCard card={f.card} w={w} hidden={!f.isYou} />
       </div>
-    </div>
+    </motion.div>
   );
 }
