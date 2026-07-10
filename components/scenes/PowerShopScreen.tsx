@@ -7,9 +7,8 @@ import { POWER_CARDS } from "@/config/powerCards";
 import { FCFA } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
-import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
+import { PowerCardView } from "@/components/power/PowerCardView";
 import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
-import { cardToneColor } from "@/components/scenes/PowerCollectionScreen";
 import type { PowerCardId } from "@/types/game";
 
 /* ═══════════════ PowerShopScreen — boutique de cartes pouvoir ═══════════════
@@ -85,25 +84,8 @@ export function PowerShopScreen() {
                   const showFlash = flash?.id === card.id;
                   return (
                     <div key={card.id} className="nj-list-card" style={{ alignItems: "flex-start" }}>
-                      <span
-                        style={{
-                          flex: "0 0 auto",
-                          width: 46,
-                          height: 46,
-                          borderRadius: 12,
-                          background: `${cardToneColor(card.tone)}22`,
-                          display: "grid",
-                          placeItems: "center",
-                        }}
-                      >
-                        <NjamboIcon name={card.icon as NjamboIconName} tone={card.tone} size={26} />
-                      </span>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
-                          <span style={{ fontWeight: 900 }}>{card.name}</span>
-                          {qty > 0 && <Chip tone="teal">×{qty}</Chip>}
-                        </div>
-                        <div className="nj-subtle" style={{ fontSize: 12, marginTop: 2 }}>{card.description}</div>
+                        <PowerCardView card={card} qty={qty > 0 ? qty : undefined} />
                         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                           <Btn
                             variant="gold"

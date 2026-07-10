@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { T } from "@/config/theme";
+import { useGsapTimeline } from "@/lib/motion";
 import { FCFA } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
@@ -12,6 +14,9 @@ import { SocialActions } from "@/components/social/SocialActions";
 import { useAuth } from "@/hooks/useAuth";
 import { useGame } from "@/contexts/GameContext";
 import type { Result, RoomPlayer } from "@/types/game";
+
+/* Particules tsparticles chargées en lazy, client uniquement (jamais au SSR). */
+const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
 
 interface ResultScreenProps {
   result: Result;
@@ -28,19 +33,38 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
   const { animationsOn, sfx } = useGame();
   const win = result.winner;
   const [nextRequested, setNextRequested] = useState(false);
-  const pieces = useRef(
-    Array.from({ length: 28 }, (_, i) => ({
-      left: Math.random() * 100,
-      delay: Math.random() * 1.6,
-      dur: 2.4 + Math.random() * 2,
-      color: [T.gold, T.pink, T.teal, T.copper, T.cobalt][i % 5],
-      size: 7 + Math.random() * 8,
-      rot: Math.random() * 360,
-      coin: i % 3 === 0,
-    })),
-  ).current;
 
   const totalGain = result.gain + (result.doubles ? mise * (result.playersCount - 1) : 0);
+
+  /* ----- Séquence de victoire scriptée (GSAP) : panneau qui monte, sceau
+     qui apparaît, puis compteur du gain qui grimpe de 0 → total. ----- */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const panelRef = useRef<HTMLElement>(null);
+  const markRef = useRef<HTMLSpanElement>(null);
+  const gainRef = useRef<HTMLDivElement>(null);
+
+  useGsapTimeline(animationsOn, rootRef, (gsap) => {
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    if (panelRef.current) {
+      tl.fromTo(panelRef.current, { opacity: 0, y: 20, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.5 }, 0);
+    }
+    if (markRef.current) {
+      tl.fromTo(markRef.current, { opacity: 0, scale: 0.5, rotate: -12 }, { opacity: 1, scale: 1, rotate: 0, duration: 0.6, ease: "back.out(2.2)" }, 0.12);
+    }
+    const gain = gainRef.current;
+    if (gain) {
+      const counter = { v: 0 };
+      gsap.set(gain, { opacity: 0, scale: 0.7 });
+      tl.to(gain, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(2)" }, 0.3)
+        .to(counter, {
+          v: totalGain,
+          duration: 0.85,
+          ease: "power2.out",
+          onUpdate: () => { gain.textContent = `+ ${FCFA(Math.round(counter.v))}`; },
+          onComplete: () => { gain.textContent = `+ ${FCFA(totalGain)}`; },
+        }, 0.3);
+    }
+  }, [animationsOn, totalGain]);
 
   useEffect(() => {
     sfx((sound) => {
@@ -56,6 +80,7 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
 
   return (
     <div
+      ref={rootRef}
       style={{
         position: "fixed",
         inset: 0,
@@ -71,36 +96,24 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
     >
       {animationsOn && <div className="nj-result-aura" aria-hidden="true" />}
 
-      {animationsOn && pieces.map((p, i) => (
-        <div
-          key={i}
-          className={`nj-result-particle${p.coin ? " nj-result-particle-coin" : ""}`}
-          style={{
-            position: "absolute",
-            top: -20,
-            left: p.left + "%",
-            width: p.size,
-            height: p.size * 0.55,
-            background: p.color,
-            borderRadius: 2,
-            transform: `rotate(${p.rot}deg)`,
-            animation: `confetti ${p.dur}s ${p.delay}s linear infinite`,
-          }}
-        />
-      ))}
+      {/* Célébration : pluie de confettis tsparticles quand le joueur gagne. */}
+      {animationsOn && win.isYou && <PowerParticles variant="confetti" zIndex={1} />}
 
       <section
+        ref={panelRef}
         className={`nj-surface nj-panel-pad${animationsOn ? " nj-result-panel" : ""}`}
         style={{
           width: "min(92vw, 430px)",
           maxHeight: "88svh",
           overflowY: "auto",
           textAlign: "center",
-          animation: animationsOn ? "riseIn .45s .1s both" : "none",
+          // Entrée pilotée par GSAP (voir useGsapTimeline) ; opacité 0 au départ
+          // pour éviter le flash avant que la timeline ne prenne la main.
+          opacity: animationsOn ? 0 : 1,
         }}
       >
         <div style={{ display: "grid", placeItems: "center", marginBottom: 8 }}>
-          <span style={{ position: "relative", display: "grid", placeItems: "center" }}>
+          <span ref={markRef} style={{ position: "relative", display: "grid", placeItems: "center" }}>
             <NjamboMark size={110} compact />
             <span className="nj-title-icon" style={{ position: "absolute", right: -12, bottom: -8, width: 48, height: 48 }}>
               <NjamboIcon name={win.isYou ? "trophy" : "crown"} tone="gold" size={30} />
@@ -138,7 +151,7 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
           </div>
         )}
 
-        <div className={animationsOn ? "nj-result-gain" : undefined} style={{ ...displayFont, fontSize: "clamp(26px, 7vw, 36px)", fontWeight: 900, color: T.text, marginTop: 10 }}>
+        <div ref={gainRef} className={animationsOn ? "nj-result-gain" : undefined} style={{ ...displayFont, fontSize: "clamp(26px, 7vw, 36px)", fontWeight: 900, color: T.text, marginTop: 10, opacity: animationsOn ? 0 : 1 }}>
           + {FCFA(totalGain)}
         </div>
         <div className="nj-subtle">{result.doubles ? "pot + pénalités doublées" : "le pot rentre au ngata"}</div>

@@ -1402,7 +1402,8 @@ button.nj-list-card {
     0 16px 30px rgba(0, 0, 0, 0.42),
     inset 0 0 0 2px rgba(0, 0, 0, 0.32);
   overflow: hidden;
-  animation: riseIn 0.5s var(--plank-delay, 0s) both;
+  /* Entrée en cascade pilotée par GSAP (MenuScreen). Le sheen `--plank-delay`
+     (modeShineSweep) reste en CSS. */
 }
 
 .nj-mode-plank:hover {
@@ -1846,7 +1847,8 @@ button.nj-list-card {
     radial-gradient(ellipse at 50% 48%, color-mix(in srgb, var(--moment-tone) 30%, transparent), transparent 34%),
     radial-gradient(ellipse at 50% 56%, rgba(233, 49, 137, 0.12), transparent 48%),
     linear-gradient(180deg, rgba(5, 5, 12, 0.32), rgba(5, 5, 12, 0.06) 46%, rgba(5, 5, 12, 0.32));
-  animation: momentOverlayLife 1.55s ease-out both;
+  /* Cycle de vie (entrée → maintien → sortie) piloté par GSAP (GameMomentOverlay). */
+  opacity: 0;
 }
 
 .nj-moment-gold {
@@ -1878,7 +1880,7 @@ button.nj-list-card {
     0 0 46px color-mix(in srgb, var(--moment-tone) 26%, transparent),
     inset 0 0 42px rgba(255, 248, 232, 0.08);
   opacity: 0;
-  animation: momentHaloSpin 1.55s ease-out both;
+  /* Rotation/scale pilotés par GSAP. */
 }
 
 .nj-moment-card-sweep {
@@ -1890,12 +1892,12 @@ button.nj-list-card {
 
 .nj-moment-card-sweep-left {
   left: -70px;
-  animation: momentCardSweepLeft 1.28s cubic-bezier(.18,.86,.3,1) both;
+  /* Balayage piloté par GSAP. */
 }
 
 .nj-moment-card-sweep-right {
   right: -70px;
-  animation: momentCardSweepRight 1.28s 0.08s cubic-bezier(.18,.86,.3,1) both;
+  /* Balayage piloté par GSAP. */
 }
 
 .nj-moment-asset {
@@ -1916,7 +1918,8 @@ button.nj-list-card {
     0 16px 40px rgba(0, 0, 0, 0.38),
     0 0 30px color-mix(in srgb, var(--moment-tone) 34%, transparent);
   transform: translateX(-50%);
-  animation: momentAssetPop 1.55s cubic-bezier(.2,.86,.28,1.2) both;
+  opacity: 0;
+  /* Pop d'entrée/sortie piloté par GSAP (centrage via xPercent:-50). */
 }
 
 .nj-moment-dominance .nj-moment-asset,
@@ -1954,7 +1957,8 @@ button.nj-list-card {
     0 10px 26px rgba(0, 0, 0, 0.38),
     0 0 24px color-mix(in srgb, var(--moment-tone) 40%, transparent);
   -webkit-text-stroke: 1px rgba(255, 248, 232, 0.46);
-  animation: momentTitlePop 1.55s cubic-bezier(.18,.9,.3,1.15) both;
+  opacity: 0;
+  /* Pop du titre piloté par GSAP ; le reflet ::after reste en CSS. */
 }
 
 .nj-moment-copy strong::after {
@@ -1982,7 +1986,8 @@ button.nj-list-card {
   font-size: 0.86rem;
   font-weight: 900;
   letter-spacing: 0;
-  animation: momentSubtitlePop 1.55s 0.06s ease-out both;
+  opacity: 0;
+  /* Pop du sous-titre piloté par GSAP. */
 }
 
 .nj-moment-doubleWin .nj-moment-copy strong {
@@ -2108,7 +2113,8 @@ button.nj-list-card {
 
 .nj-round-seat-reveal,
 .nj-round-hand-reveal {
-  animation: roundSeatReveal 0.62s var(--seat-delay, 0ms) ease-out both;
+  /* Révélation en cascade pilotée par GSAP (TableScreen) — opacity + filter
+     uniquement, le transform de positionnement est préservé. */
 }
 
 .nj-turn-prompt {
@@ -2254,6 +2260,23 @@ button.nj-list-card {
   animation: flightTrail var(--flight-dur, 500ms) ease-out both;
 }
 
+.nj-recommended-card {
+  position: relative;
+  z-index: 120 !important;
+  filter: drop-shadow(0 0 14px rgba(16, 183, 166, 0.48));
+  animation: recommendedCardPulse 1.05s ease-in-out infinite;
+}
+
+.nj-recommended-card::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 12px;
+  pointer-events: none;
+  border: 2px solid var(--teal);
+  box-shadow: 0 0 18px rgba(16, 183, 166, 0.5);
+}
+
 .nj-card-burst {
   position: fixed;
   z-index: 260;
@@ -2290,6 +2313,215 @@ button.nj-list-card {
 
 .nj-card-burst span:nth-child(4) {
   rotate: 288deg;
+}
+
+.nj-power-card-view {
+  --power-tone: var(--gold);
+  position: relative;
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr);
+  gap: 10px;
+  min-height: 108px;
+  overflow: hidden;
+  border-radius: 8px;
+  color: var(--text);
+  background:
+    linear-gradient(160deg, rgba(64, 38, 15, 0.7), rgba(8, 7, 7, 0.94)),
+    var(--wood-grain);
+  border: 1px solid color-mix(in srgb, var(--power-tone) 54%, var(--wood-edge));
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.32),
+    inset 0 1px 0 rgba(255, 232, 182, 0.14);
+}
+
+.nj-power-card-view::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.36;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 12px, color-mix(in srgb, var(--power-tone) 14%, transparent) 12px 14px, transparent 14px 28px),
+    radial-gradient(ellipse at 16% 16%, color-mix(in srgb, var(--power-tone) 20%, transparent), transparent 44%);
+}
+
+.nj-power-card-view.is-selected {
+  box-shadow:
+    0 0 0 2px color-mix(in srgb, var(--power-tone) 82%, white 8%),
+    0 16px 30px rgba(0, 0, 0, 0.4),
+    0 0 24px color-mix(in srgb, var(--power-tone) 28%, transparent);
+}
+
+.nj-power-card-view.is-disabled {
+  filter: grayscale(0.25);
+  opacity: 0.55;
+}
+
+.nj-power-card-art {
+  position: relative;
+  min-width: 0;
+  aspect-ratio: 1;
+  overflow: hidden;
+  border-radius: 7px;
+  margin: 8px 0 8px 8px;
+  background: rgba(5, 5, 12, 0.5);
+  border: 1px solid color-mix(in srgb, var(--power-tone) 34%, rgba(255, 248, 232, 0.12));
+}
+
+.nj-power-card-art img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+
+.nj-power-card-sheen {
+  position: absolute;
+  inset: -30%;
+  pointer-events: none;
+  background: linear-gradient(110deg, transparent 0 38%, rgba(255, 255, 255, 0.34) 50%, transparent 62%);
+  transform: translateX(-54%) rotate(8deg);
+  animation: powerCardSheen 4.4s ease-in-out infinite;
+}
+
+.nj-power-card-body {
+  position: relative;
+  z-index: 1;
+  min-width: 0;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+  padding: 10px 10px 10px 0;
+}
+
+.nj-power-card-topline,
+.nj-power-card-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.nj-power-card-icon,
+.nj-power-card-qty,
+.nj-power-card-meta span {
+  min-height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  padding: 3px 7px;
+  background: rgba(5, 5, 12, 0.46);
+  border: 1px solid color-mix(in srgb, var(--power-tone) 36%, rgba(255, 248, 232, 0.12));
+  font-size: 10px;
+  font-weight: 900;
+}
+
+.nj-power-card-icon {
+  width: 26px;
+  padding: 0;
+}
+
+.nj-power-card-view strong {
+  font-size: 0.92rem;
+  line-height: 1.05;
+  font-weight: 950;
+  color: color-mix(in srgb, var(--power-tone) 78%, var(--text));
+}
+
+.nj-power-card-view p {
+  margin: 0;
+  color: rgba(255, 244, 223, 0.74);
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.nj-power-card-legendary {
+  border-color: color-mix(in srgb, var(--pink) 44%, var(--gold));
+}
+
+.nj-power-card-epic {
+  border-style: double;
+}
+
+.nj-power-card-view.is-compact {
+  grid-template-columns: 1fr;
+  width: 56px;
+  min-height: 76px;
+  border-radius: 9px;
+}
+
+.nj-power-card-view.is-compact .nj-power-card-art {
+  margin: 4px;
+}
+
+.nj-power-card-view.is-compact .nj-power-card-body {
+  padding: 0 4px 5px;
+  gap: 2px;
+}
+
+.nj-power-card-view.is-compact .nj-power-card-topline {
+  position: absolute;
+  top: -40px;
+  right: 2px;
+}
+
+.nj-power-card-view.is-compact strong {
+  font-size: 8px;
+  line-height: 1;
+  text-align: center;
+}
+
+.nj-power-activation-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 530;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(242, 187, 69, 0.18), transparent 36%),
+    linear-gradient(180deg, rgba(5, 5, 12, 0.28), rgba(5, 5, 12, 0.04) 54%, rgba(5, 5, 12, 0.28));
+  animation: powerActivationLife 1.45s ease-out both;
+}
+
+.nj-power-activation-card {
+  width: min(78vw, 330px);
+  transform-origin: center;
+  animation: powerActivationCard 1.45s cubic-bezier(.2,.9,.25,1.12) both;
+}
+
+.nj-power-activation-copy {
+  position: absolute;
+  top: calc(50% + 82px);
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+  text-align: center;
+  padding: 0 18px;
+}
+
+.nj-power-activation-copy strong {
+  color: var(--gold);
+  font-family: var(--font-display), system-ui, sans-serif;
+  font-size: 4rem;
+  font-weight: 950;
+  letter-spacing: 0;
+  line-height: 0.9;
+  text-shadow: 0 4px 0 rgba(5, 5, 12, 0.4), 0 0 22px rgba(242, 187, 69, 0.34);
+}
+
+.nj-power-activation-copy span {
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 6px 12px;
+  color: rgba(255, 244, 223, 0.9);
+  background: rgba(5, 5, 12, 0.58);
+  border: 1px solid rgba(255, 248, 232, 0.18);
+  font-size: 12px;
+  font-weight: 900;
 }
 
 .nj-result-aura {
@@ -2335,7 +2567,7 @@ button.nj-list-card {
 }
 
 .nj-result-gain {
-  animation: resultGainPop 0.72s 0.22s cubic-bezier(.2,.9,.3,1.25) both;
+  /* Le pop d'entrée + le compteur du gain sont pilotés par GSAP (ResultScreen). */
   text-shadow: 0 0 18px rgba(242, 187, 69, 0.26);
 }
 
@@ -2772,6 +3004,61 @@ button.nj-list-card {
   50% {
     opacity: 1;
     transform: scale(1.03);
+  }
+}
+
+@keyframes powerCardSheen {
+  0%,
+  42%,
+  100% {
+    opacity: 0;
+    transform: translateX(-54%) rotate(8deg);
+  }
+  54% {
+    opacity: 0.8;
+  }
+  72% {
+    opacity: 0;
+    transform: translateX(54%) rotate(8deg);
+  }
+}
+
+@keyframes recommendedCardPulse {
+  0%,
+  100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.035);
+  }
+}
+
+@keyframes powerActivationLife {
+  0% {
+    opacity: 0;
+  }
+  12%,
+  78% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
+@keyframes powerActivationCard {
+  0% {
+    opacity: 0;
+    transform: translateY(28px) scale(0.72) rotate(-4deg);
+  }
+  20%,
+  76% {
+    opacity: 1;
+    transform: translateY(-18px) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-42px) scale(0.92) rotate(3deg);
   }
 }
 
@@ -3712,6 +3999,10 @@ button.nj-list-card {
 
   .nj-moment-particles i {
     --particle-distance: 118px;
+  }
+
+  .nj-power-activation-copy strong {
+    font-size: 2.45rem;
   }
 }
 

@@ -1,6 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { AnimatePresence, MotionConfig, motion } from "motion/react";
+import { sceneVariants } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -37,7 +39,7 @@ import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/typ
    ResultScreen s'affiche en overlay plein écran quand un résultat est prêt. */
 
 function SceneRouter() {
-  const { scene, navigateTo, profile, setProfile, cfg, animationsOn } = useGame();
+  const { scene, navigateTo, endTransition, profile, setProfile, cfg, animationsOn } = useGame();
   const { currentRoom, resumeActiveRoom } = useLobby();
   const { user } = useAuth();
 
@@ -164,68 +166,55 @@ function SceneRouter() {
     navigateTo("menu");
   }, [navigateTo]);
 
-  /* Transition CSS classes */
-  const [transitionClass, setTransitionClass] = useState("");
-  const prevScene = useRef(scene);
-
-  useEffect(() => {
-    if (prevScene.current !== scene) {
-      prevScene.current = scene;
-      if (!animationsOn) {
-        setTransitionClass("");
-        return;
-      }
-      setTransitionClass("scene-enter-fade");
-      const t = setTimeout(() => setTransitionClass(""), 500);
-      return () => clearTimeout(t);
+  /* Rendu de la scène courante (hors table/result, gérés séparément en overlay). */
+  const renderScene = (): ReactNode => {
+    switch (scene) {
+      case "splashscreen": return <SplashScreen />;
+      case "menu": return <MenuScreen canResumeGame={!!user} onResumeGame={handleResumeGame} />;
+      case "profile": return <ProfileScreen />;
+      case "leaderboard": return <LeaderboardScreen />;
+      case "friends": return <FriendsScreen />;
+      case "players": return <PlayersScreen />;
+      case "friend_requests": return <FriendRequestsScreen />;
+      case "notifications": return <NotificationsScreen />;
+      case "messages": return <MessagesScreen />;
+      case "chat": return <ChatScreen />;
+      case "public_profile": return <PublicProfileScreen />;
+      case "options": return <OptionsScreen />;
+      case "history": return <HistoryScreen />;
+      case "rules": return <RulesScreen />;
+      case "power_shop": return <PowerShopScreen />;
+      case "power_collection": return <PowerCollectionScreen />;
+      case "bot_setup": return <BotSetupScreen onStart={handleBotStart} />;
+      case "online_setup": return <OnlineSetupScreen />;
+      case "friends_invite": return <FriendsSetupScreen />;
+      case "lobby": return roomId ? <LobbyScreen onGameStart={handleGameStart} onBack={handleMenu} /> : null;
+      default: return null; // "table" : géré par le bloc gameActive ci-dessous
     }
-  }, [animationsOn, scene]);
+  };
 
   return (
-    <div
-      className={[transitionClass, animationsOn ? "nj-motion-on" : "nj-motion-off"].filter(Boolean).join(" ")}
-      style={{ minHeight: "100vh", position: "relative" }}
-    >
-      {scene === "splashscreen" && <SplashScreen />}
-      {scene === "menu" && (
-        <MenuScreen
-          canResumeGame={!!user}
-          onResumeGame={handleResumeGame}
-        />
-      )}
-      {scene === "profile" && <ProfileScreen />}
-      {scene === "leaderboard" && <LeaderboardScreen />}
-      {scene === "friends" && <FriendsScreen />}
-      {scene === "players" && <PlayersScreen />}
-      {scene === "friend_requests" && <FriendRequestsScreen />}
-      {scene === "notifications" && <NotificationsScreen />}
-      {scene === "messages" && <MessagesScreen />}
-      {scene === "chat" && <ChatScreen />}
-      {scene === "public_profile" && <PublicProfileScreen />}
-      {scene === "options" && <OptionsScreen />}
-      {scene === "history" && <HistoryScreen />}
-      {scene === "rules" && <RulesScreen />}
-      {scene === "power_shop" && <PowerShopScreen />}
-      {scene === "power_collection" && <PowerCollectionScreen />}
-
-      {/* Setups */}
-      {scene === "bot_setup" && (
-        <BotSetupScreen onStart={handleBotStart} />
-      )}
-      {scene === "online_setup" && (
-        <OnlineSetupScreen />
-      )}
-      {scene === "friends_invite" && (
-        <FriendsSetupScreen />
-      )}
-
-      {/* Lobby — affiché quand une salle est active (currentRoom existe) */}
-      {scene === "lobby" && roomId && (
-        <LobbyScreen
-          onGameStart={handleGameStart}
-          onBack={handleMenu}
-        />
-      )}
+    <MotionConfig reducedMotion={animationsOn ? "user" : "always"}>
+      <div
+        className={animationsOn ? "nj-motion-on" : "nj-motion-off"}
+        style={{ minHeight: "100vh", position: "relative" }}
+      >
+        {animationsOn ? (
+          <AnimatePresence mode="wait" onExitComplete={endTransition}>
+            <motion.div
+              key={scene}
+              variants={sceneVariants}
+              initial="out"
+              animate="in"
+              exit="exit"
+              style={{ minHeight: "100vh" }}
+            >
+              {renderScene()}
+            </motion.div>
+          </AnimatePresence>
+        ) : (
+          <div style={{ minHeight: "100vh" }}>{renderScene()}</div>
+        )}
 
       {/* TableScreen — monté pendant toute la session de jeu */}
       {gameActive && (
@@ -260,7 +249,8 @@ function SceneRouter() {
           socialPlayers={gameMode === "bot" ? [] : roomPlayers as RoomPlayer[]}
         />
       )}
-    </div>
+      </div>
+    </MotionConfig>
   );
 }
 

@@ -1,19 +1,34 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
+import { useGsapTimeline, useMotionEnabled } from "@/lib/motion";
 import { displayFont, Shell } from "@/components/ui/Shell";
 import { NjamboMark } from "@/components/ui/Art";
 
 export function SplashScreen() {
   const { navigateTo } = useGame();
+  const motionOn = useMotionEnabled();
+  const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    /* Navigation : filet de sécurité indépendant de l'animation. */
     const timer = setTimeout(() => navigateTo("menu"), 2500);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  /* Timeline d'intro cinématique (GSAP) — gated par le toggle animations. */
+  useGsapTimeline(motionOn, rootRef, (gsap) => {
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    tl.from(".nj-splash-logo", { scale: 0.6, opacity: 0, filter: "blur(14px)", duration: 0.7 })
+      .from(".nj-splash-kicker", { y: 16, opacity: 0, duration: 0.4 }, "-=0.25")
+      .from(".nj-splash-title", { y: 26, opacity: 0, scale: 0.9, duration: 0.55 }, "-=0.2")
+      .from(".nj-splash-tagline", { y: 12, opacity: 0, duration: 0.4 }, "-=0.3")
+      .from(".nj-splash-bar", { scaleX: 0, opacity: 0, transformOrigin: "50% 50%", duration: 0.5 }, "-=0.2")
+      .from(".nj-splash-dots > *", { scale: 0, opacity: 0, stagger: 0.08, duration: 0.35 }, "-=0.25");
+  });
 
   return (
     <Shell className="nj-shell-splash">
@@ -30,6 +45,7 @@ export function SplashScreen() {
         }}
       />
       <div
+        ref={rootRef}
         className="nj-safe"
         style={{
           display: "grid",
@@ -37,8 +53,9 @@ export function SplashScreen() {
           textAlign: "center",
         }}
       >
-        <div style={{ animation: "riseIn .65s ease both" }}>
+        <div>
           <div
+            className="nj-splash-logo"
             style={{
               width: "clamp(132px, 34vw, 178px)",
               height: "clamp(132px, 34vw, 178px)",
@@ -52,10 +69,11 @@ export function SplashScreen() {
           >
             <NjamboMark size={150} />
           </div>
-          <div className="nj-kicker" style={{ color: T.gold }}>
+          <div className="nj-kicker nj-splash-kicker" style={{ color: T.gold }}>
             LE JEU DU QUARTIER
           </div>
           <h1
+            className="nj-splash-title"
             style={{
               ...displayFont,
               marginTop: 6,
@@ -66,10 +84,11 @@ export function SplashScreen() {
           >
             NJAMBO
           </h1>
-          <div style={{ marginTop: 12, color: "rgba(255,244,223,.72)", fontWeight: 800 }}>
+          <div className="nj-splash-tagline" style={{ marginTop: 12, color: "rgba(255,244,223,.72)", fontWeight: 800 }}>
             Kamer table - cartes, bluff et mboko
           </div>
           <div
+            className="nj-splash-bar"
             style={{
               height: 7,
               width: "min(260px, 70vw)",
@@ -78,7 +97,7 @@ export function SplashScreen() {
               background: CEREMONIAL_STRIP,
             }}
           />
-          <div style={{ marginTop: 38, display: "flex", justifyContent: "center", gap: 10 }}>
+          <div className="nj-splash-dots" style={{ marginTop: 38, display: "flex", justifyContent: "center", gap: 10 }}>
             {[T.gold, T.teal, T.pink, T.cobalt].map((color, i) => (
               <span
                 key={color}

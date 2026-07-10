@@ -30,6 +30,7 @@ import type {
   Player,
   PowerCardActivation,
   PowerCardId,
+  ActivePowerEffect,
   Result,
   TrickPlay,
   WinInfo,
@@ -64,11 +65,12 @@ export class LocalGameSync implements GameSyncActions {
   /** Pioche restante (pour Vent du Nord). */
   private deck: Card[] = [];
   /** Effets de pouvoir actifs sur le pli courant. */
-  private activePowerEffects: { cardId: PowerCardId; activatedBy: number; scoreMultiplier?: number; potBonus?: number }[] = [];
+  private activePowerEffects: ActivePowerEffect[] = [];
   /** Joueurs forcés de jouer leur carte la plus faible (Coupe-Circuit). */
   private forcedLowest: Set<number> = new Set();
   /** Timer gelé pour un joueur (Sable du Temps) jusqu'à ce timestamp (ms). */
   private frozenUntil: Record<number, number> = {};
+  private botPowerUsed = new Set<number>();
 
   private opts: LocalSyncOptions;
   private timerHandle: ReturnType<typeof setTimeout> | null = null;
@@ -111,6 +113,15 @@ export class LocalGameSync implements GameSyncActions {
 
   /* ═══════════════ Logique de jeu ═══════════════ */
 
+  private botPowerLoadout(playerIdx: number): PowerCardId[] {
+    const difficulty = this.opts.difficulty ?? "normal";
+    if (playerIdx === 0 || difficulty === "easy") return [];
+    const normal: PowerCardId[] = ["tambour_appel", "feu_camp", "coupe_circuit"];
+    const hard: PowerCardId[] = ["eclair_mfoundi", "filet_pecheur", "cauris_chanceux", "feu_camp"];
+    const pool = difficulty === "hard" ? hard : normal;
+    return [pool[playerIdx % pool.length]];
+  }
+
   private dealRound(basePlayers: Player[], leaderIdx: number) {
     if (this.destroyed) return;
     // Annuler une distribution déjà programmée (évite un double deal)
@@ -119,7 +130,13 @@ export class LocalGameSync implements GameSyncActions {
       this.dealHandle = null;
     }
     const { cfg, mise } = this.opts;
-    const ps: Player[] = basePlayers.map((p) => ({ ...p, hand: [], deposit: [] }));
+    const ps: Player[] = basePlayers.map((p, index) => ({
+      ...p,
+      hand: [],
+      deposit: [],
+      powerActivations: [],
+      equippedPowers: p.isYou ? p.equippedPowers : this.botPowerLoadout(index),
+    }));
     ps.forEach((p) => (p.balance -= mise));
     const deck = shuffle(buildDeck(cfg));
     for (let k = 0; k < cfg.cardsPerPlayer; k++) for (const p of ps) p.hand.push(deck.shift()!);
@@ -134,6 +151,7 @@ export class LocalGameSync implements GameSyncActions {
     this.activePowerEffects = [];
     this.forcedLowest.clear();
     this.frozenUntil = {};
+    this.botPowerUsed.clear();
     this.leader = leaderIdx;
     this.phase = "dealing";
     this.emitState();
@@ -202,14 +220,17 @@ export class LocalGameSync implements GameSyncActions {
       activatedBy: 0,
       target: targetIdx,
       deck: this.deck,
+      maxValue: this.opts.cfg.ranks.max,
     };
 
     const error = canActivatePowerCard(cardId, ctx);
     if (error) return;
 
-    // Appliquer l'effet
-    const result = applyPowerCard(cardId, ctx);
-    this.applyPowerEffect(cardId, 0, result, targetIdx);
+    const blockedByCardId = this.blockingPowerFor(cardId, targetIdx);
+    if (!blockedByCardId) {
+      const result = applyPowerCard(cardId, ctx);
+      this.applyPowerEffect(cardId, 0, result, targetIdx);
+    }
 
     // Marquer comme utilisée
     const activation: PowerCardActivation = {
@@ -219,6 +240,8 @@ export class LocalGameSync implements GameSyncActions {
       trickNo: this.trickNo,
       used: true,
       playId: `local-${Date.now()}-${Math.random()}`,
+      blockedByCardId,
+      consumedCardIds: [cardId],
     };
 
     const ps = this.players.map((p) => ({ ...p }));
@@ -229,6 +252,21 @@ export class LocalGameSync implements GameSyncActions {
     this.powerActivatedListeners.forEach((cb) => cb(activation));
     this.emitState();
   };
+
+  private blockingPowerFor(cardId: PowerCardId, targetIdx?: number): PowerCardId | undefined {
+    if (targetIdx === undefined) return undefined;
+    const shield = this.activePowerEffects.find((effect) => effect.activatedBy === targetIdx && effect.shield);
+    if (shield) {
+      this.activePowerEffects = this.activePowerEffects.filter((effect) => effect !== shield);
+      return shield.cardId;
+    }
+    const mask = this.activePowerEffects.find((effect) => effect.activatedBy === targetIdx && effect.cancelReveal);
+    if (mask && cardId === "oeil_sorcier") {
+      this.activePowerEffects = this.activePowerEffects.filter((effect) => effect !== mask);
+      return mask.cardId;
+    }
+    return undefined;
+  }
 
   private executePlay(playerIdx: number, cardIdx: number) {
     if (this.phase !== "turns" || this.turnIdx !== playerIdx) return;
@@ -249,17 +287,61 @@ export class LocalGameSync implements GameSyncActions {
     this.commitPlay(playerIdx, cardIdx, drop);
   }
 
+  private applyNextCardModifiers(playerIdx: number, card: Card): Card {
+    const led = this.trickPlays[0]?.card.suit ?? null;
+    const next = { ...card };
+    const consumed: ActivePowerEffect[] = [];
+
+    const valueBoost = this.activePowerEffects.find((effect) => effect.activatedBy === playerIdx && effect.valueBonus);
+    if (valueBoost?.valueBonus) {
+      next.effectiveValue = Math.min(this.opts.cfg.ranks.max, card.value + valueBoost.valueBonus);
+      next.powerTag = valueBoost.cardId;
+      consumed.push(valueBoost);
+    }
+
+    const suitOverride = this.activePowerEffects.find((effect) => effect.activatedBy === playerIdx && effect.suitOverride);
+    if (suitOverride && led && card.suit !== led) {
+      next.effectiveSuit = led;
+      next.powerTag = suitOverride.cardId;
+      consumed.push(suitOverride);
+    }
+
+    if (consumed.length > 0) {
+      this.activePowerEffects = this.activePowerEffects.filter((effect) => !consumed.includes(effect));
+    }
+    return next;
+  }
+
+  private applyTrickPowerRewards(winnerIdx: number) {
+    const scoped = this.activePowerEffects.filter((effect) => effect.scopeTrickNo === this.trickNo && effect.activatedBy === winnerIdx);
+    scoped.forEach((effect) => {
+      if (effect.scoreMultiplier && effect.scoreMultiplier > 1) {
+        this.pot *= effect.scoreMultiplier;
+      }
+      if (effect.conditionalPotBonus && effect.potBonus) {
+        this.pot += effect.potBonus;
+      }
+    });
+    this.activePowerEffects = this.activePowerEffects.filter((effect) => {
+      if (effect.scopeTrickNo !== this.trickNo) return true;
+      if (effect.scoreMultiplier || effect.conditionalPotBonus) return false;
+      return true;
+    });
+  }
+
   private commitPlay(playerIdx: number, cardIdx: number, drop: { dropRot?: number; dx?: number; dy?: number }) {
     const ps = this.players.map((p) => ({ ...p, hand: [...p.hand], deposit: [...p.deposit] }));
     const removed = ps[playerIdx].hand.splice(cardIdx, 1)[0];
-    const card: DepositedCard = { ...removed, ...drop };
+    const resolvedCard = this.applyNextCardModifiers(playerIdx, removed);
+    const card: DepositedCard = { ...resolvedCard, ...drop };
     ps[playerIdx].deposit.push(card);
-    this.trickPlays = [...this.trickPlays, { playerIdx, card: { ...removed } }];
+    this.trickPlays = [...this.trickPlays, { playerIdx, card: { ...resolvedCard } }];
     this.players = ps;
 
     if (this.trickPlays.length === ps.length) {
       const led = this.trickPlays[0].card.suit;
       const win = trickWinner(this.trickPlays, led);
+      this.applyTrickPowerRewards(win);
       this.dominantIdx = win;
       this.phase = "trickEnd";
       this.stopTimer();
@@ -312,6 +394,7 @@ export class LocalGameSync implements GameSyncActions {
       pot: this.pot,
       dominantIdx: this.dominantIdx,
       banner: "",
+      activePowerEffects: [...this.activePowerEffects],
       players: this.players.map((p) => ({ ...p, hand: [...p.hand], deposit: [...p.deposit] })),
     };
   }
@@ -357,6 +440,7 @@ export class LocalGameSync implements GameSyncActions {
       this.activePowerEffects.push({
         cardId,
         activatedBy,
+        scopeTrickNo: this.trickNo,
         scoreMultiplier: result.trickScoreMultiplier,
       });
     }
@@ -367,7 +451,18 @@ export class LocalGameSync implements GameSyncActions {
       this.activePowerEffects.push({
         cardId,
         activatedBy,
+        scopeTrickNo: this.trickNo,
         potBonus: result.potBonus,
+      });
+    }
+
+    if (result.conditionalPotBonus) {
+      this.activePowerEffects.push({
+        cardId,
+        activatedBy,
+        scopeTrickNo: this.trickNo,
+        potBonus: result.conditionalPotBonus,
+        conditionalPotBonus: true,
       });
     }
 
@@ -375,6 +470,56 @@ export class LocalGameSync implements GameSyncActions {
     if (result.timerFreeze && targetIdx !== undefined) {
       this.frozenUntil[targetIdx] = Date.now() + result.timerFreeze.durationMs;
     }
+
+    if (result.timerDelta) {
+      this.applyTimerDelta(result.timerDelta.playerIdx, result.timerDelta.seconds);
+    }
+
+    if (result.opponentTimerDelta) {
+      this.players.forEach((_, idx) => {
+        if (idx !== activatedBy) this.applyTimerDelta(idx, result.opponentTimerDelta!.seconds);
+      });
+    }
+
+    if (result.shield) {
+      this.activePowerEffects.push({ cardId, activatedBy, scopeTrickNo: this.trickNo, shield: true });
+    }
+
+    if (result.refundOnLoss) {
+      this.activePowerEffects.push({
+        cardId,
+        activatedBy,
+        scopeTrickNo: this.trickNo,
+        refundOnLoss: result.refundOnLoss.ratio,
+      });
+    }
+
+    if (result.valueBonusNext) {
+      this.activePowerEffects.push({
+        cardId,
+        activatedBy,
+        scopeTrickNo: this.trickNo,
+        valueBonus: result.valueBonusNext.amount,
+      });
+    }
+
+    if (result.preventDoublePenalty) {
+      this.activePowerEffects.push({ cardId, activatedBy, scopeTrickNo: this.trickNo, preventDoublePenalty: true });
+    }
+
+    if (result.cancelReveal) {
+      this.activePowerEffects.push({ cardId, activatedBy, scopeTrickNo: this.trickNo, cancelReveal: true });
+    }
+
+    if (result.suitOverrideNext) {
+      this.activePowerEffects.push({ cardId, activatedBy, scopeTrickNo: this.trickNo, suitOverride: true });
+    }
+  }
+
+  private applyTimerDelta(playerIdx: number, seconds: number) {
+    if (this.turnIdx !== playerIdx) return;
+    this.seconds = Math.max(1, Math.min(this.opts.cfg.turnSeconds + 10, this.seconds + seconds));
+    this.timerListeners.forEach((cb) => cb(this.seconds));
   }
 
   private resolveWin(ps: Player[], winnerIdx: number, info: WinInfo) {
@@ -393,11 +538,19 @@ export class LocalGameSync implements GameSyncActions {
     if (info.doubles) {
       final.forEach((p, i) => {
         if (i !== winnerIdx) {
-          p.balance -= this.opts.mise;
-          final[winnerIdx].balance += this.opts.mise;
+          const protectedByTotem = this.activePowerEffects.some((effect) => effect.activatedBy === i && effect.preventDoublePenalty);
+          if (!protectedByTotem) {
+            p.balance -= this.opts.mise;
+            final[winnerIdx].balance += this.opts.mise;
+          }
         }
       });
     }
+    final.forEach((p, i) => {
+      if (i === winnerIdx) return;
+      const refund = this.activePowerEffects.find((effect) => effect.activatedBy === i && effect.refundOnLoss)?.refundOnLoss;
+      if (refund) p.balance += Math.round(this.opts.mise * refund);
+    });
     this.players = final;
     this.phase = "result";
     this.pot = 0;
@@ -418,6 +571,10 @@ export class LocalGameSync implements GameSyncActions {
   private startTimer() {
     this.stopTimer();
     this.timerHandle = setInterval(() => {
+      if ((this.frozenUntil[this.turnIdx] ?? 0) > Date.now()) {
+        this.timerListeners.forEach((cb) => cb(this.seconds));
+        return;
+      }
       this.seconds--;
       this.timerListeners.forEach((cb) => cb(this.seconds));
 
@@ -447,6 +604,50 @@ export class LocalGameSync implements GameSyncActions {
 
   /* ═══════════════ Bot AI ═══════════════ */
 
+  private maybeUseBotPower(): void {
+    const botIdx = this.turnIdx;
+    const difficulty = this.opts.difficulty ?? "normal";
+    if (difficulty === "easy" || botIdx <= 0 || this.botPowerUsed.has(botIdx)) return;
+    const chance = difficulty === "hard" ? 0.72 : 0.36;
+    if (Math.random() > chance) return;
+
+    const powers = this.players[botIdx]?.equippedPowers ?? [];
+    const cardId = powers.find((id) => !(this.players[botIdx].powerActivations ?? []).some((a) => a.cardId === id && a.used));
+    if (!cardId) return;
+    const targetIdx = requiresTarget(cardId) ? 0 : undefined;
+    const ctx = {
+      state: this.buildGameState(),
+      activatedBy: botIdx,
+      target: targetIdx,
+      deck: this.deck,
+      maxValue: this.opts.cfg.ranks.max,
+    };
+    if (canActivatePowerCard(cardId, ctx)) return;
+
+    const blockedByCardId = this.blockingPowerFor(cardId, targetIdx);
+    if (!blockedByCardId) {
+      this.applyPowerEffect(cardId, botIdx, applyPowerCard(cardId, ctx), targetIdx);
+    }
+
+    const activation: PowerCardActivation = {
+      cardId,
+      activatedByUid: `bot-${botIdx}`,
+      targetUid: targetIdx === 0 ? "local" : undefined,
+      trickNo: this.trickNo,
+      used: true,
+      playId: `bot-${botIdx}-${Date.now()}-${Math.random()}`,
+      blockedByCardId,
+      consumedCardIds: [cardId],
+    };
+    const ps = this.players.map((p) => ({ ...p }));
+    if (!ps[botIdx].powerActivations) ps[botIdx].powerActivations = [];
+    ps[botIdx].powerActivations.push(activation);
+    this.players = ps;
+    this.botPowerUsed.add(botIdx);
+    this.powerActivatedListeners.forEach((cb) => cb(activation));
+    this.emitState();
+  }
+
   private scheduleBotTurn() {
     if (this.botHandle) clearTimeout(this.botHandle);
     const p = this.players[this.turnIdx];
@@ -454,6 +655,7 @@ export class LocalGameSync implements GameSyncActions {
 
     this.botHandle = setTimeout(() => {
       if (this.phase !== "turns" || this.turnIdx !== this.players.indexOf(p)) return;
+      this.maybeUseBotPower();
       const led = this.trickPlays[0]?.card.suit ?? null;
       // Si le bot est forcé de jouer sa carte la plus faible (Coupe-Circuit)
       if (this.forcedLowest.has(this.turnIdx)) {

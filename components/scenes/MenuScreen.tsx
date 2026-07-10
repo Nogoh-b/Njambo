@@ -1,8 +1,9 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, type CSSProperties } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 import { T } from "@/config/theme";
+import { useGsapTimeline } from "@/lib/motion";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getPlayerLevel } from "@/lib/playerLevel";
@@ -146,6 +147,27 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
     navigateTo(scene);
   };
 
+  /* ----- Entrée du menu (GSAP) : séquence coordonnée — le plateau apparaît,
+     la marque descend, les rails latéraux glissent, les planks de mode
+     cascadent, puis le bouton JOUER surgit. On anime uniquement opacity/
+     transform sur des éléments SANS boucle transform (le plateau ne reçoit
+     qu'un fondu car il flotte déjà via menuMarkFloat). ----- */
+  const stageRef = useRef<HTMLElement>(null);
+  useGsapTimeline(animationsOn, stageRef, (gsap) => {
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+    tl.fromTo(".nj-home-table-art", { opacity: 0 }, { opacity: 0.96, duration: 0.55 }, 0)
+      .fromTo(".nj-home-brand-lockup", { opacity: 0, y: -18 }, { opacity: 1, y: 0, duration: 0.5 }, 0.08)
+      .fromTo(".nj-home-side-rail",
+        { opacity: 0, x: (_i, t) => ((t as HTMLElement).classList.contains("nj-home-side-left") ? -28 : 28) },
+        { opacity: 1, x: 0, duration: 0.5, stagger: 0.06 }, 0.16)
+      .fromTo(".nj-mode-plank",
+        { opacity: 0, y: 22, scale: 0.96 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.08 }, 0.22)
+      .fromTo(".nj-home-play-button",
+        { opacity: 0, y: 16, scale: 0.9 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" }, 0.46);
+  });
+
   return (
     <Shell>
       <div className="nj-safe nj-game-home-safe">
@@ -193,7 +215,7 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
           </div>
         </header>
 
-        <main className="nj-game-home-stage">
+        <main className="nj-game-home-stage" ref={stageRef}>
           <section className="nj-home-logo-scene" aria-label="Njambo">
             {animationsOn && (
               <div className="nj-menu-sparkles" aria-hidden="true">

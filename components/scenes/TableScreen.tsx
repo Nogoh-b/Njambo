@@ -1,7 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import dynamic from "next/dynamic";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
+import { loadGsap, useGsapTimeline } from "@/lib/motion";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
@@ -12,7 +14,8 @@ import { Fan } from "@/components/table/Fan";
 import { DepositZone } from "@/components/table/DepositZone";
 import { FlyingCard } from "@/components/table/FlyingCard";
 import { Avatar } from "@/components/table/Avatar";
-import { NjamboIcon, NjamboMark, type NjamboIconName } from "@/components/ui/Art";
+import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
+import { PowerCardView } from "@/components/power/PowerCardView";
 import { displayFont } from "@/components/ui/Shell";
 import type {
   BotDifficulty,
@@ -30,6 +33,13 @@ import { FirestoreGameSync } from "@/sync/FirestoreGameSync";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { requiresTarget } from "@/engine/powerEffects";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
+import { consumePowerCard } from "@/lib/powerCardData";
+
+/* Particules tsparticles chargées en lazy, client uniquement. */
+const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
+
+/** Teinte d'une carte pouvoir (par défaut gold). */
+type PowerTone = "gold" | "pink" | "teal" | "cobalt";
 
 /* ═══════════════ TableScreen — la table de jeu ═══════════════
    Rendu pur de la table + animations.
@@ -86,8 +96,52 @@ const ROUND_INTRO_MS = 1550;
 const MOMENT_DEFAULT_MS = 1500;
 
 function GameMomentOverlay({ moment }: { moment: MomentOverlay }) {
+  const rootRef = useRef<HTMLDivElement>(null);
+
+  /* Séquence scriptée GSAP : fond, halo, cartes qui balayent, sceau, titre,
+     sous-titre — entrée, maintien, sortie sur ~1,5 s. Le reflet du titre
+     (::after) et l'éclat de particules restent en CSS (auto-contenus). */
+  useGsapTimeline(true, rootRef, (gsap) => {
+    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
+
+    tl.fromTo(rootRef.current, { opacity: 0 }, { opacity: 1, duration: 0.16 }, 0)
+      .to(rootRef.current, { opacity: 0, duration: 0.32, ease: "power1.in" }, 1.2);
+
+    tl.fromTo(".nj-moment-halo",
+      { opacity: 0, scale: 0.72, rotate: -18 },
+      { opacity: 0.95, scale: 1, rotate: 6, duration: 0.5, ease: "power2.out" }, 0)
+      .to(".nj-moment-halo", { opacity: 0, scale: 1.18, rotate: 36, duration: 0.7, ease: "power1.in" }, 0.55);
+
+    tl.fromTo(".nj-moment-card-sweep-left",
+      { opacity: 0, x: "-18vw", y: 24, rotate: -28, scale: 0.82 },
+      { x: "54vw", y: -12, rotate: 18, scale: 1.05, duration: 1.3, ease: "power1.inOut" }, 0)
+      .to(".nj-moment-card-sweep-left", { opacity: 1, duration: 0.22, ease: "power2.out" }, 0)
+      .to(".nj-moment-card-sweep-left", { opacity: 0, duration: 0.36, ease: "power1.in" }, 0.95);
+
+    tl.fromTo(".nj-moment-card-sweep-right",
+      { opacity: 0, x: "18vw", y: -18, rotate: 26, scale: 0.78 },
+      { x: "-54vw", y: 16, rotate: -18, scale: 1.02, duration: 1.3, ease: "power1.inOut" }, 0.08)
+      .to(".nj-moment-card-sweep-right", { opacity: 0.92, duration: 0.22, ease: "power2.out" }, 0.08)
+      .to(".nj-moment-card-sweep-right", { opacity: 0, duration: 0.36, ease: "power1.in" }, 1.0);
+
+    tl.fromTo(".nj-moment-asset",
+      { opacity: 0, xPercent: -50, y: 18, scale: 0.66, rotate: -8 },
+      { opacity: 1, xPercent: -50, y: 0, scale: 1, rotate: 0, duration: 0.55, ease: "back.out(2)" }, 0.08)
+      .to(".nj-moment-asset", { opacity: 0, xPercent: -50, y: -18, scale: 0.9, rotate: 5, duration: 0.32, ease: "power1.in" }, 1.18);
+
+    tl.fromTo(".nj-moment-copy strong",
+      { opacity: 0, y: 24, scale: 0.72, filter: "blur(4px)" },
+      { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "back.out(1.6)" }, 0.12)
+      .to(".nj-moment-copy strong", { opacity: 0, y: -16, scale: 0.92, filter: "blur(2px)", duration: 0.32, ease: "power1.in" }, 1.16);
+
+    tl.fromTo(".nj-moment-copy span",
+      { opacity: 0, y: 12, scale: 0.88 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power3.out" }, 0.2)
+      .to(".nj-moment-copy span", { opacity: 0, y: -8, scale: 0.96, duration: 0.3, ease: "power1.in" }, 1.18);
+  });
+
   return (
-    <div className={`nj-moment-overlay nj-moment-${moment.tone} nj-moment-${moment.type}`} aria-hidden="true">
+    <div ref={rootRef} className={`nj-moment-overlay nj-moment-${moment.tone} nj-moment-${moment.type}`} aria-hidden="true">
       <div className="nj-moment-halo" />
       <div className="nj-moment-card-sweep nj-moment-card-sweep-left">
         <PlayCard hidden w={52} />
@@ -136,13 +190,14 @@ export function TableScreen({
 }: TableScreenProps) {
   const { profile, setProfile, cfg, sfx, animationsOn } = useGame();
   const { user: authUser } = useAuth();
+  const authUid = authUser?.uid ?? "";
   const A = cfg.anim;
   const mise = initialMise;
   const roomPlayersKey = roomPlayers?.map((p) => p.uid).join("|") ?? "";
   // Clé d'identité de session : en mode bot, l'auth n'a aucun rôle → on ne
   // veut PAS relancer (re-distribuer) la partie quand l'auth Firebase se
   // résout après le montage. Seuls online/friends dépendent de l'uid.
-  const sessionAuthKey = gameMode === "bot" ? "" : authUser?.uid ?? "";
+  const sessionAuthKey = gameMode === "bot" ? "" : authUid;
 
   /* ----- responsive ----- */
   const vp = useViewport();
@@ -190,7 +245,17 @@ export function TableScreen({
   const [usedPowers, setUsedPowers] = useState<Set<PowerCardId>>(new Set());
   const [targetingCard, setTargetingCard] = useState<PowerCardId | null>(null);
   const [powerReveal, setPowerReveal] = useState<{ targetIdx: number } | null>(null);
+  const [recommendedCardIdx, setRecommendedCardIdx] = useState<number | null>(null);
+  const [powerOverlay, setPowerOverlay] = useState<{ key: string; cardId: PowerCardId; blocked?: boolean } | null>(null);
   const powerRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const powerRecommendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const powerOverlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  /* ----- Effets GSAP + particules (Phase 4) ----- */
+  const [powerFx, setPowerFx] = useState<{ key: string; tone: PowerTone } | null>(null);
+  const powerFxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tableRootRef = useRef<HTMLDivElement>(null);
+  const gsapRef = useRef<Awaited<ReturnType<typeof loadGsap>> | null>(null);
 
   const animatingRef = useRef(false);
   const animationEndsAtRef = useRef(0);
@@ -317,6 +382,133 @@ export function TableScreen({
     setBanner(text);
   }, []);
 
+  /* Précharge GSAP dès que les animations sont actives (client-only). */
+  useEffect(() => {
+    if (!animationsOn) return;
+    let mounted = true;
+    loadGsap().then((g) => {
+      if (mounted) gsapRef.current = g;
+    });
+    return () => {
+      mounted = false;
+    };
+  }, [animationsOn]);
+
+  /* Secousse d'impact GSAP sur toute la table (fin de pli, victoire). */
+  const impactShake = useCallback((intensity = 8) => {
+    const g = gsapRef.current;
+    const el = tableRootRef.current;
+    if (!g || !el || !animationsOnRef.current) return;
+    g.fromTo(
+      el,
+      { x: 0, y: 0 },
+      {
+        x: `random(${-intensity}, ${intensity})`,
+        y: `random(${-intensity * 0.6}, ${intensity * 0.6})`,
+        duration: 0.055,
+        repeat: 7,
+        yoyo: true,
+        ease: "power1.inOut",
+        onComplete: () => g.set(el, { x: 0, y: 0 }),
+      },
+    );
+  }, []);
+
+  /* Déclenche l'effet d'activation d'une carte pouvoir (particules + flash + shake). */
+  const triggerPowerFx = useCallback((tone: PowerTone) => {
+    if (!animationsOnRef.current) return;
+    setPowerFx({ key: `pfx-${Date.now()}`, tone });
+    impactShake(6);
+    if (powerFxTimerRef.current) clearTimeout(powerFxTimerRef.current);
+    powerFxTimerRef.current = setTimeout(() => {
+      setPowerFx(null);
+      powerFxTimerRef.current = null;
+    }, 1200);
+  }, [impactShake]);
+
+  /* Révélation d'ouverture de manche (GSAP) : les mains puis les sièges
+     apparaissent en cascade (stagger). On n'anime QUE opacity + filter —
+     jamais transform, qui porte le positionnement de chaque siège/main. */
+  useGsapTimeline(animationsOn && roundIntro && n > 0, tableRootRef, (gsap) => {
+    gsap.fromTo(".nj-round-hand-reveal",
+      { opacity: 0, filter: "brightness(1.32)" },
+      { opacity: 1, filter: "brightness(1)", duration: 0.62, ease: "power2.out", stagger: 0.05 });
+    gsap.fromTo(".nj-round-seat-reveal",
+      { opacity: 0, filter: "brightness(1.32)" },
+      { opacity: 1, filter: "brightness(1)", duration: 0.62, ease: "power2.out", stagger: 0.11 });
+  }, [roundIntro, n]);
+
+  const consumeLocalPowerInventory = useCallback((cardIds: PowerCardId[]) => {
+    if (cardIds.length === 0) return;
+    setProfile((prev) => {
+      const inventory = { ...(prev.powerInventory ?? {}) };
+      const equipped = [...(prev.equippedPowers ?? [])];
+      cardIds.forEach((cardId) => {
+        inventory[cardId] = Math.max(0, (inventory[cardId] ?? 0) - 1);
+        if (inventory[cardId] <= 0) {
+          delete inventory[cardId];
+          const index = equipped.indexOf(cardId);
+          if (index >= 0) equipped.splice(index, 1);
+        }
+      });
+      return { ...prev, powerInventory: inventory, equippedPowers: equipped };
+    });
+  }, [setProfile]);
+
+  const consumeConfirmedPowerInventory = useCallback((cardIds: PowerCardId[]) => {
+    consumeLocalPowerInventory(cardIds);
+    if (!authUid) return;
+    cardIds.forEach((cardId) => {
+      void consumePowerCard(authUid, cardId);
+    });
+  }, [authUid, consumeLocalPowerInventory]);
+
+  const uiIndexFromPowerUid = useCallback((uid?: string): number | null => {
+    if (!uid) return null;
+    if (uid === "local") return 0;
+    if (uid.startsWith("bot-")) {
+      const idx = Number(uid.slice(4));
+      return Number.isFinite(idx) ? idx : null;
+    }
+    if (!authUid || !roomPlayers?.length) return null;
+    const serverIdx = roomPlayers.findIndex((player) => player.uid === uid);
+    const myIdx = roomPlayers.findIndex((player) => player.uid === authUid);
+    if (serverIdx < 0 || myIdx < 0) return null;
+    return (serverIdx - myIdx + roomPlayers.length) % roomPlayers.length;
+  }, [authUid, roomPlayers]);
+
+  const showPowerOverlay = useCallback((cardId: PowerCardId, blocked = false) => {
+    if (!animationsOnRef.current) return;
+    if (powerOverlayTimerRef.current) clearTimeout(powerOverlayTimerRef.current);
+    setPowerOverlay({ key: `${cardId}-${Date.now()}`, cardId, blocked });
+    powerOverlayTimerRef.current = setTimeout(() => {
+      setPowerOverlay(null);
+      powerOverlayTimerRef.current = null;
+    }, 1450);
+  }, []);
+
+  const recommendCurrentCard = useCallback(() => {
+    const hand = playersRef.current[0]?.hand ?? [];
+    if (hand.length === 0) return;
+    const led = trickPlays[0]?.card.suit ?? null;
+    const legal = legalCards(hand, led);
+    const currentBest = led
+      ? Math.max(0, ...trickPlays.filter((play) => play.card.suit === led).map((play) => play.card.effectiveValue ?? play.card.value))
+      : 0;
+    const winning = legal
+      .filter((idx) => !led || hand[idx].suit === led)
+      .filter((idx) => hand[idx].value > currentBest)
+      .sort((a, b) => hand[a].value - hand[b].value);
+    const nextIdx = winning[0] ?? [...legal].sort((a, b) => hand[a].value - hand[b].value)[0];
+    if (nextIdx === undefined) return;
+    setRecommendedCardIdx(nextIdx);
+    if (powerRecommendTimerRef.current) clearTimeout(powerRecommendTimerRef.current);
+    powerRecommendTimerRef.current = setTimeout(() => {
+      setRecommendedCardIdx(null);
+      powerRecommendTimerRef.current = null;
+    }, 6000);
+  }, [trickPlays]);
+
   const playNextMomentOverlay = useCallback(() => {
     if (!animationsOnRef.current) {
       momentOverlayQueueRef.current = [];
@@ -338,12 +530,16 @@ export function TableScreen({
       key: `${next.moment.type}-${Date.now()}`,
     });
 
+    /* Secousse d'impact sur les moments forts (pli dominé, ngata gagné). */
+    if (next.moment.type === "dominance") impactShake(7);
+    else if (next.moment.type === "win" || next.moment.type === "doubleWin") impactShake(12);
+
     if (momentOverlayTimerRef.current) clearTimeout(momentOverlayTimerRef.current);
     momentOverlayTimerRef.current = setTimeout(() => {
       momentOverlayTimerRef.current = null;
       playNextMomentOverlay();
     }, next.duration);
-  }, []);
+  }, [impactShake]);
 
   const showMomentOverlay = useCallback((
     moment: Omit<MomentOverlay, "key">,
@@ -376,6 +572,9 @@ export function TableScreen({
       if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
       if (momentOverlayTimerRef.current) clearTimeout(momentOverlayTimerRef.current);
       if (powerRevealTimerRef.current) clearTimeout(powerRevealTimerRef.current);
+      if (powerRecommendTimerRef.current) clearTimeout(powerRecommendTimerRef.current);
+      if (powerOverlayTimerRef.current) clearTimeout(powerOverlayTimerRef.current);
+      if (powerFxTimerRef.current) clearTimeout(powerFxTimerRef.current);
       momentOverlayQueueRef.current = [];
       momentOverlayActiveRef.current = false;
     };
@@ -457,7 +656,7 @@ export function TableScreen({
         onBanner: handleBanner,
       });
     } else {
-      if (!roomId || !roomHostId || !authUser?.uid || !roomPlayers?.length) {
+      if (!roomId || !roomHostId || !authUid || !roomPlayers?.length) {
         setBanner("Connexion a la salle...");
         return;
       }
@@ -467,7 +666,7 @@ export function TableScreen({
         roomId,
         roomPlayers,
         hostId: roomHostId,
-        myUid: authUser.uid,
+        myUid: authUid,
         profile,
         cfg,
         mise,
@@ -599,16 +798,35 @@ export function TableScreen({
     });
 
     const unsubPower = sync.onPowerActivated((activation) => {
-      const mine = activation.activatedByUid === "local" || activation.activatedByUid === authUser?.uid;
+      const mine = activation.activatedByUid === "local" || activation.activatedByUid === authUid;
       if (mine) {
         setUsedPowers((prev) => {
           const next = new Set(prev);
           next.add(activation.cardId);
           return next;
         });
+        consumeConfirmedPowerInventory(activation.consumedCardIds ?? [activation.cardId]);
       }
       const def = POWER_CARDS_BY_ID[activation.cardId];
-      if (def) sfxRef.current((sn) => sn.dominance());
+      if (def) {
+        sfxRef.current((sn) => sn.dominance());
+        triggerPowerFx((def.tone as PowerTone) ?? "gold");
+        showPowerOverlay(activation.cardId, !!activation.blockedByCardId);
+      }
+      if (!activation.blockedByCardId && activation.cardId === "oeil_sorcier" && mine) {
+        const targetIdx = uiIndexFromPowerUid(activation.targetUid);
+        if (targetIdx != null) {
+          setPowerReveal({ targetIdx });
+          if (powerRevealTimerRef.current) clearTimeout(powerRevealTimerRef.current);
+          powerRevealTimerRef.current = setTimeout(() => {
+            setPowerReveal(null);
+            powerRevealTimerRef.current = null;
+          }, 5000);
+        }
+      }
+      if (!activation.blockedByCardId && activation.cardId === "main_griot" && mine) {
+        recommendCurrentCard();
+      }
     });
 
     // Démarrer la partie
@@ -690,17 +908,7 @@ export function TableScreen({
     if (!isYourTurn) return;
     if (usedPowers.has(cardId)) return;
     syncRef.current.usePowerCard(cardId, targetIdx);
-    setUsedPowers((prev) => new Set(prev).add(cardId));
     setTargetingCard(null);
-    // Œil du Sorcier : révélation locale de la main ciblée (5 s).
-    if (cardId === "oeil_sorcier" && targetIdx !== undefined) {
-      setPowerReveal({ targetIdx });
-      if (powerRevealTimerRef.current) clearTimeout(powerRevealTimerRef.current);
-      powerRevealTimerRef.current = setTimeout(() => {
-        setPowerReveal(null);
-        powerRevealTimerRef.current = null;
-      }, 5000);
-    }
   };
 
   const handlePowerTap = (cardId: PowerCardId) => {
@@ -715,7 +923,7 @@ export function TableScreen({
 
   /* ----- Réactions émoji (online/friends uniquement) ----- */
   const isOnline = gameMode !== "bot";
-  const myUid = authUser?.uid;
+  const myUid = authUid;
   const [reactionBubbles, setReactionBubbles] = useState<{ key: string; uiIdx: number; emoji: string }[]>([]);
   const reactionShownRef = useRef<Set<string>>(new Set());
   const reactionCleanupRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -767,6 +975,7 @@ export function TableScreen({
 
   return (
     <div
+      ref={tableRootRef}
       style={{
         position: "fixed",
         inset: 0,
@@ -989,6 +1198,9 @@ export function TableScreen({
                 legal={p.isYou ? yourLegal : null}
                 onCardClick={(ci) => handleCardClick(ci)}
                 hiddenIdx={flyingSrc?.playerIdx === i ? flyingSrc.cardIdx : null}
+                recommendedIdx={p.isYou ? recommendedCardIdx : null}
+                motionOn={animationsOn}
+                getDropRect={p.isYou ? () => depositRefs.current[i]?.getBoundingClientRect() ?? null : undefined}
               />
             </div>
           </div>
@@ -1053,6 +1265,38 @@ export function TableScreen({
       )}
 
       {animationsOn && momentOverlay && <GameMomentOverlay key={momentOverlay.key} moment={momentOverlay} />}
+
+      {/* Effet d'activation d'une carte pouvoir : flash teinté + éclat de particules. */}
+      {animationsOn && powerFx && (
+        <div
+          key={powerFx.key}
+          aria-hidden="true"
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 260,
+            pointerEvents: "none",
+            display: "grid",
+            placeItems: "center",
+            background: `radial-gradient(ellipse at 50% 50%, ${T[powerFx.tone]}22, transparent 60%)`,
+            animation: "fadeIn .18s ease both",
+          }}
+        >
+          <PowerParticles variant="power" tone={powerFx.tone} zIndex={261} />
+        </div>
+      )}
+
+      {animationsOn && powerOverlay && POWER_CARDS_BY_ID[powerOverlay.cardId] && (
+        <div key={powerOverlay.key} className="nj-power-activation-overlay" aria-hidden="true">
+          <div className="nj-power-activation-card">
+            <PowerCardView card={POWER_CARDS_BY_ID[powerOverlay.cardId]} showMeta={false} />
+          </div>
+          <div className="nj-power-activation-copy">
+            <strong>{powerOverlay.blocked ? "BLOQUÉ" : POWER_CARDS_BY_ID[powerOverlay.cardId].activationTitle}</strong>
+            <span>{powerOverlay.blocked ? "Protection activée" : POWER_CARDS_BY_ID[powerOverlay.cardId].activationText}</span>
+          </div>
+        </div>
+      )}
 
       {animationsOn && tableReaction && (
         <div
@@ -1152,9 +1396,9 @@ export function TableScreen({
                 aria-label={def.name}
                 title={`${def.name} — ${def.description}`}
                 style={{
-                  width: 52,
-                  height: 52,
-                  borderRadius: 16,
+                  width: 62,
+                  minHeight: 82,
+                  borderRadius: 12,
                   border: `2px solid ${active ? tint : `${tint}88`}`,
                   background: used
                     ? "rgba(10,6,26,.5)"
@@ -1168,7 +1412,7 @@ export function TableScreen({
                   transition: "opacity .2s, box-shadow .2s",
                 }}
               >
-                <NjamboIcon name={def.icon as NjamboIconName} tone={def.tone} size={26} />
+                <PowerCardView card={def} compact showMeta={false} selected={active} disabled={used} />
                 {used && (
                   <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
                     <NjamboIcon name="check" tone="light" size={22} />

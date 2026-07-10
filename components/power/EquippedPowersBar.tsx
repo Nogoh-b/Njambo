@@ -3,7 +3,8 @@
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { POWER_CARDS_BY_ID, MAX_EQUIPPED_POWERS } from "@/config/powerCards";
-import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
+import { PowerCardView } from "@/components/power/PowerCardView";
+import { NjamboIcon } from "@/components/ui/Art";
 
 /* ═══════════════ EquippedPowersBar — slots d'équipement pré-partie ═══════════════
    Affiche les 2 slots de cartes pouvoir équipées. Tape pour ouvrir la
@@ -35,24 +36,10 @@ export function EquippedPowersBar() {
       <span style={{ display: "flex", gap: 8, flex: "0 0 auto" }}>
         {slots.map((id, i) => {
           const def = id ? POWER_CARDS_BY_ID[id] : null;
-          const tint = def
-            ? def.tone === "gold" ? T.gold : def.tone === "teal" ? T.teal : def.tone === "pink" ? T.pink : T.cobalt
-            : T.muted;
           return (
-            <span
-              key={i}
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: 12,
-                border: `1.5px ${def ? "solid" : "dashed"} ${def ? tint : "rgba(255,248,232,.25)"}`,
-                background: def ? `${tint}22` : "transparent",
-                display: "grid",
-                placeItems: "center",
-              }}
-            >
+            <span key={i} style={{ width: 56, flex: "0 0 auto" }}>
               {def
-                ? <NjamboIcon name={def.icon as NjamboIconName} tone={def.tone} size={22} />
+                ? <PowerCardView card={def} compact showMeta={false} />
                 : <NjamboIcon name="plus" tone="light" size={18} />}
             </span>
           );

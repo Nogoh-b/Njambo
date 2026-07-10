@@ -16,6 +16,7 @@ interface GameContextValue {
   scene: SceneName;
   transitioning: boolean;
   navigateTo: (target: SceneName) => void;
+  endTransition: () => void;
   socialTarget: SocialTarget;
   setSocialTarget: (target: SocialTarget | ((prev: SocialTarget) => SocialTarget)) => void;
 
@@ -120,18 +121,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
     return () => soundRef.current?.stopMusic();
   }, [musicOn]);
 
-  /* Navigation avec transition */
+  /* Navigation — la sortie/entrée est désormais gérée par <AnimatePresence>
+     dans SceneRouter (Framer Motion). On change la scène immédiatement ;
+     le flag `transitioning` reste exposé pour compat (piloté par onExitComplete). */
   const navigateTo = useCallback((target: SceneName) => {
     setTransitioning(true);
-    /* On attend la fin de l'animation de sortie (~300ms) */
-    setTimeout(() => {
-      setScene(target);
-      /* On reset après le render de la nouvelle scène */
-      setTimeout(() => {
-        setTransitioning(false);
-      }, 50);
-    }, 300);
+    setScene(target);
   }, []);
+
+  /** Appelé par AnimatePresence quand l'ancienne scène a fini de sortir. */
+  const endTransition = useCallback(() => setTransitioning(false), []);
 
   const setSocialTarget = useCallback((target: SocialTarget | ((prev: SocialTarget) => SocialTarget)) => {
     setSocialTargetRaw((prev) => typeof target === "function" ? target(prev) : target);
@@ -143,6 +142,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         scene,
         transitioning,
         navigateTo,
+        endTransition,
         socialTarget,
         setSocialTarget,
         profile,

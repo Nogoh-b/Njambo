@@ -37,7 +37,7 @@ export function legalCards(hand: Card[], ledSuit: string | null): number[] {
 export function trickWinner(plays: TrickPlay[], ledSuit: string): number {
   let best: TrickPlay | null = null;
   for (const p of plays)
-    if (p.card.suit === ledSuit && (!best || p.card.value > best.card.value)) best = p;
+    if ((p.card.effectiveSuit ?? p.card.suit) === ledSuit && (!best || (p.card.effectiveValue ?? p.card.value) > (best.card.effectiveValue ?? best.card.value))) best = p;
   return best!.playerIdx;
 }
 

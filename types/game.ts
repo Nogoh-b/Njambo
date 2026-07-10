@@ -6,6 +6,9 @@ export interface Card {
   suit: string;
   color: string;
   id: string;
+  effectiveValue?: number;
+  effectiveSuit?: string;
+  powerTag?: PowerCardId;
 }
 
 /** Carte déposée sur le tapis : carte + métadonnées de positionnement aléatoire. */
@@ -62,7 +65,7 @@ export interface Profile {
   cauris?: number;
   /** Inventaire des cartes pouvoir (cardId → quantité) */
   powerInventory?: PowerCardInventory;
-  /** Cartes pouvoir équipées pour la prochaine partie (max 2) */
+  /** Cartes pouvoir équipées pour la prochaine partie (max 3) */
   equippedPowers?: PowerCardId[];
 }
 
@@ -74,9 +77,23 @@ export type PowerCardId =
   | "vent_nord"
   | "benediction_chef"
   | "coupe_circuit"
-  | "sable_temps";
+  | "sable_temps"
+  | "bouclier_village"
+  | "tambour_appel"
+  | "cauris_chanceux"
+  | "main_griot"
+  | "eclair_mfoundi"
+  | "totem_ancetres"
+  | "masque_bluffeur"
+  | "filet_pecheur"
+  | "marche_nuit"
+  | "cri_chef"
+  | "feu_camp"
+  | "pagne_changeant";
 
-export type PowerCategory = "offensive" | "score" | "perturbation";
+export type PowerCategory = "offensive" | "defense" | "score" | "tactical" | "perturbation" | "economy";
+export type PowerRarity = "common" | "rare" | "epic" | "legendary";
+export type PowerTargetMode = "none" | "self" | "opponent";
 
 export interface PowerCardDef {
   id: PowerCardId;
@@ -85,6 +102,11 @@ export interface PowerCardDef {
   /** Nom de l'icône dans NjamboIcon */
   icon: string;
   tone: "gold" | "teal" | "pink" | "cobalt";
+  rarity: PowerRarity;
+  targetMode: PowerTargetMode;
+  art: string;
+  activationTitle: string;
+  activationText: string;
   description: string;
   /** Coût d'achat en cauris */
   costCauris: number;
@@ -97,7 +119,7 @@ export interface PowerCardInventory {
   [cardId: string]: number;
 }
 
-/** Cartes pouvoir équipées pour une partie (max 2) */
+/** Cartes pouvoir équipées pour une partie (max 3) */
 export type EquippedPowers = PowerCardId[];
 
 /** Effet de pouvoir actif pendant une partie */
@@ -107,6 +129,16 @@ export interface ActivePowerEffect {
   activatedBy: number;
   /** Pli concerné par l'effet */
   scopeTrickNo: number;
+  targetIdx?: number;
+  scoreMultiplier?: number;
+  potBonus?: number;
+  conditionalPotBonus?: boolean;
+  refundOnLoss?: number;
+  shield?: boolean;
+  preventDoublePenalty?: boolean;
+  cancelReveal?: boolean;
+  valueBonus?: number;
+  suitOverride?: boolean;
 }
 
 /** Activation d'une carte pouvoir en cours de partie */
@@ -122,6 +154,8 @@ export interface PowerCardActivation {
   used: boolean;
   /** Identifiant anti-replay (crypto UUID) */
   playId: string;
+  blockedByCardId?: PowerCardId;
+  consumedCardIds?: PowerCardId[];
 }
 
 export interface LeaderEntry {
@@ -322,6 +356,7 @@ export interface GameDoc {
   trickPlays: TrickPlay[];
   players: string[]; // uids dans l'ordre du jeu
   hands: Record<string, Card[]>; // uid → main (deprecated: use hands_private subcollection)
+  deck?: Card[];
   deposits: Record<string, DepositedCard[]>;
   result: Result | null;
   dominantIdx?: number | null;
@@ -348,7 +383,7 @@ export interface GameDoc {
   startedAt: unknown; // number or serverTimestamp()
   /** UID du joueur actuellement autorisé à agir comme hôte (rotation) */
   currentGameHost?: string;
-  /** Cartes pouvoir équipées par joueur (uid → max 2 cartes) */
+  /** Cartes pouvoir équipées par joueur (uid → max 3 cartes) */
   equippedPowers?: Record<string, PowerCardId[]>;
   /** Activations de pouvoir en cours de partie */
   powerActivations?: PowerCardActivation[];
@@ -357,6 +392,7 @@ export interface GameDoc {
     cardId: PowerCardId;
     activatedByUid: string;
     targetUid?: string;
+    equippedPowersSnapshot?: PowerCardId[];
     trickNo: number;
     playId: string;
     createdAt: number;

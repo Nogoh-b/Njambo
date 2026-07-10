@@ -1,178 +1,204 @@
+import { POWER_CARDS_BY_ID } from "@/config/powerCards";
+import { legalCards } from "@/engine/rules";
 import type { Card, GameState, PowerCardId } from "@/types/game";
 
-/* ═══════════════ Cartes Pouvoir — Logique des effets ═══════════════
-   Fonctions pures qui calculent les mutations produites par chaque
-   carte pouvoir. Ces fonctions ne modifient pas l'état directement —
-   elles retournent une description des changements à appliquer.
-   Utilisées par LocalGameSync (bots) et FirestoreGameSync (online). */
-
-/** Contexte d'activation d'une carte pouvoir. */
 export interface PowerActivationContext {
-  /** État courant du jeu (non muté). */
   state: GameState;
-  /** playerIdx (UI) du joueur qui active la carte. */
   activatedBy: number;
-  /** playerIdx (UI) du joueur ciblé, si applicable. */
   target?: number;
-  /** Pioche disponible (cartes non distribuées), pour Vent du Nord. */
   deck?: Card[];
-  /** Plafond de valeur pour une carte (typiquement 10). */
   maxValue?: number;
 }
 
-/** Durée de l'effet de révélation (ms). */
 export const REVEAL_DURATION_MS = 5000;
-/** Durée du gel du timer (ms). */
+export const RECOMMEND_DURATION_MS = 6000;
 export const FREEZE_DURATION_MS = 10000;
-/** Bonus de pot pour Pluie d'Étoiles. */
 export const STAR_RAIN_BONUS = 200;
+export const CAMPFIRE_BONUS = 100;
+export const TIMER_BOOST_SECONDS = 8;
+export const CHIEF_CRY_SECONDS = 3;
+export const LIGHTNING_BONUS = 2;
 
-/** Résultat d'application d'une carte pouvoir : mutations à appliquer. */
 export interface PowerEffectResult {
-  /** Mains mutées (playerIdx → nouvelle main). */
   handsMutated?: Record<number, Card[]>;
-  /** Révéler la main d'un joueur (Œil du Sorcier). */
   revealHand?: { playerIdx: number; durationMs: number };
-  /** Forcer un joueur à jouer sa carte la plus faible au prochain pli. */
   forceLowestCard?: { playerIdx: number };
-  /** Multiplicateur de score sur le pli en cours (Bénédiction du Chef). */
   trickScoreMultiplier?: number;
-  /** Bonus de pot (Pluie d'Étoiles). */
   potBonus?: number;
-  /** Geler le timer d'un joueur (Sable du Temps). */
+  conditionalPotBonus?: number;
   timerFreeze?: { playerIdx: number; durationMs: number };
-  /** Nouvelle pioche après échange (Vent du Nord). */
+  timerDelta?: { playerIdx: number; seconds: number };
+  opponentTimerDelta?: { seconds: number };
   newDeck?: Card[];
+  shield?: { playerIdx: number };
+  refundOnLoss?: { playerIdx: number; ratio: number };
+  recommendCard?: { playerIdx: number; cardIdx: number; durationMs: number };
+  valueBonusNext?: { playerIdx: number; amount: number; maxValue: number };
+  preventDoublePenalty?: { playerIdx: number };
+  cancelReveal?: { playerIdx: number };
+  suitOverrideNext?: { playerIdx: number };
 }
 
-/**
- * Applique une carte pouvoir et retourne les mutations à effectuer.
- * Fonction pure : ne modifie pas le contexte passé en paramètre.
- */
+function weakestCardIndex(hand: Card[]): number {
+  return hand.reduce((minIdx, card, index) => (card.value < hand[minIdx].value ? index : minIdx), 0);
+}
+
+function bestRecommendation(state: GameState, playerIdx: number): number | null {
+  const hand = state.players[playerIdx]?.hand ?? [];
+  if (hand.length === 0) return null;
+  const ledSuit = state.trickPlays[0]?.card.suit ?? null;
+  const legal = legalCards(hand, ledSuit);
+  if (legal.length === 0) return null;
+
+  const currentBest = ledSuit
+    ? Math.max(0, ...state.trickPlays.filter((play) => (play.card.effectiveSuit ?? play.card.suit) === ledSuit).map((play) => play.card.effectiveValue ?? play.card.value))
+    : 0;
+  const winning = legal
+    .filter((index) => !ledSuit || hand[index].suit === ledSuit)
+    .filter((index) => hand[index].value > currentBest)
+    .sort((a, b) => hand[a].value - hand[b].value);
+  if (winning[0] !== undefined) return winning[0];
+
+  return [...legal].sort((a, b) => hand[a].value - hand[b].value)[0] ?? null;
+}
+
+function replaceWeakestWithDeckCard(
+  hand: Card[],
+  deck: Card[] | undefined,
+  onlyBetter: boolean,
+): { hand: Card[]; deck: Card[] } | null {
+  if (hand.length === 0 || !deck?.length) return null;
+  const weakestIdx = weakestCardIndex(hand);
+  const weakest = hand[weakestIdx];
+  const replacementIdx = onlyBetter ? deck.findIndex((card) => card.value > weakest.value) : 0;
+  if (replacementIdx < 0) return null;
+  const replacement = deck[replacementIdx];
+  const nextDeck = deck.filter((_, index) => index !== replacementIdx);
+  const nextHand = [...hand];
+  nextHand[weakestIdx] = replacement;
+  return { hand: nextHand, deck: [...nextDeck, weakest] };
+}
+
 export function applyPowerCard(
   cardId: PowerCardId,
   ctx: PowerActivationContext,
 ): PowerEffectResult {
-  const { state, activatedBy, target, deck } = ctx;
+  const { state, activatedBy, target, deck, maxValue = 10 } = ctx;
   const players = state.players;
 
   switch (cardId) {
-    /* ── Œil du Sorcier : révéler la main adverse ── */
-    case "oeil_sorcier": {
-      if (target === undefined) return {};
-      const targetPlayer = players[target];
-      if (!targetPlayer) return {};
-      return {
-        revealHand: { playerIdx: target, durationMs: REVEAL_DURATION_MS },
-      };
-    }
+    case "oeil_sorcier":
+      return target === undefined || !players[target]
+        ? {}
+        : { revealHand: { playerIdx: target, durationMs: REVEAL_DURATION_MS } };
 
-    /* ── Coupe-Circuit : forcer la carte la plus faible ── */
-    case "coupe_circuit": {
-      if (target === undefined) return {};
-      const targetPlayer = players[target];
-      if (!targetPlayer) return {};
-      return {
-        forceLowestCard: { playerIdx: target },
-      };
-    }
+    case "coupe_circuit":
+    case "filet_pecheur":
+      return target === undefined || !players[target]
+        ? {}
+        : { forceLowestCard: { playerIdx: target } };
 
-    /* ── Bénédiction du Chef : doubler le score du pli ── */
-    case "benediction_chef": {
-      return {
-        trickScoreMultiplier: 2,
-      };
-    }
+    case "benediction_chef":
+      return { trickScoreMultiplier: 2 };
 
-    /* ── Pluie d'Étoiles : bonus de pot ── */
-    case "pluie_etoiles": {
-      return {
-        potBonus: STAR_RAIN_BONUS,
-      };
-    }
+    case "pluie_etoiles":
+      return { potBonus: STAR_RAIN_BONUS };
 
-    /* ── Vent du Nord : échanger une carte ── */
     case "vent_nord": {
-      const me = players[activatedBy];
-      if (!me || me.hand.length === 0) return {};
-      if (!deck || deck.length === 0) return {};
-
-      // Échange la carte la plus faible de la main contre une carte aléatoire de la pioche.
-      const handCopy = [...me.hand];
-      const weakestIdx = handCopy.reduce(
-        (minIdx, c, i) => (c.value < handCopy[minIdx].value ? i : minIdx),
-        0,
-      );
-      const oldCard = handCopy[weakestIdx];
-      const [newCard, ...restDeck] = deck;
-      handCopy[weakestIdx] = newCard;
-      // L'ancienne carte retourne dans la pioche.
-      const newDeck = [...restDeck, oldCard];
-
-      return {
-        handsMutated: { [activatedBy]: handCopy },
-        newDeck,
-      };
+      const swap = replaceWeakestWithDeckCard(players[activatedBy]?.hand ?? [], deck, false);
+      return swap ? { handsMutated: { [activatedBy]: swap.hand }, newDeck: swap.deck } : {};
     }
 
-    /* ── Sable du Temps : geler le timer adverse ── */
-    case "sable_temps": {
-      if (target === undefined) return {};
-      const targetPlayer = players[target];
-      if (!targetPlayer) return {};
-      return {
-        timerFreeze: { playerIdx: target, durationMs: FREEZE_DURATION_MS },
-      };
+    case "sable_temps":
+      return target === undefined || !players[target]
+        ? {}
+        : { timerFreeze: { playerIdx: target, durationMs: FREEZE_DURATION_MS } };
+
+    case "bouclier_village":
+      return { shield: { playerIdx: activatedBy } };
+
+    case "tambour_appel":
+      return { timerDelta: { playerIdx: activatedBy, seconds: TIMER_BOOST_SECONDS } };
+
+    case "cauris_chanceux":
+      return { refundOnLoss: { playerIdx: activatedBy, ratio: 0.5 } };
+
+    case "main_griot": {
+      const cardIdx = bestRecommendation(state, activatedBy);
+      return cardIdx == null
+        ? {}
+        : { recommendCard: { playerIdx: activatedBy, cardIdx, durationMs: RECOMMEND_DURATION_MS } };
     }
+
+    case "eclair_mfoundi":
+      return { valueBonusNext: { playerIdx: activatedBy, amount: LIGHTNING_BONUS, maxValue } };
+
+    case "totem_ancetres":
+      return { preventDoublePenalty: { playerIdx: activatedBy } };
+
+    case "masque_bluffeur":
+      return { cancelReveal: { playerIdx: activatedBy } };
+
+    case "marche_nuit": {
+      const swap = replaceWeakestWithDeckCard(players[activatedBy]?.hand ?? [], deck, true);
+      return swap ? { handsMutated: { [activatedBy]: swap.hand }, newDeck: swap.deck } : {};
+    }
+
+    case "cri_chef":
+      return { opponentTimerDelta: { seconds: -CHIEF_CRY_SECONDS } };
+
+    case "feu_camp":
+      return { conditionalPotBonus: CAMPFIRE_BONUS };
+
+    case "pagne_changeant":
+      return { suitOverrideNext: { playerIdx: activatedBy } };
 
     default:
       return {};
   }
 }
 
-/**
- * Indique si une carte pouvoir nécessite une cible.
- */
 export function requiresTarget(cardId: PowerCardId): boolean {
-  return (
-    cardId === "oeil_sorcier" ||
-    cardId === "coupe_circuit" ||
-    cardId === "sable_temps"
-  );
+  return POWER_CARDS_BY_ID[cardId]?.targetMode === "opponent";
 }
 
-/**
- * Vérifie si une carte peut être activée dans le contexte courant.
- * Retourne une raison si non, null si oui.
- */
 export function canActivatePowerCard(
   cardId: PowerCardId,
   ctx: PowerActivationContext,
 ): string | null {
   const { state, activatedBy, target, deck } = ctx;
+  const def = POWER_CARDS_BY_ID[cardId];
+  if (!def) return "Carte inconnue.";
 
-  if (state.phase !== "turns") {
-    return "Ce n'est pas le moment de jouer une carte pouvoir.";
-  }
+  if (state.phase !== "turns") return "Ce n'est pas le moment de jouer une carte pouvoir.";
+  if (state.turnIdx !== activatedBy) return "Attends ton tour.";
 
   const me = state.players[activatedBy];
   if (!me) return "Joueur introuvable.";
 
-  // Vérifier que la carte n'a pas déjà été utilisée.
-  const activations = me.powerActivations ?? [];
-  const alreadyUsed = activations.some((a) => a.cardId === cardId && a.used);
+  const alreadyUsed = (me.powerActivations ?? []).some((a) => a.cardId === cardId && a.used);
   if (alreadyUsed) return "Carte déjà utilisée.";
 
-  // Cartes avec cible obligatoire.
-  if (requiresTarget(cardId)) {
+  if (def.targetMode === "opponent") {
     if (target === undefined) return "Cette carte nécessite une cible.";
     if (target === activatedBy) return "Tu ne peux pas te cibler toi-même.";
     if (!state.players[target]) return "Cible invalide.";
   }
 
-  // Vent du Nord : besoin d'une pioche non vide.
-  if (cardId === "vent_nord" && (!deck || deck.length === 0)) {
-    return "Pioche vide — impossible d'échanger.";
+  if ((cardId === "vent_nord" || cardId === "marche_nuit") && (!deck || deck.length === 0)) {
+    return "Pioche vide - impossible d'échanger.";
+  }
+
+  if (cardId === "cri_chef" && (state.leaderIdx !== activatedBy || state.trickPlays.length > 0)) {
+    return "Le Cri du Chef se joue en ouvrant le pli.";
+  }
+
+  if (cardId === "pagne_changeant") {
+    const ledSuit = state.trickPlays[0]?.card.suit ?? null;
+    if (!ledSuit) return "Le Pagne Changeant se joue quand une tendance existe.";
+    if (me.hand.some((card) => card.suit === ledSuit)) {
+      return "Tu as déjà la tendance en main.";
+    }
   }
 
   return null;

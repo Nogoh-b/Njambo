@@ -5,7 +5,7 @@ import { GAME_CONFIG } from "@/config/gameConfig";
 import { CEREMONIAL_STRIP, RAFFIA_WEAVE, T } from "@/config/theme";
 import type { Card } from "@/types/game";
 
-interface PlayCardProps {
+export interface PlayCardProps {
   card?: Card;
   hidden?: boolean;
   w?: number;
