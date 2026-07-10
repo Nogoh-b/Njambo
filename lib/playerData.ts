@@ -126,14 +126,20 @@ export async function recordMatchResult(params: {
   const { uid, name, emoji, currentBalance, result, mode, stake, roomId, matchKey } = params;
   const won = result.winner.isYou;
   const totalGain = result.gain + (result.doubles ? stake * (result.playersCount - 1) : 0);
-  const gain = won ? totalGain : -stake;
+  // Delta net appliqué au solde. DOIT correspondre EXACTEMENT au calcul client
+  // (NjamboApp.handleResult), sinon la transaction rejette (« Balance mismatch »)
+  // et le solde serveur se fige pendant que le client avance (drift) :
+  //  • result.gain est le pot BRUT (la mise du gagnant y est incluse) → on
+  //    retire la mise du gagnant : il ne récupère pas sa propre mise.
+  //  • un perdant paie sa mise, plus une pénalité doublée si la manche est doublée.
+  const lossPenalty = stake + (result.doubles ? stake : 0);
+  const gain = won ? totalGain - stake : -lossPenalty;
   const createdAt = Date.now();
 
   // Sanity check : le gain est-il raisonnable ?
-  // Max loss = mise (on ne peut pas perdre plus qu'on a misé)
-  // Max gain = pot total + doubles, borné arbitrairement à 50000
-  if (gain < -stake) {
-    return { success: false, error: `Gain négatif suspect: ${gain}` };
+  // Perte max = mise + pénalité doubles ; gain borné arbitrairement à 50000.
+  if (gain < -lossPenalty) {
+    return { success: false, error: `Perte suspecte: ${gain}` };
   }
   if (gain > 50000) {
     return { success: false, error: `Gain excessif: ${gain}` };
