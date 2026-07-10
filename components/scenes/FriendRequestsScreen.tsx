@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { acceptFriendRequest, listenFriendRequests, rejectFriendRequest } from "@/lib/socialData";
 import { AvatarIllustration } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
@@ -45,16 +45,8 @@ export function FriendRequestsScreen() {
                 return (
                   <div
                     key={req.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "12px 10px",
-                      borderRadius: 17,
-                      background: incoming ? `${T.pink}16` : "rgba(255,248,232,.052)",
-                      border: incoming ? `1.5px solid ${T.pink}` : "1px solid rgba(255,248,232,.1)",
-                      animation: `riseIn .3s ${i * 0.04}s both`,
-                    }}
+                    className={`nj-list-card${incoming ? " nj-list-card--pink is-active" : ""}`}
+                    style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
                   >
                     <AvatarIllustration seed={incoming ? req.fromEmoji : req.toEmoji} size={50} online />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -74,6 +66,7 @@ export function FriendRequestsScreen() {
               })}
             </div>
           </Surface>
+          <BottomNav active="friends" />
         </div>
       </div>
     </Shell>

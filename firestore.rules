@@ -1,0 +1,54 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ── Profils utilisateurs : cauris, powerInventory, equippedPowers ──
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      // Un utilisateur ne peut lire/écrire que son propre profil
+      allow write: if request.auth.uid == uid;
+
+      // ── Inventaire des power cards ──
+      match /power_inventory/{cardId} {
+        allow read: if request.auth.uid == uid;
+        // Seul le propriétaire peut modifier son inventaire
+        // (les achats sont validés côté client + firestore rules)
+        allow create, update, delete: if request.auth.uid == uid;
+      }
+    }
+
+    // ── Défis quotidiens ──
+    match /daily_challenges/{uid} {
+      allow read: if request.auth.uid == uid;
+      allow write: if request.auth.uid == uid;
+    }
+
+    // ── Salles et parties ──
+    match /rooms/{roomId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null;
+      allow update, delete: if request.auth != null;
+
+      // ── Document de jeu (game/current) ──
+      match /game/{gameId} {
+        allow read: if request.auth != null;
+        // Les power activations sont écrites par les joueurs et validées par l'hôte
+        // Seul le pendingPowerActivation peut être écrit par un joueur non-hôte
+        // L'hôte écrit les effets confirmés
+        allow write: if request.auth != null;
+      }
+
+      // ── Demandes de prise de contrôle d'hôte ──
+      match /takeoverRequests/{uid} {
+        allow read: if request.auth != null;
+        allow write: if request.auth != null;
+      }
+    }
+
+    // ── Accès global (expire le 5 août 2026 — à remplacer par des règles strictes) ──
+    match /{document=**} {
+      allow read, write: if request.time < timestamp.date(2026, 8, 5);
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { NjamboIcon } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { Btn } from "@/components/ui/Btn";
 import { Toggle } from "@/components/ui/Toggle";
 import { Chip } from "@/components/ui/Chip";
@@ -12,8 +13,7 @@ import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 const LANGUAGES = ["Français", "English", "Duala"];
 
 export function OptionsScreen() {
-  const { navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn } = useGame();
-  const [animationsOn, setAnimationsOn] = useState(true);
+  const { navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn, animationsOn, setAnimationsOn } = useGame();
   const [language, setLanguage] = useState("Français");
 
   return (
@@ -60,6 +60,16 @@ export function OptionsScreen() {
             </Surface>
 
             <Surface>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
+                <NjamboIcon name="cards" tone="gold" size={24} />
+                <div style={{ fontWeight: 900 }}>Jeu</div>
+              </div>
+              <Btn variant="ghost" onClick={() => navigateTo("rules")} style={{ width: "100%" }}>
+                Règles du jeu — Comment jouer
+              </Btn>
+            </Surface>
+
+            <Surface>
               <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
                 <div>
                   <div style={{ fontWeight: 900, marginBottom: 6 }}>À propos</div>
@@ -72,6 +82,7 @@ export function OptionsScreen() {
               <div style={{ color: T.gold, fontSize: 12, fontWeight: 900, marginTop: 12 }}>BiSoft</div>
             </Surface>
           </div>
+          <BottomNav />
         </div>
       </div>
     </Shell>

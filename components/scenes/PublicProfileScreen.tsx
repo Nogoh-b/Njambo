@@ -7,6 +7,7 @@ import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenPlayer } from "@/lib/socialData";
 import { FCFA } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
@@ -73,6 +74,7 @@ export function PublicProfileScreen() {
               );
             })()}
           </Surface>
+          <BottomNav />
         </div>
       </div>
     </Shell>

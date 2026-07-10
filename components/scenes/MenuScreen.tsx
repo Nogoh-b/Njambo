@@ -2,12 +2,15 @@
 
 import Image from "next/image";
 import { useEffect, useState, type CSSProperties } from "react";
+import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
+import { claimDailyBonus, topUpIfBroke } from "@/lib/playerData";
 import { FCFA } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon, NjamboMark, type NjamboIconName } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { displayFont, Shell } from "@/components/ui/Shell";
 import type { PlayerStats, PublicPlayerProfile, SceneName } from "@/types/game";
 
@@ -40,13 +43,6 @@ const SIDE_RIGHT: HomeLink[] = [
   { scene: "options", icon: "settings", label: "Reglages", tone: "cobalt" },
 ];
 
-const BOTTOM_LINKS: HomeLink[] = [
-  { scene: "players", icon: "search", label: "Joueurs", tone: "teal" },
-  { scene: "notifications", icon: "notification", label: "Notifs", tone: "pink", badge: "notifications" },
-  { scene: "messages", icon: "message", label: "Messages", tone: "cobalt", badge: "messages" },
-  { scene: "friends", icon: "friends", label: "Social", tone: "gold", badge: "requests" },
-];
-
 const MODE_LINKS: Array<HomeLink & { image: string; subtitle: string }> = [
   {
     scene: "online_setup",
@@ -74,16 +70,25 @@ const MODE_LINKS: Array<HomeLink & { image: string; subtitle: string }> = [
   },
 ];
 
+const MENU_SPARKS = [
+  { left: "18%", top: "18%", size: 5, delay: "0s" },
+  { left: "78%", top: "22%", size: 4, delay: ".8s" },
+  { left: "24%", top: "72%", size: 4, delay: "1.4s" },
+  { left: "72%", top: "68%", size: 6, delay: "2.1s" },
+  { left: "50%", top: "10%", size: 3, delay: "1.1s" },
+];
+
 function CountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return <span className="nj-home-badge">{count > 99 ? "99+" : count}</span>;
 }
 
 export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenProps) {
-  const { profile, navigateTo } = useGame();
+  const { profile, setProfile, navigateTo, animationsOn, cfg } = useGame();
   const { user, logout } = useAuth();
   const [socialCounts, setSocialCounts] = useState<SocialCounts>({ notifications: 0, messages: 0, requests: 0 });
   const [onlineProfile, setOnlineProfile] = useState<PublicPlayerProfile | null>(null);
+  const [claiming, setClaiming] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -110,6 +115,30 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
     stats: onlineProfile?.stats ?? ZERO_STATS,
   };
   const level = getPlayerLevel(displayProfile.stats, displayProfile.balance);
+
+  /* ----- Économie : bonus quotidien + anti-faillite ----- */
+  const eco = cfg.economy;
+  const cooldownMs = eco.bonusCooldownH * 3_600_000;
+  const lastBonusAt = onlineProfile?.lastBonusAt ?? 0;
+  const bonusReady = Date.now() - lastBonusAt >= cooldownMs;
+  const bonusHoursLeft = Math.max(0, Math.ceil((lastBonusAt + cooldownMs - Date.now()) / 3_600_000));
+
+  const handleClaimBonus = async () => {
+    if (!user?.uid || claiming || !bonusReady) return;
+    setClaiming(true);
+    const res = await claimDailyBonus(user.uid, eco.dailyBonus, cooldownMs);
+    setClaiming(false);
+    if (res.granted) setProfile((p) => ({ ...p, balance: res.balance }));
+  };
+
+  // Anti-faillite : dès qu'on est sous le plancher, on remonte pour pouvoir rejouer.
+  useEffect(() => {
+    if (!user?.uid) return;
+    if ((onlineProfile?.balance ?? profile.balance) < eco.brokeFloor) {
+      void topUpIfBroke(user.uid, eco.brokeFloor);
+    }
+  }, [user?.uid, onlineProfile?.balance, profile.balance, eco.brokeFloor]);
+
   const mainPlayLabel = canResumeGame ? "REPRENDRE" : "JOUER";
   const mainPlay = canResumeGame && onResumeGame ? onResumeGame : () => navigateTo("online_setup");
 
@@ -146,6 +175,10 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
               <NjamboIcon name="trophy" tone="teal" size={19} />
               <span>{displayProfile.stats.won}</span>
             </button>
+            <button type="button" className="nj-hud-resource nj-hud-resource-short" onClick={() => openLink("power_collection")} aria-label="Cartes pouvoir">
+              <NjamboIcon name="spark" tone="pink" size={19} />
+              <span>{profile.cauris ?? 0}</span>
+            </button>
             <button type="button" className="nj-hud-icon-btn" onClick={() => openLink("messages")} aria-label="Messages">
               <NjamboIcon name="message" tone="cobalt" size={22} />
               <CountBadge count={socialCounts.messages} />
@@ -162,6 +195,22 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
 
         <main className="nj-game-home-stage">
           <section className="nj-home-logo-scene" aria-label="Njambo">
+            {animationsOn && (
+              <div className="nj-menu-sparkles" aria-hidden="true">
+                {MENU_SPARKS.map((spark, index) => (
+                  <span
+                    key={index}
+                    style={{
+                      left: spark.left,
+                      top: spark.top,
+                      width: spark.size,
+                      height: spark.size,
+                      animationDelay: spark.delay,
+                    }}
+                  />
+                ))}
+              </div>
+            )}
             <div className="nj-home-table-art" aria-hidden="true">
               <Image src="/assets/njambo/table-oval.webp" alt="" width={330} height={214} priority className="nj-home-table-img" />
             </div>
@@ -218,7 +267,7 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
             ))}
           </section>
 
-          <button type="button" className="nj-home-play-button" onClick={mainPlay}>
+          <button type="button" className={`nj-home-play-button${animationsOn ? " nj-special-play" : ""}`} onClick={mainPlay}>
             <span style={displayFont}>{mainPlayLabel}</span>
           </button>
 
@@ -229,19 +278,72 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
           )}
         </main>
 
-        <nav className="nj-home-bottom-nav" aria-label="Menu principal">
-          <button type="button" className="nj-home-nav-btn nj-home-nav-btn-active" aria-current="page">
-            <NjamboIcon name="home" tone="gold" size={27} />
-            <span>Accueil</span>
+        {/* Bonus quotidien — pastille flottante (position fixe → n'affecte pas la grille) */}
+        {user && (
+          <button
+            type="button"
+            onClick={() => { void handleClaimBonus(); }}
+            disabled={!bonusReady || claiming}
+            aria-label="Bonus quotidien"
+            style={{
+              position: "fixed",
+              right: 12,
+              bottom: 78,
+              zIndex: 60,
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              padding: "9px 14px",
+              borderRadius: 999,
+              border: `1.5px solid ${bonusReady ? T.gold : "var(--wood-edge)"}`,
+              background: bonusReady
+                ? "linear-gradient(160deg, rgba(242,187,69,.28), rgba(20,14,6,.9))"
+                : "linear-gradient(160deg, rgba(52,32,18,.5), rgba(12,9,7,.86))",
+              color: T.text,
+              fontWeight: 900,
+              fontSize: 12.5,
+              cursor: bonusReady ? "pointer" : "default",
+              opacity: bonusReady ? 1 : 0.75,
+              boxShadow: bonusReady ? "0 8px 22px rgba(0,0,0,.45)" : "none",
+            }}
+          >
+            <NjamboIcon name="coin" tone="gold" size={18} />
+            {bonusReady ? (
+              <span>Bonus <b style={{ color: T.gold }}>+{FCFA(eco.dailyBonus)}</b></span>
+            ) : (
+              <span className="nj-subtle">Bonus dans {bonusHoursLeft}h</span>
+            )}
           </button>
-          {BOTTOM_LINKS.map((link) => (
-            <button type="button" key={link.scene} className="nj-home-nav-btn" onClick={() => openLink(link.scene)}>
-              <NjamboIcon name={link.icon} tone={link.tone} size={25} />
-              <span>{link.label}</span>
-              {link.badge && <CountBadge count={socialCounts[link.badge]} />}
-            </button>
-          ))}
-        </nav>
+        )}
+
+        {/* Accès rapide aux règles */}
+        <button
+          type="button"
+          onClick={() => openLink("rules")}
+          aria-label="Comment jouer"
+          style={{
+            position: "fixed",
+            left: 12,
+            bottom: 78,
+            zIndex: 60,
+            display: "flex",
+            alignItems: "center",
+            gap: 6,
+            padding: "9px 13px",
+            borderRadius: 999,
+            border: "1.5px solid var(--wood-edge)",
+            background: "linear-gradient(160deg, rgba(52,32,18,.5), rgba(12,9,7,.86))",
+            color: T.text,
+            fontWeight: 900,
+            fontSize: 12.5,
+            cursor: "pointer",
+          }}
+        >
+          <NjamboIcon name="cards" tone="gold" size={16} />
+          <span>Comment jouer</span>
+        </button>
+
+        <BottomNav active="menu" />
       </div>
     </Shell>
   );

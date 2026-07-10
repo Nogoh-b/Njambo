@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import {
@@ -12,6 +11,7 @@ import {
   rejectFriendRequest,
 } from "@/lib/socialData";
 import { AvatarIllustration } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
@@ -77,16 +77,8 @@ export function FriendsScreen() {
               {tab === "friends" && friends.map((friend, i) => (
                 <div
                   key={friend.uid}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 10px",
-                    borderRadius: 17,
-                    background: "rgba(255,248,232,.052)",
-                    border: friend.online ? `1px solid ${T.teal}55` : "1px solid rgba(255,248,232,.1)",
-                    animation: `riseIn .3s ${i * 0.04}s both`,
-                  }}
+                  className={`nj-list-card${friend.online ? " nj-list-card--teal is-active" : ""}`}
+                  style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
                 >
                   <AvatarIllustration seed={friend.emoji} size={50} online={friend.online} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -105,16 +97,8 @@ export function FriendsScreen() {
                 return (
                   <div
                     key={req.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "12px 10px",
-                      borderRadius: 17,
-                      background: incoming ? `${T.pink}16` : "rgba(255,248,232,.052)",
-                      border: incoming ? `1.5px solid ${T.pink}` : "1px solid rgba(255,248,232,.1)",
-                      animation: `riseIn .3s ${i * 0.04}s both`,
-                    }}
+                    className={`nj-list-card${incoming ? " nj-list-card--pink is-active" : ""}`}
+                    style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
                   >
                     <AvatarIllustration seed={incoming ? req.fromEmoji : req.toEmoji} size={50} online />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -139,16 +123,8 @@ export function FriendsScreen() {
               {tab === "players" && players.map((player, i) => (
                 <div
                   key={player.uid}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 10px",
-                    borderRadius: 17,
-                    background: "rgba(255,248,232,.052)",
-                    border: player.online ? `1px solid ${T.teal}55` : "1px solid rgba(255,248,232,.1)",
-                    animation: `riseIn .3s ${i * 0.04}s both`,
-                  }}
+                  className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""}`}
+                  style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
                 >
                   <AvatarIllustration seed={player.emoji} size={50} online={player.online} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -160,6 +136,7 @@ export function FriendsScreen() {
               ))}
             </div>
           </Surface>
+          <BottomNav active="friends" />
         </div>
       </div>
     </Shell>

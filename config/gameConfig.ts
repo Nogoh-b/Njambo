@@ -31,4 +31,9 @@ export const GAME_CONFIG: GameConfig = {
     dropFlight: 500, // durée du vol main → dépôt
     trickPause: 1600, // pause après résolution d'un tour
   },
+  economy: {
+    dailyBonus: 500, // jetons offerts par réclamation
+    bonusCooldownH: 24, // 1 réclamation / 24 h
+    brokeFloor: 200, // plancher anti-faillite (2× mise mini)
+  },
 };

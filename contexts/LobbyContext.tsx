@@ -167,8 +167,22 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
 
   /* ── Créer une salle ── */
   const createRoom = useCallback(async (stake: number, maxPlayers: number, roomType: "online" | "friends" = "online"): Promise<string> => {
-    if (!user) throw new Error("Non connecté");
+    if (!user) {
+      setRoomError("Tu dois être connecté pour créer une salle.");
+      throw new Error("Non connecté");
+    }
     setRoomError(null);
+
+    // Validation: stake doit être valide
+    if (![100, 250, 500].includes(stake)) {
+      setRoomError("Mise invalide.");
+      throw new Error("Mise invalide");
+    }
+    // Validation: nombre de joueurs
+    if (![2, 3, 4].includes(maxPlayers)) {
+      setRoomError("Nombre de joueurs invalide.");
+      throw new Error("Nombre de joueurs invalide");
+    }
 
     const player: RoomPlayer = {
       uid: user.uid,
@@ -191,11 +205,17 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       createdAt: Date.now(),
     };
 
-    const docRef = await addDoc(collection(db, "rooms"), roomData);
-    const roomId = docRef.id;
-    setCurrentRoom({ id: roomId, ...roomData });
-    listenRoom(roomId);
-    return roomId;
+    try {
+      const docRef = await addDoc(collection(db, "rooms"), roomData);
+      const roomId = docRef.id;
+      setCurrentRoom({ id: roomId, ...roomData });
+      listenRoom(roomId);
+      return roomId;
+    } catch (err) {
+      console.error("[LobbyContext] createRoom error:", err);
+      setRoomError("Impossible de créer la salle. Réessaie.");
+      throw err;
+    }
   }, [user, listenRoom]);
 
   /* ── Rejoindre par ID ── */
@@ -245,6 +265,11 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
 
         if (players.length >= room.maxPlayers) {
           throw new Error("La salle est pleine.");
+        }
+
+        // Validation: la mise de la room est-elle valide ?
+        if (room.stake && ![100, 250, 500].includes(room.stake)) {
+          throw new Error("Mise invalide dans cette salle.");
         }
 
         const updatedPlayers = [...players, player];

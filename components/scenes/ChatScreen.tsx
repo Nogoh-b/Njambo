@@ -75,10 +75,12 @@ export function ChatScreen() {
                     style={{
                       alignSelf: mine ? "flex-end" : "flex-start",
                       maxWidth: "78%",
-                      padding: "9px 11px",
+                      padding: "9px 12px",
                       borderRadius: 14,
-                      background: mine ? `${T.teal}22` : "rgba(255,248,232,.08)",
-                      border: mine ? `1px solid ${T.teal}55` : "1px solid rgba(255,248,232,.1)",
+                      background: mine
+                        ? `${T.teal}26`
+                        : "linear-gradient(160deg, rgba(60,37,20,.55), rgba(10,8,6,.82))",
+                      border: mine ? `1px solid ${T.teal}66` : "1px solid var(--wood-edge)",
                     }}
                   >
                     {msg.text}

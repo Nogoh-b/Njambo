@@ -8,6 +8,7 @@ import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenLeaderboard } from "@/lib/playerData";
 import { FCFA } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
 import type { OnlinePlayerProfile } from "@/types/game";
@@ -45,17 +46,8 @@ export function LeaderboardScreen() {
                 return (
                   <div
                     key={p.uid}
-                    className="leader-row"
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "12px 10px",
-                      borderRadius: 17,
-                      background: isYou ? `${T.gold}19` : "rgba(255,248,232,.052)",
-                      border: isYou ? `1.5px solid ${T.gold}` : "1px solid rgba(255,248,232,.1)",
-                      animation: `riseIn .34s ${i * 0.06}s both`,
-                    }}
+                    className={`nj-list-card${isYou ? " nj-list-card--gold is-active" : ""}`}
+                    style={{ animation: `riseIn .34s ${i * 0.06}s both` }}
                   >
                     <div
                       style={{
@@ -90,6 +82,7 @@ export function LeaderboardScreen() {
               })}
             </div>
           </Surface>
+          <BottomNav />
         </div>
       </div>
     </Shell>

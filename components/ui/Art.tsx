@@ -10,11 +10,14 @@ export type NjamboIconName =
   | "code"
   | "copy"
   | "crown"
+  | "cut"
   | "empty"
+  | "eye"
   | "friends"
   | "globe"
   | "history"
   | "home"
+  | "hourglass"
   | "language"
   | "message"
   | "music"
@@ -27,8 +30,11 @@ export type NjamboIconName =
   | "settings"
   | "sound"
   | "spark"
+  | "sparkle"
+  | "star"
   | "trophy"
-  | "users";
+  | "users"
+  | "wind";
 
 interface MarkProps {
   size?: number;
@@ -248,6 +254,47 @@ function renderIcon(name: NjamboIconName, color: string) {
         <>
           <rect x="14" y="9" width="20" height="30" rx="5" fill={soft} {...stroke} />
           <path d="M19 18h10M19 25h10M19 32h6" fill="none" {...stroke} />
+        </>
+      );
+    /* ── Power cards ── */
+    case "eye":
+      return (
+        <>
+          <path d="M5 24s7-12 19-12 19 12 19 12-7 12-19 12S5 24 5 24Z" fill={soft} {...stroke} />
+          <circle cx="24" cy="24" r="6" fill={color} />
+          <circle cx="26" cy="22" r="1.6" fill={T.night1} />
+        </>
+      );
+    case "cut":
+      return (
+        <>
+          <circle cx="13" cy="14" r="5" fill={soft} {...stroke} />
+          <circle cx="13" cy="34" r="5" fill={soft} {...stroke} />
+          <path d="M17 16 40 33M17 32 40 15" fill="none" {...stroke} />
+        </>
+      );
+    case "star":
+      return <path d="M24 6 30 18l13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2Z" fill={soft} {...stroke} />;
+    case "sparkle":
+      return (
+        <>
+          <path d="M22 8c1.4 9 3 10.6 12 12-9 1.4-10.6 3-12 12-1.4-9-3-10.6-12-12 9-1.4 10.6-3 12-12Z" fill={soft} {...stroke} />
+          <path d="M37 29c.6 4 1.2 4.6 5 5-3.8.4-4.4 1-5 5-.6-4-1.2-4.6-5-5 3.8-.4 4.4-1 5-5Z" fill={color} />
+        </>
+      );
+    case "wind":
+      return (
+        <>
+          <path d="M6 18h20a5 5 0 1 0-5-5" fill="none" {...stroke} />
+          <path d="M6 26h29a5 5 0 1 1-5 5" fill="none" {...stroke} />
+          <path d="M6 34h16a4 4 0 1 1-4 4" fill="none" {...stroke} />
+        </>
+      );
+    case "hourglass":
+      return (
+        <>
+          <path d="M14 8h20M14 40h20" fill="none" {...stroke} />
+          <path d="M16 8c0 9 8 11 8 16 0-5 8-7 8-16M16 40c0-9 8-11 8-16 0 5 8 7 8 16Z" fill={soft} {...stroke} />
         </>
       );
     case "spark":

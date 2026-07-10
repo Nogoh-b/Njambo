@@ -89,6 +89,7 @@ export function LobbyScreen({
                 alignItems: "center",
                 justifyContent: "space-between",
                 gap: 12,
+                flexWrap: "wrap",
               }}
             >
               <div>
@@ -105,6 +106,7 @@ export function LobbyScreen({
                     letterSpacing: ".16em",
                     color: T.gold,
                     padding: "8px 16px",
+                    flexShrink: 0,
                   }}
                 >
                   {currentRoom?.code ?? "------"}
@@ -136,7 +138,7 @@ export function LobbyScreen({
             </Surface>
 
             {/* Liste des joueurs */}
-            <Surface>
+            <Surface style={{ overflow: "visible" }}>
               <div style={{ fontWeight: 900, marginBottom: 12 }}>Joueurs</div>
               <div className="nj-stack" style={{ gap: 9 }}>
                 {players.map((p, i) => {
@@ -145,16 +147,8 @@ export function LobbyScreen({
                   return (
                     <div
                       key={p.uid}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 12,
-                        padding: "11px 12px",
-                        borderRadius: 16,
-                        background: isReady ? `${T.teal}1a` : "rgba(255,248,232,.055)",
-                        border: isReady ? `1.5px solid ${T.teal}` : "1px solid rgba(255,248,232,.11)",
-                        animation: `riseIn .3s ${i * 0.05}s both`,
-                      }}
+                      className={`nj-list-card${isReady ? " nj-list-card--teal is-active" : ""}`}
+                      style={{ animation: `riseIn .3s ${i * 0.05}s both` }}
                     >
                       <span style={{ fontSize: 28 }}>{p.emoji}</span>
                       <span style={{ flex: 1, minWidth: 0 }}>
@@ -176,21 +170,21 @@ export function LobbyScreen({
                           background: isReady ? T.teal : "rgba(255,255,255,.25)",
                         }}
                       />
-                      {p.uid !== user?.uid && <SocialActions player={p} compact />}
+                      {p.uid !== user?.uid && <span style={{ flex: "0 0 auto" }}><SocialActions player={p} compact /></span>}
                     </div>
                   );
                 })}
               </div>
             </Surface>
 
-            {/* Erreur */}
+          </div>
+
+          <div className="nj-screen-footer" style={{ flexDirection: "column", gap: 8 }}>
             {roomError && (
               <div style={{ color: T.bad, fontSize: 13, textAlign: "center" }}>
                 {roomError}
               </div>
             )}
-
-            {/* Actions */}
             {isHost ? (
               <Btn
                 variant="pink"

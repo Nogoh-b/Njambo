@@ -5,6 +5,7 @@ import { GameProvider, useGame } from "@/contexts/GameContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { recordMatchResult } from "@/lib/playerData";
+import { CAURIS_REWARDS } from "@/config/powerCards";
 import { SplashScreen } from "@/components/scenes/SplashScreen";
 import { MenuScreen } from "@/components/scenes/MenuScreen";
 import { BotSetupScreen } from "@/components/scenes/BotSetupScreen";
@@ -24,7 +25,10 @@ import { ChatScreen } from "@/components/scenes/ChatScreen";
 import { PublicProfileScreen } from "@/components/scenes/PublicProfileScreen";
 import { OptionsScreen } from "@/components/scenes/OptionsScreen";
 import { HistoryScreen } from "@/components/scenes/HistoryScreen";
-import type { GameMode, Result, RoomDoc, RoomPlayer } from "@/types/game";
+import { RulesScreen } from "@/components/scenes/RulesScreen";
+import { PowerShopScreen } from "@/components/scenes/PowerShopScreen";
+import { PowerCollectionScreen } from "@/components/scenes/PowerCollectionScreen";
+import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/types/game";
 
 /* ═══════════════ SceneRouter ═══════════════
    Orchestrateur de scènes : gère la navigation
@@ -33,7 +37,7 @@ import type { GameMode, Result, RoomDoc, RoomPlayer } from "@/types/game";
    ResultScreen s'affiche en overlay plein écran quand un résultat est prêt. */
 
 function SceneRouter() {
-  const { scene, navigateTo, profile, setProfile, cfg } = useGame();
+  const { scene, navigateTo, profile, setProfile, cfg, animationsOn } = useGame();
   const { currentRoom, resumeActiveRoom } = useLobby();
   const { user } = useAuth();
 
@@ -41,6 +45,7 @@ function SceneRouter() {
   const [gameResult, setGameResult] = useState<Result | null>(null);
   const [gameMise, setGameMise] = useState(cfg.stakes[1]);
   const [gameBotCount, setGameBotCount] = useState(2);
+  const [gameDifficulty, setGameDifficulty] = useState<BotDifficulty>("normal");
   const [gameMode, setGameMode] = useState<GameMode>("bot");
   /* True quand une session de jeu est active (table montée) */
   const [gameActive, setGameActive] = useState(false);
@@ -64,10 +69,11 @@ function SceneRouter() {
   }, [setProfile, user]);
 
   /* --- Bot setup --- */
-  const handleBotStart = useCallback((botCount: number, mise: number) => {
+  const handleBotStart = useCallback((botCount: number, mise: number, difficulty: BotDifficulty = "normal") => {
     setGameMode("bot");
     roundTokenRef.current = Date.now();
     setGameBotCount(botCount);
+    setGameDifficulty(difficulty);
     setGameMise(mise);
     setGameResult(null);
     setGameActive(true);
@@ -102,7 +108,13 @@ function SceneRouter() {
       ? profile.balance - gameMise + totalGain
       : profile.balance - gameMise - (result.doubles ? gameMise : 0);
 
-    setProfile((prev) => ({ ...prev, balance: nextBalance }));
+    /* Récompense en cauris : +perWin si tu remportes la partie. */
+    const caurisGain = result.winner.isYou ? CAURIS_REWARDS.perWin : 0;
+    setProfile((prev) => ({
+      ...prev,
+      balance: nextBalance,
+      cauris: (prev.cauris ?? 0) + caurisGain,
+    }));
 
     if (!user?.uid) return;
 
@@ -120,7 +132,7 @@ function SceneRouter() {
     if (recordedResultKeysRef.current.has(matchKey)) return;
     recordedResultKeysRef.current.add(matchKey);
 
-    void recordMatchResult({
+    recordMatchResult({
       uid: user.uid,
       name: profile.name,
       emoji: profile.emoji,
@@ -130,8 +142,10 @@ function SceneRouter() {
       stake: gameMise,
       roomId: roomId ?? undefined,
       matchKey,
-    }).catch((err) => {
-      console.error("[NjamboApp] recordMatchResult error:", err);
+    }).then(({ success, error }) => {
+      if (!success) {
+        console.error("[NjamboApp] recordMatchResult failed:", error);
+      }
     });
   }, [gameMise, gameMode, profile.balance, profile.emoji, profile.name, roomId, setProfile, user]);
 
@@ -156,16 +170,20 @@ function SceneRouter() {
 
   useEffect(() => {
     if (prevScene.current !== scene) {
+      prevScene.current = scene;
+      if (!animationsOn) {
+        setTransitionClass("");
+        return;
+      }
       setTransitionClass("scene-enter-fade");
       const t = setTimeout(() => setTransitionClass(""), 500);
-      prevScene.current = scene;
       return () => clearTimeout(t);
     }
-  }, [scene]);
+  }, [animationsOn, scene]);
 
   return (
     <div
-      className={transitionClass}
+      className={[transitionClass, animationsOn ? "nj-motion-on" : "nj-motion-off"].filter(Boolean).join(" ")}
       style={{ minHeight: "100vh", position: "relative" }}
     >
       {scene === "splashscreen" && <SplashScreen />}
@@ -186,6 +204,9 @@ function SceneRouter() {
       {scene === "public_profile" && <PublicProfileScreen />}
       {scene === "options" && <OptionsScreen />}
       {scene === "history" && <HistoryScreen />}
+      {scene === "rules" && <RulesScreen />}
+      {scene === "power_shop" && <PowerShopScreen />}
+      {scene === "power_collection" && <PowerCollectionScreen />}
 
       {/* Setups */}
       {scene === "bot_setup" && (
@@ -209,10 +230,11 @@ function SceneRouter() {
       {/* TableScreen — monté pendant toute la session de jeu */}
       {gameActive && (
         <TableScreen
-          key={gameMode + "-" + gameBotCount + "-" + gameMise + "-" + (roomId ?? "")}
+          key={gameMode + "-" + gameBotCount + "-" + gameMise + "-" + gameDifficulty + "-" + (roomId ?? "")}
           gameMode={gameMode}
           initialBotCount={gameBotCount}
           initialMise={gameMise}
+          initialDifficulty={gameDifficulty}
           roomId={roomId ?? undefined}
           roomPlayers={roomPlayers.length > 0 ? roomPlayers as RoomPlayer[] : undefined}
           roomHostId={roomHostId || undefined}

@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { createSound } from "@/lib/sound";
 import { GAME_CONFIG } from "@/config/gameConfig";
+import { STARTING_CAURIS } from "@/config/powerCards";
 import type { Profile, SceneName, SocialTarget } from "@/types/game";
 
 /* ═══════════════ Contexte global du jeu Njambo ═══════════════
@@ -28,6 +29,8 @@ interface GameContextValue {
   sfxOn: boolean;
   setSfxOn: (v: boolean) => void;
   sfx: (fn: (s: ReturnType<typeof createSound>) => void) => void;
+  animationsOn: boolean;
+  setAnimationsOn: (v: boolean) => void;
 
   /* Config (shortcut) */
   cfg: typeof GAME_CONFIG;
@@ -44,6 +47,7 @@ function loadStoredProfile(): Profile {
       name: "Nogoh",
       emoji: "you-nogoh",
       balance: GAME_CONFIG.startingBalance,
+      cauris: STARTING_CAURIS,
     };
   }
   try {
@@ -54,6 +58,9 @@ function loadStoredProfile(): Profile {
         name: typeof parsed.name === "string" && parsed.name ? parsed.name : "Nogoh",
         emoji: typeof parsed.emoji === "string" && parsed.emoji ? parsed.emoji : "you-nogoh",
         balance: typeof parsed.balance === "number" ? parsed.balance : GAME_CONFIG.startingBalance,
+        cauris: typeof parsed.cauris === "number" ? parsed.cauris : STARTING_CAURIS,
+        powerInventory: parsed.powerInventory ?? {},
+        equippedPowers: parsed.equippedPowers ?? [],
       };
     }
   } catch {
@@ -63,6 +70,7 @@ function loadStoredProfile(): Profile {
     name: "Nogoh",
     emoji: "you-nogoh",
     balance: GAME_CONFIG.startingBalance,
+    cauris: STARTING_CAURIS,
   };
 }
 
@@ -85,6 +93,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>({});
   const [musicOn, setMusicOn] = useState(false);
   const [sfxOn, setSfxOn] = useState(true);
+  const [animationsOn, setAnimationsOn] = useState(true);
 
   /* Sauvegarder dans localStorage à chaque changement de profil */
   const setProfile = useCallback((p: Profile | ((prev: Profile) => Profile)) => {
@@ -143,6 +152,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         sfxOn,
         setSfxOn,
         sfx,
+        animationsOn,
+        setAnimationsOn,
         cfg,
       }}
     >

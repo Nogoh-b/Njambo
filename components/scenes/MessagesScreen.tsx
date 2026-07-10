@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { listenConversations } from "@/lib/socialData";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import type { ConversationEntry } from "@/types/game";
 
@@ -49,20 +49,8 @@ export function MessagesScreen() {
                       setSocialTarget({ conversationId: conv.id, peerUid, peerName: peer.name, peerEmoji: peer.emoji });
                       navigateTo("chat");
                     }}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      width: "100%",
-                      padding: "12px 10px",
-                      borderRadius: 17,
-                      background: unread ? `${T.teal}18` : "rgba(255,248,232,.052)",
-                      border: unread ? `1.5px solid ${T.teal}` : "1px solid rgba(255,248,232,.1)",
-                      color: T.text,
-                      textAlign: "left",
-                      cursor: "pointer",
-                      animation: `riseIn .3s ${i * 0.04}s both`,
-                    }}
+                    className={`nj-list-card${unread ? " nj-list-card--teal is-active" : ""}`}
+                    style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
                   >
                     <AvatarIllustration seed={peer.emoji} size={50} online={unread} />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -77,6 +65,7 @@ export function MessagesScreen() {
               })}
             </div>
           </Surface>
+          <BottomNav active="messages" />
         </div>
       </div>
     </Shell>

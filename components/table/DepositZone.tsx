@@ -14,10 +14,11 @@ interface DepositZoneProps {
   w: number;
   active: boolean;
   isDominant: boolean;
+  effects?: boolean;
 }
 
 export const DepositZone = forwardRef<HTMLDivElement, DepositZoneProps>(function DepositZone(
-  { deposit, w, active, isDominant },
+  { deposit, w, active, isDominant, effects = true },
   ref,
 ) {
   const h = w * 1.45;
@@ -47,14 +48,15 @@ export const DepositZone = forwardRef<HTMLDivElement, DepositZoneProps>(function
         return (
           <div
             key={c.id + i}
+            className={effects && top ? "nj-deposit-card-landed" : undefined}
             style={{
               position: "absolute",
               transform: `translate(${c.dx || 0}px, ${c.dy || 0}px) rotate(${c.dropRot || 0}deg)`,
-              animation: top ? "landPop .28s both" : "none",
+              animation: effects && top ? "landPop .28s both" : "none",
             }}
           >
             <div>
-              <PlayCard card={c} w={w} glow={top && active} />
+              <PlayCard card={c} w={w} glow={effects && top && active} />
               {top && isDominant && (
                 <div
                   style={{
@@ -64,7 +66,7 @@ export const DepositZone = forwardRef<HTMLDivElement, DepositZoneProps>(function
                     transform: "translateX(-50%)",
                     fontSize: 17,
                     filter: "drop-shadow(0 1px 3px #000)",
-                    animation: "crownPop .35s both",
+                    animation: effects ? "crownPop .35s both" : "none",
                   }}
                 >
                   <NjamboIcon name="crown" tone="gold" size={22} />

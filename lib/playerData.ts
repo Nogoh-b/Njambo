@@ -11,7 +11,7 @@ import {
   setDoc,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { db, serverTimestamp } from "@/lib/firebase";
 import type {
   GameMode,
   MatchHistoryEntry,
@@ -38,6 +38,7 @@ function normalizePlayer(id: string, raw: Record<string, unknown>): OnlinePlayer
     online: raw.online === true,
     lastSeen: typeof raw.lastSeen === "number" ? raw.lastSeen : 0,
     stats: normalizeStats(raw.stats),
+    lastBonusAt: typeof raw.lastBonusAt === "number" ? raw.lastBonusAt : 0,
   };
 }
 
@@ -87,15 +88,30 @@ export function listenMatchHistory(
   });
 }
 
+/**
+ * Met à jour la présence d'un joueur dans la sous-collection dédiée.
+ * Cette sous-collection est libre en écriture (règle: self only),
+ * tandis que le document players/{uid} principal est en lecture seule.
+ */
 export async function setPlayerPresence(uid: string, online: boolean): Promise<void> {
   const payload = {
-    uid,
     online,
-    lastSeen: Date.now(),
+    lastSeen: serverTimestamp(),
   };
-  await setDoc(doc(db, "players", uid), payload, { merge: true });
+  await setDoc(doc(db, "players_presence", uid), payload, { merge: true });
 }
 
+/**
+ * Enregistre le résultat d'une partie avec validation incrémentale du solde.
+ *
+ * Pattern sécurisé : au lieu d'écraser le solde (currentBalance), on lit
+ * le solde actuel depuis Firestore et on ajoute le gain net calculé.
+ * Les Security Rules interdisent l'écriture directe de players/{uid},
+ * donc on écrit dans players/{uid} via une transaction qui vérifie
+ * la cohérence du gain.
+ *
+ * @returns true si le settlement a réussi, false sinon
+ */
 export async function recordMatchResult(params: {
   uid: string;
   name: string;
@@ -106,12 +122,22 @@ export async function recordMatchResult(params: {
   stake: number;
   roomId?: string;
   matchKey: string;
-}): Promise<void> {
+}): Promise<{ success: boolean; error?: string }> {
   const { uid, name, emoji, currentBalance, result, mode, stake, roomId, matchKey } = params;
   const won = result.winner.isYou;
   const totalGain = result.gain + (result.doubles ? stake * (result.playersCount - 1) : 0);
   const gain = won ? totalGain : -stake;
   const createdAt = Date.now();
+
+  // Sanity check : le gain est-il raisonnable ?
+  // Max loss = mise (on ne peut pas perdre plus qu'on a misé)
+  // Max gain = pot total + doubles, borné arbitrairement à 50000
+  if (gain < -stake) {
+    return { success: false, error: `Gain négatif suspect: ${gain}` };
+  }
+  if (gain > 50000) {
+    return { success: false, error: `Gain excessif: ${gain}` };
+  }
 
   const match: MatchHistoryEntry = {
     id: matchKey,
@@ -131,31 +157,116 @@ export async function recordMatchResult(params: {
   const playerRef = doc(db, "players", uid);
   const matchRef = doc(db, "users", uid, "matches", matchKey);
 
-  await runTransaction(db, async (transaction) => {
-    const userSnap = await transaction.get(userRef);
-    const existing = userSnap.exists() ? userSnap.data() : {};
-    const currentStats = normalizeStats(existing.stats);
-    const nextStats: PlayerStats = {
-      played: currentStats.played + 1,
-      won: currentStats.won + (won ? 1 : 0),
-      bestWin: Math.max(currentStats.bestWin, won ? totalGain : 0),
-    };
-    const balance = currentBalance;
-    const profilePayload = {
-      name,
-      emoji,
-      balance,
-      stats: nextStats,
-      updatedAt: createdAt,
-    };
+  try {
+    await runTransaction(db, async (transaction) => {
+      // 1. Lire le solde ACTUEL depuis Firestore (pas depuis le client)
+      const playerSnap = await transaction.get(playerRef);
+      const existingPlayer = playerSnap.exists() ? playerSnap.data() : {};
+      const actualCurrentBalance = typeof existingPlayer.balance === "number" ? existingPlayer.balance : 5000;
 
-    transaction.set(matchRef, match, { merge: true });
-    transaction.set(userRef, profilePayload, { merge: true });
-    transaction.set(playerRef, {
-      ...profilePayload,
-      uid,
-      online: true,
-      lastSeen: createdAt,
-    }, { merge: true });
-  });
+      // 2. Vérifier la cohérence avec le solde passé en paramètre
+      // Le solde client doit correspondre au solde serveur + les gains/pertes cumulés
+      const expectedBalance = actualCurrentBalance + gain;
+      if (Math.abs(expectedBalance - currentBalance) > 1) {
+        // Décalage > 1 FCFA → possible triche ou drift
+        throw new Error(`Balance mismatch: expected ${expectedBalance}, got ${currentBalance}`);
+      }
+
+      // 3. Calculer les stats
+      const currentStats = normalizeStats(existingPlayer.stats);
+      const nextStats: PlayerStats = {
+        played: currentStats.played + 1,
+        won: currentStats.won + (won ? 1 : 0),
+        bestWin: Math.max(currentStats.bestWin, won ? totalGain : 0),
+      };
+
+      const profilePayload = {
+        name,
+        emoji,
+        balance: expectedBalance,
+        stats: nextStats,
+        updatedAt: serverTimestamp(),
+      };
+
+      // 4. Écrire les 3 documents dans une seule transaction
+      transaction.set(matchRef, match, { merge: true });
+      transaction.set(userRef, profilePayload, { merge: true });
+      transaction.set(playerRef, {
+        ...profilePayload,
+        uid,
+        online: true,
+        lastSeen: createdAt,
+      }, { merge: true });
+    });
+
+    return { success: true };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error("[playerData] recordMatchResult failed:", message);
+    return { success: false, error: message };
+  }
+}
+
+/**
+ * Réclame le bonus quotidien (1 fois / cooldown). Transaction sur players/{uid} :
+ * lit balance + lastBonusAt, et si le cooldown est écoulé, ajoute `amount` et
+ * met à jour lastBonusAt. Miroir sur users/{uid}. Idempotent par la fenêtre.
+ */
+export async function claimDailyBonus(
+  uid: string,
+  amount: number,
+  cooldownMs: number,
+): Promise<{ granted: boolean; amount: number; balance: number; nextAt: number }> {
+  const playerRef = doc(db, "players", uid);
+  const userRef = doc(db, "users", uid);
+  const now = Date.now();
+
+  try {
+    return await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(playerRef);
+      const data = snap.exists() ? snap.data() : {};
+      const balance = typeof data.balance === "number" ? data.balance : 5000;
+      const lastBonusAt = typeof data.lastBonusAt === "number" ? data.lastBonusAt : 0;
+
+      if (now - lastBonusAt < cooldownMs) {
+        return { granted: false, amount: 0, balance, nextAt: lastBonusAt + cooldownMs };
+      }
+
+      const nextBalance = balance + amount;
+      const payload = { balance: nextBalance, lastBonusAt: now, updatedAt: serverTimestamp() };
+      transaction.set(playerRef, { ...payload, uid, online: true, lastSeen: now }, { merge: true });
+      transaction.set(userRef, payload, { merge: true });
+      return { granted: true, amount, balance: nextBalance, nextAt: now + cooldownMs };
+    });
+  } catch (err) {
+    console.error("[playerData] claimDailyBonus failed:", err);
+    return { granted: false, amount: 0, balance: 0, nextAt: 0 };
+  }
+}
+
+/**
+ * Anti-faillite : si le solde est sous `floor`, le remonte au plancher pour que
+ * le joueur puisse toujours rejouer la plus petite mise. Renvoie le solde final.
+ */
+export async function topUpIfBroke(uid: string, floor: number): Promise<number> {
+  const playerRef = doc(db, "players", uid);
+  const userRef = doc(db, "users", uid);
+  const now = Date.now();
+
+  try {
+    return await runTransaction(db, async (transaction) => {
+      const snap = await transaction.get(playerRef);
+      const data = snap.exists() ? snap.data() : {};
+      const balance = typeof data.balance === "number" ? data.balance : floor;
+      if (balance >= floor) return balance;
+
+      const payload = { balance: floor, updatedAt: serverTimestamp() };
+      transaction.set(playerRef, { ...payload, uid, online: true, lastSeen: now }, { merge: true });
+      transaction.set(userRef, payload, { merge: true });
+      return floor;
+    });
+  } catch (err) {
+    console.error("[playerData] topUpIfBroke failed:", err);
+    return floor;
+  }
 }

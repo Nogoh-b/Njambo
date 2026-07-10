@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { listenNotifications, markNotificationRead } from "@/lib/socialData";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import type { NotificationEntry } from "@/types/game";
 
@@ -67,20 +67,8 @@ export function NotificationsScreen() {
                   key={item.id}
                   type="button"
                   onClick={() => { void openNotification(item); }}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    width: "100%",
-                    padding: "12px 10px",
-                    borderRadius: 17,
-                    background: item.read ? "rgba(255,248,232,.052)" : `${T.pink}18`,
-                    border: item.read ? "1px solid rgba(255,248,232,.1)" : `1.5px solid ${T.pink}`,
-                    color: T.text,
-                    textAlign: "left",
-                    cursor: "pointer",
-                    animation: `riseIn .3s ${i * 0.04}s both`,
-                  }}
+                  className={`nj-list-card${item.read ? "" : " nj-list-card--pink is-active"}`}
+                  style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
                 >
                   <AvatarIllustration seed={item.actorEmoji} size={48} online />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -94,6 +82,7 @@ export function NotificationsScreen() {
               ))}
             </div>
           </Surface>
+          <BottomNav active="notifications" />
         </div>
       </div>
     </Shell>

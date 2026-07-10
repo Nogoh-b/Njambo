@@ -80,8 +80,8 @@ export function AuthGate({ children }: AuthGateProps) {
             gap: 10,
             padding: "8px 14px",
             borderRadius: 14,
-            background: "rgba(255,248,232,.055)",
-            border: "1px solid rgba(255,248,232,.11)",
+            background: "linear-gradient(160deg, rgba(60,37,20,.5), rgba(10,8,6,.82))",
+            border: "1px solid var(--wood-edge)",
             marginBottom: 4,
           }}
         >

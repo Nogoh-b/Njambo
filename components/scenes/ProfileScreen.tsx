@@ -8,8 +8,9 @@ import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenPlayer } from "@/lib/socialData";
 import { FCFA } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { Btn } from "@/components/ui/Btn";
-import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
+import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import type { PlayerStats, PublicPlayerProfile } from "@/types/game";
 
 const AVATARS = [
@@ -84,141 +85,82 @@ export function ProfileScreen() {
         <div className="nj-phone">
           <ScreenHeader title="Mon profil" kicker="Identite joueur" icon="profile" tone="gold" onBack={() => navigateTo("menu")} backLabel="Retour" />
 
-          <div className="nj-stack">
+          <div className="nj-stack" style={{ gap: 10 }}>
             {user && (
-              <div
-                style={{
-                  fontSize: 12,
-                  textAlign: "center",
-                  padding: "6px 12px",
-                  borderRadius: 10,
-                  background: `${T.good}15`,
-                  color: T.good,
-                  fontWeight: 700,
-                }}
-              >
-                Connecte{user.email ? ` - ${user.email}` : " (anonyme)"}
+              <div className="nj-profile-status">
+                Connecte{user.email ? ` · ${user.email}` : " (anonyme)"}
               </div>
             )}
 
-            <Surface className="nj-profile-hero" style={{ textAlign: "center" }}>
-              <AvatarIllustration seed={shownEmoji} size={118} active />
-
-              <div className="nj-profile-level-card">
-                <div className="nj-profile-level-top">
-                  <span className="nj-profile-level-pill">Niveau {level.level}</span>
-                  <span>{level.title}</span>
+            {/* Identité compacte (avatar + pseudo + niveau) */}
+            <Surface className="nj-panel-pad-sm" style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <AvatarIllustration seed={shownEmoji} size={78} active />
+              <div style={{ flex: 1, minWidth: 0 }}>
+                {editing ? (
+                  <div style={{ display: "flex", gap: 8 }}>
+                    <input value={draftName} onChange={(e) => { setDraftName(e.target.value); setError(""); }} className="nj-input" maxLength={22} style={{ minHeight: 42 }} />
+                    <Btn variant="gold" onClick={save} disabled={saving}>{saving ? "..." : "OK"}</Btn>
+                  </div>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={() => { setDraftName(shownName); setEditing(true); setError(""); }}
+                    className="nj-profile-name-btn"
+                  >
+                    <span>{shownName}</span>
+                    <span className="nj-subtle">Modifier ✎</span>
+                  </button>
+                )}
+                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
+                  <span className="nj-profile-level-pill">Niv. {level.level}</span>
+                  <span className="nj-subtle" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{level.title}</span>
                 </div>
-                <div className="nj-level-track nj-profile-level-track" aria-hidden="true">
+                <div className="nj-level-track" style={{ marginTop: 6 }} aria-hidden="true">
                   <span className="nj-level-fill" style={{ width: `${Math.round(level.progress * 100)}%` }} />
                 </div>
-                <div className="nj-profile-level-meta">
-                  <span>{level.xp} XP</span>
-                  <span>{level.xpToNext} XP avant niveau {level.level + 1}</span>
-                </div>
               </div>
+            </Surface>
 
-              <div style={{ marginTop: 18, display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 9 }}>
+            {/* Sélecteur d'avatar */}
+            <Surface className="nj-panel-pad-sm">
+              <div className="nj-subtle" style={{ marginBottom: 8, fontSize: 12 }}>Choisis ton avatar</div>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 7 }}>
                 {AVATARS.map((a) => (
                   <button
                     type="button"
                     key={a}
                     onClick={() => { void saveProfile({ ...profile, name: shownName, emoji: a, balance: shownBalance }); }}
-                    className="nj-choice"
+                    className={`nj-avatar-choice${shownEmoji === a ? " is-selected" : ""}`}
                     aria-label={`Choisir avatar ${a}`}
-                    style={{
-                      height: 54,
-                      borderRadius: 18,
-                      border: shownEmoji === a ? `2px solid ${T.gold}` : "1px solid rgba(255,248,232,.12)",
-                      background: shownEmoji === a ? `${T.gold}18` : "rgba(255,248,232,.05)",
-                      display: "grid",
-                      placeItems: "center",
-                      cursor: "pointer",
-                    }}
                   >
-                    <AvatarIllustration seed={a} size={42} />
+                    <AvatarIllustration seed={a} size={38} />
                   </button>
                 ))}
               </div>
             </Surface>
 
-            <Surface>
-              <div style={{ fontWeight: 900, marginBottom: 10 }}>Pseudo</div>
-              {editing ? (
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input value={draftName} onChange={(e) => { setDraftName(e.target.value); setError(""); }} className="nj-input" maxLength={22} />
-                  <Btn variant="gold" onClick={save} disabled={saving}>
-                    {saving ? "..." : "OK"}
-                  </Btn>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => { setDraftName(shownName); setEditing(true); setError(""); }}
-                  className="nj-choice"
-                  style={{
-                    width: "100%",
-                    minHeight: 54,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 14px",
-                    borderRadius: 16,
-                    border: "1px solid rgba(255,248,232,.12)",
-                    background: "rgba(255,248,232,.055)",
-                    color: T.text,
-                    cursor: "pointer",
-                    textAlign: "left",
-                  }}
-                >
-                  <span style={{ fontWeight: 900 }}>{shownName}</span>
-                  <span className="nj-subtle">Modifier</span>
-                </button>
-              )}
-            </Surface>
-
             {error && (
-              <div
-                style={{
-                  color: T.bad,
-                  fontSize: 13,
-                  textAlign: "center",
-                  padding: "8px 12px",
-                  borderRadius: 10,
-                  background: `${T.bad}12`,
-                }}
-              >
+              <div style={{ color: T.bad, fontSize: 13, textAlign: "center", padding: "6px 12px", borderRadius: 10, background: `${T.bad}12` }}>
                 {error}
               </div>
             )}
 
-            <Surface>
-              <div style={{ fontWeight: 900, marginBottom: 14 }}>Statistiques</div>
-              <div className="nj-grid-2">
-                {[
-                  { label: "Solde", value: FCFA(shownBalance), color: T.gold },
-                  { label: "Parties jouees", value: String(stats.played), color: T.chalk },
-                  { label: "Victoires", value: String(stats.won), color: T.good },
-                  { label: "Meilleur gain", value: FCFA(stats.bestWin), color: T.copper },
-                ].map((s) => (
-                  <div
-                    key={s.label}
-                    style={{
-                      borderRadius: 16,
-                      padding: "14px 12px",
-                      background: "rgba(255,248,232,.055)",
-                      border: "1px solid rgba(255,248,232,.09)",
-                      textAlign: "center",
-                    }}
-                  >
-                    <div className="nj-subtle" style={{ fontSize: 11 }}>{s.label}</div>
-                    <div style={{ ...displayFont, color: s.color, fontWeight: 900, fontSize: 20 }}>{s.value}</div>
-                  </div>
-                ))}
-              </div>
-            </Surface>
+            {/* Statistiques */}
+            <div className="nj-grid-2" style={{ gap: 8 }}>
+              {[
+                { label: "Solde", value: FCFA(shownBalance), color: T.gold },
+                { label: "Parties", value: String(stats.played), color: T.chalk },
+                { label: "Victoires", value: String(stats.won), color: T.good },
+                { label: "Meilleur gain", value: FCFA(stats.bestWin), color: T.copper },
+              ].map((s) => (
+                <div key={s.label} className="nj-stat-card">
+                  <div className="nj-stat-card__label">{s.label}</div>
+                  <div className="nj-stat-card__value" style={{ color: s.color }}>{s.value}</div>
+                </div>
+              ))}
+            </div>
           </div>
+          <BottomNav />
         </div>
       </div>
     </Shell>

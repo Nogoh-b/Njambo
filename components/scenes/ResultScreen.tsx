@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { T } from "@/config/theme";
 import { FCFA } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
@@ -10,6 +10,7 @@ import { PlayCard } from "@/components/cards/PlayCard";
 import { displayFont } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
 import { useAuth } from "@/hooks/useAuth";
+import { useGame } from "@/contexts/GameContext";
 import type { Result, RoomPlayer } from "@/types/game";
 
 interface ResultScreenProps {
@@ -24,20 +25,30 @@ interface ResultScreenProps {
 
 export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequiresConsensus = false, socialPlayers = [] }: ResultScreenProps) {
   const { user } = useAuth();
+  const { animationsOn, sfx } = useGame();
   const win = result.winner;
   const [nextRequested, setNextRequested] = useState(false);
   const pieces = useRef(
-    Array.from({ length: 30 }, (_, i) => ({
+    Array.from({ length: 28 }, (_, i) => ({
       left: Math.random() * 100,
       delay: Math.random() * 1.6,
       dur: 2.4 + Math.random() * 2,
       color: [T.gold, T.pink, T.teal, T.copper, T.cobalt][i % 5],
       size: 7 + Math.random() * 8,
       rot: Math.random() * 360,
+      coin: i % 3 === 0,
     })),
   ).current;
 
   const totalGain = result.gain + (result.doubles ? mise * (result.playersCount - 1) : 0);
+
+  useEffect(() => {
+    sfx((sound) => {
+      if (win.isYou) sound.win();
+      else sound.lose();
+    });
+  }, [sfx, win.isYou]);
+
   const handleNext = () => {
     setNextRequested(true);
     onNext();
@@ -53,14 +64,17 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
         background: `radial-gradient(ellipse at 50% 30%, ${T.night3}f7, ${T.night1}fc)`,
         display: "grid",
         placeItems: "center",
-        animation: "fadeIn .35s both",
+        animation: animationsOn ? "fadeIn .35s both" : "none",
         padding: "24px 16px",
         color: T.text,
       }}
     >
-      {pieces.map((p, i) => (
+      {animationsOn && <div className="nj-result-aura" aria-hidden="true" />}
+
+      {animationsOn && pieces.map((p, i) => (
         <div
           key={i}
+          className={`nj-result-particle${p.coin ? " nj-result-particle-coin" : ""}`}
           style={{
             position: "absolute",
             top: -20,
@@ -76,13 +90,13 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
       ))}
 
       <section
-        className="nj-surface nj-panel-pad"
+        className={`nj-surface nj-panel-pad${animationsOn ? " nj-result-panel" : ""}`}
         style={{
           width: "min(92vw, 430px)",
           maxHeight: "88svh",
           overflowY: "auto",
           textAlign: "center",
-          animation: "riseIn .45s .1s both",
+          animation: animationsOn ? "riseIn .45s .1s both" : "none",
         }}
       >
         <div style={{ display: "grid", placeItems: "center", marginBottom: 8 }}>
@@ -124,15 +138,17 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
           </div>
         )}
 
-        <div style={{ ...displayFont, fontSize: "clamp(26px, 7vw, 36px)", fontWeight: 900, color: T.text, marginTop: 10 }}>
+        <div className={animationsOn ? "nj-result-gain" : undefined} style={{ ...displayFont, fontSize: "clamp(26px, 7vw, 36px)", fontWeight: 900, color: T.text, marginTop: 10 }}>
           + {FCFA(totalGain)}
         </div>
         <div className="nj-subtle">{result.doubles ? "pot + pénalités doublées" : "le pot rentre au ngata"}</div>
 
+        {animationsOn && <div className="nj-result-nudge">Revanche ?</div>}
+
         {socialPlayers.filter((player) => player.uid !== user?.uid).length > 0 && (
           <div style={{ marginTop: 18, display: "grid", gap: 8 }}>
             {socialPlayers.filter((player) => player.uid !== user?.uid).map((player) => (
-              <div key={player.uid} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: 8, borderRadius: 12, background: "rgba(255,248,232,.055)" }}>
+              <div key={player.uid} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, padding: "8px 10px", borderRadius: 12, background: "linear-gradient(160deg, rgba(60,37,20,.5), rgba(10,8,6,.82))", border: "1px solid var(--wood-edge)" }}>
                 <span style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{player.name}</span>
                 <SocialActions player={player} compact />
               </div>

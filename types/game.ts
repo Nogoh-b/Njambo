@@ -22,6 +22,10 @@ export interface Player {
   balance: number;
   hand: Card[];
   deposit: DepositedCard[];
+  /** Cartes pouvoir équipées pour cette partie */
+  equippedPowers?: PowerCardId[];
+  /** État d'activation des cartes pouvoir en jeu */
+  powerActivations?: PowerCardActivation[];
 }
 
 export interface TrickPlay {
@@ -34,8 +38,11 @@ export type SceneName =
   | "splashscreen" | "menu" | "setup" | "table" | "result"
   | "bot_setup" | "online_setup" | "friends_invite" | "lobby"
   | "profile" | "leaderboard" | "friends" | "options" | "history"
-  | "players" | "friend_requests" | "notifications" | "messages" | "chat" | "public_profile";
+  | "players" | "friend_requests" | "notifications" | "messages" | "chat" | "public_profile"
+  | "power_shop" | "power_collection"
+  | "rules";
 export type Phase = "idle" | "dealing" | "turns" | "trickEnd" | "result";
+export type BotDifficulty = "easy" | "normal" | "hard";
 export type Panel = "leaderboard" | "friends" | "options" | "rules" | null;
 export type GameMode = "online" | "friends" | "bot";
 
@@ -51,6 +58,70 @@ export interface Profile {
   name: string;
   emoji: string;
   balance: number;
+  /** Monnaie premium (cauris) pour acheter des cartes pouvoir */
+  cauris?: number;
+  /** Inventaire des cartes pouvoir (cardId → quantité) */
+  powerInventory?: PowerCardInventory;
+  /** Cartes pouvoir équipées pour la prochaine partie (max 2) */
+  equippedPowers?: PowerCardId[];
+}
+
+/* ───── Cartes Pouvoir ───── */
+
+export type PowerCardId =
+  | "oeil_sorcier"
+  | "pluie_etoiles"
+  | "vent_nord"
+  | "benediction_chef"
+  | "coupe_circuit"
+  | "sable_temps";
+
+export type PowerCategory = "offensive" | "score" | "perturbation";
+
+export interface PowerCardDef {
+  id: PowerCardId;
+  name: string;
+  category: PowerCategory;
+  /** Nom de l'icône dans NjamboIcon */
+  icon: string;
+  tone: "gold" | "teal" | "pink" | "cobalt";
+  description: string;
+  /** Coût d'achat en cauris */
+  costCauris: number;
+  /** Coût d'achat alternatif en FCFA */
+  costFcfa: number;
+}
+
+/** Carte pouvoir possédée par un joueur (cardId → quantité) */
+export interface PowerCardInventory {
+  [cardId: string]: number;
+}
+
+/** Cartes pouvoir équipées pour une partie (max 2) */
+export type EquippedPowers = PowerCardId[];
+
+/** Effet de pouvoir actif pendant une partie */
+export interface ActivePowerEffect {
+  cardId: PowerCardId;
+  /** playerIdx (UI) de l'activateur */
+  activatedBy: number;
+  /** Pli concerné par l'effet */
+  scopeTrickNo: number;
+}
+
+/** Activation d'une carte pouvoir en cours de partie */
+export interface PowerCardActivation {
+  cardId: PowerCardId;
+  /** UID du joueur qui active */
+  activatedByUid: string;
+  /** UID du joueur ciblé (ex: Œil du Sorcier) */
+  targetUid?: string;
+  /** Pli au moment de l'activation */
+  trickNo: number;
+  /** La carte a-t-elle été consommée ? */
+  used: boolean;
+  /** Identifiant anti-replay (crypto UUID) */
+  playId: string;
 }
 
 export interface LeaderEntry {
@@ -80,6 +151,8 @@ export interface OnlinePlayerProfile {
   online: boolean;
   lastSeen: number;
   stats: PlayerStats;
+  /** Timestamp (ms) de la dernière réclamation du bonus quotidien */
+  lastBonusAt?: number;
 }
 
 export type PublicPlayerProfile = OnlinePlayerProfile;
@@ -248,7 +321,7 @@ export interface GameDoc {
   playerMeta?: Record<string, { name: string; emoji: string }>;
   trickPlays: TrickPlay[];
   players: string[]; // uids dans l'ordre du jeu
-  hands: Record<string, Card[]>; // uid → main
+  hands: Record<string, Card[]>; // uid → main (deprecated: use hands_private subcollection)
   deposits: Record<string, DepositedCard[]>;
   result: Result | null;
   dominantIdx?: number | null;
@@ -271,8 +344,48 @@ export interface GameDoc {
     requestedAt: number;
   } | null;
   instantWinChecked: boolean;
-  updatedAt: number;
-  startedAt: number;
+  updatedAt: unknown; // number or serverTimestamp()
+  startedAt: unknown; // number or serverTimestamp()
+  /** UID du joueur actuellement autorisé à agir comme hôte (rotation) */
+  currentGameHost?: string;
+  /** Cartes pouvoir équipées par joueur (uid → max 2 cartes) */
+  equippedPowers?: Record<string, PowerCardId[]>;
+  /** Activations de pouvoir en cours de partie */
+  powerActivations?: PowerCardActivation[];
+  /** Activation de pouvoir en attente de validation par l'hôte */
+  pendingPowerActivation?: {
+    cardId: PowerCardId;
+    activatedByUid: string;
+    targetUid?: string;
+    trickNo: number;
+    playId: string;
+    createdAt: number;
+  } | null;
+  /** Dernière activation confirmée (anti-replay) */
+  lastPowerActivation?: {
+    cardId: PowerCardId;
+    activatedByUid: string;
+    playId: string;
+  } | null;
+}
+
+/** Document de mise à jour de solde (settlement via balance_updates subcollection) */
+export interface BalanceUpdateDoc {
+  uid: string;
+  oldBalance: number;
+  newBalance: number;
+  gain: number;
+  roomId: string;
+  roundId: string;
+  createdAt: number;
+}
+
+/** Document de demande de prise de contrôle d'hôte */
+export interface TakeoverRequestDoc {
+  uid: string;
+  roomId: string;
+  timestamp: number;
+  agreedBy: string[]; // uids des joueurs qui ont accepté
 }
 
 /** État synchronisé du jeu (consommé par TableScreen) */
@@ -286,6 +399,10 @@ export interface GameState {
   dominantIdx: number | null;
   banner: string;
   players: Player[];
+  /** Effets de pouvoir actifs sur le pli courant */
+  activePowerEffects?: ActivePowerEffect[];
+  /** Révélation temporaire de main (Œil du Sorcier) : playerIdx → Cartes révélées */
+  revealedHands?: Record<number, Card[]>;
 }
 
 /** Interface du sync adapter (bot ou en ligne) */
@@ -296,6 +413,8 @@ export interface GameSyncActions {
   nextRound: () => void;
   /** Envoyer une action (le TableScreen appelle ça) */
   playCard: (cardIdx: number) => void;
+  /** Activer une carte pouvoir (cardId + cible optionnelle) */
+  usePowerCard: (cardId: PowerCardId, targetIdx?: number) => void;
   /** Nettoyer les ressources */
   destroy: () => void;
 
@@ -305,6 +424,8 @@ export interface GameSyncActions {
   onTrickEnd: (cb: (winnerIdx: number) => void) => () => void;
   onRoundEnd: (cb: (result: Result) => void) => () => void;
   onTimerTick: (cb: (seconds: number) => void) => () => void;
+  /** Événement : une carte pouvoir a été activée */
+  onPowerActivated: (cb: (activation: PowerCardActivation) => void) => () => void;
 }
 
 export interface GameConfig {
@@ -329,5 +450,13 @@ export interface GameConfig {
     dealFlight: number;
     dropFlight: number;
     trickPause: number;
+  };
+  economy: {
+    /** Montant du bonus quotidien (F) */
+    dailyBonus: number;
+    /** Délai avant nouvelle réclamation (heures) */
+    bonusCooldownH: number;
+    /** Plancher anti-faillite : solde minimal garanti pour rejouer */
+    brokeFloor: number;
   };
 }

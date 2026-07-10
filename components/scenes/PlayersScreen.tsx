@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { listenDiscoverPlayers } from "@/lib/socialData";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
 import type { PublicPlayerProfile } from "@/types/game";
@@ -52,16 +52,8 @@ export function PlayersScreen() {
               {players.map((player, i) => (
                 <div
                   key={player.uid}
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 12,
-                    padding: "12px 10px",
-                    borderRadius: 17,
-                    background: "rgba(255,248,232,.052)",
-                    border: player.online ? `1px solid ${T.teal}55` : "1px solid rgba(255,248,232,.09)",
-                    animation: `riseIn .3s ${i * 0.04}s both`,
-                  }}
+                  className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""}`}
+                  style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
                 >
                   <AvatarIllustration seed={player.emoji} size={50} online={player.online} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -73,6 +65,7 @@ export function PlayersScreen() {
               ))}
             </div>
           </Surface>
+          <BottomNav active="players" />
         </div>
       </div>
     </Shell>

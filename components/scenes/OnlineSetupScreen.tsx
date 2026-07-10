@@ -13,6 +13,7 @@ import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { SocialActions } from "@/components/social/SocialActions";
+import { EquippedPowersBar } from "@/components/power/EquippedPowersBar";
 import type { PublicPlayerProfile } from "@/types/game";
 
 /* ═══════════════ OnlineSetupScreen — matchmaking en ligne ═══════════════ */
@@ -20,8 +21,7 @@ import type { PublicPlayerProfile } from "@/types/game";
 export function OnlineSetupScreen() {
   const { navigateTo, cfg } = useGame();
   const { user } = useAuth();
-  const { createRoom, joinRoomByCode, joinRoomById, findAvailableRoom, publicRooms, roomError, clearError } = useLobby();
-  const [joinCode, setJoinCode] = useState("");
+  const { createRoom, joinRoomById, findAvailableRoom, publicRooms, roomError, clearError } = useLobby();
   const [playerSearch, setPlayerSearch] = useState("");
   const [players, setPlayers] = useState<PublicPlayerProfile[]>([]);
   const [selectedStake, setSelectedStake] = useState(cfg.stakes[1]);
@@ -44,21 +44,6 @@ export function OnlineSetupScreen() {
       clearError();
       await createRoom(selectedStake, maxPlayers);
       goToLobby();
-    } catch {
-      // Error handled by useLobby
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  /* ---- Rejoindre par code ---- */
-  const handleJoinCode = async () => {
-    if (joinCode.length < 4) return;
-    try {
-      setBusy(true);
-      clearError();
-      const foundId = await joinRoomByCode(joinCode);
-      if (foundId) goToLobby();
     } catch {
       // Error handled by useLobby
     } finally {
@@ -110,94 +95,66 @@ export function OnlineSetupScreen() {
             onBack={goBack}
           />
 
-          <div className="nj-stack">
-            <AuthGate>
-              {/* Créer / Rejoindre */}
-              <Surface>
-                <div style={{ fontWeight: 900, marginBottom: 12 }}>Créer ou rejoindre</div>
-                <div className="nj-stack" style={{ gap: 10 }}>
+          <AuthGate>
+            <div className="nj-stack">
+              {/* Barre fixe : config + actions */}
+              <Surface style={{ flex: "0 0 auto", padding: "clamp(14px, 4vw, 18px)" }}>
+                <div className="nj-subtle" style={{ fontSize: 12, marginBottom: 8 }}>Mise par manche</div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 14 }}>
+                  {cfg.stakes.map((m) => (
+                    <Btn
+                      key={m}
+                      variant={selectedStake === m ? "gold" : "ghost"}
+                      onClick={() => setSelectedStake(m)}
+                      style={{ width: "100%", minHeight: 34, fontSize: 13 }}
+                    >
+                      {FCFA(m)}
+                    </Btn>
+                  ))}
+                </div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
+                  <span className="nj-subtle" style={{ fontSize: 12 }}>Nombre de joueurs</span>
+                  <span className="nj-subtle" style={{ fontSize: 12 }}>Pot {FCFA(selectedStake * maxPlayers)}</span>
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 14 }}>
+                  {[2, 3, 4].map((n) => (
+                    <Btn
+                      key={`n${n}`}
+                      variant={maxPlayers === n ? "gold" : "ghost"}
+                      onClick={() => setMaxPlayers(n)}
+                      style={{ width: "100%", minHeight: 34, fontSize: 13 }}
+                    >
+                      {n}
+                    </Btn>
+                  ))}
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <EquippedPowersBar />
+                </div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
                   <Btn
                     variant="gold"
                     onClick={handleCreate}
                     disabled={busy}
                     style={{ width: "100%" }}
-                    icon={<NjamboIcon name="home" tone="gold" size={20} />}
+                    icon={<NjamboIcon name="home" tone="gold" size={18} />}
                   >
-                    {busy ? "Création…" : "Créer une salle"}
+                    {busy ? "…" : "Créer"}
                   </Btn>
                   <Btn
                     variant="ghost"
                     disabled={busy}
                     style={{ width: "100%" }}
-                    icon={<NjamboIcon name="play" tone="gold" size={20} />}
+                    icon={<NjamboIcon name="play" tone="gold" size={18} />}
                     onClick={handleAutoMatch}
                   >
-                    {busy ? "Recherche…" : "Trouver une table"}
+                    {busy ? "…" : "Trouver"}
                   </Btn>
                 </div>
               </Surface>
 
-              {/* Rejoindre par code */}
-              <Surface>
-                <div style={{ fontWeight: 900, marginBottom: 12 }}>Rejoindre avec un code</div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <input
-                    value={joinCode}
-                    onChange={(e) => { setJoinCode(e.target.value.toUpperCase()); clearError(); }}
-                    placeholder="NJAM7K2"
-                    maxLength={7}
-                    className="nj-input"
-                    style={{
-                      flex: 1,
-                      fontFamily: "monospace",
-                      fontWeight: 900,
-                      letterSpacing: ".1em",
-                      textAlign: "center",
-                      textTransform: "uppercase",
-                    }}
-                  />
-                  <Btn variant="pink" onClick={handleJoinCode} disabled={busy || joinCode.length < 4}>
-                    {busy ? "…" : "Rejoindre"}
-                  </Btn>
-                </div>
-              </Surface>
-
-              {/* Configuration */}
-              <Surface>
-                <div style={{ fontWeight: 900, marginBottom: 12 }}>Configuration</div>
-                <div style={{ marginBottom: 12 }}>
-                  <div className="nj-subtle" style={{ marginBottom: 7 }}>Mise par manche</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-                    {cfg.stakes.map((m) => (
-                      <Btn
-                        key={m}
-                        variant={selectedStake === m ? "gold" : "ghost"}
-                        onClick={() => setSelectedStake(m)}
-                        style={{ width: "100%" }}
-                      >
-                        {FCFA(m)}
-                      </Btn>
-                    ))}
-                  </div>
-                </div>
-                <div>
-                  <div className="nj-subtle" style={{ marginBottom: 7 }}>Nombre de joueurs</div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-                    {[2, 3, 4].map((n) => (
-                      <Btn
-                        key={n}
-                        variant={maxPlayers === n ? "gold" : "ghost"}
-                        onClick={() => setMaxPlayers(n)}
-                        style={{ width: "100%" }}
-                      >
-                        {n} joueurs
-                      </Btn>
-                    ))}
-                  </div>
-                </div>
-              </Surface>
-
-              <Surface>
+              {/* Joueurs en ligne — scrollable */}
+              <Surface className="nj-panel-pad-sm" style={{ flex: "1 1 200px", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12 }}>
                   <div>
                     <div style={{ fontWeight: 900 }}>Joueurs</div>
@@ -210,22 +167,14 @@ export function OnlineSetupScreen() {
                   onChange={(e) => setPlayerSearch(e.target.value)}
                   placeholder="Rechercher un joueur"
                   className="nj-input"
-                  style={{ width: "100%", marginBottom: 10 }}
+                  style={{ width: "100%", marginBottom: 10, flex: "0 0 auto" }}
                 />
-                <div className="nj-stack" style={{ gap: 8 }}>
-                  {players.slice(0, 6).map((player, i) => (
+                <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "grid", gap: 8, alignContent: "start", paddingRight: 2 }}>
+                  {players.map((player, i) => (
                     <div
                       key={player.uid}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: 10,
-                        padding: "10px",
-                        borderRadius: 15,
-                        background: "rgba(255,248,232,.052)",
-                        border: player.online ? `1px solid ${T.teal}55` : "1px solid rgba(255,248,232,.1)",
-                        animation: `riseIn .3s ${i * 0.04}s both`,
-                      }}
+                      className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""}`}
+                      style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
                     >
                       <AvatarIllustration seed={player.emoji} size={42} online={player.online} />
                       <div style={{ flex: 1, minWidth: 0 }}>
@@ -238,39 +187,24 @@ export function OnlineSetupScreen() {
                 </div>
               </Surface>
 
-              {/* Salles publiques */}
-              <Surface>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-                  <div style={{ fontWeight: 900 }}>Salles disponibles</div>
-                  <Chip>{publicRooms.length} salle{publicRooms.length > 1 ? "s" : ""}</Chip>
-                </div>
-                {publicRooms.length === 0 ? (
-                  <div style={{ textAlign: "center", opacity: 0.5, padding: 20 }}>
-                    <div style={{ fontWeight: 700 }}>Aucune salle ouverte</div>
-                    <div className="nj-subtle" style={{ marginTop: 4 }}>
-                      Crée une salle ou reviens plus tard.
-                    </div>
+              {/* Salles publiques — scrollable séparément */}
+              {publicRooms.length > 0 && (
+                <Surface className="nj-panel-pad-sm" style={{ flex: "1 1 160px", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flex: "0 0 auto" }}>
+                    <div style={{ fontWeight: 900 }}>Salles disponibles</div>
+                    <Chip>{publicRooms.length} salle{publicRooms.length > 1 ? "s" : ""}</Chip>
                   </div>
-                ) : (
-                  <div className="nj-stack" style={{ gap: 9 }}>
-                    {publicRooms.slice(0, 5).map((room) => (
+                  <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "grid", gap: 9, alignContent: "start", paddingRight: 2 }}>
+                    {publicRooms.map((room) => (
                       <button
                         key={room.id}
                         type="button"
                         disabled={busy}
                         onClick={() => handleJoinRoom(room.id)}
+                        className="nj-list-card nj-list-card--teal"
                         style={{
-                          display: "flex",
-                          alignItems: "center",
                           justifyContent: "space-between",
-                          padding: "12px",
-                          borderRadius: 16,
-                          background: "rgba(255,248,232,.055)",
-                          border: "1px solid rgba(255,248,232,.11)",
-                          color: T.text,
                           cursor: busy ? "not-allowed" : "pointer",
-                          width: "100%",
-                          textAlign: "left",
                           opacity: busy ? 0.5 : 1,
                         }}
                       >
@@ -286,15 +220,15 @@ export function OnlineSetupScreen() {
                       </button>
                     ))}
                   </div>
-                )}
-              </Surface>
+                </Surface>
+              )}
 
               {/* Erreur */}
               {roomError && (
                 <div style={{ color: T.bad, fontSize: 13, textAlign: "center" }}>{roomError}</div>
               )}
-            </AuthGate>
-          </div>
+            </div>
+          </AuthGate>
         </div>
       </div>
     </Shell>

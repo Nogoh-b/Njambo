@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { listenMatchHistory } from "@/lib/playerData";
 import { FCFA } from "@/data/mock";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
+import { BottomNav } from "@/components/ui/BottomNav";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
 import type { MatchHistoryEntry } from "@/types/game";
@@ -76,16 +77,8 @@ export function HistoryScreen() {
                 {matches.map((match, i) => (
                   <div
                     key={match.id}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 12,
-                      padding: "12px 10px",
-                      borderRadius: 17,
-                      background: match.won ? `${T.gold}16` : "rgba(255,248,232,.052)",
-                      border: match.won ? `1.5px solid ${T.gold}` : "1px solid rgba(255,248,232,.1)",
-                      animation: `riseIn .34s ${i * 0.05}s both`,
-                    }}
+                    className={`nj-list-card${match.won ? " nj-list-card--gold is-active" : ""}`}
+                    style={{ animation: `riseIn .34s ${i * 0.05}s both` }}
                   >
                     <span
                       className="nj-title-icon"
@@ -124,6 +117,7 @@ export function HistoryScreen() {
               </div>
             )}
           </Surface>
+          <BottomNav />
         </div>
       </div>
     </Shell>
