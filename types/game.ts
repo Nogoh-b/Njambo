@@ -486,6 +486,10 @@ export interface GameConfig {
     dealFlight: number;
     dropFlight: number;
     trickPause: number;
+    /** Beat de « pose » après l'atterrissage d'une carte, avant l'annonce (ms) */
+    landSettle: number;
+    /** Temps de lecture du FX d'une carte pouvoir avant que le bot ne joue (ms) */
+    powerBeat: number;
   };
   economy: {
     /** Montant du bonus quotidien (F) */

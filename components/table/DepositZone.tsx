@@ -46,16 +46,19 @@ export const DepositZone = forwardRef<HTMLDivElement, DepositZoneProps>(function
       {deposit.map((c, i) => {
         const top = i === deposit.length - 1;
         return (
+          // Conteneur = positionnement figé (translate/rotate du « jeté »).
           <div
             key={c.id + i}
-            className={effects && top ? "nj-deposit-card-landed" : undefined}
             style={{
               position: "absolute",
               transform: `translate(${c.dx || 0}px, ${c.dy || 0}px) rotate(${c.dropRot || 0}deg)`,
-              animation: effects && top ? "landPop .28s both" : "none",
             }}
           >
-            <div>
+            {/* Wrapper interne = pose (landPop) : n'écrase PAS le positionnement. */}
+            <div
+              className={effects && top ? "nj-deposit-card-landed" : undefined}
+              style={{ animation: effects && top ? "landPop .42s cubic-bezier(.2,.8,.3,1) both" : "none" }}
+            >
               <PlayCard card={c} w={w} glow={effects && top && active} />
               {top && isDominant && (
                 <div

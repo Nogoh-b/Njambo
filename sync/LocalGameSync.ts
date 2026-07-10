@@ -604,16 +604,17 @@ export class LocalGameSync implements GameSyncActions {
 
   /* ═══════════════ Bot AI ═══════════════ */
 
-  private maybeUseBotPower(): void {
+  /** @returns true si un pouvoir a été activé (→ lui donner un beat avant le coup). */
+  private maybeUseBotPower(): boolean {
     const botIdx = this.turnIdx;
     const difficulty = this.opts.difficulty ?? "normal";
-    if (difficulty === "easy" || botIdx <= 0 || this.botPowerUsed.has(botIdx)) return;
+    if (difficulty === "easy" || botIdx <= 0 || this.botPowerUsed.has(botIdx)) return false;
     const chance = difficulty === "hard" ? 0.72 : 0.36;
-    if (Math.random() > chance) return;
+    if (Math.random() > chance) return false;
 
     const powers = this.players[botIdx]?.equippedPowers ?? [];
     const cardId = powers.find((id) => !(this.players[botIdx].powerActivations ?? []).some((a) => a.cardId === id && a.used));
-    if (!cardId) return;
+    if (!cardId) return false;
     const targetIdx = requiresTarget(cardId) ? 0 : undefined;
     const ctx = {
       state: this.buildGameState(),
@@ -622,7 +623,7 @@ export class LocalGameSync implements GameSyncActions {
       deck: this.deck,
       maxValue: this.opts.cfg.ranks.max,
     };
-    if (canActivatePowerCard(cardId, ctx)) return;
+    if (canActivatePowerCard(cardId, ctx)) return false;
 
     const blockedByCardId = this.blockingPowerFor(cardId, targetIdx);
     if (!blockedByCardId) {
@@ -646,6 +647,7 @@ export class LocalGameSync implements GameSyncActions {
     this.botPowerUsed.add(botIdx);
     this.powerActivatedListeners.forEach((cb) => cb(activation));
     this.emitState();
+    return true;
   }
 
   private scheduleBotTurn() {
@@ -654,34 +656,51 @@ export class LocalGameSync implements GameSyncActions {
     if (!p || p.isYou || this.phase !== "turns") return;
 
     this.botHandle = setTimeout(() => {
-      if (this.phase !== "turns" || this.turnIdx !== this.players.indexOf(p)) return;
-      this.maybeUseBotPower();
-      const led = this.trickPlays[0]?.card.suit ?? null;
-      // Si le bot est forcé de jouer sa carte la plus faible (Coupe-Circuit)
-      if (this.forcedLowest.has(this.turnIdx)) {
-        this.forcedLowest.delete(this.turnIdx);
-        const legalIdxs = legalCards(this.players[this.turnIdx].hand, led);
-        const lowestIdx = [...legalIdxs].sort((a, b) => this.players[this.turnIdx].hand[a].value - this.players[this.turnIdx].hand[b].value)[0];
-        if (lowestIdx !== undefined) {
-          this.executePlay(this.turnIdx, lowestIdx);
-          return;
+      const seatIdx = this.turnIdx;
+      if (this.phase !== "turns" || this.players[seatIdx] !== p) return;
+
+      // Le bot tente d'abord son pouvoir. Si activé, on laisse le FX/overlay
+      // RESPIRER (powerBeat) avant que sa carte ne parte — sinon tout se superpose.
+      const usedPower = this.maybeUseBotPower();
+
+      // Choix + jeu de la carte, calculés APRÈS le pouvoir (état à jour). On
+      // garde l'index numérique du siège : les effets pouvoir recréent les
+      // objets `players`, la référence `p` peut devenir obsolète.
+      const doPlay = () => {
+        if (this.phase !== "turns" || this.turnIdx !== seatIdx) return;
+        const led = this.trickPlays[0]?.card.suit ?? null;
+        // Si le bot est forcé de jouer sa carte la plus faible (Coupe-Circuit)
+        if (this.forcedLowest.has(seatIdx)) {
+          this.forcedLowest.delete(seatIdx);
+          const legalIdxs = legalCards(this.players[seatIdx].hand, led);
+          const lowestIdx = [...legalIdxs].sort((a, b) => this.players[seatIdx].hand[a].value - this.players[seatIdx].hand[b].value)[0];
+          if (lowestIdx !== undefined) {
+            this.executePlay(seatIdx, lowestIdx);
+            return;
+          }
         }
+        const best = this.trickPlays.length
+          ? Math.max(0, ...this.trickPlays.filter((x) => x.card.suit === led).map((x) => x.card.value))
+          : null;
+        const idx = botChooseCard(
+          this.players[seatIdx].hand,
+          led,
+          this.trickNo >= this.opts.cfg.cardsPerPlayer,
+          best,
+          {
+            difficulty: this.opts.difficulty ?? "normal",
+            // toutes les cartes déjà jouées ce round (dépôts) = mémoire du bot
+            seen: this.players.flatMap((pl) => pl.deposit),
+          },
+        );
+        this.executePlay(seatIdx, idx);
+      };
+
+      if (usedPower) {
+        this.botHandle = setTimeout(doPlay, this.opts.cfg.anim.powerBeat);
+      } else {
+        doPlay();
       }
-      const best = this.trickPlays.length
-        ? Math.max(0, ...this.trickPlays.filter((x) => x.card.suit === led).map((x) => x.card.value))
-        : null;
-      const idx = botChooseCard(
-        this.players[this.turnIdx].hand,
-        led,
-        this.trickNo >= this.opts.cfg.cardsPerPlayer,
-        best,
-        {
-          difficulty: this.opts.difficulty ?? "normal",
-          // toutes les cartes déjà jouées ce round (dépôts) = mémoire du bot
-          seen: this.players.flatMap((p) => p.deposit),
-        },
-      );
-      this.executePlay(this.turnIdx, idx);
     }, 1200 + Math.random() * 1800);
   }
 

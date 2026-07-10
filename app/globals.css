@@ -2482,13 +2482,13 @@ button.nj-list-card {
   background:
     radial-gradient(ellipse at 50% 48%, rgba(242, 187, 69, 0.18), transparent 36%),
     linear-gradient(180deg, rgba(5, 5, 12, 0.28), rgba(5, 5, 12, 0.04) 54%, rgba(5, 5, 12, 0.28));
-  animation: powerActivationLife 1.45s ease-out both;
+  animation: powerActivationLife 1.6s ease-out both;
 }
 
 .nj-power-activation-card {
   width: min(78vw, 330px);
   transform-origin: center;
-  animation: powerActivationCard 1.45s cubic-bezier(.2,.9,.25,1.12) both;
+  animation: powerActivationCard 1.6s cubic-bezier(.2,.9,.25,1.12) both;
 }
 
 .nj-power-activation-copy {
@@ -3133,10 +3133,18 @@ button.nj-list-card {
 
 @keyframes landPop {
   0% {
-    transform: scale(1.35);
+    transform: translateY(-7px) scale(1.3);
+  }
+  50% {
+    /* impact : la carte s'écrase (plus large, plus plate) → sensation de poids */
+    transform: translateY(0) scale(1.05, 0.92);
+  }
+  72% {
+    /* léger rebond */
+    transform: translateY(0) scale(0.98, 1.03);
   }
   100% {
-    transform: scale(1);
+    transform: translateY(0) scale(1);
   }
 }
 

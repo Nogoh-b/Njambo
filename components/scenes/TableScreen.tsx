@@ -85,6 +85,8 @@ interface MomentOverlay {
   subtitle?: string;
   tone: ReactionTone;
   asset: MomentOverlayAsset;
+  /** Durée d'affichage (ms) — la timeline GSAP s'y cale (entrée + maintien + sortie). */
+  durationMs?: number;
 }
 
 interface MomentOverlayRequest {
@@ -99,45 +101,50 @@ function GameMomentOverlay({ moment }: { moment: MomentOverlay }) {
   const rootRef = useRef<HTMLDivElement>(null);
 
   /* Séquence scriptée GSAP : fond, halo, cartes qui balayent, sceau, titre,
-     sous-titre — entrée, maintien, sortie sur ~1,5 s. Le reflet du titre
-     (::after) et l'éclat de particules restent en CSS (auto-contenus). */
+     sous-titre — entrée, MAINTIEN (étiré selon la durée d'affichage), sortie.
+     Le reflet du titre (::after) et l'éclat de particules restent en CSS. */
   useGsapTimeline(true, rootRef, (gsap) => {
+    const durationSec = (moment.durationMs ?? 1550) / 1000;
+    // La sortie démarre ~0,34s avant l'unmount ; le maintien remplit le reste.
+    const exitAt = Math.max(0.9, durationSec - 0.34);
+    const cross = exitAt + 0.34; // les cartes dérivent sur toute la fenêtre
+
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
     tl.fromTo(rootRef.current, { opacity: 0 }, { opacity: 1, duration: 0.16 }, 0)
-      .to(rootRef.current, { opacity: 0, duration: 0.32, ease: "power1.in" }, 1.2);
+      .to(rootRef.current, { opacity: 0, duration: 0.32, ease: "power1.in" }, exitAt + 0.02);
 
     tl.fromTo(".nj-moment-halo",
       { opacity: 0, scale: 0.72, rotate: -18 },
       { opacity: 0.95, scale: 1, rotate: 6, duration: 0.5, ease: "power2.out" }, 0)
-      .to(".nj-moment-halo", { opacity: 0, scale: 1.18, rotate: 36, duration: 0.7, ease: "power1.in" }, 0.55);
+      .to(".nj-moment-halo", { opacity: 0, scale: 1.18, rotate: 36, duration: 0.6, ease: "power1.in" }, exitAt - 0.15);
 
     tl.fromTo(".nj-moment-card-sweep-left",
       { opacity: 0, x: "-18vw", y: 24, rotate: -28, scale: 0.82 },
-      { x: "54vw", y: -12, rotate: 18, scale: 1.05, duration: 1.3, ease: "power1.inOut" }, 0)
+      { x: "54vw", y: -12, rotate: 18, scale: 1.05, duration: cross, ease: "power1.inOut" }, 0)
       .to(".nj-moment-card-sweep-left", { opacity: 1, duration: 0.22, ease: "power2.out" }, 0)
-      .to(".nj-moment-card-sweep-left", { opacity: 0, duration: 0.36, ease: "power1.in" }, 0.95);
+      .to(".nj-moment-card-sweep-left", { opacity: 0, duration: 0.36, ease: "power1.in" }, exitAt - 0.05);
 
     tl.fromTo(".nj-moment-card-sweep-right",
       { opacity: 0, x: "18vw", y: -18, rotate: 26, scale: 0.78 },
-      { x: "-54vw", y: 16, rotate: -18, scale: 1.02, duration: 1.3, ease: "power1.inOut" }, 0.08)
+      { x: "-54vw", y: 16, rotate: -18, scale: 1.02, duration: cross, ease: "power1.inOut" }, 0.08)
       .to(".nj-moment-card-sweep-right", { opacity: 0.92, duration: 0.22, ease: "power2.out" }, 0.08)
-      .to(".nj-moment-card-sweep-right", { opacity: 0, duration: 0.36, ease: "power1.in" }, 1.0);
+      .to(".nj-moment-card-sweep-right", { opacity: 0, duration: 0.36, ease: "power1.in" }, exitAt);
 
     tl.fromTo(".nj-moment-asset",
       { opacity: 0, xPercent: -50, y: 18, scale: 0.66, rotate: -8 },
       { opacity: 1, xPercent: -50, y: 0, scale: 1, rotate: 0, duration: 0.55, ease: "back.out(2)" }, 0.08)
-      .to(".nj-moment-asset", { opacity: 0, xPercent: -50, y: -18, scale: 0.9, rotate: 5, duration: 0.32, ease: "power1.in" }, 1.18);
+      .to(".nj-moment-asset", { opacity: 0, xPercent: -50, y: -18, scale: 0.9, rotate: 5, duration: 0.32, ease: "power1.in" }, exitAt + 0.02);
 
     tl.fromTo(".nj-moment-copy strong",
       { opacity: 0, y: 24, scale: 0.72, filter: "blur(4px)" },
       { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "back.out(1.6)" }, 0.12)
-      .to(".nj-moment-copy strong", { opacity: 0, y: -16, scale: 0.92, filter: "blur(2px)", duration: 0.32, ease: "power1.in" }, 1.16);
+      .to(".nj-moment-copy strong", { opacity: 0, y: -16, scale: 0.92, filter: "blur(2px)", duration: 0.32, ease: "power1.in" }, exitAt);
 
     tl.fromTo(".nj-moment-copy span",
       { opacity: 0, y: 12, scale: 0.88 },
       { opacity: 1, y: 0, scale: 1, duration: 0.4, ease: "power3.out" }, 0.2)
-      .to(".nj-moment-copy span", { opacity: 0, y: -8, scale: 0.96, duration: 0.3, ease: "power1.in" }, 1.18);
+      .to(".nj-moment-copy span", { opacity: 0, y: -8, scale: 0.96, duration: 0.3, ease: "power1.in" }, exitAt + 0.02);
   });
 
   return (
@@ -484,7 +491,7 @@ export function TableScreen({
     powerOverlayTimerRef.current = setTimeout(() => {
       setPowerOverlay(null);
       powerOverlayTimerRef.current = null;
-    }, 1450);
+    }, 1600);
   }, []);
 
   const recommendCurrentCard = useCallback(() => {
@@ -528,6 +535,7 @@ export function TableScreen({
     setMomentOverlay({
       ...next.moment,
       key: `${next.moment.type}-${Date.now()}`,
+      durationMs: next.duration,
     });
 
     /* Secousse d'impact sur les moments forts (pli dominé, ngata gagné). */
@@ -625,7 +633,7 @@ export function TableScreen({
         subtitle: ledSuit ? `Suis ${ledSuit}` : "Donne la tendance",
         tone: "teal",
         asset: "cards",
-      }, 1180);
+      }, 1500);
       showTableReaction(
         ledSuit ? `Suis ${ledSuit}` : "A toi de jouer",
         "teal",
@@ -756,30 +764,42 @@ export function TableScreen({
 
     const unsubTrickEnd = sync.onTrickEnd((winnerIdx) => {
       const winnerName = playersRef.current[winnerIdx]?.name ?? "Joueur";
-      setBanner(`${winnerName} domine le tour`);
-      sfxRef.current((sound) => sound.dominance());
-      showMomentOverlay({
-        type: "dominance",
-        title: "NJAMBO !",
-        subtitle: winnerIdx === 0 ? "Tu domines le tour" : winnerName,
-        tone: winnerIdx === 0 ? "teal" : "gold",
-        asset: "crown",
-      }, 1450);
-      showTableReaction(
-        winnerIdx === 0 ? "Bien joué" : "Domine",
-        winnerIdx === 0 ? "teal" : "gold",
-        winnerIdx === 0 ? "Tu prends le tour" : winnerName,
-      );
-      if (animationsOnRef.current) {
-        setGoldFlash(false);
-        const goldTimer = setTimeout(() => setGoldFlash(true), 600);
-        burstTimersRef.current.push(goldTimer);
+      // On attend que la carte décisive soit POSÉE (+ un beat de settle) avant
+      // d'annoncer le gagnant : sinon « NJAMBO ! » couvre une carte encore en vol.
+      const landDelay = Math.max(0, animationEndsAtRef.current - Date.now()) + A.landSettle;
+
+      const announce = () => {
+        setBanner(`${winnerName} domine le tour`);
+        sfxRef.current((sound) => sound.dominance());
+        showMomentOverlay({
+          type: "dominance",
+          title: "NJAMBO !",
+          subtitle: winnerIdx === 0 ? "Tu domines le tour" : winnerName,
+          tone: winnerIdx === 0 ? "teal" : "gold",
+          asset: "crown",
+        }, 1700);
+        showTableReaction(
+          winnerIdx === 0 ? "Bien joué" : "Domine",
+          winnerIdx === 0 ? "teal" : "gold",
+          winnerIdx === 0 ? "Tu prends le tour" : winnerName,
+        );
+        if (animationsOnRef.current) {
+          setGoldFlash(false);
+          const goldTimer = setTimeout(() => setGoldFlash(true), 200);
+          burstTimersRef.current.push(goldTimer);
+        }
+        const bannerTimer = setTimeout(() => {
+          setBanner("");
+          setGoldFlash(false);
+        }, Math.max(700, A.trickPause - landDelay));
+        burstTimersRef.current.push(bannerTimer);
+      };
+
+      if (landDelay <= 0) announce();
+      else {
+        const announceTimer = setTimeout(announce, landDelay);
+        burstTimersRef.current.push(announceTimer);
       }
-      const bannerTimer = setTimeout(() => {
-        setBanner("");
-        setGoldFlash(false);
-      }, A.trickPause);
-      burstTimersRef.current.push(bannerTimer);
     });
 
     const unsubRoundEnd = sync.onRoundEnd((result) => {
@@ -789,7 +809,7 @@ export function TableScreen({
         subtitle: result.winner.isYou ? "Tu prends la caisse" : `${result.winner.name} prend la caisse`,
         tone: result.winner.isYou ? "gold" : "pink",
         asset: result.doubles ? "coin" : result.winner.isYou ? "trophy" : "crown",
-      }, result.doubles ? 1700 : 1550);
+      }, result.doubles ? 2000 : 1800);
     });
 
     const unsubTimer = sync.onTimerTick((s) => {
