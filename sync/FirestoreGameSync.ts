@@ -21,6 +21,7 @@ import {
   applyPowerCard,
   canActivatePowerCard,
 } from "@/engine/powerEffects";
+import { DEV } from "@/config/devConfig";
 import type {
   Card,
   DepositedCard,
@@ -243,11 +244,11 @@ export class FirestoreGameSync implements GameSyncActions {
     const equipped = this.equippedPowersByUid[uid]?.length ? this.equippedPowersByUid[uid] : this.opts.profile.equippedPowers ?? [];
     if (!equipped.includes(cardId)) return;
 
-    // Vérifier qu'elle n'est pas déjà utilisée
+    // Vérifier qu'elle n'est pas déjà utilisée (bypass en dev : usage illimité)
     const alreadyUsed = this.powerActivations.some(
       (a) => a.cardId === cardId && a.activatedByUid === uid && a.used,
     );
-    if (alreadyUsed) return;
+    if (alreadyUsed && !DEV.unlimitedPowers) return;
 
     // Convertir targetIdx (UI index) en uid
     const targetUid = targetIdx !== undefined
@@ -789,11 +790,11 @@ export class FirestoreGameSync implements GameSyncActions {
     this.equippedPowersByUid[pending.activatedByUid] = equipped;
     if (!equipped.includes(pending.cardId)) return;
 
-    // Vérifier qu'elle n'est pas déjà utilisée
+    // Vérifier qu'elle n'est pas déjà utilisée (bypass en dev : usage illimité)
     const alreadyUsed = this.powerActivations.some(
       (a) => a.cardId === pending.cardId && a.activatedByUid === pending.activatedByUid && a.used,
     );
-    if (alreadyUsed) return;
+    if (alreadyUsed && !DEV.unlimitedPowers) return;
 
     // Convertir les uids en indices UI locaux pour le moteur d'effet
     const activatedByLocalIdx = activatorIdx;
@@ -1283,6 +1284,8 @@ export class FirestoreGameSync implements GameSyncActions {
   private startTimer() {
     this.stopTimer();
     this.timerListeners.forEach((cb) => cb(this.seconds));
+    // Dev : temps illimité → pas de décompte ni de timeout.
+    if (DEV.unlimitedTime) return;
 
     this.timerHandle = setInterval(() => {
       if (this.destroyed) return;

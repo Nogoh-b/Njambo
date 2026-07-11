@@ -15,6 +15,7 @@ import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { Chip } from "@/components/ui/Chip";
 import { displayFont } from "@/components/ui/Shell";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
+import { DEV } from "@/config/devConfig";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { BOTS, FCFA } from "@/data/mock";
@@ -958,13 +959,14 @@ export function TableScreen({
   const handleUsePower = (cardId: PowerCardId, targetIdx?: number) => {
     if (!syncRef.current || animatingRef.current) return;
     if (!isYourTurn) return;
-    if (usedPowers.has(cardId)) return;
+    if (!DEV.unlimitedPowers && usedPowers.has(cardId)) return;
     syncRef.current.usePowerCard(cardId, targetIdx);
     setTargetingCard(null);
   };
 
   const handlePowerTap = (cardId: PowerCardId) => {
-    if (!isYourTurn || usedPowers.has(cardId) || animatingRef.current) return;
+    if (!isYourTurn || animatingRef.current) return;
+    if (!DEV.unlimitedPowers && usedPowers.has(cardId)) return;
     if (targetingCard === cardId) {
       setTargetingCard(null);
       return;
@@ -1430,13 +1432,20 @@ export function TableScreen({
             display: "flex",
             flexDirection: "column",
             gap: 10,
+            // Scroll vertical quand beaucoup de cartes (mode dev : jusqu'à 18).
+            maxHeight: portrait ? "46vh" : "62vh",
+            overflowY: "auto",
+            overflowX: "visible",
+            paddingRight: 4,
+            scrollbarWidth: "thin",
           }}
           aria-label="Cartes pouvoir"
         >
           {equippedPowers.map((cardId) => {
             const def = POWER_CARDS_BY_ID[cardId];
             if (!def) return null;
-            const used = usedPowers.has(cardId);
+            // Dev : usage illimité → jamais marqué « utilisé ».
+            const used = !DEV.unlimitedPowers && usedPowers.has(cardId);
             const disabled = used || !isYourTurn;
             const active = targetingCard === cardId;
             const tint = def.tone === "gold" ? T.gold : def.tone === "teal" ? T.teal : def.tone === "pink" ? T.pink : T.cobalt;

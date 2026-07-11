@@ -18,6 +18,7 @@ import {
   type PowerEffectResult,
 } from "@/engine/powerEffects";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
+import { DEV } from "@/config/devConfig";
 import type { BOTS as BotsType } from "@/data/mock";
 import type {
   BotDifficulty,
@@ -214,9 +215,9 @@ export class LocalGameSync implements GameSyncActions {
     const equipped = me.equippedPowers ?? [];
     if (!equipped.includes(cardId)) return;
 
-    // Vérifier qu'elle n'est pas déjà utilisée
+    // Vérifier qu'elle n'est pas déjà utilisée (bypass en dev : usage illimité)
     const activations = me.powerActivations ?? [];
-    if (activations.some((a) => a.cardId === cardId && a.used)) return;
+    if (!DEV.unlimitedPowers && activations.some((a) => a.cardId === cardId && a.used)) return;
 
     const ctx = {
       state: this.buildGameState(),
@@ -597,6 +598,11 @@ export class LocalGameSync implements GameSyncActions {
 
   private startTimer() {
     this.stopTimer();
+    // Dev : temps illimité → on n'arme pas le décompte (aucun timeout).
+    if (DEV.unlimitedTime) {
+      this.timerListeners.forEach((cb) => cb(this.seconds));
+      return;
+    }
     this.timerHandle = setInterval(() => {
       if ((this.frozenUntil[this.turnIdx] ?? 0) > Date.now()) {
         this.timerListeners.forEach((cb) => cb(this.seconds));

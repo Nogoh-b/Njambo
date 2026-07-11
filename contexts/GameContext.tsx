@@ -4,7 +4,18 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { createSound } from "@/lib/sound";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { STARTING_CAURIS } from "@/config/powerCards";
+import { DEV, devEquippedPowers } from "@/config/devConfig";
 import type { Profile, SceneName, SocialTarget } from "@/types/game";
+
+/** Applique les triches de dev au profil : solde figé + pouvoirs équipés. */
+function applyDevProfile(p: Profile): Profile {
+  if (!DEV.enabled) return p;
+  return {
+    ...p,
+    balance: DEV.richBalance > 0 ? DEV.richBalance : p.balance,
+    equippedPowers: devEquippedPowers(p.equippedPowers ?? []),
+  };
+}
 
 /* ═══════════════ Contexte global du jeu Njambo ═══════════════
    Partagé par toutes les scènes : profil, préférences audio,
@@ -90,7 +101,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const cfg = GAME_CONFIG;
   const [scene, setScene] = useState<SceneName>("splashscreen");
   const [transitioning, setTransitioning] = useState(false);
-  const [profile, setProfileRaw] = useState<Profile>(() => loadStoredProfile());
+  const [profile, setProfileRaw] = useState<Profile>(() => applyDevProfile(loadStoredProfile()));
   const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>({});
   const [musicOn, setMusicOn] = useState(false);
   const [sfxOn, setSfxOn] = useState(true);
@@ -99,7 +110,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   /* Sauvegarder dans localStorage à chaque changement de profil */
   const setProfile = useCallback((p: Profile | ((prev: Profile) => Profile)) => {
     setProfileRaw((prev) => {
-      const next = typeof p === "function" ? p(prev) : p;
+      // On repasse par applyDevProfile pour FIGER le solde / les pouvoirs en dev.
+      const next = applyDevProfile(typeof p === "function" ? p(prev) : p);
       storeProfile(next);
       return next;
     });

@@ -1,4 +1,5 @@
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
+import { DEV } from "@/config/devConfig";
 import { legalCards } from "@/engine/rules";
 import type { Card, GameState, PowerCardId } from "@/types/game";
 
@@ -179,7 +180,7 @@ export function canActivatePowerCard(
   if (!me) return "Joueur introuvable.";
 
   const alreadyUsed = (me.powerActivations ?? []).some((a) => a.cardId === cardId && a.used);
-  if (alreadyUsed) return "Carte déjà utilisée.";
+  if (alreadyUsed && !DEV.unlimitedPowers) return "Carte déjà utilisée.";
 
   if (def.targetMode === "opponent") {
     if (target === undefined) return "Cette carte nécessite une cible.";
