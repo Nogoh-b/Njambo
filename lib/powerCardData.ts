@@ -117,8 +117,9 @@ export async function buyPowerCard(
         updates.balance = balance - cost;
       }
 
-      // Créditer la carte
-      inventory[cardId] = (inventory[cardId] ?? 0) + 1;
+      // Débloquer la carte de façon permanente
+      if ((inventory[cardId] ?? 0) > 0) throw new Error("Carte déjà possédée.");
+      inventory[cardId] = 1;
       updates.powerInventory = inventory;
 
       tx.update(userRef, updates);
@@ -130,31 +131,14 @@ export async function buyPowerCard(
   }
 }
 
-/** Utilise une carte (décrémente l'inventaire). Ne fait rien si quantité ≤ 0. */
+/** API legacy : les cartes pouvoir étant permanentes, la consommation est un no-op. */
 export async function consumePowerCard(
   uid: string,
   cardId: PowerCardId,
 ): Promise<{ success: boolean; error?: string }> {
-  const userRef = doc(db, "users", uid);
-  try {
-    await runTransaction(db, async (tx) => {
-      const snap = await tx.get(userRef);
-      if (!snap.exists()) throw new Error("Profil introuvable.");
-      const data = snap.data();
-      const inventory = (data.powerInventory && typeof data.powerInventory === "object")
-        ? { ...(data.powerInventory as PowerCardInventory) }
-        : {};
-      const qty = inventory[cardId] ?? 0;
-      if (qty <= 0) throw new Error("Carte non possédée.");
-      inventory[cardId] = qty - 1;
-      if (inventory[cardId] <= 0) delete inventory[cardId];
-      tx.update(userRef, { powerInventory: inventory });
-    });
-    return { success: true };
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : "Erreur de consommation.";
-    return { success: false, error: msg };
-  }
+  void uid;
+  void cardId;
+  return { success: true };
 }
 
 /** Sauvegarde les cartes équipées pour la prochaine partie. */

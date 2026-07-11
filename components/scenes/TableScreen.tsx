@@ -2,21 +2,29 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
 import dynamic from "next/dynamic";
+
+
+
+import { PlayCard } from "@/components/cards/PlayCard";
+import { PowerCardView } from "@/components/power/PowerCardView";
+import { Avatar } from "@/components/table/Avatar";
+import { DepositZone } from "@/components/table/DepositZone";
+import { Fan } from "@/components/table/Fan";
+import { FlyingCard } from "@/components/table/FlyingCard";
+import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
+import { Chip } from "@/components/ui/Chip";
+import { displayFont } from "@/components/ui/Shell";
+import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
-import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
 import { useGame } from "@/contexts/GameContext";
+import { BOTS, FCFA } from "@/data/mock";
+import { requiresTarget } from "@/engine/powerEffects";
 import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
-import { BOTS, FCFA } from "@/data/mock";
-import { Chip } from "@/components/ui/Chip";
-import { PlayCard } from "@/components/cards/PlayCard";
-import { Fan } from "@/components/table/Fan";
-import { DepositZone } from "@/components/table/DepositZone";
-import { FlyingCard } from "@/components/table/FlyingCard";
-import { Avatar } from "@/components/table/Avatar";
-import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
-import { PowerCardView } from "@/components/power/PowerCardView";
-import { displayFont } from "@/components/ui/Shell";
+import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
+import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
+import { FirestoreGameSync } from "@/sync/FirestoreGameSync";
+import { LocalGameSync } from "@/sync/LocalGameSync";
 import type {
   BotDifficulty,
   Flight,
@@ -28,12 +36,9 @@ import type {
   RoomPlayer,
   Suit,
 } from "@/types/game";
-import { LocalGameSync } from "@/sync/LocalGameSync";
-import { FirestoreGameSync } from "@/sync/FirestoreGameSync";
-import { POWER_CARDS_BY_ID } from "@/config/powerCards";
-import { requiresTarget } from "@/engine/powerEffects";
-import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
-import { consumePowerCard } from "@/lib/powerCardData";
+
+
+
 
 /* Particules tsparticles chargées en lazy, client uniquement. */
 const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
@@ -94,8 +99,18 @@ interface MomentOverlayRequest {
   duration: number;
 }
 
-const ROUND_INTRO_MS = 1550;
-const MOMENT_DEFAULT_MS = 1500;
+function readEnvDurationMs(name: string, fallback: number): number {
+  const raw = process.env[name];
+  const parsed = Number(raw);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(900, Math.min(6000, Math.round(parsed)));
+}
+
+const TABLE_READABILITY_MS = readEnvDurationMs("NEXT_PUBLIC_NJ_TABLE_READABILITY_MS", 2200);
+const ROUND_INTRO_MS = TABLE_READABILITY_MS + 250;
+const MOMENT_DEFAULT_MS = TABLE_READABILITY_MS;
+const TABLE_REACTION_MS = Math.max(1400, TABLE_READABILITY_MS - 150);
+const POWER_OVERLAY_MS = Math.max(1600, TABLE_READABILITY_MS);
 
 function isLiteMotion(level: MotionLevel): boolean {
   return level === "lite";
@@ -468,30 +483,11 @@ export function TableScreen({
       { opacity: 1, duration: 0.48, ease: "power2.out", stagger: 0.11 });
   }, [roundIntro, n]);
 
-  const consumeLocalPowerInventory = useCallback((cardIds: PowerCardId[]) => {
-    if (cardIds.length === 0) return;
-    setProfile((prev) => {
-      const inventory = { ...(prev.powerInventory ?? {}) };
-      const equipped = [...(prev.equippedPowers ?? [])];
-      cardIds.forEach((cardId) => {
-        inventory[cardId] = Math.max(0, (inventory[cardId] ?? 0) - 1);
-        if (inventory[cardId] <= 0) {
-          delete inventory[cardId];
-          const index = equipped.indexOf(cardId);
-          if (index >= 0) equipped.splice(index, 1);
-        }
-      });
-      return { ...prev, powerInventory: inventory, equippedPowers: equipped };
-    });
-  }, [setProfile]);
-
   const consumeConfirmedPowerInventory = useCallback((cardIds: PowerCardId[]) => {
-    consumeLocalPowerInventory(cardIds);
-    if (!authUid) return;
-    cardIds.forEach((cardId) => {
-      void consumePowerCard(authUid, cardId);
-    });
-  }, [authUid, consumeLocalPowerInventory]);
+    // Les cartes acquises sont permanentes : leur activation ne retire plus
+    // la possession ni l'équipement du joueur.
+    void cardIds;
+  }, []);
 
   const uiIndexFromPowerUid = useCallback((uid?: string): number | null => {
     if (!uid) return null;
@@ -514,7 +510,7 @@ export function TableScreen({
     powerOverlayTimerRef.current = setTimeout(() => {
       setPowerOverlay(null);
       powerOverlayTimerRef.current = null;
-    }, 1600);
+    }, POWER_OVERLAY_MS);
   }, []);
 
   const recommendCurrentCard = useCallback(() => {
@@ -593,7 +589,7 @@ export function TableScreen({
     reactionTimerRef.current = setTimeout(() => {
       setTableReaction(null);
       reactionTimerRef.current = null;
-    }, 1400);
+    }, TABLE_REACTION_MS);
   }, []);
 
   useEffect(() => {
@@ -660,7 +656,7 @@ export function TableScreen({
           subtitle: ledSuit ? `Suis ${ledSuit}` : "Donne la tendance",
           tone: "teal",
           asset: "cards",
-        }, 1500);
+        }, MOMENT_DEFAULT_MS);
         showTableReaction(
           ledSuit ? `Suis ${ledSuit}` : "A toi de jouer",
           "teal",
@@ -810,7 +806,7 @@ export function TableScreen({
           subtitle: winnerIdx === 0 ? "Tu domines le tour" : winnerName,
           tone: winnerIdx === 0 ? "teal" : "gold",
           asset: "crown",
-        }, 1700);
+        }, MOMENT_DEFAULT_MS + 200);
         showTableReaction(
           winnerIdx === 0 ? "Bien joué" : "Domine",
           winnerIdx === 0 ? "teal" : "gold",
@@ -842,7 +838,7 @@ export function TableScreen({
         subtitle: result.winner.isYou ? "Tu prends la caisse" : `${result.winner.name} prend la caisse`,
         tone: result.winner.isYou ? "gold" : "pink",
         asset: result.doubles ? "coin" : result.winner.isYou ? "trophy" : "crown",
-      }, result.doubles ? 2000 : 1800);
+      }, result.doubles ? MOMENT_DEFAULT_MS + 600 : MOMENT_DEFAULT_MS + 350);
     });
 
     const unsubTimer = sync.onTimerTick((s) => {

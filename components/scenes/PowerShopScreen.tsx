@@ -12,7 +12,7 @@ import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import type { PowerCardId } from "@/types/game";
 
 /* ═══════════════ PowerShopScreen — boutique de cartes pouvoir ═══════════════
-   Achat des 6 cartes avec des cauris (monnaie premium) ou du FCFA.
+   Achat des cartes pouvoir en déblocage permanent avec des cauris ou du FCFA.
    Opère sur le profil local (persisté en localStorage). */
 
 export function PowerShopScreen() {
@@ -24,6 +24,10 @@ export function PowerShopScreen() {
   const buy = (id: PowerCardId, currency: "cauris" | "fcfa") => {
     const card = POWER_CARDS.find((c) => c.id === id);
     if (!card) return;
+    if ((inventory[id] ?? 0) > 0) {
+      setFlash({ id, msg: "Déjà possédée à vie", ok: false });
+      return;
+    }
     const cost = currency === "cauris" ? card.costCauris : card.costFcfa;
     const funds = currency === "cauris" ? (profile.cauris ?? 0) : profile.balance;
     if (funds < cost) {
@@ -32,7 +36,7 @@ export function PowerShopScreen() {
     }
     setProfile((prev) => {
       const inv = { ...(prev.powerInventory ?? {}) };
-      inv[id] = (inv[id] ?? 0) + 1;
+      inv[id] = 1;
       return {
         ...prev,
         cauris: currency === "cauris" ? (prev.cauris ?? 0) - cost : prev.cauris,
@@ -40,7 +44,7 @@ export function PowerShopScreen() {
         powerInventory: inv,
       };
     });
-    setFlash({ id, msg: "Achetée ✓", ok: true });
+    setFlash({ id, msg: "Débloquée à vie ✓", ok: true });
   };
 
   return (
@@ -78,14 +82,17 @@ export function PowerShopScreen() {
             <Surface className="nj-panel-pad-sm" scrollable style={{ flex: "1 1 auto", minHeight: 0 }}>
               <div style={{ display: "grid", gap: 10 }}>
                 {POWER_CARDS.map((card) => {
-                  const qty = inventory[card.id] ?? 0;
-                  const canCauris = cauris >= card.costCauris;
-                  const canFcfa = profile.balance >= card.costFcfa;
+                  const owned = (inventory[card.id] ?? 0) > 0;
+                  const canCauris = !owned && cauris >= card.costCauris;
+                  const canFcfa = !owned && profile.balance >= card.costFcfa;
                   const showFlash = flash?.id === card.id;
                   return (
                     <div key={card.id} className="nj-list-card" style={{ alignItems: "flex-start" }}>
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <PowerCardView card={card} qty={qty > 0 ? qty : undefined} />
+                        <PowerCardView card={card} qty={owned ? 1 : undefined} />
+                        <div className="nj-subtle" style={{ fontSize: 12, marginTop: 4 }}>
+                          {owned ? "Déjà possédée à vie" : "Achat permanent"}
+                        </div>
                         <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                           <Btn
                             variant="gold"

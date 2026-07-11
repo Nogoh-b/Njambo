@@ -1854,9 +1854,9 @@ button.nj-list-card {
   overflow: hidden;
   color: var(--text);
   background:
-    radial-gradient(ellipse at 50% 48%, color-mix(in srgb, var(--moment-tone) 30%, transparent), transparent 34%),
-    radial-gradient(ellipse at 50% 56%, rgba(233, 49, 137, 0.12), transparent 48%),
-    linear-gradient(180deg, rgba(5, 5, 12, 0.32), rgba(5, 5, 12, 0.06) 46%, rgba(5, 5, 12, 0.32));
+    radial-gradient(ellipse at 50% 48%, color-mix(in srgb, var(--moment-tone) 24%, transparent), transparent 34%),
+    radial-gradient(ellipse at 50% 56%, rgba(233, 49, 137, 0.09), transparent 48%),
+    linear-gradient(180deg, rgba(5, 5, 12, 0.56), rgba(5, 5, 12, 0.18) 46%, rgba(5, 5, 12, 0.56));
   /* Cycle de vie (entrée → maintien → sortie) piloté par GSAP (GameMomentOverlay). */
   opacity: 0;
 }
@@ -1945,8 +1945,12 @@ button.nj-list-card {
   justify-items: center;
   gap: 10px;
   width: min(92vw, 760px);
-  padding: 0 14px;
+  padding: 14px 18px;
   text-align: center;
+  border-radius: 24px;
+  background: linear-gradient(180deg, rgba(5, 5, 12, 0.74), rgba(5, 5, 12, 0.52));
+  border: 1px solid rgba(255, 248, 232, 0.12);
+  box-shadow: 0 16px 34px rgba(0, 0, 0, 0.34);
 }
 
 .nj-moment-copy strong {
@@ -2157,7 +2161,7 @@ button.nj-list-card {
   pointer-events: none;
   color: var(--text);
   background:
-    linear-gradient(160deg, rgba(60, 37, 20, 0.72), rgba(10, 8, 6, 0.84));
+    linear-gradient(160deg, rgba(24, 18, 16, 0.9), rgba(7, 7, 10, 0.88));
   border: 1px solid color-mix(in srgb, var(--reaction-tone, var(--gold)) 58%, var(--wood-edge));
   box-shadow:
     0 14px 28px rgba(0, 0, 0, 0.38),
@@ -2512,8 +2516,8 @@ button.nj-list-card {
   place-items: center;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 48%, rgba(242, 187, 69, 0.18), transparent 36%),
-    linear-gradient(180deg, rgba(5, 5, 12, 0.28), rgba(5, 5, 12, 0.04) 54%, rgba(5, 5, 12, 0.28));
+    radial-gradient(ellipse at 50% 48%, rgba(242, 187, 69, 0.14), transparent 36%),
+    linear-gradient(180deg, rgba(5, 5, 12, 0.58), rgba(5, 5, 12, 0.18) 54%, rgba(5, 5, 12, 0.58));
   animation: powerActivationLife 1.6s ease-out both;
 }
 
@@ -2530,7 +2534,11 @@ button.nj-list-card {
   justify-items: center;
   gap: 6px;
   text-align: center;
-  padding: 0 18px;
+  padding: 12px 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(5, 5, 12, 0.78), rgba(5, 5, 12, 0.6));
+  border: 1px solid rgba(255, 248, 232, 0.12);
+  box-shadow: 0 14px 30px rgba(0, 0, 0, 0.34);
 }
 
 .nj-power-activation-copy strong {

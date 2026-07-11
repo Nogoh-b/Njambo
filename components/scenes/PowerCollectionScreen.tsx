@@ -10,7 +10,7 @@ import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import type { PowerCardId } from "@/types/game";
 
 /* ═══════════════ PowerCollectionScreen — inventaire & équipement ═══════════════
-   Affiche les 6 cartes pouvoir, la quantité possédée, et permet
+   Affiche les cartes pouvoir débloquées à vie, et permet
    d'équiper jusqu'à 2 cartes pour la prochaine partie. */
 
 export function PowerCollectionScreen() {
@@ -64,8 +64,7 @@ export function PowerCollectionScreen() {
             <Surface className="nj-panel-pad-sm" scrollable style={{ flex: "1 1 auto", minHeight: 0 }}>
               <div style={{ display: "grid", gap: 10 }}>
                 {POWER_CARDS.map((card) => {
-                  const qty = inventory[card.id] ?? 0;
-                  const owned = qty > 0;
+                  const owned = (inventory[card.id] ?? 0) > 0;
                   const isEquipped = equipped.includes(card.id);
                   const full = !isEquipped && equipped.length >= MAX_EQUIPPED_POWERS;
                   return (
@@ -75,9 +74,9 @@ export function PowerCollectionScreen() {
                       style={{ opacity: owned ? 1 : 0.5, alignItems: "flex-start" }}
                     >
                       <div style={{ flex: 1, minWidth: 0 }}>
-                        <PowerCardView card={card} qty={owned ? qty : undefined} selected={isEquipped} disabled={!owned} />
+                        <PowerCardView card={card} qty={owned ? 1 : undefined} selected={isEquipped} disabled={!owned} />
                         <div className="nj-subtle" style={{ fontSize: 12, marginTop: 4 }}>
-                          {owned ? `Possédée ×${qty}` : "Non possédée"}
+                          {owned ? "Possédée à vie" : "Non possédée"}
                         </div>
                       </div>
                       <Btn
