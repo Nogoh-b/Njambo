@@ -365,6 +365,17 @@ export class FirestoreGameSync implements GameSyncActions {
       this.maybeRequestTakeover(game);
     }
 
+    // ── Power cards : traiter l'activation AVANT le coup ──
+    // hostProcessPowerActivation pousse l'effet (valueBonus/suitOverride…) dans
+    // activePowerEffects de façon SYNCHRONE (avant son await). hostProcessPendingPlay
+    // lit activePowerEffects — aussi de façon synchrone (via hostCommitPlay →
+    // applyNextCardModifiers). Si un snapshot coalesce activation + coup (le joueur
+    // active un boost puis joue aussitôt), traiter le coup en premier résoudrait la
+    // carte AVANT que le boost ne soit appliqué → boost perdu. On l'ordonne donc ici.
+    if (this.isHost && game.pendingPowerActivation) {
+      void this.hostProcessPowerActivation(game.pendingPowerActivation);
+    }
+
     if (this.isHost && game.pendingPlay) {
       const before = this.stateSignature();
       void this.hostProcessPendingPlay(game.pendingPlay, game);
@@ -373,10 +384,6 @@ export class FirestoreGameSync implements GameSyncActions {
       localStateAdvanced = this.applyOptimisticPlay(game.pendingPlay);
     }
 
-    // ── Power cards : traitement de l'activation en attente ──
-    if (this.isHost && game.pendingPowerActivation) {
-      void this.hostProcessPowerActivation(game.pendingPowerActivation);
-    }
     // Émettre les nouvelles activations confirmées à l'UI
     this.emitNewPowerActivations(game);
 

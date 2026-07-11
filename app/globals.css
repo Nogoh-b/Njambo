@@ -2257,6 +2257,28 @@ button.nj-list-card {
   filter: drop-shadow(0 0 10px rgba(242, 187, 69, 0.18));
 }
 
+/* Badge « carte boostée » (Éclair du Mfoundi = valeur, Pagne Changeant = couleur). */
+.nj-deposit-power-tag {
+  position: absolute;
+  bottom: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px 1px 4px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(242, 187, 69, 0.96), rgba(198, 126, 38, 0.96));
+  color: #2a1503;
+  font-size: 11px;
+  font-weight: 950;
+  line-height: 1;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.42), 0 0 10px rgba(242, 187, 69, 0.5);
+  animation: crownPop 0.35s both;
+}
+
 .nj-flying-card-trail {
   position: absolute;
   inset: 9% -24% 9% 26%;

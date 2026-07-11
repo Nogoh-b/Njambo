@@ -60,6 +60,18 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
               style={{ animation: effects && top ? "landPop .28s both" : "none" }}
             >
               <PlayCard card={c} w={w} glow={effects && top && active} />
+              {/* Badge de boost : rend visible l'effet d'une carte pouvoir
+                 (valeur augmentée / couleur changée) sur la carte jouée. */}
+              {effects && c.powerTag && (c.effectiveValue != null || c.effectiveSuit) && (
+                <div className="nj-deposit-power-tag" aria-label="Carte boostée">
+                  <NjamboIcon name="spark" tone="gold" size={10} />
+                  <span>
+                    {c.effectiveValue != null && c.effectiveValue !== c.value
+                      ? c.effectiveValue
+                      : (c.effectiveSuit ?? "")}
+                  </span>
+                </div>
+              )}
               {top && isDominant && (
                 <div
                   style={{
