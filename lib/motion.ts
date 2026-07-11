@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
 import { useGame } from "@/contexts/GameContext";
@@ -13,9 +13,14 @@ import { useGame } from "@/contexts/GameContext";
 /** Vrai si les animations doivent jouer : toggle app activé ET pas de reduced-motion système. */
 export type MotionLevel = "full" | "balanced" | "lite";
 
-interface MotionProfile {
+export interface MotionProfile {
   enabled: boolean;
   level: MotionLevel;
+  allowDecorativeLoop: boolean;
+  allowParticles: boolean;
+  allowFilterFx: boolean;
+  allowEntranceCascade: boolean;
+  allowLongCascade: boolean;
 }
 
 interface MotionEnv {
@@ -67,13 +72,58 @@ export function useMotionProfile(): MotionProfile {
   }, []);
 
   return useMemo(() => {
-    if (!animationsOn || prefersReduced) return { enabled: false, level: "lite" as const };
-    return { enabled: true, level: deriveMotionLevel(env) };
+    if (!animationsOn || prefersReduced) {
+      return {
+        enabled: false,
+        level: "lite" as const,
+        allowDecorativeLoop: false,
+        allowParticles: false,
+        allowFilterFx: false,
+        allowEntranceCascade: false,
+        allowLongCascade: false,
+      };
+    }
+
+    const level = deriveMotionLevel(env);
+    return {
+      enabled: true,
+      level,
+      allowDecorativeLoop: level !== "lite",
+      allowParticles: level === "full",
+      allowFilterFx: level === "full",
+      allowEntranceCascade: level !== "lite",
+      allowLongCascade: level === "full",
+    };
   }, [animationsOn, env, prefersReduced]);
 }
 
 export function useMotionEnabled(): boolean {
   return useMotionProfile().enabled;
+}
+
+interface EntranceAnimationOptions {
+  duration?: number;
+  step?: number;
+  maxItems?: number;
+}
+
+export function getEntranceAnimationStyle(
+  motion: Pick<MotionProfile, "enabled" | "level" | "allowEntranceCascade" | "allowLongCascade">,
+  index: number,
+  options: EntranceAnimationOptions = {},
+): CSSProperties | undefined {
+  if (!motion.enabled || !motion.allowEntranceCascade) return undefined;
+
+  const baseDuration = options.duration ?? 0.3;
+  const baseStep = options.step ?? 0.04;
+  const duration = motion.level === "balanced" ? Math.min(baseDuration, 0.26) : baseDuration;
+  const step = motion.level === "balanced" ? Math.min(baseStep, 0.03) : baseStep;
+  const maxItems = options.maxItems ?? (motion.allowLongCascade ? 8 : 4);
+  const cappedIndex = Math.min(index, maxItems);
+
+  return {
+    animation: `riseIn ${duration}s ${cappedIndex * step}s both`,
+  };
 }
 
 /* GSAP est chargé dynamiquement côté client uniquement (jamais au SSR). */

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { acceptFriendRequest, listenFriendRequests, rejectFriendRequest } from "@/lib/socialData";
 import { AvatarIllustration } from "@/components/ui/Art";
 import { BottomNav } from "@/components/ui/BottomNav";
@@ -14,6 +15,7 @@ import type { FriendRequest } from "@/types/game";
 export function FriendRequestsScreen() {
   const { navigateTo } = useGame();
   const { user } = useAuth();
+  const motion = useMotionProfile();
   const [requests, setRequests] = useState<FriendRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -46,7 +48,7 @@ export function FriendRequestsScreen() {
                   <div
                     key={req.id}
                     className={`nj-list-card${incoming ? " nj-list-card--pink is-active" : ""}`}
-                    style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
+                    style={getEntranceAnimationStyle(motion, i)}
                   >
                     <AvatarIllustration seed={incoming ? req.fromEmoji : req.toEmoji} size={50} online />
                     <div style={{ flex: 1, minWidth: 0 }}>

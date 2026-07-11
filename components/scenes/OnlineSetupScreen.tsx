@@ -5,6 +5,7 @@ import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenDiscoverPlayers } from "@/lib/socialData";
 import { FCFA } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
@@ -21,6 +22,7 @@ import type { PublicPlayerProfile } from "@/types/game";
 export function OnlineSetupScreen() {
   const { navigateTo, cfg } = useGame();
   const { user } = useAuth();
+  const motion = useMotionProfile();
   const { createRoom, joinRoomById, findAvailableRoom, publicRooms, roomError, clearError } = useLobby();
   const [playerSearch, setPlayerSearch] = useState("");
   const [players, setPlayers] = useState<PublicPlayerProfile[]>([]);
@@ -174,7 +176,7 @@ export function OnlineSetupScreen() {
                     <div
                       key={player.uid}
                       className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""}`}
-                      style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
+                      style={getEntranceAnimationStyle(motion, i)}
                     >
                       <AvatarIllustration seed={player.emoji} size={42} online={player.online} />
                       <div style={{ flex: 1, minWidth: 0 }}>

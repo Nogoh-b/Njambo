@@ -5,6 +5,7 @@ import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useOnlinePlayers } from "@/hooks/useOnlinePlayers";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { FCFA } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
@@ -14,6 +15,7 @@ import { AuthGate } from "@/components/ui/AuthGate";
 
 export function FriendsSetupScreen() {
   const { navigateTo, profile, cfg } = useGame();
+  const motion = useMotionProfile();
   const { createRoom, joinRoomByCode, roomError, clearError } = useLobby();
   const { players, loading } = useOnlinePlayers();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -111,7 +113,7 @@ export function FriendsSetupScreen() {
                         style={{
                           cursor: f.online ? "pointer" : "not-allowed",
                           opacity: f.online ? 1 : 0.55,
-                          animation: `riseIn .3s ${i * 0.05}s both`,
+                          ...getEntranceAnimationStyle(motion, i, { step: 0.05 }),
                         }}
                       >
                         <span

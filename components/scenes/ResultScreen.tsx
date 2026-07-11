@@ -45,25 +45,27 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
   const gainRef = useRef<HTMLDivElement>(null);
 
   useGsapTimeline(motion.enabled, rootRef, (gsap) => {
+    const introDuration = motion.allowFilterFx ? 0.5 : 0.4;
+    const markDuration = motion.allowFilterFx ? 0.6 : 0.48;
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
     if (panelRef.current) {
-      tl.fromTo(panelRef.current, { opacity: 0, y: 20, scale: 0.98 }, { opacity: 1, y: 0, scale: 1, duration: 0.5 }, 0);
+      tl.fromTo(panelRef.current, { opacity: 0, y: 16, scale: 0.985 }, { opacity: 1, y: 0, scale: 1, duration: introDuration }, 0);
     }
     if (markRef.current) {
-      tl.fromTo(markRef.current, { opacity: 0, scale: 0.5, rotate: -12 }, { opacity: 1, scale: 1, rotate: 0, duration: 0.6, ease: "back.out(2.2)" }, 0.12);
+      tl.fromTo(markRef.current, { opacity: 0, scale: 0.72, rotate: -8 }, { opacity: 1, scale: 1, rotate: 0, duration: markDuration, ease: "back.out(2.1)" }, 0.1);
     }
     const gain = gainRef.current;
     if (gain) {
       const counter = { v: 0 };
-      gsap.set(gain, { opacity: 0, scale: 0.7 });
-      tl.to(gain, { opacity: 1, scale: 1, duration: 0.5, ease: "back.out(2)" }, 0.3)
+      gsap.set(gain, { opacity: 0, scale: 0.78 });
+      tl.to(gain, { opacity: 1, scale: 1, duration: introDuration, ease: "back.out(2)" }, 0.24)
         .to(counter, {
           v: totalGain,
-          duration: 0.85,
+          duration: motion.allowLongCascade ? 0.85 : 0.68,
           ease: "power2.out",
           onUpdate: () => { gain.textContent = `+ ${FCFA(Math.round(counter.v))}`; },
           onComplete: () => { gain.textContent = `+ ${FCFA(totalGain)}`; },
-        }, 0.3);
+        }, 0.24);
     }
   }, [motion.enabled, totalGain]);
 
@@ -95,10 +97,10 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
         color: T.text,
       }}
     >
-      {motion.enabled && motion.level !== "lite" && <div className="nj-result-aura" aria-hidden="true" />}
+      {motion.enabled && motion.allowDecorativeLoop && <div className="nj-result-aura" aria-hidden="true" />}
 
       {/* Célébration : pluie de confettis tsparticles quand le joueur gagne. */}
-      {motion.enabled && motion.level === "full" && win.isYou && <PowerParticles variant="confetti" zIndex={1} />}
+      {motion.enabled && motion.allowParticles && win.isYou && <PowerParticles variant="confetti" zIndex={1} />}
 
       <section
         ref={panelRef}
@@ -157,7 +159,7 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
         </div>
         <div className="nj-subtle">{result.doubles ? "pot + pénalités doublées" : "le pot rentre au ngata"}</div>
 
-        {motion.enabled && <div className="nj-result-nudge">Revanche ?</div>}
+        {motion.enabled && motion.allowDecorativeLoop && <div className="nj-result-nudge">Revanche ?</div>}
 
         {socialPlayers.filter((player) => player.uid !== user?.uid).length > 0 && (
           <div style={{ marginTop: 18, display: "grid", gap: 8 }}>

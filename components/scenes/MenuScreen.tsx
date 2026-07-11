@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { T } from "@/config/theme";
 import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
 import { useGame } from "@/contexts/GameContext";
@@ -79,10 +79,10 @@ const MENU_SPARKS = [
   { left: "50%", top: "10%", size: 3, delay: "1.1s" },
 ];
 
-function CountBadge({ count }: { count: number }) {
+const CountBadge = memo(function CountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
   return <span className="nj-home-badge">{count > 99 ? "99+" : count}</span>;
-}
+});
 
 export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenProps) {
   const { profile, setProfile, navigateTo, cfg } = useGame();
@@ -91,6 +91,7 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
   const [socialCounts, setSocialCounts] = useState<SocialCounts>({ notifications: 0, messages: 0, requests: 0 });
   const [onlineProfile, setOnlineProfile] = useState<PublicPlayerProfile | null>(null);
   const [claiming, setClaiming] = useState(false);
+  const [decorIdle, setDecorIdle] = useState(false);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -110,13 +111,14 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
     return unsub;
   }, [user?.uid]);
 
-  const displayProfile = {
+  const displayProfile = useMemo(() => ({
     name: onlineProfile?.name ?? user?.name ?? profile.name,
     emoji: onlineProfile?.emoji ?? user?.emoji ?? profile.emoji,
     balance: onlineProfile?.balance ?? profile.balance,
     stats: onlineProfile?.stats ?? ZERO_STATS,
-  };
+  }), [onlineProfile?.balance, onlineProfile?.emoji, onlineProfile?.name, onlineProfile?.stats, profile.balance, profile.emoji, profile.name, user?.emoji, user?.name]);
   const level = getPlayerLevel(displayProfile.stats, displayProfile.balance);
+  const allowDecorativeLoop = motion.allowDecorativeLoop && !decorIdle;
 
   /* ----- Économie : bonus quotidien + anti-faillite ----- */
   const eco = cfg.economy;
@@ -142,11 +144,17 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
   }, [user?.uid, onlineProfile?.balance, profile.balance, eco.brokeFloor]);
 
   const mainPlayLabel = canResumeGame ? "REPRENDRE" : "JOUER";
-  const mainPlay = canResumeGame && onResumeGame ? onResumeGame : () => navigateTo("online_setup");
+  const mainPlay = useCallback(() => {
+    if (canResumeGame && onResumeGame) {
+      onResumeGame();
+      return;
+    }
+    navigateTo("online_setup");
+  }, [canResumeGame, navigateTo, onResumeGame]);
 
-  const openLink = (scene: SceneName) => {
+  const openLink = useCallback((scene: SceneName) => {
     navigateTo(scene);
-  };
+  }, [navigateTo]);
 
   /* ----- Entrée du menu (GSAP) : séquence coordonnée — le plateau apparaît,
      la marque descend, les rails latéraux glissent, les planks de mode
@@ -154,24 +162,62 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
      transform sur des éléments SANS boucle transform (le plateau ne reçoit
      qu'un fondu car il flotte déjà via menuMarkFloat). ----- */
   const stageRef = useRef<HTMLElement>(null);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(() => {
+    if (!motion.allowDecorativeLoop) {
+      setDecorIdle(false);
+      return;
+    }
+
+    const clearIdleTimer = () => {
+      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
+    };
+
+    const scheduleIdle = () => {
+      clearIdleTimer();
+      idleTimerRef.current = setTimeout(() => setDecorIdle(true), 6500);
+    };
+
+    const wakeDecor = () => {
+      setDecorIdle(false);
+      scheduleIdle();
+    };
+
+    scheduleIdle();
+    const el = stageRef.current;
+    el?.addEventListener("pointermove", wakeDecor, { passive: true });
+    el?.addEventListener("pointerdown", wakeDecor, { passive: true });
+    window.addEventListener("keydown", wakeDecor);
+    window.addEventListener("focus", wakeDecor);
+
+    return () => {
+      clearIdleTimer();
+      el?.removeEventListener("pointermove", wakeDecor);
+      el?.removeEventListener("pointerdown", wakeDecor);
+      window.removeEventListener("keydown", wakeDecor);
+      window.removeEventListener("focus", wakeDecor);
+    };
+  }, [motion.allowDecorativeLoop]);
+
   useGsapTimeline(motion.enabled, stageRef, (gsap) => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-    tl.fromTo(".nj-home-table-art", { opacity: 0 }, { opacity: 0.96, duration: 0.55 }, 0)
-      .fromTo(".nj-home-brand-lockup", { opacity: 0, y: -18 }, { opacity: 1, y: 0, duration: 0.5 }, 0.08)
+    tl.fromTo(".nj-home-table-art", { opacity: 0 }, { opacity: 0.96, duration: motion.allowFilterFx ? 0.55 : 0.42 }, 0)
+      .fromTo(".nj-home-brand-lockup", { opacity: 0, y: -14 }, { opacity: 1, y: 0, duration: motion.allowFilterFx ? 0.5 : 0.38 }, 0.08)
       .fromTo(".nj-home-side-rail",
         { opacity: 0, x: (_i, t) => ((t as HTMLElement).classList.contains("nj-home-side-left") ? -28 : 28) },
-        { opacity: 1, x: 0, duration: 0.5, stagger: 0.06 }, 0.16)
+        { opacity: 1, x: 0, duration: 0.42, stagger: motion.allowLongCascade ? 0.06 : 0.04 }, 0.14)
       .fromTo(".nj-mode-plank",
-        { opacity: 0, y: 22, scale: 0.96 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.5, stagger: 0.08 }, 0.22)
+        { opacity: 0, y: 18, scale: 0.98 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.42, stagger: motion.allowLongCascade ? 0.08 : 0.05 }, 0.2)
       .fromTo(".nj-home-play-button",
-        { opacity: 0, y: 16, scale: 0.9 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.8)" }, 0.46);
-  });
+        { opacity: 0, y: 14, scale: 0.94 },
+        { opacity: 1, y: 0, scale: 1, duration: 0.42, ease: "back.out(1.6)" }, 0.36);
+  }, [motion.allowFilterFx, motion.allowLongCascade]);
 
   return (
     <Shell>
-      <div className="nj-safe nj-game-home-safe">
+      <div className={`nj-safe nj-game-home-safe${decorIdle ? " nj-menu-idle" : ""}`}>
         <div className="nj-game-home-pattern" aria-hidden="true" />
 
         <header className="nj-game-hud">
@@ -218,7 +264,7 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
 
         <main className="nj-game-home-stage" ref={stageRef}>
           <section className="nj-home-logo-scene" aria-label="Njambo">
-            {motion.enabled && motion.level !== "lite" && (
+            {motion.enabled && allowDecorativeLoop && (
               <div className="nj-menu-sparkles" aria-hidden="true">
                 {MENU_SPARKS.map((spark, index) => (
                   <span

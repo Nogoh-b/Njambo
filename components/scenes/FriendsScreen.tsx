@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import {
   acceptFriendRequest,
   listenDiscoverPlayers,
@@ -23,6 +24,7 @@ type Tab = "friends" | "requests" | "players";
 export function FriendsScreen() {
   const { navigateTo } = useGame();
   const { user } = useAuth();
+  const motion = useMotionProfile();
   const [tab, setTab] = useState<Tab>("friends");
   const [search, setSearch] = useState("");
   const [friends, setFriends] = useState<SocialFriendEntry[]>([]);
@@ -78,7 +80,7 @@ export function FriendsScreen() {
                 <div
                   key={friend.uid}
                   className={`nj-list-card${friend.online ? " nj-list-card--teal is-active" : ""}`}
-                  style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
+                  style={getEntranceAnimationStyle(motion, i)}
                 >
                   <AvatarIllustration seed={friend.emoji} size={50} online={friend.online} />
                   <div style={{ flex: 1, minWidth: 0 }}>
@@ -98,7 +100,7 @@ export function FriendsScreen() {
                   <div
                     key={req.id}
                     className={`nj-list-card${incoming ? " nj-list-card--pink is-active" : ""}`}
-                    style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
+                    style={getEntranceAnimationStyle(motion, i)}
                   >
                     <AvatarIllustration seed={incoming ? req.fromEmoji : req.toEmoji} size={50} online />
                     <div style={{ flex: 1, minWidth: 0 }}>
@@ -124,7 +126,7 @@ export function FriendsScreen() {
                 <div
                   key={player.uid}
                   className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""}`}
-                  style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
+                  style={getEntranceAnimationStyle(motion, i)}
                 >
                   <AvatarIllustration seed={player.emoji} size={50} online={player.online} />
                   <div style={{ flex: 1, minWidth: 0 }}>

@@ -1282,6 +1282,16 @@ button.nj-list-card {
   filter: drop-shadow(0 9px 16px rgba(0, 0, 0, 0.42));
 }
 
+.nj-menu-idle .nj-menu-sparkles,
+.nj-menu-idle .nj-mode-plank-shine,
+.nj-menu-idle .nj-home-table-art {
+  animation-play-state: paused;
+}
+
+.nj-menu-idle .nj-menu-sparkles {
+  opacity: 0.32;
+}
+
 .nj-home-brand-kicker {
   margin-top: -4px;
   color: var(--gold);
@@ -3539,6 +3549,8 @@ button.nj-list-card {
 
 .nj-motion-level-balanced .nj-menu-hero::before,
 .nj-motion-level-balanced .nj-menu-mark::before,
+.nj-motion-level-balanced .nj-home-table-art,
+.nj-motion-level-balanced .nj-home-brand-lockup svg,
 .nj-motion-level-balanced .nj-mode-plank-shine,
 .nj-motion-level-balanced .nj-result-panel::after,
 .nj-motion-level-balanced .nj-power-card-sheen {
@@ -3552,14 +3564,27 @@ button.nj-list-card {
 .nj-motion-level-balanced .nj-flying-card-trail,
 .nj-motion-level-balanced .nj-recommended-card,
 .nj-motion-level-balanced .nj-reaction-bubble,
-.nj-motion-level-balanced .nj-avatar-seat-active::before {
+.nj-motion-level-balanced .nj-avatar-seat-active::before,
+.nj-motion-level-balanced .nj-home-table-art,
+.nj-motion-level-balanced .nj-home-brand-lockup svg,
+.nj-motion-level-balanced .nj-splash-logo {
   filter: none;
+}
+
+.nj-motion-level-balanced .nj-menu-sparkles span,
+.nj-motion-level-balanced .nj-result-nudge,
+.nj-motion-level-balanced .nj-mode-plank-shine,
+.nj-motion-level-balanced .nj-home-table-art {
+  animation-duration: 4.6s;
 }
 
 .nj-motion-level-lite .nj-menu-hero::before,
 .nj-motion-level-lite .nj-menu-mark,
 .nj-motion-level-lite .nj-menu-mark::before,
 .nj-motion-level-lite .nj-menu-sparkles,
+.nj-motion-level-lite .nj-home-table-art,
+.nj-motion-level-lite .nj-home-brand-lockup svg,
+.nj-motion-level-lite .nj-splash-logo,
 .nj-motion-level-lite .nj-mode-plank-shine,
 .nj-motion-level-lite .nj-result-aura,
 .nj-motion-level-lite .nj-result-panel::after,

@@ -1,6 +1,6 @@
 "use client";
 
-import { forwardRef } from "react";
+import { memo, forwardRef } from "react";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { NjamboIcon } from "@/components/ui/Art";
 import type { DepositedCard } from "@/types/game";
@@ -17,7 +17,7 @@ interface DepositZoneProps {
   effects?: boolean;
 }
 
-export const DepositZone = forwardRef<HTMLDivElement, DepositZoneProps>(function DepositZone(
+export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(function DepositZone(
   { deposit, w, active, isDominant, effects = true },
   ref,
 ) {
@@ -81,4 +81,4 @@ export const DepositZone = forwardRef<HTMLDivElement, DepositZoneProps>(function
       })}
     </div>
   );
-});
+}));

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenConversations } from "@/lib/socialData";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { BottomNav } from "@/components/ui/BottomNav";
@@ -12,6 +13,7 @@ import type { ConversationEntry } from "@/types/game";
 export function MessagesScreen() {
   const { navigateTo, setSocialTarget } = useGame();
   const { user } = useAuth();
+  const motion = useMotionProfile();
   const [conversations, setConversations] = useState<ConversationEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,7 +52,7 @@ export function MessagesScreen() {
                       navigateTo("chat");
                     }}
                     className={`nj-list-card${unread ? " nj-list-card--teal is-active" : ""}`}
-                    style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
+                    style={getEntranceAnimationStyle(motion, i)}
                   >
                     <AvatarIllustration seed={peer.emoji} size={50} online={unread} />
                     <div style={{ flex: 1, minWidth: 0 }}>

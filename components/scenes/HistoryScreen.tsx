@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenMatchHistory } from "@/lib/playerData";
 import { FCFA } from "@/data/mock";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
@@ -21,6 +22,7 @@ function modeLabel(mode: MatchHistoryEntry["mode"]): string {
 export function HistoryScreen() {
   const { navigateTo } = useGame();
   const { user } = useAuth();
+  const motion = useMotionProfile();
   const [matches, setMatches] = useState<MatchHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -78,7 +80,7 @@ export function HistoryScreen() {
                   <div
                     key={match.id}
                     className={`nj-list-card${match.won ? " nj-list-card--gold is-active" : ""}`}
-                    style={{ animation: `riseIn .34s ${i * 0.05}s both` }}
+                    style={getEntranceAnimationStyle(motion, i, { duration: 0.34, step: 0.05 })}
                   >
                     <span
                       className="nj-title-icon"

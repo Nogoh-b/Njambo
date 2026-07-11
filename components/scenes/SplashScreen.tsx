@@ -3,13 +3,13 @@
 import { useEffect, useRef } from "react";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
-import { useGsapTimeline, useMotionEnabled } from "@/lib/motion";
+import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
 import { displayFont, Shell } from "@/components/ui/Shell";
 import { NjamboMark } from "@/components/ui/Art";
 
 export function SplashScreen() {
   const { navigateTo } = useGame();
-  const motionOn = useMotionEnabled();
+  const motion = useMotionProfile();
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -20,11 +20,11 @@ export function SplashScreen() {
   }, []);
 
   /* Timeline d'intro cinématique (GSAP) — gated par le toggle animations. */
-  useGsapTimeline(motionOn, rootRef, (gsap) => {
+  useGsapTimeline(motion.enabled, rootRef, (gsap) => {
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-    tl.from(".nj-splash-logo", { scale: 0.6, opacity: 0, filter: "blur(14px)", duration: 0.7 })
+    tl.from(".nj-splash-logo", { scale: 0.72, opacity: 0, duration: 0.56 })
       .from(".nj-splash-kicker", { y: 16, opacity: 0, duration: 0.4 }, "-=0.25")
-      .from(".nj-splash-title", { y: 26, opacity: 0, scale: 0.9, duration: 0.55 }, "-=0.2")
+      .from(".nj-splash-title", { y: 22, opacity: 0, scale: 0.94, duration: 0.48 }, "-=0.18")
       .from(".nj-splash-tagline", { y: 12, opacity: 0, duration: 0.4 }, "-=0.3")
       .from(".nj-splash-bar", { scaleX: 0, opacity: 0, transformOrigin: "50% 50%", duration: 0.5 }, "-=0.2")
       .from(".nj-splash-dots > *", { scale: 0, opacity: 0, stagger: 0.08, duration: 0.35 }, "-=0.25");
@@ -64,7 +64,7 @@ export function SplashScreen() {
               margin: "0 auto 18px",
               borderRadius: "50%",
               background: `radial-gradient(circle, ${T.gold}1f, transparent 65%)`,
-              animation: "glowPulse 2.4s ease-in-out infinite",
+              animation: motion.allowDecorativeLoop ? "glowPulse 2.4s ease-in-out infinite" : "none",
             }}
           >
             <NjamboMark size={150} />
@@ -106,7 +106,7 @@ export function SplashScreen() {
                   height: 10,
                   borderRadius: "50%",
                   background: color,
-                  animation: `loaderDot 1s ${i * 0.14}s ease-in-out infinite`,
+                  animation: motion.allowDecorativeLoop ? `loaderDot 1s ${i * 0.14}s ease-in-out infinite` : "none",
                 }}
               />
             ))}

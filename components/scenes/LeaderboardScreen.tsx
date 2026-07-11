@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenLeaderboard } from "@/lib/playerData";
 import { FCFA } from "@/data/mock";
@@ -16,6 +17,7 @@ import type { OnlinePlayerProfile } from "@/types/game";
 export function LeaderboardScreen() {
   const { navigateTo } = useGame();
   const { user } = useAuth();
+  const motion = useMotionProfile();
   const [players, setPlayers] = useState<OnlinePlayerProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -47,7 +49,7 @@ export function LeaderboardScreen() {
                   <div
                     key={p.uid}
                     className={`nj-list-card${isYou ? " nj-list-card--gold is-active" : ""}`}
-                    style={{ animation: `riseIn .34s ${i * 0.06}s both` }}
+                    style={getEntranceAnimationStyle(motion, i, { duration: 0.34, step: 0.06 })}
                   >
                     <div
                       style={{

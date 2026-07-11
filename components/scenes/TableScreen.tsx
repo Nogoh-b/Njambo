@@ -148,9 +148,9 @@ function GameMomentOverlay({ moment, motionLevel }: { moment: MomentOverlay; mot
       .to(".nj-moment-asset", { opacity: 0, xPercent: -50, y: -18, scale: 0.9, rotate: 5, duration: 0.32, ease: "power1.in" }, exitAt + 0.02);
 
     tl.fromTo(".nj-moment-copy strong",
-      { opacity: 0, y: 24, scale: 0.72, filter: "blur(4px)" },
-      { opacity: 1, y: 0, scale: 1, filter: "blur(0px)", duration: 0.5, ease: "back.out(1.6)" }, 0.12)
-      .to(".nj-moment-copy strong", { opacity: 0, y: -16, scale: 0.92, filter: "blur(2px)", duration: 0.32, ease: "power1.in" }, exitAt);
+      { opacity: 0, y: 24, scale: 0.72 },
+      { opacity: 1, y: 0, scale: 1, duration: 0.5, ease: "back.out(1.6)" }, 0.12)
+      .to(".nj-moment-copy strong", { opacity: 0, y: -16, scale: 0.92, duration: 0.32, ease: "power1.in" }, exitAt);
 
     tl.fromTo(".nj-moment-copy span",
       { opacity: 0, y: 12, scale: 0.88 },
@@ -317,6 +317,7 @@ export function TableScreen({
   const balancedMotion = isBalancedMotion(motionLevel);
   const premiumFxAllowed = motionLevel === "full";
   const activeTableFx = roundIntro || phase === "dealing" || flights.length > 0 || !!momentOverlay || !!tableReaction || !!powerFx || !!powerOverlay;
+  const getYourDropRect = useCallback(() => depositRefs.current[0]?.getBoundingClientRect() ?? null, []);
 
   useEffect(() => {
     playersRef.current = players;
@@ -460,11 +461,11 @@ export function TableScreen({
      jamais transform, qui porte le positionnement de chaque siège/main. */
   useGsapTimeline(motionEnabled && roundIntro && n > 0, tableRootRef, (gsap) => {
     gsap.fromTo(".nj-round-hand-reveal",
-      { opacity: 0, filter: "brightness(1.32)" },
-      { opacity: 1, filter: "brightness(1)", duration: 0.62, ease: "power2.out", stagger: 0.05 });
+      { opacity: 0 },
+      { opacity: 1, duration: 0.48, ease: "power2.out", stagger: 0.05 });
     gsap.fromTo(".nj-round-seat-reveal",
-      { opacity: 0, filter: "brightness(1.32)" },
-      { opacity: 1, filter: "brightness(1)", duration: 0.62, ease: "power2.out", stagger: 0.11 });
+      { opacity: 0 },
+      { opacity: 1, duration: 0.48, ease: "power2.out", stagger: 0.11 });
   }, [roundIntro, n]);
 
   const consumeLocalPowerInventory = useCallback((cardIds: PowerCardId[]) => {
@@ -1249,11 +1250,11 @@ export function TableScreen({
                 playerCount={n}
                 dealing={motionEnabled && phase === "dealing"}
                 legal={p.isYou ? yourLegal : null}
-                onCardClick={(ci) => handleCardClick(ci)}
+                onCardClick={handleCardClick}
                 hiddenIdx={flyingSrc?.playerIdx === i ? flyingSrc.cardIdx : null}
-                recommendedIdx={p.isYou ? recommendedCardIdx : null}
-                motionOn={motionEnabled}
-                getDropRect={p.isYou ? () => depositRefs.current[i]?.getBoundingClientRect() ?? null : undefined}
+                recommendedIdx={p.isYou && !activeTableFx ? recommendedCardIdx : null}
+                motionOn={motionEnabled && !activeTableFx}
+                getDropRect={p.isYou ? getYourDropRect : undefined}
               />
             </div>
           </div>
@@ -1283,7 +1284,7 @@ export function TableScreen({
             <Avatar
               p={p}
               active={active}
-              seconds={seconds}
+              seconds={active ? seconds : cfg.turnSeconds}
               turnSeconds={cfg.turnSeconds}
               size={p.isYou ? 58 : 50}
             />

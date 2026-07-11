@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenNotifications, markNotificationRead } from "@/lib/socialData";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { BottomNav } from "@/components/ui/BottomNav";
@@ -13,6 +14,7 @@ import type { NotificationEntry } from "@/types/game";
 export function NotificationsScreen() {
   const { navigateTo, setSocialTarget } = useGame();
   const { user } = useAuth();
+  const motion = useMotionProfile();
   const { joinRoomById } = useLobby();
   const [notifications, setNotifications] = useState<NotificationEntry[]>([]);
   const [loading, setLoading] = useState(true);
@@ -68,7 +70,7 @@ export function NotificationsScreen() {
                   type="button"
                   onClick={() => { void openNotification(item); }}
                   className={`nj-list-card${item.read ? "" : " nj-list-card--pink is-active"}`}
-                  style={{ animation: `riseIn .3s ${i * 0.04}s both` }}
+                  style={getEntranceAnimationStyle(motion, i)}
                 >
                   <AvatarIllustration seed={item.actorEmoji} size={48} online />
                   <div style={{ flex: 1, minWidth: 0 }}>

@@ -4,6 +4,7 @@ import React, { useCallback, useEffect } from "react";
 import { T } from "@/config/theme";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
+import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { FCFA } from "@/data/mock";
 import { NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
@@ -26,6 +27,7 @@ export function LobbyScreen({
   onBack,
 }: LobbyScreenProps) {
   const { user } = useAuth();
+  const motion = useMotionProfile();
   const { currentRoom, roomError, leaveRoom, setReady, startGame, clearError } = useLobby();
   const [copied, setCopied] = React.useState(false);
 
@@ -148,7 +150,7 @@ export function LobbyScreen({
                     <div
                       key={p.uid}
                       className={`nj-list-card${isReady ? " nj-list-card--teal is-active" : ""}`}
-                      style={{ animation: `riseIn .3s ${i * 0.05}s both` }}
+                      style={getEntranceAnimationStyle(motion, i, { step: 0.05 })}
                     >
                       <span style={{ fontSize: 28 }}>{p.emoji}</span>
                       <span style={{ flex: 1, minWidth: 0 }}>
