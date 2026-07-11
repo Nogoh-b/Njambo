@@ -161,6 +161,15 @@ export function applyPowerCard(
   }
 }
 
+/**
+ * Vrai si un résultat de pouvoir a un effet concret. Certaines cartes peuvent
+ * légitimement no-op (ex : Marché de Nuit sans carte plus forte disponible
+ * dans la pioche) — dans ce cas la carte ne doit PAS être consommée.
+ */
+export function powerEffectHasImpact(result: PowerEffectResult): boolean {
+  return Object.keys(result).length > 0;
+}
+
 export function requiresTarget(cardId: PowerCardId): boolean {
   return POWER_CARDS_BY_ID[cardId]?.targetMode === "opponent";
 }

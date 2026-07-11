@@ -2313,6 +2313,44 @@ button.nj-list-card {
   box-shadow: 0 0 18px rgba(16, 183, 166, 0.5);
 }
 
+/* Carte de main venant d'être échangée (Vent du Nord / Marché de Nuit) —
+   feedback visuel clair : sans ça, le swap est invisible parmi 5 cartes. */
+.nj-swapped-card {
+  position: relative;
+  z-index: 120 !important;
+  filter: drop-shadow(0 0 14px rgba(242, 187, 69, 0.55));
+  animation: recommendedCardPulse 1.05s ease-in-out infinite;
+}
+
+.nj-swapped-card::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 12px;
+  pointer-events: none;
+  border: 2px solid var(--gold);
+  box-shadow: 0 0 18px rgba(242, 187, 69, 0.55);
+}
+
+.nj-swapped-card::before {
+  content: "NOUVELLE";
+  position: absolute;
+  top: -14px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 3;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: linear-gradient(160deg, rgba(242, 187, 69, 0.96), rgba(198, 126, 38, 0.96));
+  color: #2a1503;
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.02em;
+  line-height: 1.6;
+  white-space: nowrap;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.42);
+}
+
 .nj-card-burst {
   position: fixed;
   z-index: 260;
@@ -3593,6 +3631,7 @@ button.nj-list-card {
 
 .nj-motion-level-balanced .nj-flying-card-trail,
 .nj-motion-level-balanced .nj-recommended-card,
+.nj-motion-level-balanced .nj-swapped-card,
 .nj-motion-level-balanced .nj-reaction-bubble,
 .nj-motion-level-balanced .nj-avatar-seat-active::before,
 .nj-motion-level-balanced .nj-home-table-art,
@@ -3625,6 +3664,8 @@ button.nj-list-card {
 .nj-motion-level-lite .nj-avatar-seat-urgent::after,
 .nj-motion-level-lite .nj-recommended-card,
 .nj-motion-level-lite .nj-recommended-card::after,
+.nj-motion-level-lite .nj-swapped-card,
+.nj-motion-level-lite .nj-swapped-card::after,
 .nj-motion-level-lite .nj-reaction-bubble,
 .nj-motion-level-lite .nj-table-reaction,
 .nj-motion-level-lite .nj-card-burst {
@@ -3634,6 +3675,7 @@ button.nj-list-card {
 }
 
 .nj-motion-level-lite .nj-recommended-card,
+.nj-motion-level-lite .nj-swapped-card,
 .nj-motion-level-lite .nj-avatar-seat-active::before,
 .nj-motion-level-lite .nj-avatar-seat-urgent::after {
   box-shadow: none !important;
@@ -3641,6 +3683,8 @@ button.nj-list-card {
 
 .nj-table-active-fx .nj-recommended-card,
 .nj-table-active-fx .nj-recommended-card::after,
+.nj-table-active-fx .nj-swapped-card,
+.nj-table-active-fx .nj-swapped-card::after,
 .nj-table-active-fx .nj-avatar-seat-active::before,
 .nj-table-active-fx .nj-avatar-seat-urgent::after {
   animation: none !important;

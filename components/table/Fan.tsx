@@ -22,6 +22,8 @@ interface FanProps {
   onCardClick: (cardIdx: number) => void;
   hiddenIdx?: number | null;
   recommendedIdx?: number | null;
+  /** Id de la carte qui vient d'être échangée (Vent du Nord / Marché de Nuit) — surlignée. */
+  swappedCardId?: string | null;
   /** Vrai si les animations sont activées (drag + hover). */
   motionOn?: boolean;
   /** Rect de la zone de dépôt cible (viewport) pour le hit-test du drag. */
@@ -49,6 +51,7 @@ export const Fan = memo(function Fan({
   onCardClick,
   hiddenIdx,
   recommendedIdx,
+  swappedCardId,
   motionOn = true,
   getDropRect,
 }: FanProps) {
@@ -61,7 +64,13 @@ export const Fan = memo(function Fan({
         return (
           <MotionCard
             key={card.id + ci}
-            className={recommendedIdx === ci ? "nj-recommended-card" : undefined}
+            className={
+              recommendedIdx === ci
+                ? "nj-recommended-card"
+                : card.id === swappedCardId
+                  ? "nj-swapped-card"
+                  : undefined
+            }
             card={card}
             hidden={!faceUp}
             w={w}

@@ -14,6 +14,7 @@ import { botChooseCard } from "@/engine/bot";
 import {
   applyPowerCard,
   canActivatePowerCard,
+  powerEffectHasImpact,
   requiresTarget,
   type PowerEffectResult,
 } from "@/engine/powerEffects";
@@ -231,21 +232,32 @@ export class LocalGameSync implements GameSyncActions {
     if (error) return;
 
     const blockedByCardId = this.blockingPowerFor(cardId, targetIdx);
+    // Sans effet réel (ex: Marché de Nuit sans carte plus forte dans la
+    // pioche) → la carte n'est PAS consommée, on informe juste le joueur.
+    let hasEffect = true;
     if (!blockedByCardId) {
       const result = applyPowerCard(cardId, ctx);
-      this.applyPowerEffect(cardId, 0, result, targetIdx);
+      hasEffect = powerEffectHasImpact(result);
+      if (hasEffect) {
+        this.applyPowerEffect(cardId, 0, result, targetIdx);
+      } else {
+        this.opts.onBanner(`${POWER_CARDS_BY_ID[cardId]?.name ?? "Pouvoir"} — aucun effet, carte non consommée`);
+        setTimeout(() => this.opts.onBanner(""), 2000);
+      }
     }
 
-    // Marquer comme utilisée
+    // Marquer comme utilisée (sauf si bloquée [comptée quand même : elle a
+    // été contrée] ou sans effet [reste disponible])
+    const used = blockedByCardId ? true : hasEffect;
     const activation: PowerCardActivation = {
       cardId,
       activatedByUid: "local",
       targetUid: targetIdx !== undefined ? `bot-${targetIdx}` : undefined,
       trickNo: this.trickNo,
-      used: true,
+      used,
       playId: `local-${Date.now()}-${Math.random()}`,
       blockedByCardId,
-      consumedCardIds: [cardId],
+      consumedCardIds: used ? [cardId] : [],
     };
 
     const ps = this.players.map((p) => ({ ...p }));

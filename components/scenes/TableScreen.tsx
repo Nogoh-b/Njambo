@@ -286,10 +286,15 @@ export function TableScreen({
   const [targetingCard, setTargetingCard] = useState<PowerCardId | null>(null);
   const [powerReveal, setPowerReveal] = useState<{ targetIdx: number; hand?: Card[] } | null>(null);
   const [recommendedCardIdx, setRecommendedCardIdx] = useState<number | null>(null);
-  const [powerOverlay, setPowerOverlay] = useState<{ key: string; cardId: PowerCardId; blocked?: boolean } | null>(null);
+  const [powerOverlay, setPowerOverlay] = useState<{ key: string; cardId: PowerCardId; blocked?: boolean; noEffect?: boolean } | null>(null);
   const powerRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const powerRecommendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const powerOverlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* Carte de main venant d'être échangée (Vent du Nord / Marché de Nuit) —
+     mise en évidence quelques secondes pour que le swap soit VISIBLE. */
+  const [swappedCardId, setSwappedCardId] = useState<string | null>(null);
+  const swapDetectRef = useRef<{ oldIds: Set<string> } | null>(null);
+  const swappedCardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* ----- Effets GSAP + particules (Phase 4) ----- */
   const [powerFx, setPowerFx] = useState<{ key: string; tone: PowerTone } | null>(null);
@@ -505,10 +510,10 @@ export function TableScreen({
     return (serverIdx - myIdx + roomPlayers.length) % roomPlayers.length;
   }, [authUid, roomPlayers]);
 
-  const showPowerOverlay = useCallback((cardId: PowerCardId, blocked = false) => {
+  const showPowerOverlay = useCallback((cardId: PowerCardId, blocked = false, noEffect = false) => {
     if (!animationsOnRef.current) return;
     if (powerOverlayTimerRef.current) clearTimeout(powerOverlayTimerRef.current);
-    setPowerOverlay({ key: `${cardId}-${Date.now()}`, cardId, blocked });
+    setPowerOverlay({ key: `${cardId}-${Date.now()}`, cardId, blocked, noEffect });
     powerOverlayTimerRef.current = setTimeout(() => {
       setPowerOverlay(null);
       powerOverlayTimerRef.current = null;
@@ -604,6 +609,7 @@ export function TableScreen({
       if (powerRecommendTimerRef.current) clearTimeout(powerRecommendTimerRef.current);
       if (powerOverlayTimerRef.current) clearTimeout(powerOverlayTimerRef.current);
       if (powerFxTimerRef.current) clearTimeout(powerFxTimerRef.current);
+      if (swappedCardTimerRef.current) clearTimeout(swappedCardTimerRef.current);
       momentOverlayQueueRef.current = [];
       momentOverlayActiveRef.current = false;
     };
@@ -720,6 +726,26 @@ export function TableScreen({
     const animatedPlayIds = animatedPlayIdsRef.current;
 
     // Écouter les événements du sync
+    const applyIncomingState = (state: GameState) => {
+      // Vent du Nord / Marché de Nuit : si un swap vient d'être armé (voir
+      // onPowerActivated), on repère PAR DIFF la carte qui vient d'entrer
+      // dans la main pour la mettre en évidence quelques secondes.
+      if (swapDetectRef.current) {
+        const { oldIds } = swapDetectRef.current;
+        swapDetectRef.current = null;
+        const added = state.players[0]?.hand.find((c) => !oldIds.has(c.id));
+        if (added) {
+          setSwappedCardId(added.id);
+          if (swappedCardTimerRef.current) clearTimeout(swappedCardTimerRef.current);
+          swappedCardTimerRef.current = setTimeout(() => {
+            setSwappedCardId(null);
+            swappedCardTimerRef.current = null;
+          }, 2600);
+        }
+      }
+      setGameState(state);
+    };
+
     const unsubState = sync.onStateUpdate((state) => {
       setBanner("");
       if (animatingRef.current) {
@@ -729,12 +755,12 @@ export function TableScreen({
         const revealBeforeLandingMs = 40;
         const delay = Math.max(0, animationEndsAtRef.current - Date.now() - revealBeforeLandingMs);
         delayedStateTimerRef.current = setTimeout(() => {
-          setGameState(state);
+          applyIncomingState(state);
           delayedStateTimerRef.current = null;
         }, delay);
         return;
       }
-      setGameState(state);
+      applyIncomingState(state);
     });
 
     const unsubPlay = sync.onPlayCard(({ playerIdx, cardIdx, card, playId }) => {
@@ -850,7 +876,10 @@ export function TableScreen({
 
     const unsubPower = sync.onPowerActivated((activation) => {
       const mine = activation.activatedByUid === "local" || activation.activatedByUid === authUid;
-      if (mine) {
+      // `activation.used` peut être FAUX si la carte n'a eu aucun effet (ex :
+      // Marché de Nuit sans carte plus forte dans la pioche) — dans ce cas
+      // elle N'A PAS été consommée, donc on ne doit PAS la griser dans l'UI.
+      if (mine && activation.used) {
         setUsedPowers((prev) => {
           const next = new Set(prev);
           next.add(activation.cardId);
@@ -858,11 +887,12 @@ export function TableScreen({
         });
         consumeConfirmedPowerInventory(activation.consumedCardIds ?? [activation.cardId]);
       }
+      const noEffect = mine && !activation.used && !activation.blockedByCardId;
       const def = POWER_CARDS_BY_ID[activation.cardId];
       if (def) {
         sfxRef.current((sn) => sn.dominance());
         triggerPowerFx((def.tone as PowerTone) ?? "gold");
-        showPowerOverlay(activation.cardId, !!activation.blockedByCardId);
+        showPowerOverlay(activation.cardId, !!activation.blockedByCardId, noEffect);
       }
       if (!activation.blockedByCardId && activation.cardId === "oeil_sorcier" && mine) {
         const targetIdx = uiIndexFromPowerUid(activation.targetUid);
@@ -879,6 +909,25 @@ export function TableScreen({
       }
       if (!activation.blockedByCardId && activation.cardId === "main_griot" && mine) {
         recommendCurrentCard();
+      }
+      // Vent du Nord / Marché de Nuit : on capture la main AVANT le swap
+      // (playersRef n'a pas encore reçu le nouvel état) pour pouvoir, au
+      // prochain onStateUpdate, repérer PAR DIFF la carte qui vient d'entrer
+      // dans la main et la mettre en évidence quelques secondes.
+      if (mine && activation.used && (activation.cardId === "vent_nord" || activation.cardId === "marche_nuit")) {
+        swapDetectRef.current = { oldIds: new Set(playersRef.current[0]?.hand.map((c) => c.id) ?? []) };
+      }
+      // Coupe-Circuit / Filet du Pêcheur : confirmation immédiate — l'effet ne
+      // se voit qu'au PROCHAIN tour de la cible (elle joue sa carte la plus
+      // faible), donc on prévient tout de suite que le piège est armé.
+      if (!activation.blockedByCardId && (activation.cardId === "coupe_circuit" || activation.cardId === "filet_pecheur")) {
+        const targetIdx = uiIndexFromPowerUid(activation.targetUid);
+        const targetName = targetIdx != null ? playersRef.current[targetIdx]?.name : undefined;
+        showTableReaction(
+          targetName ? `${targetName} forcé de jouer bas` : "Adversaire forcé de jouer bas",
+          "pink",
+          "À son prochain tour",
+        );
       }
     });
 
@@ -1254,6 +1303,7 @@ export function TableScreen({
                 onCardClick={handleCardClick}
                 hiddenIdx={flyingSrc?.playerIdx === i ? flyingSrc.cardIdx : null}
                 recommendedIdx={p.isYou && !activeTableFx ? recommendedCardIdx : null}
+                swappedCardId={p.isYou ? swappedCardId : null}
                 motionOn={motionEnabled && !activeTableFx}
                 getDropRect={p.isYou ? getYourDropRect : undefined}
               />
@@ -1347,8 +1397,16 @@ export function TableScreen({
             <PowerCardView card={POWER_CARDS_BY_ID[powerOverlay.cardId]} showMeta={false} />
           </div>
           <div className="nj-power-activation-copy">
-            <strong>{powerOverlay.blocked ? "BLOQUÉ" : POWER_CARDS_BY_ID[powerOverlay.cardId].activationTitle}</strong>
-            <span>{powerOverlay.blocked ? "Protection activée" : POWER_CARDS_BY_ID[powerOverlay.cardId].activationText}</span>
+            <strong>
+              {powerOverlay.blocked ? "BLOQUÉ" : powerOverlay.noEffect ? "SANS EFFET" : POWER_CARDS_BY_ID[powerOverlay.cardId].activationTitle}
+            </strong>
+            <span>
+              {powerOverlay.blocked
+                ? "Protection activée"
+                : powerOverlay.noEffect
+                  ? "Rien à améliorer — carte non consommée"
+                  : POWER_CARDS_BY_ID[powerOverlay.cardId].activationText}
+            </span>
           </div>
         </div>
       )}

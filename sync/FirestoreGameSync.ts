@@ -20,6 +20,7 @@ import {
 import {
   applyPowerCard,
   canActivatePowerCard,
+  powerEffectHasImpact,
 } from "@/engine/powerEffects";
 import { DEV } from "@/config/devConfig";
 import type {
@@ -834,6 +835,9 @@ export class FirestoreGameSync implements GameSyncActions {
       deck: this.deck,
       maxValue: this.opts.cfg.ranks.max,
     });
+    // Sans effet réel (ex: Marché de Nuit sans carte plus forte dans la
+    // pioche) → la carte n'est PAS consommée (reste disponible).
+    const hasEffect = blockedByCardId ? true : powerEffectHasImpact(result);
 
     // Préparer l'activation confirmée
     const activation: PowerCardActivation = {
@@ -841,10 +845,10 @@ export class FirestoreGameSync implements GameSyncActions {
       activatedByUid: pending.activatedByUid,
       targetUid: pending.targetUid,
       trickNo: pending.trickNo,
-      used: true,
+      used: hasEffect,
       playId: pending.playId,
       blockedByCardId,
-      consumedCardIds: [pending.cardId],
+      consumedCardIds: hasEffect ? [pending.cardId] : [],
     };
     this.powerActivations.push(activation);
     this.emittedPowerPlayIds.add(pending.playId);
