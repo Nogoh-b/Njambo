@@ -70,6 +70,8 @@ export class LocalGameSync implements GameSyncActions {
   private forcedLowest: Set<number> = new Set();
   /** Timer gelé pour un joueur (Sable du Temps) jusqu'à ce timestamp (ms). */
   private frozenUntil: Record<number, number> = {};
+  /** Pénalité de secondes à retrancher au PROCHAIN tour d'un joueur (Cri du Chef). */
+  private pendingTimerPenalty: Record<number, number> = {};
   private botPowerUsed = new Set<number>();
 
   private opts: LocalSyncOptions;
@@ -151,6 +153,7 @@ export class LocalGameSync implements GameSyncActions {
     this.activePowerEffects = [];
     this.forcedLowest.clear();
     this.frozenUntil = {};
+    this.pendingTimerPenalty = {};
     this.botPowerUsed.clear();
     this.leader = leaderIdx;
     this.phase = "dealing";
@@ -176,7 +179,7 @@ export class LocalGameSync implements GameSyncActions {
       }
       this.turnIdx = leaderIdx;
       this.phase = "turns";
-      this.seconds = cfg.turnSeconds;
+      this.startTurnSeconds();
       this.emitState();
       this.startTimer();
       this.scheduleBotTurn();
@@ -366,7 +369,7 @@ export class LocalGameSync implements GameSyncActions {
           this.leader = win;
           this.turnIdx = win;
           this.phase = "turns";
-          this.seconds = this.opts.cfg.turnSeconds;
+          this.startTurnSeconds();
           this.emitState();
           this.startTimer();
           this.scheduleBotTurn();
@@ -374,7 +377,7 @@ export class LocalGameSync implements GameSyncActions {
       }, this.opts.cfg.anim.trickPause);
     } else {
       this.turnIdx = (playerIdx + 1) % ps.length;
-      this.seconds = this.opts.cfg.turnSeconds;
+      this.startTurnSeconds();
       this.emitState();
       this.stopTimer();
       this.startTimer();
@@ -476,8 +479,13 @@ export class LocalGameSync implements GameSyncActions {
     }
 
     if (result.opponentTimerDelta) {
+      // Les adversaires ne sont PAS au tour maintenant → appliquer immédiatement
+      // serait un no-op. On stocke une pénalité consommée au début de LEUR tour.
+      const penalty = Math.abs(result.opponentTimerDelta.seconds);
       this.players.forEach((_, idx) => {
-        if (idx !== activatedBy) this.applyTimerDelta(idx, result.opponentTimerDelta!.seconds);
+        if (idx !== activatedBy) {
+          this.pendingTimerPenalty[idx] = (this.pendingTimerPenalty[idx] ?? 0) + penalty;
+        }
       });
     }
 
@@ -516,6 +524,18 @@ export class LocalGameSync implements GameSyncActions {
     }
   }
 
+  /** Secondes de départ d'un tour = turnSeconds moins une éventuelle pénalité
+      différée (Cri du Chef), consommée une seule fois. */
+  private startTurnSeconds() {
+    let s = this.opts.cfg.turnSeconds;
+    const penalty = this.pendingTimerPenalty[this.turnIdx];
+    if (penalty) {
+      s = Math.max(1, s - penalty);
+      delete this.pendingTimerPenalty[this.turnIdx];
+    }
+    this.seconds = s;
+  }
+
   private applyTimerDelta(playerIdx: number, seconds: number) {
     if (this.turnIdx !== playerIdx) return;
     this.seconds = Math.max(1, Math.min(this.opts.cfg.turnSeconds + 10, this.seconds + seconds));
@@ -546,16 +566,23 @@ export class LocalGameSync implements GameSyncActions {
         }
       });
     }
+    let youRefund = 0;
     final.forEach((p, i) => {
       if (i === winnerIdx) return;
       const refund = this.activePowerEffects.find((effect) => effect.activatedBy === i && effect.refundOnLoss)?.refundOnLoss;
-      if (refund) p.balance += Math.round(this.opts.mise * refund);
+      if (refund) {
+        const amount = Math.round(this.opts.mise * refund);
+        p.balance += amount;
+        if (p.isYou) youRefund = amount;
+      }
     });
     this.players = final;
     this.phase = "result";
     this.pot = 0;
     this.activePowerEffects = []; // Nettoyer après résolution
-    this.result = { ...info, winner: final[winnerIdx], gain: potNow, playersCount: ps.length };
+    // refund exposé au Result pour que la couche économie (handleResult +
+    // recordMatchResult) le crédite — sinon il serait écrasé au recalcul.
+    this.result = { ...info, winner: final[winnerIdx], gain: potNow, playersCount: ps.length, refund: youRefund || undefined };
 
     // Mettre à jour le solde du profil
     const youPlayer = final.find((p) => p.isYou);

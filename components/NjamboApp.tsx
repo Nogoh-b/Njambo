@@ -107,9 +107,11 @@ function SceneRouter() {
   const handleResult = useCallback((result: Result) => {
     setGameResult(result);
     const totalGain = result.gain + (result.doubles ? gameMise * (result.playersCount - 1) : 0);
+    // Remboursement Cauris Chanceux : crédité seulement si TU perds la manche.
+    const refund = result.winner.isYou ? 0 : (result.refund ?? 0);
     const nextBalance = result.winner.isYou
       ? profile.balance - gameMise + totalGain
-      : profile.balance - gameMise - (result.doubles ? gameMise : 0);
+      : profile.balance - gameMise - (result.doubles ? gameMise : 0) + refund;
 
     /* Récompense en cauris : +perWin si tu remportes la partie. */
     const caurisGain = result.winner.isYou ? CAURIS_REWARDS.perWin : 0;

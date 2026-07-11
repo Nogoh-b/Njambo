@@ -137,6 +137,8 @@ export class FirestoreGameSync implements GameSyncActions {
   /** Joueurs forcés de jouer leur carte la plus faible (Coupe-Circuit). */
   private forcedLowestUids = new Set<string>();
   private frozenUntilByUid: Record<string, number> = {};
+  /** Pénalité de secondes à retrancher au PROCHAIN tour d'un joueur (Cri du Chef). */
+  private pendingTimerPenaltyByUid: Record<string, number> = {};
 
   private unsubGame: Unsubscribe | null = null;
   private timerHandle: ReturnType<typeof setInterval> | null = null;
@@ -548,7 +550,9 @@ export class FirestoreGameSync implements GameSyncActions {
 
     const now = this.getServerTime();
     const elapsed = Math.floor((now - serverUpdatedAt) / 1000);
-    this.seconds = Math.max(0, this.opts.cfg.turnSeconds - elapsed);
+    // Budget du tour = turnStartSeconds du doc (réduit par le Cri du Chef) ou défaut.
+    const budget = typeof game.turnStartSeconds === "number" ? game.turnStartSeconds : this.opts.cfg.turnSeconds;
+    this.seconds = Math.max(0, budget - elapsed);
     this.startTimer();
   }
 
@@ -641,6 +645,7 @@ export class FirestoreGameSync implements GameSyncActions {
     this.activePowerEffects = [];
     this.forcedLowestUids.clear();
     this.frozenUntilByUid = {};
+    this.pendingTimerPenaltyByUid = {};
     this.equippedPowersByUid = {};
     roomPlayers.forEach((p) => {
       this.equippedPowersByUid[p.uid] = p.uid === this.opts.myUid ? this.opts.profile.equippedPowers ?? [] : [];
@@ -751,13 +756,14 @@ export class FirestoreGameSync implements GameSyncActions {
 
     this.phase = "turns";
     this.turnIdx = cfg.firstLeaderIndex;
-    this.seconds = cfg.turnSeconds;
+    const turnStartSeconds = this.startTurnSeconds();
     this.emitState();
     this.startTimer();
 
     await updateDoc(gameRef, {
       phase: "turns" as Phase,
       turnIdx: cfg.firstLeaderIndex,
+      turnStartSeconds,
       instantWinChecked: true,
       updatedAt: serverTimestamp(),
     });
@@ -905,8 +911,13 @@ export class FirestoreGameSync implements GameSyncActions {
       this.applyTimerDelta(result.timerDelta.playerIdx, result.timerDelta.seconds);
     }
     if (result.opponentTimerDelta) {
-      this.opts.roomPlayers.forEach((_, idx) => {
-        if (idx !== activatedByLocalIdx) this.applyTimerDelta(idx, result.opponentTimerDelta!.seconds);
+      // Différé : les adversaires ne sont pas au tour → pénalité consommée au
+      // démarrage de LEUR prochain tour (Cri du Chef).
+      const penalty = Math.abs(result.opponentTimerDelta.seconds);
+      this.opts.roomPlayers.forEach((p, idx) => {
+        if (idx !== activatedByLocalIdx && p.uid) {
+          this.pendingTimerPenaltyByUid[p.uid] = (this.pendingTimerPenaltyByUid[p.uid] ?? 0) + penalty;
+        }
       });
     }
     if (result.shield) {
@@ -963,11 +974,25 @@ export class FirestoreGameSync implements GameSyncActions {
 
   private emitNewPowerActivations(game: GameDoc) {
     const acts = game.powerActivations ?? [];
+    const myUid = this.opts.roomPlayers[this.myIdx]?.uid;
     for (const act of acts) {
       if (!this.emittedPowerPlayIds.has(act.playId)) {
         this.emittedPowerPlayIds.add(act.playId);
         this.powerActivations.push(act);
-        this.powerActivatedListeners.forEach((cb) => cb(act));
+        // Œil du Sorcier : l'activateur voit la vraie main de la cible. On la
+        // lit depuis allHands (déjà en mémoire) et on l'attache LOCALEMENT à
+        // sa copie — jamais diffusée aux autres.
+        let emitted = act;
+        if (
+          act.cardId === "oeil_sorcier"
+          && !act.blockedByCardId
+          && act.targetUid
+          && act.activatedByUid === myUid
+        ) {
+          const hand = this.allHands[act.targetUid];
+          if (hand?.length) emitted = { ...act, revealedHand: hand.map((c) => ({ ...c })) };
+        }
+        this.powerActivatedListeners.forEach((cb) => cb(emitted));
       }
     }
   }
@@ -1056,7 +1081,17 @@ export class FirestoreGameSync implements GameSyncActions {
     const led = this.trickPlays[0]?.card.suit ?? null;
     if (!legalCards(hand, led).includes(cardIdx)) return;
 
-    const removed = hand.splice(cardIdx, 1)[0] ?? expectedCard;
+    // Coupe-Circuit / Filet du Pêcheur : si la cible est forcée, l'hôte (autorité)
+    // remplace la carte jouée par sa carte légale la plus faible (miroir du local).
+    let playIdx = cardIdx;
+    if (this.forcedLowestUids.has(player.uid)) {
+      this.forcedLowestUids.delete(player.uid);
+      const legalIdxs = legalCards(hand, led);
+      const lowest = [...legalIdxs].sort((a, b) => hand[a].value - hand[b].value)[0];
+      if (lowest !== undefined) playIdx = lowest;
+    }
+
+    const removed = hand.splice(playIdx, 1)[0] ?? expectedCard;
     if (!removed) return;
     const resolvedCard = this.applyNextCardModifiers(player.uid, removed);
 
@@ -1100,7 +1135,7 @@ export class FirestoreGameSync implements GameSyncActions {
     }
 
     this.turnIdx = (playerIdx + 1) % roomPlayers.length;
-    this.seconds = cfg.turnSeconds;
+    const turnStartSeconds = this.startTurnSeconds();
     this.stopTimer();
     this.startTimer();
 
@@ -1110,6 +1145,7 @@ export class FirestoreGameSync implements GameSyncActions {
       trickPlays: this.trickPlays,
       turnIdx: this.turnIdx,
       phase: "turns" as Phase,
+      turnStartSeconds,
       pendingPlay: null,
       lastPlay,
       updatedAt: serverTimestamp(),
@@ -1141,7 +1177,7 @@ export class FirestoreGameSync implements GameSyncActions {
     this.leaderIdx = winnerIdx;
     this.turnIdx = winnerIdx;
     this.phase = "turns";
-    this.seconds = cfg.turnSeconds;
+    const turnStartSeconds = this.startTurnSeconds();
 
     await updateDoc(gameRef, {
       trickPlays: [],
@@ -1150,6 +1186,7 @@ export class FirestoreGameSync implements GameSyncActions {
       turnIdx: winnerIdx,
       phase: "turns" as Phase,
       dominantIdx: null,
+      turnStartSeconds,
       pendingPlay: null,
       updatedAt: serverTimestamp(),
     });
@@ -1270,6 +1307,22 @@ export class FirestoreGameSync implements GameSyncActions {
     this.timerListeners.forEach((cb) => cb(this.seconds));
   }
 
+  /** Budget de secondes de départ du tour courant = turnSeconds moins une
+      éventuelle pénalité différée (Cri du Chef), consommée une seule fois. */
+  private startTurnSeconds(): number {
+    let s = this.opts.cfg.turnSeconds;
+    const uid = this.opts.roomPlayers[this.turnIdx]?.uid;
+    if (uid) {
+      const penalty = this.pendingTimerPenaltyByUid[uid];
+      if (penalty) {
+        s = Math.max(1, s - penalty);
+        delete this.pendingTimerPenaltyByUid[uid];
+      }
+    }
+    this.seconds = s;
+    return s;
+  }
+
   private async hostPlayTimeoutCard() {
     if (this.phase !== "turns") return;
 
@@ -1374,10 +1427,19 @@ export class FirestoreGameSync implements GameSyncActions {
   private toUiResult(result: Result): Result {
     const winnerIdx = this.toUiIdx(result.winnerIdx);
     const uiPlayers = this.buildUiPlayers();
+    // Refund Cauris Chanceux, calculé côté client (par-joueur) : si JE perds la
+    // manche et que j'ai activé Cauris (self, jamais bloqué), 50% de ma mise.
+    const myUid = this.opts.roomPlayers[this.myIdx]?.uid;
+    const iLost = winnerIdx !== 0;
+    const hasCauris = !!myUid && this.powerActivations.some(
+      (a) => a.activatedByUid === myUid && a.cardId === "cauris_chanceux" && a.used && !a.blockedByCardId,
+    );
+    const refund = iLost && hasCauris ? Math.round(this.opts.mise * 0.5) : undefined;
     return {
       ...result,
       winnerIdx,
       winner: uiPlayers[winnerIdx] ?? result.winner,
+      refund,
     };
   }
 

@@ -131,9 +131,11 @@ export async function recordMatchResult(params: {
   // et le solde serveur se fige pendant que le client avance (drift) :
   //  • result.gain est le pot BRUT (la mise du gagnant y est incluse) → on
   //    retire la mise du gagnant : il ne récupère pas sa propre mise.
-  //  • un perdant paie sa mise, plus une pénalité doublée si la manche est doublée.
+  //  • un perdant paie sa mise, plus une pénalité doublée si la manche est doublée,
+  //    moins un éventuel remboursement Cauris Chanceux (result.refund).
   const lossPenalty = stake + (result.doubles ? stake : 0);
-  const gain = won ? totalGain - stake : -lossPenalty;
+  const refund = won ? 0 : (result.refund ?? 0);
+  const gain = won ? totalGain - stake : -lossPenalty + refund;
   const createdAt = Date.now();
 
   // Sanity check : le gain est-il raisonnable ?

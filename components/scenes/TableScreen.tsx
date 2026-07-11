@@ -27,6 +27,7 @@ import { FirestoreGameSync } from "@/sync/FirestoreGameSync";
 import { LocalGameSync } from "@/sync/LocalGameSync";
 import type {
   BotDifficulty,
+  Card,
   Flight,
   GameState,
   GameSyncActions,
@@ -282,7 +283,7 @@ export function TableScreen({
   const equippedPowers = profile.equippedPowers ?? [];
   const [usedPowers, setUsedPowers] = useState<Set<PowerCardId>>(new Set());
   const [targetingCard, setTargetingCard] = useState<PowerCardId | null>(null);
-  const [powerReveal, setPowerReveal] = useState<{ targetIdx: number } | null>(null);
+  const [powerReveal, setPowerReveal] = useState<{ targetIdx: number; hand?: Card[] } | null>(null);
   const [recommendedCardIdx, setRecommendedCardIdx] = useState<number | null>(null);
   const [powerOverlay, setPowerOverlay] = useState<{ key: string; cardId: PowerCardId; blocked?: boolean } | null>(null);
   const powerRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -865,7 +866,9 @@ export function TableScreen({
       if (!activation.blockedByCardId && activation.cardId === "oeil_sorcier" && mine) {
         const targetIdx = uiIndexFromPowerUid(activation.targetUid);
         if (targetIdx != null) {
-          setPowerReveal({ targetIdx });
+          // En ligne, la main de la cible est masquée dans `players` → on utilise
+          // la main révélée jointe à l'activation (activateur uniquement).
+          setPowerReveal({ targetIdx, hand: activation.revealedHand });
           if (powerRevealTimerRef.current) clearTimeout(powerRevealTimerRef.current);
           powerRevealTimerRef.current = setTimeout(() => {
             setPowerReveal(null);
@@ -1574,7 +1577,9 @@ export function TableScreen({
             </div>
             <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", maxWidth: 340 }}>
               {(() => {
-                const revealHand = players[powerReveal.targetIdx].hand.filter((c) => c.rank !== "?");
+                // En ligne : main jointe à l'activation ; en local : main visible.
+                const source = powerReveal.hand ?? players[powerReveal.targetIdx].hand;
+                const revealHand = source.filter((c) => c.rank !== "?");
                 if (revealHand.length === 0) {
                   return <span className="nj-subtle">Main non visible dans cette partie.</span>;
                 }

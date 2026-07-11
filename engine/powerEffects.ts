@@ -102,7 +102,9 @@ export function applyPowerCard(
       return { trickScoreMultiplier: 2 };
 
     case "pluie_etoiles":
-      return { potBonus: STAR_RAIN_BONUS };
+      // Bonus au pot SEULEMENT si l'activateur remporte le pli (comme Feu de Camp),
+      // conforme à la description « +200 au pot si tu remportes ce pli ».
+      return { conditionalPotBonus: STAR_RAIN_BONUS };
 
     case "vent_nord": {
       const swap = replaceWeakestWithDeckCard(players[activatedBy]?.hand ?? [], deck, false);

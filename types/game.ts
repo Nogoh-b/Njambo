@@ -156,6 +156,9 @@ export interface PowerCardActivation {
   playId: string;
   blockedByCardId?: PowerCardId;
   consumedCardIds?: PowerCardId[];
+  /** Main révélée de la cible (Œil du Sorcier) — attachée LOCALEMENT à
+   *  l'activateur uniquement (jamais écrite au doc partagé). */
+  revealedHand?: Card[];
 }
 
 export interface LeaderEntry {
@@ -305,6 +308,8 @@ export type Result = (InstantWinCore | LastTrickWinCore) & {
   winner: Player;
   gain: number;
   playersCount: number;
+  /** Remboursement crédité au joueur local s'il perd avec Cauris Chanceux (F). */
+  refund?: number;
 };
 
 /* ───── Config du jeu (règles, vitesses d'animation) ───── */
@@ -403,6 +408,9 @@ export interface GameDoc {
     activatedByUid: string;
     playId: string;
   } | null;
+  /** Budget de secondes au démarrage du tour courant (peut être réduit par le
+   *  Cri du Chef). Le timer client se cale dessus au lieu de `cfg.turnSeconds`. */
+  turnStartSeconds?: number;
 }
 
 /** Document de mise à jour de solde (settlement via balance_updates subcollection) */
