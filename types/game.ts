@@ -95,6 +95,54 @@ export type PowerCategory = "offensive" | "defense" | "score" | "tactical" | "pe
 export type PowerRarity = "common" | "rare" | "epic" | "legendary";
 export type PowerTargetMode = "none" | "self" | "opponent";
 
+/**
+ * Taxonomie des ÉLÉMENTS ANIMÉS qu'une carte pouvoir influence. Chaque carte
+ * en porte un ou plusieurs. C'est le point d'ancrage unique entre le moteur
+ * (engine/powerEffects.ts) et les animations (TableScreen) : au lieu de
+ * brancher chaque nouvelle carte sur des `if (cardId === "...")` dispersés,
+ * on la TAGUE ici et le code d'animation générique la reconnaît.
+ *
+ * Axes couverts (main ↔ dépôt ↔ pioche, cible précise ou non, timer, pot,
+ * blocage futur, économie de fin de manche) :
+ *
+ *  - hand_self_mutate    : une carte de TA main est remplacée (par la pioche).
+ *  - hand_self_recommend : une carte de TA main est mise en évidence (suggestion).
+ *  - hand_self_boost     : ta PROCHAINE carte jouée sera transformée (valeur/couleur)
+ *                          — se voit sur le DÉPÔT une fois jouée (badge « boosté »).
+ *  - hand_target_reveal  : révèle la main d'un adversaire PRÉCIS (overlay).
+ *  - hand_target_restrict: force un adversaire PRÉCIS à jouer une carte précise
+ *                          (sa plus faible légale) à son prochain tour.
+ *  - deposit_from_hand   : (RÉSERVÉ, aucune carte encore) une carte de main part
+ *                          directement au dépôt sans passer par le tour normal.
+ *  - hand_from_deposit   : (RÉSERVÉ, aucune carte encore) une carte du dépôt
+ *                          revient dans une main — ex. futures cartes de rappel.
+ *  - hand_swap_players   : (RÉSERVÉ, aucune carte encore) échange de cartes
+ *                          ENTRE deux joueurs (pas via la pioche).
+ *  - timer_self          : modifie TON timer.
+ *  - timer_target        : modifie le timer d'un adversaire PRÉCIS.
+ *  - timer_all_opponents : modifie le timer de TOUS les adversaires.
+ *  - pot_bonus           : bonus/multiplicateur au pot (visible à la résolution du pli).
+ *  - future_block        : intercepte la PROCHAINE activation ciblée/révélation
+ *                          contre toi (bouclier, masque).
+ *  - result_economy      : affecte le règlement de fin de manche (remboursement,
+ *                          pénalité annulée) — visible sur l'écran de résultat.
+ */
+export type PowerAnimTag =
+  | "hand_self_mutate"
+  | "hand_self_recommend"
+  | "hand_self_boost"
+  | "hand_target_reveal"
+  | "hand_target_restrict"
+  | "deposit_from_hand"
+  | "hand_from_deposit"
+  | "hand_swap_players"
+  | "timer_self"
+  | "timer_target"
+  | "timer_all_opponents"
+  | "pot_bonus"
+  | "future_block"
+  | "result_economy";
+
 export interface PowerCardDef {
   id: PowerCardId;
   name: string;
@@ -112,6 +160,8 @@ export interface PowerCardDef {
   costCauris: number;
   /** Coût d'achat alternatif en FCFA */
   costFcfa: number;
+  /** Éléments animés influencés — voir PowerAnimTag pour la taxonomie complète. */
+  animTags: PowerAnimTag[];
 }
 
 /** Carte pouvoir possédée par un joueur (cardId → quantité) */

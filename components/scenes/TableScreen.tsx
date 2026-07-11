@@ -894,7 +894,14 @@ export function TableScreen({
         triggerPowerFx((def.tone as PowerTone) ?? "gold");
         showPowerOverlay(activation.cardId, !!activation.blockedByCardId, noEffect);
       }
-      if (!activation.blockedByCardId && activation.cardId === "oeil_sorcier" && mine) {
+      // ── Animation PILOTÉE PAR TAG (PowerAnimTag) ─────────────────────────
+      // Toute carte future qui porte un de ces tags déclenche AUTOMATIQUEMENT
+      // l'animation correspondante, sans toucher à ce fichier — c'est tout
+      // l'intérêt de la taxonomie (voir types/game.ts::PowerAnimTag).
+      const tags = def?.animTags ?? [];
+
+      // hand_target_reveal : révèle la main d'un adversaire précis.
+      if (!activation.blockedByCardId && mine && tags.includes("hand_target_reveal")) {
         const targetIdx = uiIndexFromPowerUid(activation.targetUid);
         if (targetIdx != null) {
           // En ligne, la main de la cible est masquée dans `players` → on utilise
@@ -907,20 +914,20 @@ export function TableScreen({
           }, 5000);
         }
       }
-      if (!activation.blockedByCardId && activation.cardId === "main_griot" && mine) {
+      // hand_self_recommend : met en évidence ta meilleure carte légale.
+      if (!activation.blockedByCardId && mine && tags.includes("hand_self_recommend")) {
         recommendCurrentCard();
       }
-      // Vent du Nord / Marché de Nuit : on capture la main AVANT le swap
-      // (playersRef n'a pas encore reçu le nouvel état) pour pouvoir, au
-      // prochain onStateUpdate, repérer PAR DIFF la carte qui vient d'entrer
-      // dans la main et la mettre en évidence quelques secondes.
-      if (mine && activation.used && (activation.cardId === "vent_nord" || activation.cardId === "marche_nuit")) {
+      // hand_self_mutate : on capture ta main AVANT le swap (playersRef n'a
+      // pas encore reçu le nouvel état) pour repérer PAR DIFF, au prochain
+      // onStateUpdate, la carte qui vient d'entrer et la mettre en évidence.
+      if (mine && activation.used && tags.includes("hand_self_mutate")) {
         swapDetectRef.current = { oldIds: new Set(playersRef.current[0]?.hand.map((c) => c.id) ?? []) };
       }
-      // Coupe-Circuit / Filet du Pêcheur : confirmation immédiate — l'effet ne
-      // se voit qu'au PROCHAIN tour de la cible (elle joue sa carte la plus
-      // faible), donc on prévient tout de suite que le piège est armé.
-      if (!activation.blockedByCardId && (activation.cardId === "coupe_circuit" || activation.cardId === "filet_pecheur")) {
+      // hand_target_restrict : confirmation immédiate — l'effet ne se voit
+      // qu'au PROCHAIN tour de la cible (elle joue sa carte la plus faible),
+      // donc on prévient tout de suite que le piège est armé.
+      if (!activation.blockedByCardId && tags.includes("hand_target_restrict")) {
         const targetIdx = uiIndexFromPowerUid(activation.targetUid);
         const targetName = targetIdx != null ? playersRef.current[targetIdx]?.name : undefined;
         showTableReaction(

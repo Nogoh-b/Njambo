@@ -17,6 +17,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Vois la main d'un adversaire pendant 5 secondes.",
     costCauris: 30,
     costFcfa: 500,
+    animTags: ["hand_target_reveal"],
   },
   {
     id: "pluie_etoiles",
@@ -32,6 +33,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "+200 FCFA bonus au pot si tu remportes ce pli.",
     costCauris: 50,
     costFcfa: 800,
+    animTags: ["pot_bonus"],
   },
   {
     id: "vent_nord",
@@ -47,6 +49,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Échange une carte faible de ta main contre une carte de la pioche.",
     costCauris: 25,
     costFcfa: 400,
+    animTags: ["hand_self_mutate"],
   },
   {
     id: "benediction_chef",
@@ -62,6 +65,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Double le gain si tu remportes ce pli.",
     costCauris: 35,
     costFcfa: 600,
+    animTags: ["pot_bonus"],
   },
   {
     id: "coupe_circuit",
@@ -77,6 +81,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Force un adversaire à jouer sa carte légale la plus faible.",
     costCauris: 40,
     costFcfa: 700,
+    animTags: ["hand_target_restrict"],
   },
   {
     id: "sable_temps",
@@ -92,6 +97,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Gèle le timer d'un adversaire pendant 10 secondes.",
     costCauris: 30,
     costFcfa: 500,
+    animTags: ["timer_target"],
   },
   {
     id: "bouclier_village",
@@ -107,6 +113,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Bloque la prochaine carte offensive ciblée contre toi.",
     costCauris: 55,
     costFcfa: 900,
+    animTags: ["future_block"],
   },
   {
     id: "tambour_appel",
@@ -122,6 +129,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Ajoute 8 secondes à ton timer ce tour.",
     costCauris: 22,
     costFcfa: 350,
+    animTags: ["timer_self"],
   },
   {
     id: "cauris_chanceux",
@@ -137,6 +145,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Récupère 50% de ta mise si tu perds la manche.",
     costCauris: 28,
     costFcfa: 450,
+    animTags: ["result_economy"],
   },
   {
     id: "main_griot",
@@ -152,6 +161,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Suggère ta meilleure carte légale pendant 6 secondes.",
     costCauris: 32,
     costFcfa: 520,
+    animTags: ["hand_self_recommend"],
   },
   {
     id: "eclair_mfoundi",
@@ -167,6 +177,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Ta prochaine carte gagne +2 valeur virtuelle, max 10.",
     costCauris: 58,
     costFcfa: 950,
+    animTags: ["hand_self_boost"],
   },
   {
     id: "totem_ancetres",
@@ -182,6 +193,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Protège du malus double si tu perds cette manche.",
     costCauris: 70,
     costFcfa: 1200,
+    animTags: ["result_economy"],
   },
   {
     id: "masque_bluffeur",
@@ -197,6 +209,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Annule la prochaine révélation ou lecture adverse contre toi.",
     costCauris: 38,
     costFcfa: 640,
+    animTags: ["future_block"],
   },
   {
     id: "filet_pecheur",
@@ -212,6 +225,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Force la cible à jouer sa plus basse carte légale.",
     costCauris: 42,
     costFcfa: 720,
+    animTags: ["hand_target_restrict"],
   },
   {
     id: "marche_nuit",
@@ -227,6 +241,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Remplace ta plus faible carte par une meilleure carte si la pioche le permet.",
     costCauris: 60,
     costFcfa: 1000,
+    animTags: ["hand_self_mutate"],
   },
   {
     id: "cri_chef",
@@ -242,6 +257,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Si tu es leader du pli, retire 3 secondes aux adversaires.",
     costCauris: 36,
     costFcfa: 580,
+    animTags: ["timer_all_opponents"],
   },
   {
     id: "feu_camp",
@@ -257,6 +273,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "+100 FCFA au pot si tu domines ce pli.",
     costCauris: 24,
     costFcfa: 380,
+    animTags: ["pot_bonus"],
   },
   {
     id: "pagne_changeant",
@@ -272,6 +289,7 @@ export const POWER_CARDS: PowerCardDef[] = [
     description: "Ta prochaine carte hors tendance compte comme tendance si tu n'as pas la couleur.",
     costCauris: 72,
     costFcfa: 1250,
+    animTags: ["hand_self_boost"],
   },
 ];
 
