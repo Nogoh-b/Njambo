@@ -3,6 +3,7 @@
 import { memo, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import { GAME_CONFIG } from "@/config/gameConfig";
+import { T } from "@/config/theme";
 import { PlayCard } from "@/components/cards/PlayCard";
 import type { Flight } from "@/types/game";
 
@@ -36,6 +37,7 @@ export const FlyingCard = memo(function FlyingCard({ f, effects = true }: Flying
   const startRot = f.angle > 180 ? f.angle - 360 : f.angle;
   // Hauteur de l'arc proportionnelle à la distance parcourue (borne raisonnable)
   const arc = -Math.min(90, Math.max(34, Math.hypot(dx, dy) * 0.18));
+  const fxColor = f.fxTone ? T[f.fxTone] : T.gold;
 
   // Keyframes transform : arc en 3 temps (avec effets) ou trajet direct.
   const initial: Record<string, number> = effects
@@ -58,6 +60,7 @@ export const FlyingCard = memo(function FlyingCard({ f, effects = true }: Flying
 
   return (
     <motion.div
+      className={f.fxPreset ? `nj-flying-card-fx nj-flight-fx-${f.fxPreset}` : undefined}
       initial={initial}
       animate={animate}
       transition={{
@@ -75,12 +78,27 @@ export const FlyingCard = memo(function FlyingCard({ f, effects = true }: Flying
         pointerEvents: "none",
         willChange: "transform",
         "--flight-dur": `${dur}ms`,
+        "--flight-fx-color": fxColor,
       } as CSSProperties}
     >
-      {effects && <span className="nj-flying-card-trail" aria-hidden="true" />}
+      {(effects || f.fxPreset) && (
+        <span className="nj-flying-card-trail" aria-hidden="true">
+          {f.fxPreset && Array.from({ length: effects ? 7 : 3 }, (_, index) => (
+            <i
+              key={index}
+              style={{
+                "--trail-index": index,
+                "--trail-left": `${10 + index * 9}%`,
+                "--trail-top": `${16 + (index % 4) * 17}%`,
+                "--trail-size": `${3 + index * 0.35}px`,
+              } as CSSProperties}
+            />
+          ))}
+        </span>
+      )}
       <div style={effects ? { filter: "drop-shadow(0 16px 20px rgba(0,0,0,.55))" } : undefined}>
         {/* Les bots montrent le dos pendant le vol, le joueur montre la face */}
-        <PlayCard card={f.card} w={w} hidden={!f.isYou} />
+        <PlayCard card={f.card} w={w} hidden={!(f.faceUp ?? f.isYou)} />
       </div>
     </motion.div>
   );

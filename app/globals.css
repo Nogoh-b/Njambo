@@ -2289,7 +2289,7 @@ button.nj-list-card {
   z-index: -1;
   border-radius: 999px;
   pointer-events: none;
-  background: linear-gradient(90deg, rgba(242, 187, 69, 0.12), rgba(255, 248, 232, 0.045), transparent 72%);
+  background: linear-gradient(90deg, color-mix(in srgb, var(--flight-fx-color, var(--gold)) 42%, transparent), rgba(255, 248, 232, 0.08), transparent 76%);
   filter: blur(9px);
   transform: translateX(-24%) scaleX(0.72);
   transform-origin: right center;
@@ -2349,6 +2349,100 @@ button.nj-list-card {
   line-height: 1.6;
   white-space: nowrap;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.42);
+}
+
+/* Carte verrouillée / imposée (Coupe-Circuit, Filet…) — style "locked" du
+   handle de main (voir ZoneRegistry.HandHighlightStyle). */
+.nj-locked-card {
+  position: relative;
+  z-index: 120 !important;
+  filter: drop-shadow(0 0 14px rgba(216, 60, 104, 0.55)) saturate(0.8);
+}
+
+.nj-locked-card::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 12px;
+  pointer-events: none;
+  border: 2px solid var(--pink);
+  box-shadow: 0 0 18px rgba(216, 60, 104, 0.5);
+}
+
+/* Carte boostée (Éclair, Pagne Changeant) — style "boosted". */
+.nj-boosted-card {
+  position: relative;
+  z-index: 120 !important;
+  filter: drop-shadow(0 0 14px rgba(49, 84, 212, 0.6));
+  animation: recommendedCardPulse 1.05s ease-in-out infinite;
+}
+
+.nj-boosted-card::after {
+  content: "";
+  position: absolute;
+  inset: -8px;
+  border-radius: 12px;
+  pointer-events: none;
+  border: 2px solid var(--cobalt, #3154d4);
+  box-shadow: 0 0 18px rgba(49, 84, 212, 0.55);
+}
+
+/* ── Visuels des handles timer/avatar (moteur des pouvoirs) ── */
+
+/* Gel du timer (Sable du Temps) : flocon sur l'anneau. */
+.nj-timer-frozen {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  z-index: 3;
+  font-size: 14px;
+  filter: drop-shadow(0 0 6px rgba(127, 214, 255, 0.9));
+  animation: popIn 0.25s both;
+}
+
+/* Delta de temps flottant (+8s / −3s). */
+.nj-timer-delta {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  transform: translateX(-50%);
+  z-index: 3;
+  font-size: 11px;
+  font-weight: 950;
+  white-space: nowrap;
+  text-shadow: 0 2px 5px #000;
+}
+
+/* Aura de protection persistante (bouclier, masque, totem, chance). */
+.nj-avatar-aura {
+  position: absolute;
+  bottom: -4px;
+  left: -8px;
+  z-index: 3;
+  font-size: 14px;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.6));
+  animation: popIn 0.3s both;
+}
+
+/* Flash du pot (« +200 », « ×2 »…). */
+.nj-pot-flash {
+  position: absolute;
+  left: 50%;
+  top: -16px;
+  transform: translateX(-50%);
+  z-index: 5;
+  font-size: 13px;
+  font-weight: 950;
+  color: var(--gold);
+  text-shadow: 0 0 12px rgba(242, 187, 69, 0.8), 0 2px 4px #000;
+  animation: floatUp 1.5s ease-out both;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+/* Carte cliquable dans la zone de révélation (clic générique des pouvoirs). */
+.nj-reveal-pickable:hover {
+  transform: translateY(-6px);
 }
 
 .nj-card-burst {
@@ -2554,12 +2648,237 @@ button.nj-list-card {
   place-items: center;
   pointer-events: none;
   background:
-    radial-gradient(ellipse at 50% 48%, rgba(242, 187, 69, 0.14), transparent 36%),
-    linear-gradient(180deg, rgba(5, 5, 12, 0.58), rgba(5, 5, 12, 0.18) 54%, rgba(5, 5, 12, 0.58));
+    radial-gradient(ellipse at 50% 48%, rgba(5, 5, 12, 0.4), transparent 64%),
+    rgba(5, 5, 12, 0.14);
   animation: powerActivationLife 1.6s ease-out both;
 }
 
+.nj-avatar-aura-field {
+  --aura-color: var(--teal);
+  position: absolute;
+  inset: -8px;
+  z-index: 1;
+  border: 2px solid color-mix(in srgb, var(--aura-color) 64%, transparent);
+  border-radius: 50%;
+  box-shadow: 0 0 18px color-mix(in srgb, var(--aura-color) 46%, transparent), inset 0 0 14px color-mix(in srgb, var(--aura-color) 18%, transparent);
+  animation: avatarPowerAura 2.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.nj-avatar-aura-field-mask { --aura-color: var(--pink); }
+.nj-avatar-aura-field-totem { --aura-color: var(--gold); }
+.nj-avatar-aura-field-lucky { --aura-color: #79d98b; }
+
+.nj-avatar-aura-field i {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 5px;
+  height: 5px;
+  margin: -2.5px;
+  border-radius: 50%;
+  background: var(--aura-color);
+  box-shadow: 0 0 8px var(--aura-color);
+  animation: avatarAuraOrbit 2.4s linear infinite;
+}
+
+.nj-avatar-aura-field i:nth-child(2) { animation-delay: -.8s; }
+.nj-avatar-aura-field i:nth-child(3) { animation-delay: -1.6s; }
+
+@keyframes avatarPowerAura {
+  0%, 100% { opacity: .52; transform: scale(.94); }
+  50% { opacity: 1; transform: scale(1.08); }
+}
+
+@keyframes avatarAuraOrbit {
+  from { transform: rotate(0deg) translateX(36px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(36px) rotate(-360deg); }
+}
+
+.nj-flying-card-fx {
+  filter: drop-shadow(0 0 11px color-mix(in srgb, var(--flight-fx-color, var(--gold)) 52%, transparent));
+}
+
+.nj-flying-card-trail i {
+  position: absolute;
+  left: var(--trail-left);
+  top: var(--trail-top);
+  width: var(--trail-size);
+  height: var(--trail-size);
+  border-radius: 50%;
+  background: var(--flight-fx-color, var(--gold));
+  box-shadow: 0 0 8px var(--flight-fx-color, var(--gold));
+  animation: powerTrailSpark 420ms ease-in-out infinite alternate;
+  animation-delay: calc(var(--trail-index, 0) * -65ms);
+}
+
+.nj-flight-fx-wind .nj-flying-card-trail {
+  transform: translateX(-34%) skewX(-14deg) scaleX(1.08);
+}
+
+.nj-flight-fx-frost .nj-flying-card-trail i,
+.nj-flight-fx-lock .nj-flying-card-trail i {
+  border-radius: 1px;
+  transform: rotate(45deg);
+}
+
+/* Couche localisée des effets de pouvoir. Elle ne capture jamais les clics. */
+.nj-power-particle-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 315;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.nj-power-burst {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  transform: translate(-50%, -50%);
+  color: var(--fx-color, var(--gold));
+  isolation: isolate;
+}
+
+.nj-power-burst-halo,
+.nj-power-burst-ring {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: calc(var(--fx-radius) * 1.25);
+  height: calc(var(--fx-radius) * 1.25);
+  border-radius: 50%;
+  transform: translate(-50%, -50%) scale(0.15);
+  pointer-events: none;
+}
+
+.nj-power-burst-halo {
+  background: radial-gradient(circle, color-mix(in srgb, var(--fx-color) 42%, white), color-mix(in srgb, var(--fx-color) 17%, transparent) 42%, transparent 72%);
+  filter: blur(5px);
+  animation: powerBurstHalo var(--fx-duration) ease-out both;
+}
+
+.nj-power-burst-ring {
+  border: 2px solid color-mix(in srgb, var(--fx-color) 72%, white);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--fx-color) 48%, transparent), inset 0 0 14px color-mix(in srgb, var(--fx-color) 22%, transparent);
+  animation: powerBurstRing var(--fx-duration) cubic-bezier(.15,.72,.2,1) both;
+}
+
+.nj-power-burst > span {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: var(--fx-size);
+  height: var(--fx-size);
+  border-radius: 50%;
+  background: currentColor;
+  box-shadow: 0 0 8px currentColor;
+  opacity: 0;
+  mix-blend-mode: screen;
+  animation: powerBurstParticle var(--fx-duration) cubic-bezier(.16,.65,.24,1) var(--fx-delay) both;
+}
+
+.nj-power-burst-wind > span {
+  width: calc(var(--fx-size) * 2.5);
+  height: max(1px, calc(var(--fx-size) * .28));
+  border-radius: 999px;
+}
+
+.nj-power-burst-frost > span {
+  border-radius: 1px;
+  background: color-mix(in srgb, var(--fx-color) 56%, white);
+  transform: rotate(45deg);
+}
+
+.nj-power-burst-time .nj-power-burst-ring {
+  border-style: dashed;
+  animation-name: powerTimeRing;
+}
+
+.nj-power-burst-goldRain > span {
+  border-radius: 45%;
+  background: linear-gradient(145deg, #fff4b0, var(--fx-color));
+}
+
+.nj-power-burst-shield .nj-power-burst-ring {
+  border-width: 3px;
+  clip-path: polygon(50% 0, 91% 18%, 84% 70%, 50% 100%, 16% 70%, 9% 18%);
+  border-radius: 28%;
+}
+
+.nj-power-burst-revealMist .nj-power-burst-halo {
+  width: calc(var(--fx-radius) * 2.1);
+  height: calc(var(--fx-radius) * 1.2);
+  filter: blur(13px);
+  opacity: .76;
+}
+
+.nj-power-burst-lock > span {
+  border-radius: 1px;
+  outline: 1px solid color-mix(in srgb, var(--fx-color) 62%, white);
+  background: transparent;
+}
+
+.nj-power-burst-boost > span {
+  clip-path: polygon(50% 0, 62% 36%, 100% 50%, 62% 64%, 50% 100%, 38% 64%, 0 50%, 38% 36%);
+}
+
+.nj-power-burst-lite .nj-power-burst-halo {
+  filter: none;
+  opacity: .58;
+}
+
+.nj-power-burst-lite > span {
+  box-shadow: none;
+  mix-blend-mode: normal;
+}
+
+@keyframes powerTrailSpark {
+  from { opacity: .25; transform: translate(-4px, 2px) scale(.65); }
+  to { opacity: 1; transform: translate(5px, -3px) scale(1.2); }
+}
+
+@keyframes powerBurstHalo {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.12); }
+  18% { opacity: .92; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.85); }
+}
+
+@keyframes powerBurstRing {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.08) rotate(-12deg); }
+  22% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.62) rotate(12deg); }
+}
+
+@keyframes powerTimeRing {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.2) rotate(-70deg); }
+  24% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.55) rotate(150deg); }
+}
+
+@keyframes powerBurstParticle {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(.2) rotate(0deg); }
+  16% { opacity: 1; }
+  72% { opacity: .86; }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--fx-dx)), calc(-50% + var(--fx-dy))) scale(.38) rotate(var(--fx-spin)); }
+}
+
+.nj-power-activation-overlay::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(circle at 50% 38%, rgba(242, 187, 69, 0.16), transparent 42%),
+    linear-gradient(165deg, rgba(10, 12, 27, 0.72), rgba(5, 5, 12, 0.62));
+  box-shadow:
+    inset 0 0 120px rgba(0, 0, 0, 0.38),
+    0 0 34px rgba(242, 187, 69, 0.08);
+  backdrop-filter: blur(3px);
+}
+
 .nj-power-activation-card {
+  position: relative;
+  z-index: 1;
   width: min(78vw, 330px);
   transform-origin: center;
   animation: powerActivationCard 1.6s cubic-bezier(.2,.9,.25,1.12) both;
@@ -2567,6 +2886,7 @@ button.nj-list-card {
 
 .nj-power-activation-copy {
   position: absolute;
+  z-index: 2;
   top: calc(50% + 82px);
   display: grid;
   justify-items: center;
@@ -3679,6 +3999,69 @@ button.nj-list-card {
 .nj-motion-level-lite .nj-avatar-seat-active::before,
 .nj-motion-level-lite .nj-avatar-seat-urgent::after {
   box-shadow: none !important;
+}
+
+.nj-power-choice-confirm {
+  position: fixed;
+  left: 50%;
+  bottom: max(98px, calc(env(safe-area-inset-bottom) + 72px));
+  z-index: 540;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translateX(-50%);
+  padding: 9px 11px;
+  border: 1px solid rgba(255, 248, 232, .18);
+  border-radius: 999px;
+  background: rgba(5, 5, 12, .9);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, .46), 0 0 20px rgba(49, 84, 212, .18);
+  backdrop-filter: blur(8px);
+  white-space: nowrap;
+}
+
+.nj-power-choice-confirm span {
+  padding: 0 5px;
+  color: var(--cream);
+  font-size: 11px;
+  font-weight: 850;
+}
+
+.nj-power-choice-confirm button {
+  border: 1px solid rgba(255, 248, 232, .18);
+  border-radius: 999px;
+  padding: 6px 10px;
+  background: rgba(255, 255, 255, .07);
+  color: var(--cream);
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.nj-power-choice-confirm button:last-child {
+  border-color: rgba(49, 84, 212, .7);
+  background: rgba(49, 84, 212, .42);
+}
+
+.nj-power-choice-confirm button:disabled {
+  opacity: .38;
+  cursor: default;
+}
+
+.nj-motion-level-lite .nj-flying-card-fx,
+.nj-motion-level-lite .nj-power-burst-halo,
+.nj-motion-level-lite .nj-power-burst-ring,
+.nj-motion-level-lite .nj-avatar-aura-field {
+  filter: none !important;
+  box-shadow: none !important;
+}
+
+.nj-motion-level-lite .nj-avatar-aura-field i:nth-child(n+2) {
+  display: none;
+}
+
+.nj-motion-level-balanced .nj-power-burst-halo,
+.nj-motion-level-balanced .nj-power-burst-ring {
+  filter: none;
 }
 
 .nj-table-active-fx .nj-recommended-card,

@@ -1,25 +1,34 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
-import dynamic from "next/dynamic";
-
-
 
 import { PlayCard } from "@/components/cards/PlayCard";
 import { PowerCardView } from "@/components/power/PowerCardView";
+import { PowerTargetModal } from "@/components/power/PowerTargetModal";
+import { usePowerFxOrchestrator } from "@/components/power/PowerFxOrchestrator";
 import { Avatar } from "@/components/table/Avatar";
 import { DepositZone } from "@/components/table/DepositZone";
 import { Fan } from "@/components/table/Fan";
 import { FlyingCard } from "@/components/table/FlyingCard";
+import { DeckZone } from "@/components/table/zones/DeckZone";
+import { RevealOverlay } from "@/components/table/zones/RevealOverlay";
+import { ZoneRegistry, ZoneRegistryProvider } from "@/components/table/zones/ZoneRegistry";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { Chip } from "@/components/ui/Chip";
-import { displayFont } from "@/components/ui/Shell";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { DEV } from "@/config/devConfig";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { BOTS, FCFA } from "@/data/mock";
-import { requiresTarget } from "@/engine/powerEffects";
+import { powerRequiresTarget as requiresTarget, powerScriptOf } from "@/config/powers";
+import { selectInHand } from "@/engine/power/selectors";
+import type {
+  ChoiceRequest,
+  PowerCardChoice,
+  PowerChoices,
+  PowerFxPreset,
+  PowerFxTone,
+} from "@/engine/power/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
 import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
@@ -38,15 +47,6 @@ import type {
   RoomPlayer,
   Suit,
 } from "@/types/game";
-
-
-
-
-/* Particules tsparticles chargées en lazy, client uniquement. */
-const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
-
-/** Teinte d'une carte pouvoir (par défaut gold). */
-type PowerTone = "gold" | "pink" | "teal" | "cobalt";
 
 /* ═══════════════ TableScreen — la table de jeu ═══════════════
    Rendu pur de la table + animations.
@@ -112,7 +112,10 @@ const TABLE_READABILITY_MS = readEnvDurationMs("NEXT_PUBLIC_NJ_TABLE_READABILITY
 const ROUND_INTRO_MS = TABLE_READABILITY_MS + 250;
 const MOMENT_DEFAULT_MS = TABLE_READABILITY_MS;
 const TABLE_REACTION_MS = Math.max(1400, TABLE_READABILITY_MS - 150);
-const POWER_OVERLAY_MS = Math.max(1600, TABLE_READABILITY_MS);
+const POWER_OVERLAY_MS = readEnvDurationMs(
+  "NEXT_PUBLIC_NJ_POWER_OVERLAY_MS",
+  TABLE_READABILITY_MS + 700,
+);
 
 function isLiteMotion(level: MotionLevel): boolean {
   return level === "lite";
@@ -274,42 +277,41 @@ export function TableScreen({
   const [roundIntro, setRoundIntro] = useState(false);
   const [momentOverlay, setMomentOverlay] = useState<MomentOverlay | null>(null);
   const [tableReaction, setTableReaction] = useState<TableReaction | null>(null);
-  const [flyingSrc, setFlyingSrc] = useState<{ playerIdx: number; cardIdx: number } | null>(null);
   const [goldFlash, setGoldFlash] = useState(false);
   const [screenEffect] = useState<"win" | "lose" | null>(null);
   const [banner, setBanner] = useState("");
+  const [powerChoiceConfirm, setPowerChoiceConfirm] = useState<{
+    selected: number;
+    min: number;
+    max: number;
+    onConfirm: () => void;
+    onCancel: () => void;
+  } | null>(null);
   const [seconds, setSeconds] = useState(cfg.turnSeconds);
 
   /* ----- Cartes pouvoir (UI d'activation) ----- */
   const equippedPowers = profile.equippedPowers ?? [];
   const [usedPowers, setUsedPowers] = useState<Set<PowerCardId>>(new Set());
   const [targetingCard, setTargetingCard] = useState<PowerCardId | null>(null);
-  const [powerReveal, setPowerReveal] = useState<{ targetIdx: number; hand?: Card[] } | null>(null);
-  const [recommendedCardIdx, setRecommendedCardIdx] = useState<number | null>(null);
-  const [powerOverlay, setPowerOverlay] = useState<{ key: string; cardId: PowerCardId; blocked?: boolean; noEffect?: boolean } | null>(null);
-  const powerRevealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const powerRecommendTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const powerOverlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  /* Carte de main venant d'être échangée (Vent du Nord / Marché de Nuit) —
-     mise en évidence quelques secondes pour que le swap soit VISIBLE. */
-  const [swappedCardId, setSwappedCardId] = useState<string | null>(null);
-  const swapDetectRef = useRef<{ oldIds: Set<string> } | null>(null);
-  const swappedCardTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* ----- Effets GSAP + particules (Phase 4) ----- */
-  const [powerFx, setPowerFx] = useState<{ key: string; tone: PowerTone } | null>(null);
-  const powerFxTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /* ----- Registre des zones (mains, dépôts, timers, pioche, révélation) -----
+     Les zones s'y auto-enregistrent avec leurs handles d'animation ; les vols
+     de cartes et l'orchestrateur des pouvoirs les pilotent par là. */
+  const registryRef = useRef<ZoneRegistry | null>(null);
+  if (!registryRef.current) registryRef.current = new ZoneRegistry();
+  const zoneRegistry = registryRef.current;
+
   const tableRootRef = useRef<HTMLDivElement>(null);
   const gsapRef = useRef<Awaited<ReturnType<typeof loadGsap>> | null>(null);
 
   const animatingRef = useRef(false);
   const animationEndsAtRef = useRef(0);
-  const handRefs = useRef<Record<number, HTMLDivElement | null>>({});
-  const depositRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const syncRef = useRef<GameSyncActions | null>(null);
   const playersRef = useRef<GameState["players"]>([]);
   const turnIdxRef = useRef(0);
   const delayedStateTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const powerTransitionDepthRef = useRef(0);
+  const pendingPowerStateRef = useRef<GameState | null>(null);
   const animatedPlayIdsRef = useRef<Set<string>>(new Set());
   const animationsOnRef = useRef(motion.enabled);
   const sfxRef = useRef(sfx);
@@ -338,13 +340,18 @@ export function TableScreen({
   const liteMotion = isLiteMotion(motionLevel);
   const balancedMotion = isBalancedMotion(motionLevel);
   const premiumFxAllowed = motionLevel === "full";
-  const activeTableFx = roundIntro || phase === "dealing" || flights.length > 0 || !!momentOverlay || !!tableReaction || !!powerFx || !!powerOverlay;
-  const getYourDropRect = useCallback(() => depositRefs.current[0]?.getBoundingClientRect() ?? null, []);
+  const baseTableFx = roundIntro || phase === "dealing" || flights.length > 0 || !!momentOverlay || !!tableReaction;
+  const getYourDropRect = useCallback(() => registryRef.current?.deposit(0)?.getRect() ?? null, []);
 
   useEffect(() => {
     playersRef.current = players;
     turnIdxRef.current = turnIdx;
   }, [players, turnIdx]);
+
+  const gameStateRef = useRef<GameState | null>(null);
+  useEffect(() => {
+    gameStateRef.current = gameState;
+  }, [gameState]);
 
   useEffect(() => {
     animationsOnRef.current = motionEnabled;
@@ -466,18 +473,6 @@ export function TableScreen({
     );
   }, []);
 
-  /* Déclenche l'effet d'activation d'une carte pouvoir (particules + flash + shake). */
-  const triggerPowerFx = useCallback((tone: PowerTone) => {
-    if (!animationsOnRef.current) return;
-    setPowerFx({ key: `pfx-${Date.now()}`, tone });
-    impactShake(6);
-    if (powerFxTimerRef.current) clearTimeout(powerFxTimerRef.current);
-    powerFxTimerRef.current = setTimeout(() => {
-      setPowerFx(null);
-      powerFxTimerRef.current = null;
-    }, 1200);
-  }, [impactShake]);
-
   /* Révélation d'ouverture de manche (GSAP) : les mains puis les sièges
      apparaissent en cascade (stagger). On n'anime QUE opacity + filter —
      jamais transform, qui porte le positionnement de chaque siège/main. */
@@ -509,38 +504,6 @@ export function TableScreen({
     if (serverIdx < 0 || myIdx < 0) return null;
     return (serverIdx - myIdx + roomPlayers.length) % roomPlayers.length;
   }, [authUid, roomPlayers]);
-
-  const showPowerOverlay = useCallback((cardId: PowerCardId, blocked = false, noEffect = false) => {
-    if (!animationsOnRef.current) return;
-    if (powerOverlayTimerRef.current) clearTimeout(powerOverlayTimerRef.current);
-    setPowerOverlay({ key: `${cardId}-${Date.now()}`, cardId, blocked, noEffect });
-    powerOverlayTimerRef.current = setTimeout(() => {
-      setPowerOverlay(null);
-      powerOverlayTimerRef.current = null;
-    }, POWER_OVERLAY_MS);
-  }, []);
-
-  const recommendCurrentCard = useCallback(() => {
-    const hand = playersRef.current[0]?.hand ?? [];
-    if (hand.length === 0) return;
-    const led = trickPlays[0]?.card.suit ?? null;
-    const legal = legalCards(hand, led);
-    const currentBest = led
-      ? Math.max(0, ...trickPlays.filter((play) => play.card.suit === led).map((play) => play.card.effectiveValue ?? play.card.value))
-      : 0;
-    const winning = legal
-      .filter((idx) => !led || hand[idx].suit === led)
-      .filter((idx) => hand[idx].value > currentBest)
-      .sort((a, b) => hand[a].value - hand[b].value);
-    const nextIdx = winning[0] ?? [...legal].sort((a, b) => hand[a].value - hand[b].value)[0];
-    if (nextIdx === undefined) return;
-    setRecommendedCardIdx(nextIdx);
-    if (powerRecommendTimerRef.current) clearTimeout(powerRecommendTimerRef.current);
-    powerRecommendTimerRef.current = setTimeout(() => {
-      setRecommendedCardIdx(null);
-      powerRecommendTimerRef.current = null;
-    }, 6000);
-  }, [trickPlays]);
 
   const playNextMomentOverlay = useCallback(() => {
     if (!animationsOnRef.current) {
@@ -599,17 +562,117 @@ export function TableScreen({
     }, TABLE_REACTION_MS);
   }, []);
 
+  /* ----- Orchestrateur générique des animations de pouvoir ----- */
+
+  /** seat moteur (activation.resolved.targetSeats) → index UI (0 = moi). */
+  const uiIndexFromSeat = useCallback((seat: number): number => {
+    if (gameMode === "bot" || !authUid || !roomPlayers?.length) return seat;
+    const myIdx = roomPlayers.findIndex((player) => player.uid === authUid);
+    if (myIdx < 0) return seat;
+    return (seat - myIdx + roomPlayers.length) % roomPlayers.length;
+  }, [gameMode, authUid, roomPlayers]);
+
+  /** Vol de carte générique (pouvoirs) — carte null = vol face cachée. */
+  const launchFlight = useCallback((req: {
+    card: Card | null;
+    from: DOMRect;
+    to: DOMRect;
+    faceUp: boolean;
+    angle?: number;
+    fxPreset?: PowerFxPreset;
+    fxTone?: PowerFxTone;
+    onArrive?: () => void;
+  }): Promise<void> => {
+    const card: Card = req.card ?? { rank: "?", value: 0, suit: "?", color: "#888", id: `power-flight-${Date.now()}` };
+    const key = `${card.id}-pfl-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+    setFlights((f) => [
+      ...f,
+      {
+        key,
+        card,
+        from: req.from,
+        to: req.to,
+        w: depW,
+        angle: req.angle ?? 0,
+        dropRot: Math.random() * 14 - 7,
+        isYou: req.faceUp,
+        faceUp: req.faceUp,
+        fxPreset: req.fxPreset,
+        fxTone: req.fxTone,
+      },
+    ]);
+    return new Promise((resolve) => {
+      const timer = setTimeout(() => {
+        setFlights((f) => f.filter((flight) => flight.key !== key));
+        req.onArrive?.();
+        resolve();
+      }, A.dropFlight);
+      burstTimersRef.current.push(timer);
+    });
+  }, [A.dropFlight, depW]);
+
+  const beginStateTransition = useCallback(() => {
+    if (powerTransitionDepthRef.current === 0) {
+      pendingPowerStateRef.current = null;
+      if (delayedStateTimerRef.current) {
+        clearTimeout(delayedStateTimerRef.current);
+        delayedStateTimerRef.current = null;
+      }
+    }
+    powerTransitionDepthRef.current += 1;
+    animatingRef.current = true;
+  }, []);
+
+  const commitStateTransition = useCallback(() => {
+    const pending = pendingPowerStateRef.current;
+    if (!pending) return;
+    pendingPowerStateRef.current = null;
+    setGameState(pending);
+  }, []);
+
+  const endStateTransition = useCallback(() => {
+    commitStateTransition();
+    powerTransitionDepthRef.current = Math.max(0, powerTransitionDepthRef.current - 1);
+    if (powerTransitionDepthRef.current === 0) {
+      animatingRef.current = Date.now() < animationEndsAtRef.current - 20;
+    }
+  }, [commitStateTransition]);
+
+  const orchestrator = usePowerFxOrchestrator({
+    registry: zoneRegistry,
+    motionEnabled,
+    liteMotion,
+    balancedMotion,
+    overlayMs: POWER_OVERLAY_MS,
+    flightMs: A.dropFlight,
+    uiIndexFromUid: uiIndexFromPowerUid,
+    uiIndexFromSeat,
+    getPlayers: () => playersRef.current,
+    playSfx: () => sfxRef.current((sn) => sn.dominance()),
+    impactShake,
+    showTableReaction,
+    launchFlight,
+    beginStateTransition,
+    commitStateTransition,
+    endStateTransition,
+  });
+  const orchestratorRunRef = useRef(orchestrator.run);
+  orchestratorRunRef.current = orchestrator.run;
+  const clearAurasRef = useRef(orchestrator.clearAuras);
+  clearAurasRef.current = orchestrator.clearAuras;
+  const activeTableFx = baseTableFx || orchestrator.fxActive;
+
+  /* Les auras de protection tombent à la fin de manche / nouvelle donne. */
+  useEffect(() => {
+    if (phase === "result" || phase === "dealing") clearAurasRef.current();
+  }, [phase]);
+
   useEffect(() => {
     return () => {
       if (roundIntroTimerRef.current) clearTimeout(roundIntroTimerRef.current);
       if (dealSweepTimerRef.current) clearTimeout(dealSweepTimerRef.current);
       if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
       if (momentOverlayTimerRef.current) clearTimeout(momentOverlayTimerRef.current);
-      if (powerRevealTimerRef.current) clearTimeout(powerRevealTimerRef.current);
-      if (powerRecommendTimerRef.current) clearTimeout(powerRecommendTimerRef.current);
-      if (powerOverlayTimerRef.current) clearTimeout(powerOverlayTimerRef.current);
-      if (powerFxTimerRef.current) clearTimeout(powerFxTimerRef.current);
-      if (swappedCardTimerRef.current) clearTimeout(swappedCardTimerRef.current);
       momentOverlayQueueRef.current = [];
       momentOverlayActiveRef.current = false;
     };
@@ -725,29 +788,18 @@ export function TableScreen({
     syncRef.current = sync;
     const animatedPlayIds = animatedPlayIdsRef.current;
 
-    // Écouter les événements du sync
+    // Écouter les événements du sync. (La détection de swap par diff a disparu :
+    // l'orchestrateur anime depuis activation.resolved, source de vérité moteur.)
     const applyIncomingState = (state: GameState) => {
-      // Vent du Nord / Marché de Nuit : si un swap vient d'être armé (voir
-      // onPowerActivated), on repère PAR DIFF la carte qui vient d'entrer
-      // dans la main pour la mettre en évidence quelques secondes.
-      if (swapDetectRef.current) {
-        const { oldIds } = swapDetectRef.current;
-        swapDetectRef.current = null;
-        const added = state.players[0]?.hand.find((c) => !oldIds.has(c.id));
-        if (added) {
-          setSwappedCardId(added.id);
-          if (swappedCardTimerRef.current) clearTimeout(swappedCardTimerRef.current);
-          swappedCardTimerRef.current = setTimeout(() => {
-            setSwappedCardId(null);
-            swappedCardTimerRef.current = null;
-          }, 2600);
-        }
-      }
       setGameState(state);
     };
 
     const unsubState = sync.onStateUpdate((state) => {
       setBanner("");
+      if (powerTransitionDepthRef.current > 0) {
+        pendingPowerStateRef.current = state;
+        return;
+      }
       if (animatingRef.current) {
         if (delayedStateTimerRef.current) clearTimeout(delayedStateTimerRef.current);
         // Révéler le dépôt réel juste avant l'atterrissage : assez tôt pour
@@ -770,17 +822,15 @@ export function TableScreen({
       }
 
       sfxRef.current((s) => s.card());
-      const handEl = handRefs.current[playerIdx];
-      const depEl = depositRefs.current[playerIdx];
-      const srcEl = handEl?.children?.[cardIdx] ?? handEl;
+      const handZone = zoneRegistry.hand(playerIdx);
+      const from = handZone?.getCardRect(cardIdx) ?? handZone?.getRect() ?? null;
+      const to = zoneRegistry.deposit(playerIdx)?.getRect() ?? null;
 
-      if (srcEl && depEl) {
+      if (from && to) {
         animatingRef.current = true;
         animationEndsAtRef.current = Date.now() + A.dropFlight;
-        const from = (srcEl as HTMLElement).getBoundingClientRect();
-        const to = (depEl as HTMLElement).getBoundingClientRect();
         const dropRot = Math.random() * 18 - 9;
-        setFlyingSrc({ playerIdx, cardIdx });
+        handZone?.setHiddenCard(cardIdx);
         setFlights((f) => [
           ...f,
           {
@@ -797,7 +847,7 @@ export function TableScreen({
         const landingTimer = setTimeout(() => {
           animatingRef.current = false;
           setFlights((f) => f.slice(1));
-          setFlyingSrc(null);
+          handZone?.setHiddenCard(null);
           if (animationsOnRef.current) {
             const burstKey = `${card.id}-burst-${Date.now()}`;
             setCardBursts((items) => [
@@ -887,55 +937,10 @@ export function TableScreen({
         });
         consumeConfirmedPowerInventory(activation.consumedCardIds ?? [activation.cardId]);
       }
-      const noEffect = mine && !activation.used && !activation.blockedByCardId;
-      const def = POWER_CARDS_BY_ID[activation.cardId];
-      if (def) {
-        sfxRef.current((sn) => sn.dominance());
-        triggerPowerFx((def.tone as PowerTone) ?? "gold");
-        showPowerOverlay(activation.cardId, !!activation.blockedByCardId, noEffect);
-      }
-      // ── Animation PILOTÉE PAR TAG (PowerAnimTag) ─────────────────────────
-      // Toute carte future qui porte un de ces tags déclenche AUTOMATIQUEMENT
-      // l'animation correspondante, sans toucher à ce fichier — c'est tout
-      // l'intérêt de la taxonomie (voir types/game.ts::PowerAnimTag).
-      const tags = def?.animTags ?? [];
-
-      // hand_target_reveal : révèle la main d'un adversaire précis.
-      if (!activation.blockedByCardId && mine && tags.includes("hand_target_reveal")) {
-        const targetIdx = uiIndexFromPowerUid(activation.targetUid);
-        if (targetIdx != null) {
-          // En ligne, la main de la cible est masquée dans `players` → on utilise
-          // la main révélée jointe à l'activation (activateur uniquement).
-          setPowerReveal({ targetIdx, hand: activation.revealedHand });
-          if (powerRevealTimerRef.current) clearTimeout(powerRevealTimerRef.current);
-          powerRevealTimerRef.current = setTimeout(() => {
-            setPowerReveal(null);
-            powerRevealTimerRef.current = null;
-          }, 5000);
-        }
-      }
-      // hand_self_recommend : met en évidence ta meilleure carte légale.
-      if (!activation.blockedByCardId && mine && tags.includes("hand_self_recommend")) {
-        recommendCurrentCard();
-      }
-      // hand_self_mutate : on capture ta main AVANT le swap (playersRef n'a
-      // pas encore reçu le nouvel état) pour repérer PAR DIFF, au prochain
-      // onStateUpdate, la carte qui vient d'entrer et la mettre en évidence.
-      if (mine && activation.used && tags.includes("hand_self_mutate")) {
-        swapDetectRef.current = { oldIds: new Set(playersRef.current[0]?.hand.map((c) => c.id) ?? []) };
-      }
-      // hand_target_restrict : confirmation immédiate — l'effet ne se voit
-      // qu'au PROCHAIN tour de la cible (elle joue sa carte la plus faible),
-      // donc on prévient tout de suite que le piège est armé.
-      if (!activation.blockedByCardId && tags.includes("hand_target_restrict")) {
-        const targetIdx = uiIndexFromPowerUid(activation.targetUid);
-        const targetName = targetIdx != null ? playersRef.current[targetIdx]?.name : undefined;
-        showTableReaction(
-          targetName ? `${targetName} forcé de jouer bas` : "Adversaire forcé de jouer bas",
-          "pink",
-          "À son prochain tour",
-        );
-      }
+      // Toute l'animation est GÉNÉRIQUE : l'orchestrateur rejoue le script de
+      // la carte (config/powers) depuis activation.resolved — zéro branche
+      // par carte ou par tag ici. Ajouter une carte = écrire son script.
+      orchestratorRunRef.current(activation);
     });
 
     // Démarrer la partie
@@ -985,6 +990,8 @@ export function TableScreen({
       momentOverlayActiveRef.current = false;
       setMomentOverlay(null);
       if (delayedStateTimerRef.current) clearTimeout(delayedStateTimerRef.current);
+      pendingPowerStateRef.current = null;
+      powerTransitionDepthRef.current = 0;
       burstTimersRef.current.forEach((timer) => clearTimeout(timer));
       burstTimersRef.current = [];
       animatedPlayIds.clear();
@@ -1012,13 +1019,119 @@ export function TableScreen({
   }, []);
 
   /* ----- Activer une carte pouvoir ----- */
-  const handleUsePower = (cardId: PowerCardId, targetIdx?: number) => {
+
+  /**
+   * Étape interactive d'un script : la table passe en « mode sélection » via
+   * le handle de la zone (main, dépôt) — le clic désigne la carte au lieu de
+   * la jouer. Mécanisme GÉNÉRIQUE : tout futur boost avec une étape `choice`
+   * l'utilise sans modification ici.
+   */
+  const requestCardChoice = useCallback((
+    choice: ChoiceRequest,
+    targetIdx?: number,
+  ): Promise<PowerCardChoice | PowerCardChoice[] | null> => {
+    return new Promise((resolve) => {
+      const registry = registryRef.current;
+      // Défaut confortable : le joueur doit lire le bandeau PUIS choisir.
+      const timeoutMs = choice.timeoutMs ?? Math.max(8000, TABLE_READABILITY_MS * 2);
+      let cancelSelection: (() => void) | null = null;
+      let done = false;
+      const selected = new Map<number, PowerCardChoice>();
+      const min = Math.max(1, choice.count?.min ?? 1);
+      const max = Math.max(min, choice.count?.max ?? 1);
+      const finish = (value: PowerCardChoice | PowerCardChoice[] | null) => {
+        if (done) return;
+        done = true;
+        cancelSelection?.();
+        registry?.hand(0)?.highlightCards({ cardIds: [], style: "boosted", durationMs: 1 });
+        setBanner("");
+        setPowerChoiceConfirm(null);
+        resolve(value);
+      };
+      const updateConfirm = () => {
+        setPowerChoiceConfirm({
+          selected: selected.size,
+          min,
+          max,
+          onConfirm: () => {
+            const values = [...selected.values()];
+            if (values.length < min) return;
+            finish(max === 1 ? values[0] : values);
+          },
+          onCancel: () => finish(null),
+        });
+      };
+      const toggle = (card: Card, cardIdx: number) => {
+        if (selected.has(cardIdx)) selected.delete(cardIdx);
+        else if (selected.size < max) selected.set(cardIdx, { cardId: card.id, cardIdx });
+        if (max === 1 && selected.size === 1) {
+          finish([...selected.values()][0]);
+          return;
+        }
+        registry?.hand(0)?.highlightCards({
+          cardIds: [...selected.values()].map((item) => item.cardId),
+          style: "boosted",
+          durationMs: timeoutMs,
+        });
+        updateConfirm();
+      };
+
+      if (choice.surface === "hand-self" && registry) {
+        const state = gameStateRef.current;
+        const hand = playersRef.current[0]?.hand ?? [];
+        const allowed = choice.filter && state
+          ? new Set(selectInHand(hand, choice.filter, { state, seat: 0 }))
+          : null;
+        setBanner(max > 1 ? `Choisis entre ${min} et ${max} cartes` : "Choisis une carte de ta main");
+        cancelSelection = registry.hand(0)?.beginSelection(
+          (_card, cardIdx) => (allowed ? allowed.has(cardIdx) : true),
+          (cardIdx) => {
+            const card = playersRef.current[0]?.hand[cardIdx];
+            if (card) toggle(card, cardIdx);
+          },
+        ) ?? null;
+      } else if (choice.surface === "deposit" && registry) {
+        const depositUi = choice.player === "target" && targetIdx !== undefined ? targetIdx : 0;
+        setBanner("Choisis une carte du dépôt");
+        cancelSelection = registry.deposit(depositUi)?.beginSelection(
+          () => true,
+          (cardIdx) => {
+            const card = playersRef.current[depositUi]?.deposit[cardIdx];
+            if (card) toggle(card, cardIdx);
+          },
+        ) ?? null;
+      }
+
+      if (!cancelSelection) {
+        finish(null);
+        return;
+      }
+      if (max > 1) updateConfirm();
+      const timer = setTimeout(() => finish(null), timeoutMs);
+      burstTimersRef.current.push(timer);
+    });
+  }, []);
+
+  const handleUsePower = useCallback(async (cardId: PowerCardId, targetIdx?: number) => {
     if (!syncRef.current || animatingRef.current) return;
     if (!isYourTurn) return;
     if (!DEV.unlimitedPowers && usedPowers.has(cardId)) return;
-    syncRef.current.usePowerCard(cardId, targetIdx);
     setTargetingCard(null);
-  };
+
+    // Étapes interactives du script (clic générique) AVANT l'envoi au sync.
+    const script = powerScriptOf(cardId);
+    let choices: PowerChoices | undefined;
+    for (const step of script.steps) {
+      if (!step.choice) continue;
+      const picked = await requestCardChoice(step.choice, targetIdx);
+      if (!picked) {
+        if (step.choice.onTimeout === "cancel") return; // annulé, carte non consommée
+        continue; // "auto" : le moteur retombe sur son sélecteur
+      }
+      choices = { ...(choices ?? {}), [step.choice.id]: picked };
+    }
+    syncRef.current?.usePowerCard(cardId, targetIdx, choices);
+  }, [isYourTurn, usedPowers, requestCardChoice]);
 
   const handlePowerTap = (cardId: PowerCardId) => {
     if (!isYourTurn || animatingRef.current) return;
@@ -1084,6 +1197,7 @@ export function TableScreen({
   /* ═══════════════ RENDU TABLE ═══════════════ */
 
   return (
+    <ZoneRegistryProvider registry={zoneRegistry}>
     <div
       ref={tableRootRef}
       className={activeTableFx ? "nj-table-active-fx" : undefined}
@@ -1186,39 +1300,17 @@ export function TableScreen({
         <NjamboIcon name="home" tone="light" size={22} />
       </button>
 
-      {/* Centre : deck + pot + tendance */}
-      <div
-        className={motionEnabled && !liteMotion && (roundIntro || phase === "dealing") ? "nj-pot-cluster nj-pot-cluster-ready" : "nj-pot-cluster"}
-        style={{
-          position: "absolute",
-          top: "45%",
-          left: "50%",
-          transform: "translate(-50%,-50%)",
-          display: "flex",
-          alignItems: "center",
-          gap: 14,
-          zIndex: 5,
-        }}
-      >
-        <div style={{ position: "relative", animation: motionEnabled && premiumFxAllowed && (roundIntro || phase === "dealing") ? "deckDeal .26s infinite" : "none" }}>
-          <div style={{ position: "absolute", top: -3, left: 3, zIndex: -1 }}>
-            <PlayCard hidden w={deckW} />
-          </div>
-          <PlayCard hidden w={deckW} />
-        </div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-          <Chip strong style={{ fontSize: 13 }}>
-            <NjamboIcon name="coin" tone="gold" size={16} />
-            <span style={{ ...displayFont, fontWeight: 900, color: T.gold }}>{FCFA(displayedPot)}</span>
-          </Chip>
-          <Chip style={{ fontSize: 15 }}>
-            <span style={{ opacity: 0.6, fontSize: 10, letterSpacing: ".1em" }}>TENDANCE&nbsp;</span>
-            <span style={{ color: ledInfo?.color === "#c1292e" ? T.bad : "#fff", fontWeight: 900 }}>
-              {ledSuit ?? "—"}
-            </span>
-          </Chip>
-        </div>
-      </div>
+      {/* Centre : deck + pot + tendance (zone enregistrée : handles "deck" et "pot") */}
+      <DeckZone
+        deckW={deckW}
+        pot={displayedPot}
+        ledSuit={ledSuit}
+        ledColor={ledInfo?.color}
+        dealing={roundIntro || phase === "dealing"}
+        motionEnabled={motionEnabled}
+        premiumFxAllowed={premiumFxAllowed}
+        liteMotion={liteMotion}
+      />
 
       {/* Bannière discrète */}
       {banner && (
@@ -1263,9 +1355,7 @@ export function TableScreen({
             }}
           >
             <DepositZone
-              ref={(el: HTMLDivElement | null) => {
-                depositRefs.current[i] = el;
-              }}
+              seatIdx={i}
               deposit={p.deposit}
               w={depW}
               active={active}
@@ -1293,28 +1383,18 @@ export function TableScreen({
               "--seat-delay": `${i * 90}ms`,
             } as CSSProperties}
           >
-            <div
-              ref={(el: HTMLDivElement | null) => {
-                handRefs.current[i] = el;
-              }}
-              style={{ display: "flex" }}
-            >
-              <Fan
-                cards={p.hand}
-                w={p.isYou ? youW : botW}
-                faceUp={p.isYou}
-                seatIdx={i}
-                playerCount={n}
-                dealing={motionEnabled && phase === "dealing"}
-                legal={p.isYou ? yourLegal : null}
-                onCardClick={handleCardClick}
-                hiddenIdx={flyingSrc?.playerIdx === i ? flyingSrc.cardIdx : null}
-                recommendedIdx={p.isYou && !activeTableFx ? recommendedCardIdx : null}
-                swappedCardId={p.isYou ? swappedCardId : null}
-                motionOn={motionEnabled && !activeTableFx}
-                getDropRect={p.isYou ? getYourDropRect : undefined}
-              />
-            </div>
+            <Fan
+              cards={p.hand}
+              w={p.isYou ? youW : botW}
+              faceUp={p.isYou}
+              seatIdx={i}
+              playerCount={n}
+              dealing={motionEnabled && phase === "dealing"}
+              legal={p.isYou ? yourLegal : null}
+              onCardClick={handleCardClick}
+              motionOn={motionEnabled && !activeTableFx}
+              getDropRect={p.isYou ? getYourDropRect : undefined}
+            />
           </div>
         );
       })}
@@ -1341,6 +1421,7 @@ export function TableScreen({
           >
             <Avatar
               p={p}
+              seatIdx={i}
               active={active}
               seconds={active ? seconds : cfg.turnSeconds}
               turnSeconds={cfg.turnSeconds}
@@ -1378,45 +1459,9 @@ export function TableScreen({
 
       {motionEnabled && momentOverlay && <GameMomentOverlay key={momentOverlay.key} moment={momentOverlay} motionLevel={motionLevel} />}
 
-      {/* Effet d'activation d'une carte pouvoir : flash teinté + éclat de particules. */}
-      {motionEnabled && powerFx && (
-        <div
-          key={powerFx.key}
-          aria-hidden="true"
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 260,
-            pointerEvents: "none",
-            display: "grid",
-            placeItems: "center",
-            background: `radial-gradient(ellipse at 50% 50%, ${T[powerFx.tone]}22, transparent 60%)`,
-            animation: "fadeIn .18s ease both",
-          }}
-        >
-          {!liteMotion && <PowerParticles variant="power" tone={powerFx.tone} zIndex={261} intensity={balancedMotion ? "balanced" : "full"} />}
-        </div>
-      )}
-
-      {motionEnabled && powerOverlay && POWER_CARDS_BY_ID[powerOverlay.cardId] && (
-        <div key={powerOverlay.key} className="nj-power-activation-overlay" aria-hidden="true">
-          <div className="nj-power-activation-card">
-            <PowerCardView card={POWER_CARDS_BY_ID[powerOverlay.cardId]} showMeta={false} />
-          </div>
-          <div className="nj-power-activation-copy">
-            <strong>
-              {powerOverlay.blocked ? "BLOQUÉ" : powerOverlay.noEffect ? "SANS EFFET" : POWER_CARDS_BY_ID[powerOverlay.cardId].activationTitle}
-            </strong>
-            <span>
-              {powerOverlay.blocked
-                ? "Protection activée"
-                : powerOverlay.noEffect
-                  ? "Rien à améliorer — carte non consommée"
-                  : POWER_CARDS_BY_ID[powerOverlay.cardId].activationText}
-            </span>
-          </div>
-        </div>
-      )}
+      {/* Effets d'activation des cartes pouvoir (flash, particules, overlay
+          d'activation) — rendus et séquencés par l'orchestrateur générique. */}
+      {orchestrator.element}
 
       {motionEnabled && !liteMotion && tableReaction && (
         <div
@@ -1426,6 +1471,20 @@ export function TableScreen({
         >
           <span>{tableReaction.label}</span>
           {tableReaction.detail && <small>{tableReaction.detail}</small>}
+        </div>
+      )}
+
+      {powerChoiceConfirm && (
+        <div className="nj-power-choice-confirm">
+          <span>{powerChoiceConfirm.selected}/{powerChoiceConfirm.max} sélectionnée(s)</span>
+          <button type="button" onClick={powerChoiceConfirm.onCancel}>Annuler</button>
+          <button
+            type="button"
+            disabled={powerChoiceConfirm.selected < powerChoiceConfirm.min}
+            onClick={powerChoiceConfirm.onConfirm}
+          >
+            Valider
+          </button>
         </div>
       )}
 
@@ -1551,118 +1610,22 @@ export function TableScreen({
         </div>
       )}
 
-      {/* Sélection de cible pour une carte pouvoir */}
+      {/* Sélection de cible pour une carte pouvoir (pilotée par TargetSpec) */}
       {targetingCard && (
-        <div
-          onClick={() => setTargetingCard(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 70,
-            background: "rgba(5,5,12,.72)",
-            display: "grid",
-            placeItems: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: `linear-gradient(160deg, ${T.night3}, ${T.night1})`,
-              border: `1.5px solid ${T.gold}55`,
-              borderRadius: 18,
-              padding: 18,
-              maxWidth: 320,
-              width: "100%",
-              textAlign: "center",
-            }}
-          >
-            <div style={{ ...displayFont, fontWeight: 900, fontSize: 18, marginBottom: 2 }}>
-              {POWER_CARDS_BY_ID[targetingCard]?.name}
-            </div>
-            <div className="nj-subtle" style={{ fontSize: 13, marginBottom: 14 }}>Choisis une cible</div>
-            <div style={{ display: "grid", gap: 8 }}>
-              {players.map((p, i) => {
-                if (i === 0) return null;
-                return (
-                  <button
-                    key={"tgt" + p.name}
-                    type="button"
-                    onClick={() => handleUsePower(targetingCard, i)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: 10,
-                      padding: "10px 14px",
-                      borderRadius: 12,
-                      border: `1.5px solid ${T.pink}66`,
-                      background: "rgba(216,60,104,.14)",
-                      color: T.text,
-                      fontWeight: 800,
-                      cursor: "pointer",
-                    }}
-                  >
-                    <Avatar p={p} active={false} seconds={0} turnSeconds={cfg.turnSeconds} size={34} />
-                    <span>{p.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-            <button
-              type="button"
-              onClick={() => setTargetingCard(null)}
-              style={{
-                marginTop: 14,
-                padding: "8px 16px",
-                borderRadius: 999,
-                border: "1px solid rgba(255,255,255,.2)",
-                background: "transparent",
-                color: T.muted,
-                cursor: "pointer",
-                fontWeight: 700,
-              }}
-            >
-              Annuler
-            </button>
-          </div>
-        </div>
+        <PowerTargetModal
+          cardId={targetingCard}
+          players={players}
+          turnSeconds={cfg.turnSeconds}
+          allowSelf={powerScriptOf(targetingCard).target.allowSelf}
+          onPick={(i) => void handleUsePower(targetingCard, i)}
+          onCancel={() => setTargetingCard(null)}
+        />
       )}
 
-      {/* Overlay Œil du Sorcier : révélation de la main adverse */}
-      {powerReveal && players[powerReveal.targetIdx] && (
-        <div
-          onClick={() => setPowerReveal(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 72,
-            background: "rgba(5,5,12,.8)",
-            display: "grid",
-            placeItems: "center",
-            padding: 20,
-          }}
-        >
-          <div style={{ textAlign: "center" }}>
-            <div style={{ ...displayFont, fontWeight: 900, fontSize: 20, color: T.pink, marginBottom: 2 }}>
-              Œil du Sorcier
-            </div>
-            <div className="nj-subtle" style={{ fontSize: 13, marginBottom: 16 }}>
-              Main de {players[powerReveal.targetIdx].name}
-            </div>
-            <div style={{ display: "flex", gap: 8, justifyContent: "center", flexWrap: "wrap", maxWidth: 340 }}>
-              {(() => {
-                // En ligne : main jointe à l'activation ; en local : main visible.
-                const source = powerReveal.hand ?? players[powerReveal.targetIdx].hand;
-                const revealHand = source.filter((c) => c.rank !== "?");
-                if (revealHand.length === 0) {
-                  return <span className="nj-subtle">Main non visible dans cette partie.</span>;
-                }
-                return revealHand.map((c) => <PlayCard key={c.id} card={c} w={46} />);
-              })()}
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Zone de révélation de cartes (Œil du Sorcier & co) — pilotée par le
+          handle "reveal" du registre de zones. */}
+      <RevealOverlay />
     </div>
+    </ZoneRegistryProvider>
   );
 }

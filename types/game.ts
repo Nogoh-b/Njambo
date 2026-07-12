@@ -1,5 +1,15 @@
 /* ═══════════════ Types partagés du jeu Njambo ═══════════════ */
 
+// Import type-only (aucun cycle à l'exécution) : le modèle de script générique
+// des cartes pouvoir vit dans engine/power/types.ts.
+import type {
+  PowerChoices,
+  PowerFxPreset,
+  PowerFxTone,
+  PowerResolved,
+  PowerScriptTag,
+} from "@/engine/power/types";
+
 export interface Card {
   rank: string;
   value: number;
@@ -89,18 +99,22 @@ export type PowerCardId =
   | "marche_nuit"
   | "cri_chef"
   | "feu_camp"
-  | "pagne_changeant";
+  | "pagne_changeant"
+  | "troc_cible"
+  | "pacte_mains"
+  | "sceau_entrave";
 
 export type PowerCategory = "offensive" | "defense" | "score" | "tactical" | "perturbation" | "economy";
 export type PowerRarity = "common" | "rare" | "epic" | "legendary";
 export type PowerTargetMode = "none" | "self" | "opponent";
 
 /**
- * Taxonomie des ÉLÉMENTS ANIMÉS qu'une carte pouvoir influence. Chaque carte
- * en porte un ou plusieurs. C'est le point d'ancrage unique entre le moteur
- * (engine/powerEffects.ts) et les animations (TableScreen) : au lieu de
- * brancher chaque nouvelle carte sur des `if (cardId === "...")` dispersés,
- * on la TAGUE ici et le code d'animation générique la reconnaît.
+ * Taxonomie des ÉLÉMENTS ANIMÉS qu'une carte pouvoir influence — MÉTADONNÉE
+ * descriptive (boutique, filtres) uniquement. Le comportement réel (logique
+ * ET animations) est désormais porté par le PowerScript de chaque carte
+ * (config/powers/<id>.ts), interprété par engine/power (mutations) et
+ * PowerFxOrchestrator (cues d'animation). Plus aucun code runtime ne lit ces
+ * tags.
  *
  * Axes couverts (main ↔ dépôt ↔ pioche, cible précise ou non, timer, pot,
  * blocage futur, économie de fin de manche) :
@@ -189,6 +203,9 @@ export interface ActivePowerEffect {
   cancelReveal?: boolean;
   valueBonus?: number;
   suitOverride?: boolean;
+  /** Tags de script interceptés par cet effet (moteur générique). Les champs
+   *  legacy `shield`/`cancelReveal` restent renseignés pour compatibilité. */
+  blocks?: PowerScriptTag[];
 }
 
 /** Activation d'une carte pouvoir en cours de partie */
@@ -209,6 +226,13 @@ export interface PowerCardActivation {
   /** Main révélée de la cible (Œil du Sorcier) — attachée LOCALEMENT à
    *  l'activateur uniquement (jamais écrite au doc partagé). */
   revealedHand?: Card[];
+  /** Résultat résolu par le moteur générique (engine/power) — permet à tous
+   *  les clients d'animer sans recalculer. Optionnel → rétrocompatible. */
+  resolved?: PowerResolved;
+  /** Choix de cartes faits par l'activateur (étapes interactives du script). */
+  choices?: PowerChoices;
+  /** Version du format script (absent = format legacy). */
+  scriptVersion?: 1;
 }
 
 export interface LeaderEntry {
@@ -331,6 +355,12 @@ export interface Flight {
   angle: number;
   dropRot: number;
   isYou: boolean;
+  /** Face visible pendant le vol (défaut : isYou). Permet les vols génériques
+   *  des pouvoirs (pioche→main révélée, main→pioche cachée…). */
+  faceUp?: boolean;
+  /** Habillage mystique du vol, sans influence sur la logique de jeu. */
+  fxPreset?: PowerFxPreset;
+  fxTone?: PowerFxTone;
 }
 
 /* ───── Résultat de partie (union discriminée par `type`) ───── */
@@ -451,6 +481,8 @@ export interface GameDoc {
     trickNo: number;
     playId: string;
     createdAt: number;
+    /** Choix de cartes de l'activateur (étapes interactives) — validés par l'hôte. */
+    choices?: PowerChoices;
   } | null;
   /** Dernière activation confirmée (anti-replay) */
   lastPowerActivation?: {
@@ -507,8 +539,9 @@ export interface GameSyncActions {
   nextRound: () => void;
   /** Envoyer une action (le TableScreen appelle ça) */
   playCard: (cardIdx: number) => void;
-  /** Activer une carte pouvoir (cardId + cible optionnelle) */
-  usePowerCard: (cardId: PowerCardId, targetIdx?: number) => void;
+  /** Activer une carte pouvoir (cardId + cible optionnelle + choix de cartes
+   *  pour les étapes interactives du script — clic générique). */
+  usePowerCard: (cardId: PowerCardId, targetIdx?: number, choices?: PowerChoices) => void;
   /** Nettoyer les ressources */
   destroy: () => void;
 

@@ -4,6 +4,7 @@ import { memo, useEffect, useRef, useState } from "react";
 import { T } from "@/config/theme";
 import { FCFA } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
+import { useRegisterZone, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
 import type { Player } from "@/types/game";
 
 interface AvatarProps {
@@ -12,9 +13,20 @@ interface AvatarProps {
   seconds: number;
   turnSeconds: number;
   size?: number;
+  /** Siège (pour l'enregistrement du handle timer). */
+  seatIdx?: number;
 }
 
-export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, size = 58 }: AvatarProps) {
+type AuraStyle = "shield" | "mask" | "totem" | "lucky";
+
+const AURA_EMOJI: Record<AuraStyle, string> = {
+  shield: "🛡️",
+  mask: "🎭",
+  totem: "🗿",
+  lucky: "🍀",
+};
+
+export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, size = 58, seatIdx }: AvatarProps) {
   const R = size / 2 - 5;
   const S = size;
   const C = 2 * Math.PI * R;
@@ -23,6 +35,36 @@ export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, si
   const [flash, setFlash] = useState<"gain" | "loss" | null>(null);
   const [floatDiff, setFloatDiff] = useState<number | null>(null);
   const prevBalance = useRef(p.balance);
+
+  /* ── Effets pilotés par le handle timer (moteur des pouvoirs) ── */
+  const rootRef = useRef<HTMLDivElement>(null);
+  const [frozen, setFrozen] = useState(false);
+  const [timerDelta, setTimerDelta] = useState<{ key: string; seconds: number } | null>(null);
+  const [aura, setAura] = useState<AuraStyle | null>(null);
+  const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useRegisterZone(seatIdx !== undefined ? (`timer:${seatIdx}` as ZoneKey) : undefined, {
+    getRect: () => rootRef.current?.getBoundingClientRect() ?? null,
+    showFreeze: (durationMs: number) => {
+      setFrozen(true);
+      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current);
+      freezeTimerRef.current = setTimeout(() => setFrozen(false), durationMs);
+    },
+    showDelta: (deltaSeconds: number) => {
+      setTimerDelta({ key: `delta-${Date.now()}`, seconds: deltaSeconds });
+      if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
+      deltaTimerRef.current = setTimeout(() => setTimerDelta(null), 1600);
+    },
+    showAura: (style: AuraStyle | null) => setAura(style),
+  });
+
+  useEffect(() => {
+    return () => {
+      if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current);
+      if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
+    };
+  }, []);
 
   useEffect(() => {
     if (p.balance !== prevBalance.current) {
@@ -40,7 +82,7 @@ export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, si
   }, [p.balance]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: size + 28 }}>
+    <div ref={rootRef} style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 3, minWidth: size + 28 }}>
       <div style={{ position: "relative", width: S, height: S }}>
         <svg width={S} height={S} style={{ position: "absolute", inset: 0, transform: "rotate(-90deg)" }}>
           <circle cx={S / 2} cy={S / 2} r={R} fill="none" stroke="rgba(255,248,232,.18)" strokeWidth="4" />
@@ -50,7 +92,7 @@ export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, si
               cy={S / 2}
               r={R}
               fill="none"
-              stroke={seconds <= 5 ? T.pink : T.gold}
+              stroke={frozen ? "#7fd6ff" : seconds <= 5 ? T.pink : T.gold}
               strokeWidth="4"
               strokeLinecap="round"
               strokeDasharray={C}
@@ -62,6 +104,35 @@ export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, si
         <span style={{ position: "absolute", inset: 5 }}>
           <AvatarIllustration seed={p.emoji || p.name} size={S - 10} active={active} />
         </span>
+        {/* Gel du timer (Sable du Temps) */}
+        {frozen && (
+          <span className="nj-timer-frozen" aria-label="Timer gelé">
+            ❄️
+          </span>
+        )}
+        {/* Aura persistante (bouclier, masque, totem, chance) */}
+        {aura && (
+          <>
+            <span className={`nj-avatar-aura-field nj-avatar-aura-field-${aura}`} aria-hidden="true">
+              <i />
+              <i />
+              <i />
+            </span>
+            <span className={`nj-avatar-aura nj-avatar-aura-${aura}`} aria-label={`Protection ${aura}`}>
+              {AURA_EMOJI[aura]}
+            </span>
+          </>
+        )}
+        {/* Delta de temps flottant (+8s / −3s) */}
+        {timerDelta && (
+          <span
+            key={timerDelta.key}
+            className="float-up nj-timer-delta"
+            style={{ color: timerDelta.seconds >= 0 ? T.good : T.bad }}
+          >
+            {timerDelta.seconds >= 0 ? `+${timerDelta.seconds}s` : `${timerDelta.seconds}s`}
+          </span>
+        )}
         {active && (
           <div
             style={{
@@ -71,9 +142,9 @@ export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, si
               transform: "translateX(-50%)",
               minWidth: 34,
               textAlign: "center",
-              background: seconds <= 5 ? T.pink : T.night1,
+              background: frozen ? "#1c4a63" : seconds <= 5 ? T.pink : T.night1,
               color: T.chalk,
-              border: `1px solid ${seconds <= 5 ? T.pink : T.gold}55`,
+              border: `1px solid ${frozen ? "#7fd6ff" : seconds <= 5 ? T.pink : T.gold}55`,
               fontSize: 10,
               fontWeight: 900,
               borderRadius: 999,

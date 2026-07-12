@@ -17,13 +17,21 @@ import {
   legalCards,
   trickWinner,
 } from "@/engine/rules";
+import { canActivatePower } from "@/engine/power/canActivate";
+import { interpretPowerScript } from "@/engine/power/interpret";
+import { applyResolvedOps } from "@/engine/power/apply";
+import { findBlockingEffect } from "@/engine/power/blocking";
+import { resolveTargets } from "@/engine/power/targets";
+import { PowerRuntimeState } from "@/engine/power/runtimeState";
 import {
-  applyPowerCard,
-  canActivatePowerCard,
-  powerEffectHasImpact,
-} from "@/engine/powerEffects";
+  applyTrickPowerRewards,
+  consumeNextCardModifiers,
+} from "@/engine/power/rewards";
+import type { PowerChoices, PowerResolved, PowerStateAdapter } from "@/engine/power";
+import { powerScriptOf } from "@/config/powers";
 import { DEV } from "@/config/devConfig";
 import type {
+  ActivePowerEffect,
   Card,
   DepositedCard,
   GameConfig,
@@ -121,26 +129,11 @@ export class FirestoreGameSync implements GameSyncActions {
   private powerActivations: PowerCardActivation[] = [];
   /** Power activations déjà émises à l'UI (anti-doublon). */
   private emittedPowerPlayIds = new Set<string>();
-  /** Effets de pouvoir actifs sur le pli courant (score multiplier / pot bonus). */
-  private activePowerEffects: {
-    cardId: PowerCardId;
-    activatedByUid: string;
-    scopeTrickNo: number;
-    scoreMultiplier?: number;
-    potBonus?: number;
-    conditionalPotBonus?: boolean;
-    refundOnLoss?: number;
-    shield?: boolean;
-    preventDoublePenalty?: boolean;
-    cancelReveal?: boolean;
-    valueBonus?: number;
-    suitOverride?: boolean;
-  }[] = [];
-  /** Joueurs forcés de jouer leur carte la plus faible (Coupe-Circuit). */
-  private forcedLowestUids = new Set<string>();
-  private frozenUntilByUid: Record<string, number> = {};
-  /** Pénalité de secondes à retrancher au PROCHAIN tour d'un joueur (Cri du Chef). */
-  private pendingTimerPenaltyByUid: Record<string, number> = {};
+  /** Effets de pouvoir actifs sur le pli courant — type UNIFIÉ avec le mode
+   *  local, indexé par SEAT (= index dans roomPlayers, figé pendant la manche). */
+  private activePowerEffects: ActivePowerEffect[] = [];
+  /** Restrictions de jeu, timers gelés et pénalités différées (moteur partagé, seat-keyed). */
+  private powerRuntime = new PowerRuntimeState();
 
   private unsubGame: Unsubscribe | null = null;
   private timerHandle: ReturnType<typeof setInterval> | null = null;
@@ -235,7 +228,7 @@ export class FirestoreGameSync implements GameSyncActions {
   };
 
   /* ── Interface GameSyncActions.usePowerCard ── */
-  usePowerCard = async (cardId: PowerCardId, targetIdx?: number) => {
+  usePowerCard = async (cardId: PowerCardId, targetIdx?: number, choices?: PowerChoices) => {
     if (this.phase !== "turns") return;
 
     const uid = this.opts.roomPlayers[this.myIdx]?.uid;
@@ -251,9 +244,11 @@ export class FirestoreGameSync implements GameSyncActions {
     );
     if (alreadyUsed && !DEV.unlimitedPowers) return;
 
-    // Convertir targetIdx (UI index) en uid
+    // Convertir targetIdx (UI index) en uid — via toServerIdx : l'ordre UI est
+    // ROTATIF (moi = 0), pas l'ordre roomPlayers. Sans cette conversion, tout
+    // joueur non-hôte ciblait le mauvais adversaire.
     const targetUid = targetIdx !== undefined
-      ? this.opts.roomPlayers[targetIdx]?.uid
+      ? this.opts.roomPlayers[this.toServerIdx(targetIdx)]?.uid
       : undefined;
 
     const playId = generatePlayId(uid);
@@ -262,7 +257,9 @@ export class FirestoreGameSync implements GameSyncActions {
       pendingPowerActivation: {
         cardId,
         activatedByUid: uid,
-        targetUid,
+        // Spread conditionnel : Firestore rejette les champs `undefined`
+        ...(targetUid ? { targetUid } : {}),
+        ...(choices ? { choices } : {}),
         equippedPowersSnapshot: equipped,
         trickNo: this.trickNo,
         playId,
@@ -645,9 +642,7 @@ export class FirestoreGameSync implements GameSyncActions {
     this.powerActivations = [];
     this.emittedPowerPlayIds.clear();
     this.activePowerEffects = [];
-    this.forcedLowestUids.clear();
-    this.frozenUntilByUid = {};
-    this.pendingTimerPenaltyByUid = {};
+    this.powerRuntime.reset();
     this.equippedPowersByUid = {};
     roomPlayers.forEach((p) => {
       this.equippedPowersByUid[p.uid] = p.uid === this.opts.myUid ? this.opts.profile.equippedPowers ?? [] : [];
@@ -773,15 +768,73 @@ export class FirestoreGameSync implements GameSyncActions {
 
   /* ═══════════════ Power cards (online) ═══════════════ */
 
-  /** L'hôte valide et applique une activation de carte pouvoir. */
+  /** Port du moteur générique vers l'état HOST : les setters accumulent en
+   *  plus les champs à écrire au doc partagé (updates). Seats = index roomPlayers. */
+  private buildHostAdapter(updates: Record<string, unknown>): PowerStateAdapter {
+    return {
+      maxCardValue: this.opts.cfg.ranks.max,
+      getState: () => this.buildStateForEngine(),
+      getDeck: () => this.deck,
+      setDeck: (deck) => {
+        this.deck = deck;
+        updates.deck = deck;
+      },
+      setHand: (seat, hand) => {
+        const uid = this.opts.roomPlayers[seat]?.uid;
+        if (!uid) return;
+        this.allHands[uid] = hand;
+        updates.hands = cloneHands(this.allHands);
+        this.refreshPlayersFromCollections();
+      },
+      addPot: (amount) => {
+        this.pot += amount;
+        updates.pot = this.pot;
+      },
+      multiplyPot: (factor) => {
+        this.pot *= factor;
+        updates.pot = this.pot;
+      },
+      pushEffect: (effect) => {
+        this.activePowerEffects.push(effect);
+      },
+      takeEffect: (pred) => {
+        const found = this.activePowerEffects.find(pred);
+        if (found) {
+          this.activePowerEffects = this.activePowerEffects.filter((e) => e !== found);
+        }
+        return found;
+      },
+      freezeTimer: (seat, untilMs) => this.powerRuntime.freeze(seat, untilMs),
+      applyTimerDelta: (seat, seconds) => this.applyTimerDelta(seat, seconds),
+      addPendingTimerPenalty: (seat, seconds) => this.powerRuntime.addTimerPenalty(seat, seconds),
+      setPlayRestriction: (seat, restriction) => this.powerRuntime.setRestriction(seat, restriction),
+    };
+  }
+
+  private buildStateForEngine(): GameState {
+    return {
+      phase: this.phase,
+      trickNo: this.trickNo,
+      trickPlays: [...this.trickPlays],
+      leaderIdx: this.leaderIdx,
+      turnIdx: this.turnIdx,
+      pot: this.pot,
+      dominantIdx: this.dominantIdx,
+      banner: "",
+      activePowerEffects: [...this.activePowerEffects],
+      players: this.players.map((p) => ({ ...p, hand: [...p.hand], deposit: [...p.deposit] })),
+    };
+  }
+
+  /** L'hôte valide et applique une activation de carte pouvoir (moteur partagé). */
   private async hostProcessPowerActivation(pending: NonNullable<GameDoc["pendingPowerActivation"]>) {
     // Anti-replay
     if (this.emittedPowerPlayIds.has(pending.playId)) return;
     if (this.powerActivations.some((a) => a.playId === pending.playId)) return;
 
-    // Vérifier que c'est le tour du joueur qui active
-    const activatorIdx = this.opts.roomPlayers.findIndex((p) => p.uid === pending.activatedByUid);
-    if (activatorIdx < 0) return;
+    // Vérifier que le joueur existe et que la phase le permet
+    const activatorSeat = this.opts.roomPlayers.findIndex((p) => p.uid === pending.activatedByUid);
+    if (activatorSeat < 0) return;
     if (this.phase !== "turns") return;
 
     // Vérifier que la carte est équipée
@@ -797,63 +850,40 @@ export class FirestoreGameSync implements GameSyncActions {
     );
     if (alreadyUsed && !DEV.unlimitedPowers) return;
 
-    // Convertir les uids en indices UI locaux pour le moteur d'effet
-    const activatedByLocalIdx = activatorIdx;
-    const targetLocalIdx = pending.targetUid
+    // Ciblage : uid → seat, puis résolution générique (random inclus)
+    const script = powerScriptOf(pending.cardId);
+    const requestedSeat = pending.targetUid
       ? this.opts.roomPlayers.findIndex((p) => p.uid === pending.targetUid)
-      : undefined;
-
-    // Construire l'état pour le moteur
-    const gameStateForEffect: GameState = {
-      phase: this.phase,
-      trickNo: this.trickNo,
-      trickPlays: [...this.trickPlays],
-      leaderIdx: this.leaderIdx,
-      turnIdx: this.turnIdx,
-      pot: this.pot,
-      dominantIdx: this.dominantIdx,
-      banner: "",
-      players: this.players.map((p) => ({ ...p, hand: [...p.hand], deposit: [...p.deposit] })),
-    };
-
-    const error = canActivatePowerCard(pending.cardId, {
-      state: gameStateForEffect,
-      activatedBy: activatedByLocalIdx,
-      target: targetLocalIdx,
+      : -1;
+    const targets = resolveTargets(script.target, {
+      activatedBy: activatorSeat,
+      playerCount: this.opts.roomPlayers.length,
+      requested: requestedSeat >= 0 ? requestedSeat : undefined,
+    });
+    const ctx = {
+      state: this.buildStateForEngine(),
+      activatedBy: activatorSeat,
+      targets,
       deck: this.deck,
       maxValue: this.opts.cfg.ranks.max,
-    });
-
-    if (error) return;
-
-    const blockedByCardId = this.blockingPowerFor(pending.cardId, pending.targetUid);
-
-    const result = blockedByCardId ? {} : applyPowerCard(pending.cardId, {
-      state: gameStateForEffect,
-      activatedBy: activatedByLocalIdx,
-      target: targetLocalIdx,
-      deck: this.deck,
-      maxValue: this.opts.cfg.ranks.max,
-    });
-    // Sans effet réel (ex: Marché de Nuit sans carte plus forte dans la
-    // pioche) → la carte n'est PAS consommée (reste disponible).
-    const hasEffect = blockedByCardId ? true : powerEffectHasImpact(result);
-
-    // Préparer l'activation confirmée
-    const activation: PowerCardActivation = {
-      cardId: pending.cardId,
-      activatedByUid: pending.activatedByUid,
-      targetUid: pending.targetUid,
-      trickNo: pending.trickNo,
-      used: hasEffect,
-      playId: pending.playId,
-      blockedByCardId,
-      consumedCardIds: hasEffect ? [pending.cardId] : [],
+      // Les choix de cartes sont validés par les sélecteurs "chosen" (id+index
+      // doivent correspondre à la vraie main côté hôte — anti-triche).
+      choices: pending.choices,
     };
-    this.powerActivations.push(activation);
-    this.emittedPowerPlayIds.add(pending.playId);
 
-    // Préparer les updates Firestore
+    if (canActivatePower(script, ctx)) return;
+
+    // Interception : un effet actif de la cible (bouclier, masque…) contre ce script
+    let blockedByCardId: PowerCardId | undefined;
+    if (targets.length > 0) {
+      const blocker = findBlockingEffect(script, targets[0], this.activePowerEffects);
+      if (blocker) {
+        this.activePowerEffects = this.activePowerEffects.filter((e) => e !== blocker);
+        blockedByCardId = blocker.cardId;
+      }
+    }
+
+    // Updates Firestore accumulés par l'adaptateur pendant l'application
     const updates: Record<string, unknown> = {
       pendingPowerActivation: null,
       lastPowerActivation: {
@@ -861,98 +891,46 @@ export class FirestoreGameSync implements GameSyncActions {
         activatedByUid: pending.activatedByUid,
         playId: pending.playId,
       },
-      powerActivations: [...this.powerActivations],
       updatedAt: serverTimestamp(),
     };
 
-    // Appliquer les effets concrets
-    if (result.potBonus) {
-      this.pot += result.potBonus;
-      this.activePowerEffects.push({
-        cardId: pending.cardId,
-        activatedByUid: pending.activatedByUid,
-        scopeTrickNo: this.trickNo,
-        potBonus: result.potBonus,
-      });
-      updates.pot = this.pot;
+    let used = true;
+    let resolved: PowerResolved | undefined;
+    if (!blockedByCardId) {
+      const outcome = interpretPowerScript(script, ctx);
+      resolved = outcome.resolved;
+      if (outcome.resolved.impact) {
+        applyResolvedOps(
+          outcome.plan,
+          { cardId: pending.cardId, activatedBy: activatorSeat, trickNo: this.trickNo },
+          this.buildHostAdapter(updates),
+        );
+      } else {
+        // Sans effet réel (ex: Marché de Nuit sans carte plus forte dans la
+        // pioche) → la carte n'est PAS consommée (reste disponible).
+        used = false;
+      }
     }
-    if (result.trickScoreMultiplier) {
-      this.activePowerEffects.push({
-        cardId: pending.cardId,
-        activatedByUid: pending.activatedByUid,
-        scopeTrickNo: this.trickNo,
-        scoreMultiplier: result.trickScoreMultiplier,
-      });
-    }
-    if (result.forceLowestCard && pending.targetUid) {
-      this.forcedLowestUids.add(pending.targetUid);
-    }
-    if (result.timerFreeze && pending.targetUid) {
-      this.frozenUntilByUid[pending.targetUid] = Date.now() + result.timerFreeze.durationMs;
-    }
-    if (result.newDeck) {
-      this.deck = result.newDeck;
-      updates.deck = this.deck;
-    }
-    if (result.handsMutated) {
-      Object.entries(result.handsMutated).forEach(([idxStr, hand]) => {
-        const idx = Number(idxStr);
-        const uid = this.opts.roomPlayers[idx]?.uid;
-        if (uid) this.allHands[uid] = hand;
-      });
-      updates.hands = cloneHands(this.allHands);
-      this.refreshPlayersFromCollections();
-    }
-    if (result.conditionalPotBonus) {
-      this.activePowerEffects.push({
-        cardId: pending.cardId,
-        activatedByUid: pending.activatedByUid,
-        scopeTrickNo: this.trickNo,
-        potBonus: result.conditionalPotBonus,
-        conditionalPotBonus: true,
-      });
-    }
-    if (result.timerDelta) {
-      this.applyTimerDelta(result.timerDelta.playerIdx, result.timerDelta.seconds);
-    }
-    if (result.opponentTimerDelta) {
-      // Différé : les adversaires ne sont pas au tour → pénalité consommée au
-      // démarrage de LEUR prochain tour (Cri du Chef).
-      const penalty = Math.abs(result.opponentTimerDelta.seconds);
-      this.opts.roomPlayers.forEach((p, idx) => {
-        if (idx !== activatedByLocalIdx && p.uid) {
-          this.pendingTimerPenaltyByUid[p.uid] = (this.pendingTimerPenaltyByUid[p.uid] ?? 0) + penalty;
-        }
-      });
-    }
-    if (result.shield) {
-      this.activePowerEffects.push({ cardId: pending.cardId, activatedByUid: pending.activatedByUid, scopeTrickNo: this.trickNo, shield: true });
-    }
-    if (result.refundOnLoss) {
-      this.activePowerEffects.push({
-        cardId: pending.cardId,
-        activatedByUid: pending.activatedByUid,
-        scopeTrickNo: this.trickNo,
-        refundOnLoss: result.refundOnLoss.ratio,
-      });
-    }
-    if (result.valueBonusNext) {
-      this.activePowerEffects.push({
-        cardId: pending.cardId,
-        activatedByUid: pending.activatedByUid,
-        scopeTrickNo: this.trickNo,
-        valueBonus: result.valueBonusNext.amount,
-      });
-    }
-    if (result.preventDoublePenalty) {
-      this.activePowerEffects.push({ cardId: pending.cardId, activatedByUid: pending.activatedByUid, scopeTrickNo: this.trickNo, preventDoublePenalty: true });
-    }
-    if (result.cancelReveal) {
-      this.activePowerEffects.push({ cardId: pending.cardId, activatedByUid: pending.activatedByUid, scopeTrickNo: this.trickNo, cancelReveal: true });
-    }
-    if (result.suitOverrideNext) {
-      this.activePowerEffects.push({ cardId: pending.cardId, activatedByUid: pending.activatedByUid, scopeTrickNo: this.trickNo, suitOverride: true });
-    }
+
+    // Activation confirmée. NB : `resolved` transite dans le doc partagé —
+    // même niveau d'exposition que `hands` (déjà en clair), c'est un HINT
+    // d'animation, pas une donnée secrète. Spreads conditionnels : Firestore
+    // rejette les champs `undefined`.
+    const consumed = blockedByCardId ? true : used;
+    const activation: PowerCardActivation = {
+      cardId: pending.cardId,
+      activatedByUid: pending.activatedByUid,
+      ...(pending.targetUid ? { targetUid: pending.targetUid } : {}),
+      trickNo: pending.trickNo,
+      used: consumed,
+      playId: pending.playId,
+      ...(blockedByCardId ? { blockedByCardId } : {}),
+      consumedCardIds: consumed ? [pending.cardId] : [],
+      ...(resolved ? { resolved, scriptVersion: 1 as const } : {}),
+    };
+    this.powerActivations.push(activation);
+    this.emittedPowerPlayIds.add(pending.playId);
+    updates.powerActivations = [...this.powerActivations];
 
     const gameRef = doc(db, "rooms", this.opts.roomId, "game", "current");
     await updateDoc(gameRef, updates);
@@ -962,21 +940,6 @@ export class FirestoreGameSync implements GameSyncActions {
   }
 
   /** Émet les nouvelles activations confirmées aux clients non-hôtes. */
-  private blockingPowerFor(cardId: PowerCardId, targetUid?: string): PowerCardId | undefined {
-    if (!targetUid) return undefined;
-    const shield = this.activePowerEffects.find((effect) => effect.activatedByUid === targetUid && effect.shield);
-    if (shield) {
-      this.activePowerEffects = this.activePowerEffects.filter((effect) => effect !== shield);
-      return shield.cardId;
-    }
-    const mask = this.activePowerEffects.find((effect) => effect.activatedByUid === targetUid && effect.cancelReveal);
-    if (mask && cardId === "oeil_sorcier") {
-      this.activePowerEffects = this.activePowerEffects.filter((effect) => effect !== mask);
-      return mask.cardId;
-    }
-    return undefined;
-  }
-
   private emitNewPowerActivations(game: GameDoc) {
     const acts = game.powerActivations ?? [];
     const myUid = this.opts.roomPlayers[this.myIdx]?.uid;
@@ -984,12 +947,15 @@ export class FirestoreGameSync implements GameSyncActions {
       if (!this.emittedPowerPlayIds.has(act.playId)) {
         this.emittedPowerPlayIds.add(act.playId);
         this.powerActivations.push(act);
-        // Œil du Sorcier : l'activateur voit la vraie main de la cible. On la
-        // lit depuis allHands (déjà en mémoire) et on l'attache LOCALEMENT à
-        // sa copie — jamais diffusée aux autres.
+        // Révélation de main (script contenant un op revealHand) : l'activateur
+        // voit la vraie main de la cible. On la lit depuis allHands (déjà en
+        // mémoire) et on l'attache LOCALEMENT à sa copie — jamais diffusée.
         let emitted = act;
+        const revealsHand = powerScriptOf(act.cardId).steps.some((step) =>
+          (step.ops ?? []).some((op) => op.op === "revealHand"),
+        );
         if (
-          act.cardId === "oeil_sorcier"
+          revealsHand
           && !act.blockedByCardId
           && act.targetUid
           && act.activatedByUid === myUid
@@ -1035,46 +1001,6 @@ export class FirestoreGameSync implements GameSyncActions {
     }
   }
 
-  private applyNextCardModifiers(uid: string, card: Card): Card {
-    const led = this.trickPlays[0]?.card.suit ?? null;
-    const next = { ...card };
-    const consumed: typeof this.activePowerEffects = [];
-
-    const valueBoost = this.activePowerEffects.find((effect) => effect.activatedByUid === uid && effect.valueBonus);
-    if (valueBoost?.valueBonus) {
-      next.effectiveValue = Math.min(this.opts.cfg.ranks.max, card.value + valueBoost.valueBonus);
-      next.powerTag = valueBoost.cardId;
-      consumed.push(valueBoost);
-    }
-
-    const suitOverride = this.activePowerEffects.find((effect) => effect.activatedByUid === uid && effect.suitOverride);
-    if (suitOverride && led && card.suit !== led) {
-      next.effectiveSuit = led;
-      next.powerTag = suitOverride.cardId;
-      consumed.push(suitOverride);
-    }
-
-    if (consumed.length > 0) {
-      this.activePowerEffects = this.activePowerEffects.filter((effect) => !consumed.includes(effect));
-    }
-    return next;
-  }
-
-  private applyTrickPowerRewards(winnerIdx: number) {
-    const winnerUid = this.opts.roomPlayers[winnerIdx]?.uid;
-    if (!winnerUid) return;
-    const scoped = this.activePowerEffects.filter((effect) => effect.scopeTrickNo === this.trickNo && effect.activatedByUid === winnerUid);
-    scoped.forEach((effect) => {
-      if (effect.scoreMultiplier && effect.scoreMultiplier > 1) this.pot *= effect.scoreMultiplier;
-      if (effect.conditionalPotBonus && effect.potBonus) this.pot += effect.potBonus;
-    });
-    this.activePowerEffects = this.activePowerEffects.filter((effect) => {
-      if (effect.scopeTrickNo !== this.trickNo) return true;
-      if (effect.scoreMultiplier || effect.conditionalPotBonus) return false;
-      return true;
-    });
-  }
-
   private async hostCommitPlay(playerIdx: number, cardIdx: number, expectedCard: Card, playId: string) {
     if (this.phase !== "turns" || this.turnIdx !== playerIdx) return;
 
@@ -1086,19 +1012,30 @@ export class FirestoreGameSync implements GameSyncActions {
     const led = this.trickPlays[0]?.card.suit ?? null;
     if (!legalCards(hand, led).includes(cardIdx)) return;
 
-    // Coupe-Circuit / Filet du Pêcheur : si la cible est forcée, l'hôte (autorité)
-    // remplace la carte jouée par sa carte légale la plus faible (miroir du local).
-    let playIdx = cardIdx;
-    if (this.forcedLowestUids.has(player.uid)) {
-      this.forcedLowestUids.delete(player.uid);
-      const legalIdxs = legalCards(hand, led);
-      const lowest = [...legalIdxs].sort((a, b) => hand[a].value - hand[b].value)[0];
-      if (lowest !== undefined) playIdx = lowest;
+    // Restriction de jeu (Coupe-Circuit, Filet…) : l'hôte (autorité) remplace
+    // la carte jouée par la carte imposée (moteur partagé, seat-keyed).
+    const restrictedIdx = this.powerRuntime.resolvePlay(playerIdx, hand, led, cardIdx);
+    if (restrictedIdx === null) {
+      await updateDoc(doc(db, "rooms", roomId, "game", "current"), {
+        pendingPlay: null,
+        updatedAt: serverTimestamp(),
+      });
+      return;
     }
+    const playIdx = restrictedIdx;
 
     const removed = hand.splice(playIdx, 1)[0] ?? expectedCard;
     if (!removed) return;
-    const resolvedCard = this.applyNextCardModifiers(player.uid, removed);
+    // Modificateurs « prochaine carte » (Éclair, Pagne Changeant) — helper partagé
+    const modifiers = consumeNextCardModifiers(
+      this.activePowerEffects,
+      playerIdx,
+      removed,
+      led,
+      this.opts.cfg.ranks.max,
+    );
+    this.activePowerEffects = modifiers.effects;
+    const resolvedCard = modifiers.card;
 
     const drop = this.dropForPlay(playId);
     const depCard: DepositedCard = { ...resolvedCard, ...drop };
@@ -1116,7 +1053,9 @@ export class FirestoreGameSync implements GameSyncActions {
 
     if (this.trickPlays.length === roomPlayers.length) {
       const win = trickWinner(this.trickPlays, this.trickPlays[0].card.suit);
-      this.applyTrickPowerRewards(win);
+      const rewards = applyTrickPowerRewards(this.activePowerEffects, this.trickNo, win, this.pot);
+      this.pot = rewards.pot;
+      this.activePowerEffects = rewards.effects;
       this.phase = "trickEnd";
       this.dominantIdx = win;
       this.stopTimer();
@@ -1208,16 +1147,13 @@ export class FirestoreGameSync implements GameSyncActions {
 
     const potNow = this.pot || mise * final.length;
 
-    // Appliquer le multiplicateur de score (Bénédiction du Chef)
+    // Appliquer le multiplicateur de score (Bénédiction du Chef) — seat-keyed
     let finalPot = potNow;
-    const winnerUid = roomPlayers[winnerIdx]?.uid;
-    if (winnerUid) {
-      const scoreMultiplier = this.activePowerEffects.find(
-        (e) => e.activatedByUid === winnerUid && e.scoreMultiplier,
-      )?.scoreMultiplier;
-      if (scoreMultiplier && scoreMultiplier > 1) {
-        finalPot = finalPot * scoreMultiplier;
-      }
+    const scoreMultiplier = this.activePowerEffects.find(
+      (e) => e.activatedBy === winnerIdx && e.scoreMultiplier,
+    )?.scoreMultiplier;
+    if (scoreMultiplier && scoreMultiplier > 1) {
+      finalPot = finalPot * scoreMultiplier;
     }
 
     final[winnerIdx].balance += finalPot;
@@ -1225,10 +1161,9 @@ export class FirestoreGameSync implements GameSyncActions {
     if (info.doubles) {
       final.forEach((player, i) => {
         if (i !== winnerIdx) {
-          const uid = roomPlayers[i]?.uid;
-          const protectedByTotem = uid
-            ? this.activePowerEffects.some((effect) => effect.activatedByUid === uid && effect.preventDoublePenalty)
-            : false;
+          const protectedByTotem = this.activePowerEffects.some(
+            (effect) => effect.activatedBy === i && effect.preventDoublePenalty,
+          );
           if (!protectedByTotem) {
             player.balance -= mise;
             final[winnerIdx].balance += mise;
@@ -1239,10 +1174,9 @@ export class FirestoreGameSync implements GameSyncActions {
 
     final.forEach((player, i) => {
       if (i === winnerIdx) return;
-      const uid = roomPlayers[i]?.uid;
-      const refund = uid
-        ? this.activePowerEffects.find((effect) => effect.activatedByUid === uid && effect.refundOnLoss)?.refundOnLoss
-        : undefined;
+      const refund = this.activePowerEffects.find(
+        (effect) => effect.activatedBy === i && effect.refundOnLoss,
+      )?.refundOnLoss;
       if (refund) player.balance += Math.round(mise * refund);
     });
 
@@ -1293,8 +1227,7 @@ export class FirestoreGameSync implements GameSyncActions {
 
     this.timerHandle = setInterval(() => {
       if (this.destroyed) return;
-      const uid = this.opts.roomPlayers[this.turnIdx]?.uid;
-      if (uid && (this.frozenUntilByUid[uid] ?? 0) > Date.now()) {
+      if (this.powerRuntime.isFrozen(this.turnIdx)) {
         this.timerListeners.forEach((cb) => cb(this.seconds));
         return;
       }
@@ -1317,17 +1250,8 @@ export class FirestoreGameSync implements GameSyncActions {
   /** Budget de secondes de départ du tour courant = turnSeconds moins une
       éventuelle pénalité différée (Cri du Chef), consommée une seule fois. */
   private startTurnSeconds(): number {
-    let s = this.opts.cfg.turnSeconds;
-    const uid = this.opts.roomPlayers[this.turnIdx]?.uid;
-    if (uid) {
-      const penalty = this.pendingTimerPenaltyByUid[uid];
-      if (penalty) {
-        s = Math.max(1, s - penalty);
-        delete this.pendingTimerPenaltyByUid[uid];
-      }
-    }
-    this.seconds = s;
-    return s;
+    this.seconds = this.powerRuntime.consumeTimerPenalty(this.turnIdx, this.opts.cfg.turnSeconds);
+    return this.seconds;
   }
 
   private async hostPlayTimeoutCard() {
@@ -1406,9 +1330,10 @@ export class FirestoreGameSync implements GameSyncActions {
       pot: this.pot,
       dominantIdx: this.dominantIdx == null ? null : this.toUiIdx(this.dominantIdx),
       banner: "",
+      // Effets seat-keyed (server) → indices UI pour l'affichage
       activePowerEffects: this.activePowerEffects.map((effect) => ({
         ...effect,
-        activatedBy: this.toUiIdx(this.opts.roomPlayers.findIndex((player) => player.uid === effect.activatedByUid)),
+        activatedBy: this.toUiIdx(effect.activatedBy),
       })).filter((effect) => effect.activatedBy >= 0),
       players: this.buildUiPlayers(),
     };
