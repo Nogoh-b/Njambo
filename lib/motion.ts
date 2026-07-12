@@ -30,9 +30,13 @@ interface MotionEnv {
   deviceMemory: number | null;
 }
 
+/** Env par défaut, utilisé au SSR ET au premier rendu client (hydration-safe).
+    Donne le niveau "balanced" — la vraie mesure arrive après montage. */
+const SSR_MOTION_ENV: MotionEnv = { width: 1280, height: 720, hardwareConcurrency: 8, deviceMemory: 8 };
+
 function getMotionEnv(): MotionEnv {
   if (typeof window === "undefined") {
-    return { width: 1280, height: 720, hardwareConcurrency: 8, deviceMemory: 8 };
+    return SSR_MOTION_ENV;
   }
   const nav = window.navigator as Navigator & { deviceMemory?: number };
   return {
@@ -58,10 +62,18 @@ function deriveMotionLevel({ width, height, hardwareConcurrency, deviceMemory }:
 
 export function useMotionProfile(): MotionProfile {
   const { animationsOn } = useGame();
-  const prefersReduced = useReducedMotion();
-  const [env, setEnv] = useState<MotionEnv>(getMotionEnv);
+  const prefersReducedRaw = useReducedMotion();
+  // HYDRATION : le premier rendu client doit produire le MÊME HTML que le SSR
+  // (le niveau de motion finit dans des className et styles inline). Les
+  // signaux dépendants de l'appareil — viewport, CPU/RAM, prefers-reduced-motion —
+  // ne sont donc lus qu'APRÈS montage ; le profil réel s'applique au re-render.
+  const [env, setEnv] = useState<MotionEnv>(SSR_MOTION_ENV);
+  const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    setMounted(true);
+    setEnv(getMotionEnv()); // première mesure réelle, post-hydratation
+
     const onResize = () => setEnv(getMotionEnv());
     window.addEventListener("resize", onResize);
     window.addEventListener("orientationchange", onResize);
@@ -70,6 +82,8 @@ export function useMotionProfile(): MotionProfile {
       window.removeEventListener("orientationchange", onResize);
     };
   }, []);
+
+  const prefersReduced = mounted ? prefersReducedRaw : false;
 
   return useMemo(() => {
     if (!animationsOn || prefersReduced) {
