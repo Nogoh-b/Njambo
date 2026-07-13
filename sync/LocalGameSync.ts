@@ -39,6 +39,7 @@ import type {
   PowerCardId,
   ActivePowerEffect,
   Result,
+  SyncStatus,
   TrickPlay,
   WinInfo,
   Profile,
@@ -133,6 +134,7 @@ export class LocalGameSync implements GameSyncActions {
   private trickEndListeners = new Set<(winnerIdx: number) => void>();
   private roundEndListeners = new Set<(result: Result) => void>();
   private timerListeners = new Set<(seconds: number) => void>();
+  private syncStatusListeners = new Set<(status: SyncStatus) => void>();
   private powerActivatedListeners = new Set<(activation: PowerCardActivation) => void>();
 
   private seconds = 0;
@@ -705,6 +707,12 @@ export class LocalGameSync implements GameSyncActions {
     return () => this.timerListeners.delete(cb);
   };
 
+  onSyncStatus = (cb: (status: SyncStatus) => void): Unsubscribe => {
+    this.syncStatusListeners.add(cb);
+    cb({ state: "live", updatedAt: Date.now() });
+    return () => this.syncStatusListeners.delete(cb);
+  };
+
   onPowerActivated = (cb: (activation: PowerCardActivation) => void): Unsubscribe => {
     this.powerActivatedListeners.add(cb);
     return () => this.powerActivatedListeners.delete(cb);
@@ -725,6 +733,7 @@ export class LocalGameSync implements GameSyncActions {
     this.trickEndListeners.clear();
     this.roundEndListeners.clear();
     this.timerListeners.clear();
+    this.syncStatusListeners.clear();
     this.powerActivatedListeners.clear();
   }
 }

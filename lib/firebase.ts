@@ -5,7 +5,7 @@
 
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { getFirestore } from "firebase/firestore";
+import { getFirestore, initializeFirestore } from "firebase/firestore";
 import { serverTimestamp } from "firebase/firestore";
 
 export { serverTimestamp };
@@ -24,6 +24,9 @@ const firebaseConfig = {
 /* ── Singletons (évite les réinitialisations en dev avec HMR) ── */
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
 const auth = getAuth(app);
-const db = getFirestore(app);
+const forceLongPolling = process.env.NEXT_PUBLIC_FIRESTORE_FORCE_LONG_POLLING === "1";
+const db = forceLongPolling
+  ? initializeFirestore(app, { experimentalForceLongPolling: true })
+  : getFirestore(app);
 
 export { app, auth, db };

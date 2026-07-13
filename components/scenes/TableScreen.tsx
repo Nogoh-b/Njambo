@@ -46,6 +46,7 @@ import type {
   Result,
   RoomPlayer,
   Suit,
+  SyncStatus,
 } from "@/types/game";
 
 /* ═══════════════ TableScreen — la table de jeu ═══════════════
@@ -288,6 +289,10 @@ export function TableScreen({
     onCancel: () => void;
   } | null>(null);
   const [seconds, setSeconds] = useState(cfg.turnSeconds);
+  const [syncStatus, setSyncStatus] = useState<SyncStatus>({
+    state: gameMode === "bot" ? "live" : "connecting",
+    updatedAt: Date.now(),
+  });
 
   /* ----- Cartes pouvoir (UI d'activation) ----- */
   const equippedPowers = profile.equippedPowers ?? [];
@@ -924,6 +929,8 @@ export function TableScreen({
       if (s <= 5 && playersRef.current[turnIdxRef.current]?.isYou) sfxRef.current((sn) => sn.tick());
     });
 
+    const unsubSyncStatus = sync.onSyncStatus(setSyncStatus);
+
     const unsubPower = sync.onPowerActivated((activation) => {
       const mine = activation.activatedByUid === "local" || activation.activatedByUid === authUid;
       // `activation.used` peut être FAUX si la carte n'a eu aucun effet (ex :
@@ -977,6 +984,7 @@ export function TableScreen({
       unsubTrickEnd();
       unsubRoundEnd();
       unsubTimer();
+      unsubSyncStatus();
       unsubPower();
       if (roundIntroTimerRef.current) {
         clearTimeout(roundIntroTimerRef.current);
@@ -1277,6 +1285,22 @@ export function TableScreen({
           Tour {Math.min(trickNo, cfg.cardsPerPlayer)}/{cfg.cardsPerPlayer}
         </Chip>
         <Chip>Mise {FCFA(mise)}</Chip>
+        {gameMode !== "bot" && syncStatus.state !== "live" && (
+          <Chip
+            strong
+            tone={syncStatus.state === "error" || syncStatus.state === "offline" ? "pink" : "gold"}
+            style={{ fontSize: 11, padding: "5px 9px" }}
+          >
+            {syncStatus.message
+              ?? (syncStatus.state === "connecting"
+                ? "Connexion…"
+                : syncStatus.state === "slow"
+                  ? "Connexion lente…"
+                  : syncStatus.state === "offline"
+                    ? "Hors ligne"
+                    : "Synchronisation impossible")}
+          </Chip>
+        )}
       </div>
       <button
         onClick={onMenu}

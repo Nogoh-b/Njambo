@@ -495,6 +495,21 @@ export interface GameDoc {
   turnStartSeconds?: number;
 }
 
+/** Événement réseau léger, persistant assez longtemps pour ne pas être
+ *  coalescé avec la confirmation du document autoritaire `game/current`. */
+export interface PlayEventDoc {
+  kind: "play";
+  roomId: string;
+  roundId: string;
+  trickNo: number;
+  playId: string;
+  uid: string;
+  playerIdx: number;
+  cardIdx: number;
+  cardId: string;
+  createdAt: unknown; // serverTimestamp()
+}
+
 /** Document de mise à jour de solde (settlement via balance_updates subcollection) */
 export interface BalanceUpdateDoc {
   uid: string;
@@ -551,8 +566,20 @@ export interface GameSyncActions {
   onTrickEnd: (cb: (winnerIdx: number) => void) => () => void;
   onRoundEnd: (cb: (result: Result) => void) => () => void;
   onTimerTick: (cb: (seconds: number) => void) => () => void;
+  /** Santé du transport. Le moteur local reste toujours `live`. */
+  onSyncStatus: (cb: (status: SyncStatus) => void) => () => void;
   /** Événement : une carte pouvoir a été activée */
   onPowerActivated: (cb: (activation: PowerCardActivation) => void) => () => void;
+}
+
+export type SyncStatusState = "connecting" | "live" | "slow" | "offline" | "error";
+
+export interface SyncStatus {
+  state: SyncStatusState;
+  updatedAt: number;
+  message?: string;
+  latencyMs?: number;
+  playId?: string;
 }
 
 export interface GameConfig {

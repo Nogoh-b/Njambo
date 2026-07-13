@@ -1,15 +1,21 @@
 import {
   arrayUnion,
+  collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
+  query,
   serverTimestamp,
   setDoc,
   updateDoc,
+  where,
+  writeBatch,
   type Unsubscribe,
 } from "firebase/firestore";
 import { db } from "@/lib/firebase";
-import { generatePlayId } from "@/lib/cryptoUtils";
+import { generatePlayId, generateSecureId } from "@/lib/cryptoUtils";
+import { PlaySyncTracker } from "@/sync/PlaySyncTracker";
 import { buildDeck, shuffle } from "@/engine/deck";
 import {
   checkInstantWin,
@@ -38,6 +44,7 @@ import type {
   GameDoc,
   GameState,
   GameSyncActions,
+  PlayEventDoc,
   Phase,
   Player,
   PowerCardActivation,
@@ -45,6 +52,7 @@ import type {
   Profile,
   Result,
   RoomPlayer,
+  SyncStatus,
   TrickPlay,
   WinInfo,
 } from "@/types/game";
@@ -110,6 +118,7 @@ export class FirestoreGameSync implements GameSyncActions {
   private pot = 0;
   private dominantIdx: number | null = null;
   private seconds = 0;
+  private roundId = "";
 
   private allHands: Record<string, Card[]> = {};
   private deck: Card[] = [];
@@ -121,6 +130,7 @@ export class FirestoreGameSync implements GameSyncActions {
   private trickEndListeners = new Set<(winnerIdx: number) => void>();
   private roundEndListeners = new Set<(result: Result) => void>();
   private timerListeners = new Set<(seconds: number) => void>();
+  private syncStatusListeners = new Set<(status: SyncStatus) => void>();
   private powerActivatedListeners = new Set<(activation: PowerCardActivation) => void>();
 
   /** Power cards équipées par joueur (uid → ids). */
@@ -136,6 +146,7 @@ export class FirestoreGameSync implements GameSyncActions {
   private powerRuntime = new PowerRuntimeState();
 
   private unsubGame: Unsubscribe | null = null;
+  private unsubPlayEvents: Unsubscribe | null = null;
   private timerHandle: ReturnType<typeof setInterval> | null = null;
   private dealHandle: ReturnType<typeof setTimeout> | null = null;
   private rematchHandle: ReturnType<typeof setInterval> | null = null;
@@ -148,6 +159,7 @@ export class FirestoreGameSync implements GameSyncActions {
   private lastEmittedResultKey: string | null = null;
   private lastTrickEndKey: string | null = null;
   private emittedPlayIds = new Set<string>();
+  private playTracker = new PlaySyncTracker();
   private optimisticAppliedPlayIds = new Set<string>();
   private optimisticDrops = new Map<string, Pick<DepositedCard, "dropRot" | "dx" | "dy">>();
   private processingPlayIds = new Set<string>();
@@ -159,6 +171,17 @@ export class FirestoreGameSync implements GameSyncActions {
   /** Heure client au moment où serverTimeBase a été calibré (compensation offset) */
   private clientTimeBase: number | null = null;
   private takeoverRequested = false;
+  private lastDocPendingPlayId: string | null = null;
+  private lastStableGame: GameDoc | null = null;
+  private lastEmittedStateJson = "";
+  private currentEventRoundId = "";
+  private roundEventIds = new Set<string>();
+  private eventCleanupTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private writeSlowTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private confirmSlowTimers = new Map<string, ReturnType<typeof setTimeout>>();
+  private syncStatus: SyncStatus = { state: "connecting", updatedAt: Date.now() };
+  private onBrowserOffline = () => this.emitSyncStatus("offline", "Connexion interrompue");
+  private onBrowserOnline = () => this.emitSyncStatus("connecting", "Reconnexion…");
 
   constructor(opts: FirestoreSyncOptions) {
     this.opts = opts;
@@ -169,6 +192,11 @@ export class FirestoreGameSync implements GameSyncActions {
   }
 
   start() {
+    if (typeof window !== "undefined") {
+      window.addEventListener("offline", this.onBrowserOffline);
+      window.addEventListener("online", this.onBrowserOnline);
+      if (!window.navigator.onLine) this.emitSyncStatus("offline", "Connexion interrompue");
+    }
     this.listenGame();
     if (this.isHost) void this.ensureRoundExists();
   }
@@ -215,16 +243,48 @@ export class FirestoreGameSync implements GameSyncActions {
       createdAt: Date.now(),
     };
 
+    const playEvent: PlayEventDoc = {
+      kind: "play",
+      roomId: this.opts.roomId,
+      roundId: this.roundId,
+      trickNo: this.trickNo,
+      playId,
+      uid,
+      playerIdx: this.myIdx,
+      cardIdx,
+      cardId: card.id,
+      createdAt: serverTimestamp(),
+    };
+
+    this.playTracker.predict(playId);
+    this.traceSync("play-click", { playId, playerIdx: this.myIdx, cardIdx });
     this.emitPlayEventOnce({ playerIdx: this.myIdx, cardIdx, card, playId });
     if (this.applyOptimisticPlay(pendingPlay)) {
       this.emitState();
     }
 
     const gameRef = doc(db, "rooms", this.opts.roomId, "game", "current");
-    await updateDoc(gameRef, {
-      pendingPlay,
-      updatedAt: serverTimestamp(),
-    });
+    const eventRef = doc(db, "rooms", this.opts.roomId, "game", `event_${playId}`);
+    const batch = writeBatch(db);
+    batch.set(eventRef, playEvent);
+    batch.update(gameRef, { pendingPlay, updatedAt: serverTimestamp() });
+
+    this.schedulePlayWatchdogs(playId);
+    const startedAt = performance.now();
+    try {
+      await batch.commit();
+      this.clearWriteSlowTimer(playId);
+      this.traceSync("play-write", { playId, latencyMs: Math.round(performance.now() - startedAt) });
+    } catch (error) {
+      this.clearPlayTimers(playId);
+      this.playTracker.reject(playId);
+      this.emitSyncStatus("error", "Le coup n’a pas pu être synchronisé", undefined, playId);
+      this.traceSync("play-write-error", { playId, error: String(error) });
+      if (this.lastStableGame) {
+        this.applyDoc(this.lastStableGame);
+        this.emitState(true);
+      }
+    }
   };
 
   /* ── Interface GameSyncActions.usePowerCard ── */
@@ -277,9 +337,96 @@ export class FirestoreGameSync implements GameSyncActions {
   private listenGame() {
     this.unsubGame?.();
     const gameRef = doc(db, "rooms", this.opts.roomId, "game", "current");
-    this.unsubGame = onSnapshot(gameRef, (snap) => {
-      if (this.destroyed || !snap.exists()) return;
-      this.onGameDocUpdate(snap.data() as GameDoc);
+    this.unsubGame = onSnapshot(
+      gameRef,
+      (snap) => {
+        if (this.destroyed || !snap.exists()) return;
+        if (!snap.metadata.fromCache) this.emitSyncStatus("live");
+        this.onGameDocUpdate(snap.data() as GameDoc);
+      },
+      (error) => {
+        if (this.destroyed) return;
+        this.emitSyncStatus("error", "La partie ne se synchronise plus");
+        this.traceSync("game-listener-error", { error: String(error) });
+      },
+    );
+  }
+
+  private listenPlayEvents(roundId: string) {
+    if (!roundId || this.currentEventRoundId === roundId) return;
+
+    const previousEventIds = [...this.roundEventIds];
+    const previousRoundId = this.currentEventRoundId;
+    this.unsubPlayEvents?.();
+    this.currentEventRoundId = roundId;
+    this.roundEventIds.clear();
+
+    if (this.isHost && previousRoundId && previousRoundId !== roundId) {
+      previousEventIds.forEach((playId) => this.deletePlayEvent(playId));
+    }
+
+    const eventsQuery = query(
+      collection(db, "rooms", this.opts.roomId, "game"),
+      where("roundId", "==", roundId),
+    );
+    this.unsubPlayEvents = onSnapshot(
+      eventsQuery,
+      (snapshot) => {
+        if (this.destroyed) return;
+        if (!snapshot.metadata.fromCache) this.emitSyncStatus("live");
+        snapshot.docChanges().forEach((change) => {
+          if (change.type === "removed") return;
+          const data = change.doc.data() as Partial<PlayEventDoc>;
+          if (data.kind !== "play" || data.roundId !== roundId || typeof data.playId !== "string") return;
+          this.roundEventIds.add(data.playId);
+          this.handlePlayEvent(data as PlayEventDoc);
+        });
+      },
+      (error) => {
+        if (this.destroyed) return;
+        this.emitSyncStatus("error", "Les actions distantes ne se synchronisent plus");
+        this.traceSync("play-event-listener-error", { error: String(error) });
+      },
+    );
+  }
+
+  private handlePlayEvent(event: PlayEventDoc) {
+    if (this.playTracker.get(event.playId)?.animatedAt != null) return;
+    const roomPlayer = this.opts.roomPlayers[event.playerIdx];
+    if (
+      event.roomId !== this.opts.roomId
+      || event.roundId !== this.roundId
+      || event.trickNo !== this.trickNo
+      || this.phase !== "turns"
+      || this.turnIdx !== event.playerIdx
+      || !roomPlayer
+      || roomPlayer.uid !== event.uid
+    ) return;
+
+    const hand = this.allHands[event.uid] ?? [];
+    const card = hand[event.cardIdx];
+    const led = this.trickPlays[0]?.card.suit ?? null;
+    if (!card || card.id !== event.cardId || !legalCards(hand, led).includes(event.cardIdx)) return;
+
+    const receivedAt = performance.now();
+    this.playTracker.predict(event.playId);
+    this.emitPlayEventOnce({
+      playerIdx: event.playerIdx,
+      cardIdx: event.cardIdx,
+      card: { ...card },
+      playId: event.playId,
+    });
+    const pending: PendingPlay = {
+      playerIdx: event.playerIdx,
+      cardIdx: event.cardIdx,
+      uid: event.uid,
+      playId: event.playId,
+      createdAt: Date.now(),
+    };
+    if (this.applyOptimisticPlay(pending)) this.emitState();
+    this.traceSync("remote-event-to-animation", {
+      playId: event.playId,
+      latencyMs: Math.round(performance.now() - receivedAt),
     });
   }
 
@@ -300,8 +447,14 @@ export class FirestoreGameSync implements GameSyncActions {
     // hostStartRound() AVANT l'écriture. Utiliser this.phase ferait rater la
     // transition result→dealing côté hôte → overlay résultat jamais fermé.
     const previousPhase = this.lastDocPhase;
+    const previousRoundId = this.roundId;
+    const previousPendingPlayId = this.lastDocPendingPlayId;
     this.lastDocPhase = game.phase;
     this.applyDoc(game);
+    if (this.roundId !== previousRoundId) {
+      this.playTracker.clear();
+      this.listenPlayEvents(this.roundId);
+    }
 
     // Calibrer l'horloge serveur depuis le premier snapshot
     if (!this.serverTimeBase && game.updatedAt) {
@@ -325,6 +478,7 @@ export class FirestoreGameSync implements GameSyncActions {
 
     if (game.phase === "dealing" && !game.pendingPlay && !game.lastPlay) {
       this.emittedPlayIds.clear();
+      this.playTracker.clear();
       this.optimisticAppliedPlayIds.clear();
       this.optimisticDrops.clear();
       this.lastEmittedPlayId = null;
@@ -339,10 +493,26 @@ export class FirestoreGameSync implements GameSyncActions {
     if (firstSnapshot) {
       if (game.lastPlay?.playId) {
         this.emittedPlayIds.add(game.lastPlay.playId);
+        this.playTracker.confirm(game.lastPlay.playId);
+        this.playTracker.animate(game.lastPlay.playId);
         this.lastEmittedPlayId = game.lastPlay.playId;
       }
     } else if (game.lastPlay) {
       this.emitPlayEventOnce(game.lastPlay);
+    }
+
+    if (game.lastPlay) this.confirmPlay(game.lastPlay.playId);
+
+    if (
+      previousPendingPlayId
+      && previousPendingPlayId !== game.pendingPlay?.playId
+      && previousPendingPlayId !== game.lastPlay?.playId
+      && !this.playTracker.isConfirmed(previousPendingPlayId)
+    ) {
+      this.playTracker.reject(previousPendingPlayId);
+      this.clearPlayTimers(previousPendingPlayId);
+      this.emitSyncStatus("error", "Un coup a été refusé par la partie", undefined, previousPendingPlayId);
+      this.traceSync("play-rejected", { playId: previousPendingPlayId });
     }
 
     const pendingIsUnconfirmed =
@@ -403,6 +573,9 @@ export class FirestoreGameSync implements GameSyncActions {
     if (this.isHost && game.phase === "result" && game.rematch) {
       this.hostMaybeStartRematch(game);
     }
+
+    if (!game.pendingPlay) this.lastStableGame = game;
+    this.lastDocPendingPlayId = game.pendingPlay?.playId ?? null;
   }
 
   private applyDoc(game: GameDoc) {
@@ -436,6 +609,7 @@ export class FirestoreGameSync implements GameSyncActions {
     });
 
     this.phase = game.phase;
+    this.roundId = game.roundId;
     this.trickNo = game.trickNo;
     this.leaderIdx = game.leaderIdx;
     this.turnIdx = game.turnIdx;
@@ -649,6 +823,9 @@ export class FirestoreGameSync implements GameSyncActions {
     });
 
     const gameRef = doc(db, "rooms", roomId, "game", "current");
+    const roundId = `round_${generateSecureId(16)}`;
+    this.roundId = roundId;
+    this.listenPlayEvents(roundId);
     const deck = shuffle(buildDeck(cfg));
     const balances: Record<string, number> = {};
     const playerMeta: NonNullable<GameDoc["playerMeta"]> = {};
@@ -691,7 +868,7 @@ export class FirestoreGameSync implements GameSyncActions {
 
     await setDoc(gameRef, {
       roomId,
-      roundId: "current",
+      roundId,
       phase: "dealing" as Phase,
       leaderIdx: cfg.firstLeaderIndex,
       turnIdx: cfg.firstLeaderIndex,
@@ -1219,6 +1396,78 @@ export class FirestoreGameSync implements GameSyncActions {
     });
   }
 
+  private schedulePlayWatchdogs(playId: string) {
+    this.clearPlayTimers(playId);
+    this.writeSlowTimers.set(playId, setTimeout(() => {
+      this.emitSyncStatus("slow", "Envoi du coup ralenti…", 1_500, playId);
+      this.traceSync("play-write-slow", { playId, latencyMs: 1_500 });
+    }, 1_500));
+    this.confirmSlowTimers.set(playId, setTimeout(() => {
+      if (this.playTracker.isConfirmed(playId)) return;
+      this.emitSyncStatus("slow", "Validation de la partie ralentie…", 3_000, playId);
+      this.traceSync("play-confirm-slow", { playId, latencyMs: 3_000 });
+    }, 3_000));
+  }
+
+  private clearWriteSlowTimer(playId: string) {
+    const timer = this.writeSlowTimers.get(playId);
+    if (timer) clearTimeout(timer);
+    this.writeSlowTimers.delete(playId);
+  }
+
+  private clearPlayTimers(playId: string) {
+    this.clearWriteSlowTimer(playId);
+    const confirmTimer = this.confirmSlowTimers.get(playId);
+    if (confirmTimer) clearTimeout(confirmTimer);
+    this.confirmSlowTimers.delete(playId);
+  }
+
+  private confirmPlay(playId: string) {
+    if (this.playTracker.isConfirmed(playId)) return;
+    const tracked = this.playTracker.confirm(playId);
+    this.clearPlayTimers(playId);
+    const latencyMs = Math.max(0, Date.now() - tracked.predictedAt);
+    this.emitSyncStatus("live", undefined, latencyMs, playId);
+    this.traceSync("play-confirmed", { playId, latencyMs });
+    if (this.isHost) this.schedulePlayEventCleanup(playId);
+  }
+
+  private schedulePlayEventCleanup(playId: string) {
+    if (this.eventCleanupTimers.has(playId)) return;
+    const timer = setTimeout(() => {
+      this.eventCleanupTimers.delete(playId);
+      this.deletePlayEvent(playId);
+    }, 10_000);
+    this.eventCleanupTimers.set(playId, timer);
+  }
+
+  private deletePlayEvent(playId: string) {
+    this.roundEventIds.delete(playId);
+    const eventRef = doc(db, "rooms", this.opts.roomId, "game", `event_${playId}`);
+    void deleteDoc(eventRef).catch((error) => {
+      this.traceSync("play-event-cleanup-error", { playId, error: String(error) });
+    });
+  }
+
+  private emitSyncStatus(
+    state: SyncStatus["state"],
+    message?: string,
+    latencyMs?: number,
+    playId?: string,
+  ) {
+    const next: SyncStatus = { state, updatedAt: Date.now(), message, latencyMs, playId };
+    const unchanged = this.syncStatus.state === next.state
+      && this.syncStatus.message === next.message
+      && this.syncStatus.playId === next.playId;
+    this.syncStatus = next;
+    if (!unchanged) this.syncStatusListeners.forEach((cb) => cb(next));
+  }
+
+  private traceSync(event: string, details: Record<string, unknown>) {
+    if (!DEV.enabled) return;
+    console.debug("[NjamboSync]", { event, at: Date.now(), ...details });
+  }
+
   private startTimer() {
     this.stopTimer();
     this.timerListeners.forEach((cb) => cb(this.seconds));
@@ -1283,9 +1532,10 @@ export class FirestoreGameSync implements GameSyncActions {
   }
 
   private emitPlayEventOnce(lastPlay: LastPlay) {
-    if (this.emittedPlayIds.has(lastPlay.playId)) return;
+    if (this.emittedPlayIds.has(lastPlay.playId) || !this.playTracker.animate(lastPlay.playId)) return;
     this.emittedPlayIds.add(lastPlay.playId);
     this.lastEmittedPlayId = lastPlay.playId;
+    this.traceSync("play-animation", { playId: lastPlay.playId, playerIdx: lastPlay.playerIdx });
     this.playCardListeners.forEach((cb) => cb({
       playerIdx: this.toUiIdx(lastPlay.playerIdx),
       cardIdx: lastPlay.cardIdx,
@@ -1317,7 +1567,7 @@ export class FirestoreGameSync implements GameSyncActions {
     if (you) this.opts.onUpdateBalance(you.balance);
   }
 
-  private emitState() {
+  private emitState(force = false) {
     const state: GameState = {
       phase: this.phase,
       trickNo: this.trickNo,
@@ -1337,6 +1587,9 @@ export class FirestoreGameSync implements GameSyncActions {
       })).filter((effect) => effect.activatedBy >= 0),
       players: this.buildUiPlayers(),
     };
+    const stateJson = JSON.stringify(state);
+    if (!force && stateJson === this.lastEmittedStateJson) return;
+    this.lastEmittedStateJson = stateJson;
     this.stateListeners.forEach((cb) => cb(state));
   }
 
@@ -1468,7 +1721,7 @@ export class FirestoreGameSync implements GameSyncActions {
 
   onStateUpdate = (cb: (state: GameState) => void): Unsubscribe => {
     this.stateListeners.add(cb);
-    this.emitState();
+    this.emitState(true);
     return () => this.stateListeners.delete(cb);
   };
 
@@ -1492,19 +1745,38 @@ export class FirestoreGameSync implements GameSyncActions {
     return () => this.timerListeners.delete(cb);
   };
 
+  onSyncStatus = (cb: (status: SyncStatus) => void): Unsubscribe => {
+    this.syncStatusListeners.add(cb);
+    cb(this.syncStatus);
+    return () => this.syncStatusListeners.delete(cb);
+  };
+
   destroy() {
     this.destroyed = true;
     this.stopTimer();
     this.stopRematchTimer();
     if (this.dealHandle) clearTimeout(this.dealHandle);
     this.unsubGame?.();
+    this.unsubPlayEvents?.();
+    if (typeof window !== "undefined") {
+      window.removeEventListener("offline", this.onBrowserOffline);
+      window.removeEventListener("online", this.onBrowserOnline);
+    }
+    this.eventCleanupTimers.forEach((timer) => clearTimeout(timer));
+    this.writeSlowTimers.forEach((timer) => clearTimeout(timer));
+    this.confirmSlowTimers.forEach((timer) => clearTimeout(timer));
+    this.eventCleanupTimers.clear();
+    this.writeSlowTimers.clear();
+    this.confirmSlowTimers.clear();
     this.stateListeners.clear();
     this.playCardListeners.clear();
     this.trickEndListeners.clear();
     this.roundEndListeners.clear();
     this.timerListeners.clear();
+    this.syncStatusListeners.clear();
     this.powerActivatedListeners.clear();
     this.processingPlayIds.clear();
+    this.playTracker.clear();
     this.takeoverRequested = false;
   }
 }
