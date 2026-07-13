@@ -7,6 +7,7 @@ import { GameProvider, useGame } from "@/contexts/GameContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { recordMatchResult } from "@/lib/playerData";
+import { DEV } from "@/config/devConfig";
 import { CAURIS_REWARDS } from "@/config/powerCards";
 import { SplashScreen } from "@/components/scenes/SplashScreen";
 import { MenuScreen } from "@/components/scenes/MenuScreen";
@@ -123,6 +124,10 @@ function SceneRouter() {
 
     if (!user?.uid) return;
 
+    /* Triche dev « solde figé » : le solde local est factice, tout settlement
+       serveur échouerait en Balance mismatch — on n'enregistre rien. */
+    if (DEV.richBalance > 0) return;
+
     const matchKey = [
       roundTokenRef.current,
       gameMode,
@@ -137,21 +142,33 @@ function SceneRouter() {
     if (recordedResultKeysRef.current.has(matchKey)) return;
     recordedResultKeysRef.current.add(matchKey);
 
-    recordMatchResult({
+    const settlementParams = {
       uid: user.uid,
       name: profile.name,
       emoji: profile.emoji,
-      currentBalance: nextBalance,
       result,
       mode: gameMode,
       stake: gameMise,
       roomId: roomId ?? undefined,
       matchKey,
-    }).then(({ success, error }) => {
-      if (!success) {
+    };
+
+    recordMatchResult({ ...settlementParams, currentBalance: nextBalance })
+      .then(({ success, error, serverBalance }) => {
+        if (success) return;
         console.error("[NjamboApp] recordMatchResult failed:", error);
-      }
-    });
+        if (serverBalance === undefined) return;
+        /* Drift client/serveur : le serveur fait foi. On resynchronise le solde
+           local puis on réessaie UNE fois — le gain étant identique, la
+           vérification passe et le match est bien enregistré. */
+        setProfile((prev) => ({ ...prev, balance: serverBalance }));
+        recordMatchResult({ ...settlementParams, currentBalance: serverBalance })
+          .then(({ success: retried, error: retryError }) => {
+            if (!retried) {
+              console.error("[NjamboApp] recordMatchResult retry failed:", retryError);
+            }
+          });
+      });
   }, [gameMise, gameMode, profile.balance, profile.emoji, profile.name, roomId, setProfile, user]);
 
   const handleNextRound = useCallback(() => {

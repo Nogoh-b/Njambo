@@ -20,6 +20,15 @@ import type {
   Result,
 } from "@/types/game";
 
+/** Mismatch solde client/serveur détecté en transaction — porte le solde serveur
+    post-gain pour que l'appelant puisse se resynchroniser et réessayer. */
+export class BalanceMismatchError extends Error {
+  constructor(message: string, public readonly serverBalance: number) {
+    super(message);
+    this.name = "BalanceMismatchError";
+  }
+}
+
 function normalizeStats(raw: unknown): PlayerStats {
   const stats = raw && typeof raw === "object" ? raw as Partial<PlayerStats> : {};
   return {
@@ -122,7 +131,7 @@ export async function recordMatchResult(params: {
   stake: number;
   roomId?: string;
   matchKey: string;
-}): Promise<{ success: boolean; error?: string }> {
+}): Promise<{ success: boolean; error?: string; serverBalance?: number }> {
   const { uid, name, emoji, currentBalance, result, mode, stake, roomId, matchKey } = params;
   const won = result.winner.isYou;
   const totalGain = result.gain + (result.doubles ? stake * (result.playersCount - 1) : 0);
@@ -177,7 +186,10 @@ export async function recordMatchResult(params: {
       const expectedBalance = actualCurrentBalance + gain;
       if (Math.abs(expectedBalance - currentBalance) > 1) {
         // Décalage > 1 FCFA → possible triche ou drift
-        throw new Error(`Balance mismatch: expected ${expectedBalance}, got ${currentBalance}`);
+        throw new BalanceMismatchError(
+          `Balance mismatch: expected ${expectedBalance}, got ${currentBalance}`,
+          expectedBalance,
+        );
       }
 
       // 3. Calculer les stats
@@ -211,6 +223,9 @@ export async function recordMatchResult(params: {
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     console.error("[playerData] recordMatchResult failed:", message);
+    if (err instanceof BalanceMismatchError) {
+      return { success: false, error: message, serverBalance: err.serverBalance };
+    }
     return { success: false, error: message };
   }
 }

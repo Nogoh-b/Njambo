@@ -151,17 +151,21 @@ function GameMomentOverlay({ moment, motionLevel }: { moment: MomentOverlay; mot
       { opacity: 0.95, scale: 1, rotate: 6, duration: 0.5, ease: "power2.out" }, 0)
       .to(".nj-moment-halo", { opacity: 0, scale: 1.18, rotate: 36, duration: 0.6, ease: "power1.in" }, exitAt - 0.15);
 
-    tl.fromTo(".nj-moment-card-sweep-left",
-      { opacity: 0, x: "-18vw", y: 24, rotate: -28, scale: 0.82 },
-      { x: "54vw", y: -12, rotate: 18, scale: 1.05, duration: cross, ease: "power1.inOut" }, 0)
-      .to(".nj-moment-card-sweep-left", { opacity: 1, duration: 0.22, ease: "power2.out" }, 0)
-      .to(".nj-moment-card-sweep-left", { opacity: 0, duration: 0.36, ease: "power1.in" }, exitAt - 0.05);
+    // Les cartes sweep ne sont pas rendues en mode lite (cf. JSX plus bas) :
+    // ne pas créer leurs tweens sinon GSAP warn « target not found ».
+    if (!lite) {
+      tl.fromTo(".nj-moment-card-sweep-left",
+        { opacity: 0, x: "-18vw", y: 24, rotate: -28, scale: 0.82 },
+        { x: "54vw", y: -12, rotate: 18, scale: 1.05, duration: cross, ease: "power1.inOut" }, 0)
+        .to(".nj-moment-card-sweep-left", { opacity: 1, duration: 0.22, ease: "power2.out" }, 0)
+        .to(".nj-moment-card-sweep-left", { opacity: 0, duration: 0.36, ease: "power1.in" }, exitAt - 0.05);
 
-    tl.fromTo(".nj-moment-card-sweep-right",
-      { opacity: 0, x: "18vw", y: -18, rotate: 26, scale: 0.78 },
-      { x: "-54vw", y: 16, rotate: -18, scale: 1.02, duration: cross, ease: "power1.inOut" }, 0.08)
-      .to(".nj-moment-card-sweep-right", { opacity: 0.92, duration: 0.22, ease: "power2.out" }, 0.08)
-      .to(".nj-moment-card-sweep-right", { opacity: 0, duration: 0.36, ease: "power1.in" }, exitAt);
+      tl.fromTo(".nj-moment-card-sweep-right",
+        { opacity: 0, x: "18vw", y: -18, rotate: 26, scale: 0.78 },
+        { x: "-54vw", y: 16, rotate: -18, scale: 1.02, duration: cross, ease: "power1.inOut" }, 0.08)
+        .to(".nj-moment-card-sweep-right", { opacity: 0.92, duration: 0.22, ease: "power2.out" }, 0.08)
+        .to(".nj-moment-card-sweep-right", { opacity: 0, duration: 0.36, ease: "power1.in" }, exitAt);
+    }
 
     tl.fromTo(".nj-moment-asset",
       { opacity: 0, xPercent: -50, y: 18, scale: 0.66, rotate: -8 },
