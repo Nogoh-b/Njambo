@@ -6,6 +6,7 @@ import {
   doc,
   getDoc,
   getDocs,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -130,7 +131,8 @@ export function listenDiscoverPlayers(
   search: string,
   cb: (players: PublicPlayerProfile[]) => void,
 ): Unsubscribe {
-  const q = query(collection(db, "players"), orderBy("name"));
+  // Borne la lecture : sans limit, on retéléchargeait TOUTE la collection players.
+  const q = query(collection(db, "players"), orderBy("name"), limit(200));
   return onSnapshot(q, (snap) => {
     const term = search.trim().toLowerCase();
     const players = snap.docs
@@ -373,7 +375,7 @@ export async function getPublicPlayer(uid: string): Promise<PublicPlayerProfile 
 }
 
 export async function findPublicPlayers(search = ""): Promise<PublicPlayerProfile[]> {
-  const snap = await getDocs(query(collection(db, "players"), orderBy("name")));
+  const snap = await getDocs(query(collection(db, "players"), orderBy("name"), limit(200)));
   const term = search.trim().toLowerCase();
   return snap.docs
     .map((playerDoc) => publicPlayer(playerDoc.id, playerDoc.data()))

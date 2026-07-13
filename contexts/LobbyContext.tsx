@@ -319,17 +319,17 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     return joined ? roomId : null;
   }, [user, joinRoomById]);
 
-  /* ── Salle "playing" la plus récente où je figure (lecture seule) ── */
+  /* ── Salle "playing" la plus récente où je figure (lecture seule).
+     array-contains sur playerUids : on ne lit que MES salles (index
+     mono-champ automatique) au lieu de scanner toutes les salles
+     "playing" du backend ; le statut se filtre côté client. ── */
   const findMyPlayingRoom = useCallback(async (): Promise<RoomDoc | null> => {
     if (!user) return null;
-    const q = query(collection(db, "rooms"), where("status", "==", "playing"));
+    const q = query(collection(db, "rooms"), where("playerUids", "array-contains", user.uid));
     const snap = await getDocs(q);
     const rooms = snap.docs
       .map(roomFromDoc)
-      .filter((room) =>
-        room.playerUids?.includes(user.uid)
-        || room.players?.some((p) => p.uid === user.uid),
-      )
+      .filter((room) => room.status === "playing")
       .sort((a, b) => b.createdAt - a.createdAt);
     return rooms[0] ?? null;
   }, [user]);

@@ -5,7 +5,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { sceneVariants, useMotionProfile } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
-import { useAuth } from "@/hooks/useAuth";
+import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { recordMatchResult } from "@/lib/playerData";
 import { DEV } from "@/config/devConfig";
 import { CAURIS_REWARDS } from "@/config/powerCards";
@@ -296,10 +296,12 @@ function SceneRouter() {
 /* ═══════════════ Composant racine ═══════════════ */
 export default function NjamboApp() {
   return (
-    <GameProvider>
-      <LobbyProvider>
-        <SceneRouter />
-      </LobbyProvider>
-    </GameProvider>
+    <AuthProvider>
+      <GameProvider>
+        <LobbyProvider>
+          <SceneRouter />
+        </LobbyProvider>
+      </GameProvider>
+    </AuthProvider>
   );
 }

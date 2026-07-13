@@ -150,10 +150,6 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
     }
   }, [user?.uid, onlineProfile?.balance, profile.balance, eco.brokeFloor]);
 
-  const mainPlay = useCallback(() => {
-    navigateTo("online_setup");
-  }, [navigateTo]);
-
   /* Scène de la carte de mode qui doit afficher la chip Reprendre. */
   const resumeScene = resumeRoomType ? RESUME_SCENE[resumeRoomType] : null;
 
@@ -162,10 +158,10 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
   }, [navigateTo]);
 
   /* ----- Entrée du menu (GSAP) : séquence coordonnée — le plateau apparaît,
-     la marque descend, les rails latéraux glissent, les planks de mode
-     cascadent, puis le bouton JOUER surgit. On anime uniquement opacity/
-     transform sur des éléments SANS boucle transform (le plateau ne reçoit
-     qu'un fondu car il flotte déjà via menuMarkFloat). ----- */
+     la marque descend, les rails latéraux glissent, puis les planks de mode
+     cascadent. On anime uniquement opacity/transform sur des éléments SANS
+     boucle transform (le plateau ne reçoit qu'un fondu car il flotte déjà
+     via menuMarkFloat). ----- */
   const stageRef = useRef<HTMLElement>(null);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -214,10 +210,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
         { opacity: 1, x: 0, duration: 0.42, stagger: motion.allowLongCascade ? 0.06 : 0.04 }, 0.14)
       .fromTo(".nj-mode-plank",
         { opacity: 0, y: 18, scale: 0.98 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.42, stagger: motion.allowLongCascade ? 0.08 : 0.05 }, 0.2)
-      .fromTo(".nj-home-play-button",
-        { opacity: 0, y: 14, scale: 0.94 },
-        { opacity: 1, y: 0, scale: 1, duration: 0.42, ease: "back.out(1.6)" }, 0.36);
+        { opacity: 1, y: 0, scale: 1, duration: 0.42, stagger: motion.allowLongCascade ? 0.08 : 0.05 }, 0.2);
   }, [motion.allowFilterFx, motion.allowLongCascade]);
 
   return (
@@ -361,10 +354,6 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
               </button>
             ))}
           </section>
-
-          <button type="button" className={`nj-home-play-button${motion.enabled ? " nj-special-play" : ""}`} onClick={mainPlay}>
-            <span style={displayFont}>JOUER</span>
-          </button>
 
           {user && (
             <button type="button" className="nj-home-logout" onClick={() => { void logout(); }}>

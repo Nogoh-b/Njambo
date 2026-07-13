@@ -1014,7 +1014,6 @@ button.nj-list-card {
 .nj-hud-icon-btn,
 .nj-home-side-btn,
 .nj-mode-plank,
-.nj-home-play-button,
 .nj-home-logout,
 .nj-home-nav-btn {
   border: 0;
@@ -1028,7 +1027,6 @@ button.nj-list-card {
 .nj-hud-icon-btn:hover,
 .nj-home-side-btn:hover,
 .nj-mode-plank:hover,
-.nj-home-play-button:hover,
 .nj-home-logout:hover,
 .nj-home-nav-btn:hover {
   transform: translateY(-2px);
@@ -1040,7 +1038,6 @@ button.nj-list-card {
 .nj-hud-icon-btn:active,
 .nj-home-side-btn:active,
 .nj-mode-plank:active,
-.nj-home-play-button:active,
 .nj-home-logout:active,
 .nj-home-nav-btn:active {
   transform: translateY(0) scale(0.985);
@@ -1595,58 +1592,6 @@ button.nj-list-card {
 @keyframes resumePulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.45; }
-}
-
-.nj-home-play-button {
-  justify-self: center;
-  position: relative;
-  overflow: hidden;
-  width: min(230px, 72%);
-  min-height: 52px;
-  border-radius: 17px;
-  color: #2a1503;
-  border: 2px solid rgba(255, 244, 214, 0.72);
-  background: linear-gradient(180deg, #ffdd7c 0%, var(--gold) 44%, #c67e26 100%);
-  box-shadow:
-    0 10px 22px rgba(0, 0, 0, 0.34),
-    0 0 26px rgba(242, 187, 69, 0.26),
-    inset 0 2px 0 rgba(255, 255, 255, 0.5),
-    inset 0 -4px 9px rgba(120, 58, 8, 0.42);
-  animation: playPulse 2.8s ease-in-out infinite;
-}
-
-.nj-home-play-button::before {
-  content: "";
-  position: absolute;
-  inset: -50% -60%;
-  z-index: 0;
-  pointer-events: none;
-  background: linear-gradient(115deg, transparent 42%, rgba(255, 255, 255, 0.55) 50%, transparent 58%);
-  transform: translateX(-42%) rotate(8deg);
-  animation: modeShineSweep 3.6s ease-in-out infinite;
-}
-
-.nj-special-play::after {
-  content: "";
-  position: absolute;
-  inset: -10px;
-  z-index: 0;
-  border-radius: 22px;
-  border: 1px solid rgba(255, 248, 232, 0.32);
-  pointer-events: none;
-  opacity: 0;
-  animation: playCallout 2.8s ease-in-out infinite;
-}
-
-.nj-home-play-button span {
-  position: relative;
-  z-index: 1;
-  display: block;
-  font-size: clamp(23px, 6vw, 33px);
-  font-weight: 950;
-  letter-spacing: 0.02em;
-  line-height: 0.9;
-  text-shadow: 0 2px 0 #fff5b3, 0 4px 0 rgba(5, 5, 12, 0.14);
 }
 
 .nj-home-logout {
@@ -3370,23 +3315,6 @@ button.nj-list-card {
   }
 }
 
-@keyframes playCallout {
-  0%,
-  45%,
-  100% {
-    opacity: 0;
-    transform: scale(0.94);
-  }
-  62% {
-    opacity: 0.78;
-    transform: scale(1);
-  }
-  78% {
-    opacity: 0;
-    transform: scale(1.08);
-  }
-}
-
 @keyframes activeSeatHalo {
   to {
     transform: rotate(360deg);
@@ -3944,24 +3872,6 @@ button.nj-list-card {
   }
 }
 
-@keyframes playPulse {
-  0%,
-  100% {
-    box-shadow:
-      0 10px 22px rgba(0, 0, 0, 0.34),
-      0 0 22px rgba(242, 187, 69, 0.24),
-      inset 0 2px 0 rgba(255, 255, 255, 0.5),
-      inset 0 -4px 9px rgba(120, 58, 8, 0.42);
-  }
-  50% {
-    box-shadow:
-      0 12px 26px rgba(0, 0, 0, 0.38),
-      0 0 38px rgba(242, 187, 69, 0.52),
-      inset 0 2px 0 rgba(255, 255, 255, 0.55),
-      inset 0 -4px 9px rgba(120, 58, 8, 0.42);
-  }
-}
-
 @keyframes homeHaloPulse {
   0%,
   100% {
@@ -4250,10 +4160,6 @@ button.nj-list-card {
     font-size: clamp(18px, 4.8vw, 22px);
   }
 
-  .nj-home-play-button {
-    min-height: 47px;
-  }
-
   .nj-home-bottom-nav {
     min-height: 54px;
     border-radius: 16px;
@@ -4423,10 +4329,6 @@ button.nj-list-card {
     min-height: 60px;
   }
 
-  .nj-home-play-button {
-    align-self: start;
-  }
-
   .nj-home-logout {
     position: absolute;
     right: 0;
@@ -4502,10 +4404,6 @@ button.nj-list-card {
     width: 28px;
     height: 28px;
   }
-
-  .nj-home-play-button {
-    min-height: 44px;
-  }
 }
 
 /* Très petits écrans — réduire encore le héros pour éviter tout débordement */
@@ -4528,10 +4426,6 @@ button.nj-list-card {
 
   .nj-mode-plank-sub {
     display: none;
-  }
-
-  .nj-home-play-button {
-    min-height: 40px;
   }
 }
 
