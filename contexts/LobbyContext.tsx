@@ -25,6 +25,10 @@ import type { RoomDoc, RoomPlayer } from "@/types/game";
 
 type RoomFilters = { stake?: number };
 
+/** Indice léger « une partie est en cours » — alimente l'affordance Reprendre
+    du menu sans hydrater/écouter la salle (contrairement à resumeActiveRoom). */
+export type ActiveRoomHint = { id: string; roomType: "online" | "friends" };
+
 interface LobbyContextValue {
   currentRoom: RoomDoc | null;
   roomError: string | null;
@@ -37,6 +41,8 @@ interface LobbyContextValue {
   setReady: (ready: boolean) => Promise<void>;
   startGame: () => Promise<void>;
   resumeActiveRoom: () => Promise<RoomDoc | null>;
+  activeRoomHint: ActiveRoomHint | null;
+  refreshActiveRoomHint: () => void;
 
   publicRooms: RoomDoc[];
   searchRooms: (filters?: RoomFilters) => void;
@@ -83,6 +89,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
   const [currentRoom, setCurrentRoom] = useState<RoomDoc | null>(null);
   const [roomError, setRoomError] = useState<string | null>(null);
   const [publicRooms, setPublicRooms] = useState<RoomDoc[]>([]);
+  const [activeRoomHint, setActiveRoomHint] = useState<ActiveRoomHint | null>(null);
 
   const unsubRoom = useRef<Unsubscribe | null>(null);
   const unsubPublic = useRef<Unsubscribe | null>(null);
@@ -312,23 +319,48 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     return joined ? roomId : null;
   }, [user, joinRoomById]);
 
+  /* ── Salle "playing" la plus récente où je figure (lecture seule) ── */
+  const findMyPlayingRoom = useCallback(async (): Promise<RoomDoc | null> => {
+    if (!user) return null;
+    const q = query(collection(db, "rooms"), where("status", "==", "playing"));
+    const snap = await getDocs(q);
+    const rooms = snap.docs
+      .map(roomFromDoc)
+      .filter((room) =>
+        room.playerUids?.includes(user.uid)
+        || room.players?.some((p) => p.uid === user.uid),
+      )
+      .sort((a, b) => b.createdAt - a.createdAt);
+    return rooms[0] ?? null;
+  }, [user]);
+
+  /* ── Indice Reprendre : rafraîchi au login et à la demande (retour menu) ── */
+  const refreshActiveRoomHint = useCallback(() => {
+    if (!user) {
+      setActiveRoomHint(null);
+      return;
+    }
+    findMyPlayingRoom()
+      .then((room) => {
+        setActiveRoomHint(room
+          ? { id: room.id, roomType: room.roomType === "friends" ? "friends" : "online" }
+          : null);
+      })
+      .catch(() => setActiveRoomHint(null));
+  }, [user, findMyPlayingRoom]);
+
+  useEffect(() => {
+    refreshActiveRoomHint();
+  }, [refreshActiveRoomHint]);
+
   const resumeActiveRoom = useCallback(async (): Promise<RoomDoc | null> => {
     if (!user) throw new Error("Non connecté");
     setRoomError(null);
 
     try {
-      const q = query(collection(db, "rooms"), where("status", "==", "playing"));
-      const snap = await getDocs(q);
-      const rooms = snap.docs
-        .map(roomFromDoc)
-        .filter((room) =>
-          room.playerUids?.includes(user.uid)
-          || room.players?.some((p) => p.uid === user.uid),
-        )
-        .sort((a, b) => b.createdAt - a.createdAt);
-
-      const room = rooms[0];
+      const room = await findMyPlayingRoom();
       if (!room) {
+        setActiveRoomHint(null);
         setRoomError("Aucune partie en cours à reprendre.");
         return null;
       }
@@ -357,7 +389,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       setRoomError("Impossible de reprendre la partie.");
       return null;
     }
-  }, [user, listenRoom]);
+  }, [user, listenRoom, findMyPlayingRoom]);
 
   /* ── Quitter la salle ── */
   const leaveRoom = useCallback(async () => {
@@ -434,6 +466,8 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
         setReady,
         startGame,
         resumeActiveRoom,
+        activeRoomHint,
+        refreshActiveRoomHint,
         publicRooms,
         searchRooms,
         findAvailableRoom,

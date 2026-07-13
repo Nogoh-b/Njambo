@@ -263,6 +263,10 @@ button:disabled {
 
 .nj-stack {
   display: grid;
+  /* min = max-content : une rangée ne se comprime JAMAIS sous son contenu
+     (les panneaux overflow:hidden coupaient leur contenu sur petits viewports) ;
+     max = auto : l'étirement pour remplir la hauteur reste possible. */
+  grid-auto-rows: minmax(max-content, auto);
   gap: 14px;
   flex: 1;
   min-height: 0;
@@ -1124,7 +1128,10 @@ button.nj-list-card {
 .nj-hud-cluster {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(48px, 0.38fr) repeat(3, 34px);
+  /* 3 pastilles ressource (solde, victoires, cauris) + 3 boutons icône —
+     une colonne manquante envoyait la pastille cauris dans une colonne 34px
+     (texte coupé) et le 6e bouton sur une rangée fantôme. */
+  grid-template-columns: minmax(0, 1fr) minmax(48px, 0.38fr) minmax(48px, 0.38fr) repeat(3, 34px);
   gap: 5px;
   align-content: center;
 }
@@ -1544,6 +1551,50 @@ button.nj-list-card {
 .nj-mode-plank:hover .nj-mode-plank-go {
   transform: translateX(3px) scale(1.1);
   background: color-mix(in srgb, var(--plank-tone) 55%, rgba(6, 5, 14, 0.5));
+}
+
+/* Chip "Reprendre" — affordance discrète sur la carte du mode dont une
+   partie est en cours (le gros bouton JOUER n'est plus détourné). */
+.nj-mode-plank-resume {
+  position: absolute;
+  top: 7px;
+  right: 9px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #2a1503;
+  background: linear-gradient(180deg, #ffdd7c, var(--gold));
+  border: 1px solid rgba(255, 244, 214, 0.72);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.4);
+  cursor: pointer;
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.nj-mode-plank-resume::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #1d9a5f;
+  box-shadow: 0 0 7px rgba(29, 154, 95, 0.9);
+  animation: resumePulse 1.8s ease-in-out infinite;
+}
+
+.nj-mode-plank-resume:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+@keyframes resumePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.45; }
 }
 
 .nj-home-play-button {
@@ -4147,7 +4198,7 @@ button.nj-list-card {
   }
 
   .nj-hud-cluster {
-    grid-template-columns: minmax(0, 1fr) 40px repeat(3, 32px);
+    grid-template-columns: minmax(0, 1fr) 40px 40px repeat(3, 32px);
     gap: 5px;
   }
 

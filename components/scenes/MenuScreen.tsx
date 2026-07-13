@@ -20,9 +20,16 @@ type Tone = "gold" | "teal" | "pink" | "cobalt";
 type BadgeKey = keyof SocialCounts;
 
 interface MenuScreenProps {
-  canResumeGame?: boolean;
+  /** Type de la partie en cours à reprendre (null = rien à reprendre). */
+  resumeRoomType?: "online" | "friends" | null;
   onResumeGame?: () => void;
 }
+
+/** Carte de mode qui porte la chip Reprendre selon le type de salle. */
+const RESUME_SCENE: Record<"online" | "friends", SceneName> = {
+  online: "online_setup",
+  friends: "friends_invite",
+};
 
 interface HomeLink {
   scene: SceneName;
@@ -84,7 +91,7 @@ const CountBadge = memo(function CountBadge({ count }: { count: number }) {
   return <span className="nj-home-badge">{count > 99 ? "99+" : count}</span>;
 });
 
-export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenProps) {
+export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenProps) {
   const { profile, setProfile, navigateTo, cfg } = useGame();
   const motion = useMotionProfile();
   const { user, logout } = useAuth();
@@ -143,14 +150,12 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
     }
   }, [user?.uid, onlineProfile?.balance, profile.balance, eco.brokeFloor]);
 
-  const mainPlayLabel = canResumeGame ? "REPRENDRE" : "JOUER";
   const mainPlay = useCallback(() => {
-    if (canResumeGame && onResumeGame) {
-      onResumeGame();
-      return;
-    }
     navigateTo("online_setup");
-  }, [canResumeGame, navigateTo, onResumeGame]);
+  }, [navigateTo]);
+
+  /* Scène de la carte de mode qui doit afficher la chip Reprendre. */
+  const resumeScene = resumeRoomType ? RESUME_SCENE[resumeRoomType] : null;
 
   const openLink = useCallback((scene: SceneName) => {
     navigateTo(scene);
@@ -332,12 +337,33 @@ export function MenuScreen({ canResumeGame = false, onResumeGame }: MenuScreenPr
                 <span className="nj-mode-plank-go" aria-hidden="true">
                   <NjamboIcon name="play" tone="light" size={16} />
                 </span>
+                {mode.scene === resumeScene && onResumeGame && (
+                  <span
+                    role="button"
+                    tabIndex={0}
+                    className="nj-mode-plank-resume"
+                    aria-label="Reprendre la partie en cours"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onResumeGame();
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        onResumeGame();
+                      }
+                    }}
+                  >
+                    Reprendre
+                  </span>
+                )}
               </button>
             ))}
           </section>
 
           <button type="button" className={`nj-home-play-button${motion.enabled ? " nj-special-play" : ""}`} onClick={mainPlay}>
-            <span style={displayFont}>{mainPlayLabel}</span>
+            <span style={displayFont}>JOUER</span>
           </button>
 
           {user && (

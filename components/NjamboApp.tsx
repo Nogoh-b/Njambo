@@ -42,7 +42,7 @@ import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/typ
 function SceneRouter() {
   const { scene, navigateTo, endTransition, profile, setProfile, cfg, animationsOn } = useGame();
   const motionProfile = useMotionProfile();
-  const { currentRoom, resumeActiveRoom } = useLobby();
+  const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint } = useLobby();
   const { user } = useAuth();
 
   /* État partagé entre TableScreen et ResultScreen */
@@ -101,8 +101,23 @@ function SceneRouter() {
 
   const handleResumeGame = useCallback(async () => {
     const room = currentRoom?.status === "playing" ? currentRoom : await resumeActiveRoom();
+    if (!room) {
+      // La salle a disparu entre-temps : on résorbe l'affordance Reprendre.
+      refreshActiveRoomHint();
+      return;
+    }
     startOnlineGame(room);
-  }, [currentRoom, resumeActiveRoom, startOnlineGame]);
+  }, [currentRoom, resumeActiveRoom, refreshActiveRoomHint, startOnlineGame]);
+
+  /* Type de la partie reprenable (pilote la chip Reprendre du menu). */
+  const resumeRoomType = currentRoom?.status === "playing"
+    ? (currentRoom.roomType === "friends" ? "friends" as const : "online" as const)
+    : activeRoomHint?.roomType ?? null;
+
+  /* À chaque retour au menu, revalider l'indice (la partie a pu se terminer). */
+  useEffect(() => {
+    if (scene === "menu") refreshActiveRoomHint();
+  }, [scene, refreshActiveRoomHint]);
 
   /* --- Résultat de partie --- */
   const handleResult = useCallback((result: Result) => {
@@ -190,7 +205,7 @@ function SceneRouter() {
   const renderScene = (): ReactNode => {
     switch (scene) {
       case "splashscreen": return <SplashScreen />;
-      case "menu": return <MenuScreen canResumeGame={!!user} onResumeGame={handleResumeGame} />;
+      case "menu": return <MenuScreen resumeRoomType={resumeRoomType} onResumeGame={handleResumeGame} />;
       case "profile": return <ProfileScreen />;
       case "leaderboard": return <LeaderboardScreen />;
       case "friends": return <FriendsScreen />;
