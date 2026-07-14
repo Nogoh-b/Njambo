@@ -6,10 +6,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { acceptFriendRequest, listenFriendRequests, rejectFriendRequest } from "@/lib/socialData";
 import { AvatarIllustration } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { FriendRequest } from "@/types/game";
 
 export function FriendRequestsScreen() {
@@ -34,8 +34,7 @@ export function FriendRequestsScreen() {
   }, [user?.uid]);
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene active="friends" narrow>
         <div className="nj-phone">
           <ScreenHeader title="Demandes" kicker="Amitie" icon="friends" tone="pink" onBack={() => navigateTo("friends")} backLabel="Amis" />
           <Surface scrollable>
@@ -68,9 +67,7 @@ export function FriendRequestsScreen() {
               })}
             </div>
           </Surface>
-          <BottomNav active="friends" />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

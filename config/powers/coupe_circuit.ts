@@ -15,7 +15,7 @@ export const coupeCircuit: PowerModule = {
     activationText: "La cible jouera sa carte la plus faible à son prochain tour",
     description: "Force un adversaire à jouer sa carte légale la plus faible.",
     costCauris: 40,
-    costFcfa: 700,
+    costNkap: 700,
     animTags: ["hand_target_restrict"],
   },
   script: {

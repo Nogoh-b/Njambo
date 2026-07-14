@@ -15,7 +15,7 @@ export const filetPecheur: PowerModule = {
     activationText: "La cible jouera sa carte la plus faible à son prochain tour",
     description: "Force la cible à jouer sa plus basse carte légale.",
     costCauris: 42,
-    costFcfa: 720,
+    costNkap: 720,
     animTags: ["hand_target_restrict"],
   },
   script: {

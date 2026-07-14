@@ -24,9 +24,9 @@ export const POWER_CARDS_BY_ID: Record<PowerCardId, PowerCardDef> = Object.fromE
 export const MAX_EQUIPPED_POWERS = 3;
 
 export const CAURIS_REWARDS = {
-  perWin: 20,
+  perWin: 0,
   perTrick: 2,
   dailyChallenge: 50,
 } as const;
 
-export const STARTING_CAURIS = 50;
+export const STARTING_CAURIS = 20;

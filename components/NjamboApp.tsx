@@ -4,11 +4,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { sceneVariants, useMotionProfile } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
+import { EconomyProvider } from "@/contexts/EconomyContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import { recordMatchResult } from "@/lib/playerData";
-import { DEV } from "@/config/devConfig";
-import { CAURIS_REWARDS } from "@/config/powerCards";
 import { SplashScreen } from "@/components/scenes/SplashScreen";
 import { MenuScreen } from "@/components/scenes/MenuScreen";
 import { BotSetupScreen } from "@/components/scenes/BotSetupScreen";
@@ -29,8 +27,11 @@ import { PublicProfileScreen } from "@/components/scenes/PublicProfileScreen";
 import { OptionsScreen } from "@/components/scenes/OptionsScreen";
 import { HistoryScreen } from "@/components/scenes/HistoryScreen";
 import { RulesScreen } from "@/components/scenes/RulesScreen";
-import { PowerShopScreen } from "@/components/scenes/PowerShopScreen";
 import { PowerCollectionScreen } from "@/components/scenes/PowerCollectionScreen";
+import { PlayHubScreen } from "@/components/scenes/PlayHubScreen";
+import { ShopScreen } from "@/components/scenes/ShopScreen";
+import { EventsScreen } from "@/components/scenes/EventsScreen";
+import { WalletScreen } from "@/components/scenes/WalletScreen";
 import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/types/game";
 
 /* ═══════════════ SceneRouter ═══════════════
@@ -51,12 +52,11 @@ function SceneRouter() {
   const [gameBotCount, setGameBotCount] = useState(2);
   const [gameDifficulty, setGameDifficulty] = useState<BotDifficulty>("normal");
   const [gameMode, setGameMode] = useState<GameMode>("bot");
+  const [eventRunId, setEventRunId] = useState<string | null>(null);
   /* True quand une session de jeu est active (table montée) */
   const [gameActive, setGameActive] = useState(false);
   /* Ref vers nextRound de TableScreen pour le bouton "manche suivante" */
   const nextRoundRef = useRef<(() => void) | null>(null);
-  const roundTokenRef = useRef(Date.now());
-  const recordedResultKeysRef = useRef<Set<string>>(new Set());
 
   /* Dérivés du lobby (partagés via LobbyContext) */
   const roomId = currentRoom?.id ?? null;
@@ -75,7 +75,6 @@ function SceneRouter() {
   /* --- Bot setup --- */
   const handleBotStart = useCallback((botCount: number, mise: number, difficulty: BotDifficulty = "normal") => {
     setGameMode("bot");
-    roundTokenRef.current = Date.now();
     setGameBotCount(botCount);
     setGameDifficulty(difficulty);
     setGameMise(mise);
@@ -88,7 +87,6 @@ function SceneRouter() {
   const startOnlineGame = useCallback((room: RoomDoc | null | undefined) => {
     if (!room) return;
     setGameMode(room.roomType === "friends" ? "friends" : "online");
-    roundTokenRef.current = Date.now();
     setGameMise(room.stake);
     setGameResult(null);
     setGameActive(true);
@@ -98,6 +96,16 @@ function SceneRouter() {
   const handleGameStart = useCallback(() => {
     startOnlineGame(currentRoom);
   }, [currentRoom, startOnlineGame]);
+
+  const handleEventStart = useCallback((runId: string) => {
+    setGameMode("event");
+    setEventRunId(runId);
+    setGameMise(0);
+    setGameBotCount(3);
+    setGameResult(null);
+    setGameActive(true);
+    navigateTo("table");
+  }, [navigateTo]);
 
   const handleResumeGame = useCallback(async () => {
     const room = currentRoom?.status === "playing" ? currentRoom : await resumeActiveRoom();
@@ -122,77 +130,14 @@ function SceneRouter() {
   /* --- Résultat de partie --- */
   const handleResult = useCallback((result: Result) => {
     setGameResult(result);
-    const totalGain = result.gain + (result.doubles ? gameMise * (result.playersCount - 1) : 0);
-    // Remboursement Cauris Chanceux : crédité seulement si TU perds la manche.
-    const refund = result.winner.isYou ? 0 : (result.refund ?? 0);
-    const nextBalance = result.winner.isYou
-      ? profile.balance - gameMise + totalGain
-      : profile.balance - gameMise - (result.doubles ? gameMise : 0) + refund;
-
-    /* Récompense en cauris : +perWin si tu remportes la partie. */
-    const caurisGain = result.winner.isYou ? CAURIS_REWARDS.perWin : 0;
-    setProfile((prev) => ({
-      ...prev,
-      balance: nextBalance,
-      cauris: (prev.cauris ?? 0) + caurisGain,
-    }));
-
-    if (!user?.uid) return;
-
-    /* Triche dev « solde figé » : le solde local est factice, tout settlement
-       serveur échouerait en Balance mismatch — on n'enregistre rien. */
-    if (DEV.richBalance > 0) return;
-
-    const matchKey = [
-      roundTokenRef.current,
-      gameMode,
-      roomId ?? "local",
-      result.type,
-      result.winner.name,
-      result.gain,
-      result.playersCount,
-      result.doubles ? "doubles" : "simple",
-    ].map((part) => String(part).replace(/[^a-zA-Z0-9_-]/g, "_")).join("-");
-
-    if (recordedResultKeysRef.current.has(matchKey)) return;
-    recordedResultKeysRef.current.add(matchKey);
-
-    const settlementParams = {
-      uid: user.uid,
-      name: profile.name,
-      emoji: profile.emoji,
-      result,
-      mode: gameMode,
-      stake: gameMise,
-      roomId: roomId ?? undefined,
-      matchKey,
-    };
-
-    recordMatchResult({ ...settlementParams, currentBalance: nextBalance })
-      .then(({ success, error, serverBalance }) => {
-        if (success) return;
-        console.error("[NjamboApp] recordMatchResult failed:", error);
-        if (serverBalance === undefined) return;
-        /* Drift client/serveur : le serveur fait foi. On resynchronise le solde
-           local puis on réessaie UNE fois — le gain étant identique, la
-           vérification passe et le match est bien enregistré. */
-        setProfile((prev) => ({ ...prev, balance: serverBalance }));
-        recordMatchResult({ ...settlementParams, currentBalance: serverBalance })
-          .then(({ success: retried, error: retryError }) => {
-            if (!retried) {
-              console.error("[NjamboApp] recordMatchResult retry failed:", retryError);
-            }
-          });
-      });
-  }, [gameMise, gameMode, profile.balance, profile.emoji, profile.name, roomId, setProfile, user]);
+    // Aucun solde ni résultat n'est calculé ou persisté par le client.
+    // La Function a déjà réglé un compte; l'invité reste en entraînement local.
+  }, []);
 
   const handleNextRound = useCallback(() => {
-    roundTokenRef.current = Date.now();
-    if (gameMode === "bot") {
-      setGameResult(null);
-    }
+    setGameResult(null);
     nextRoundRef.current?.();
-  }, [gameMode]);
+  }, []);
 
   const handleMenu = useCallback(() => {
     setGameResult(null);
@@ -218,8 +163,12 @@ function SceneRouter() {
       case "options": return <OptionsScreen />;
       case "history": return <HistoryScreen />;
       case "rules": return <RulesScreen />;
-      case "power_shop": return <PowerShopScreen />;
+      case "power_shop": return <ShopScreen />;
       case "power_collection": return <PowerCollectionScreen />;
+      case "play": return <PlayHubScreen />;
+      case "shop": return <ShopScreen />;
+      case "events": return <EventsScreen onStart={handleEventStart} />;
+      case "wallet": return <WalletScreen />;
       case "bot_setup": return <BotSetupScreen onStart={handleBotStart} />;
       case "online_setup": return <OnlineSetupScreen />;
       case "friends_invite": return <FriendsSetupScreen />;
@@ -258,7 +207,7 @@ function SceneRouter() {
       {/* TableScreen — monté pendant toute la session de jeu */}
       {gameActive && (
         <TableScreen
-          key={gameMode + "-" + gameBotCount + "-" + gameMise + "-" + gameDifficulty + "-" + (roomId ?? "")}
+          key={gameMode + "-" + gameBotCount + "-" + gameMise + "-" + gameDifficulty + "-" + (roomId ?? "") + "-" + (eventRunId ?? "")}
           gameMode={gameMode}
           initialBotCount={gameBotCount}
           initialMise={gameMise}
@@ -266,9 +215,9 @@ function SceneRouter() {
           roomId={roomId ?? undefined}
           roomPlayers={roomPlayers.length > 0 ? roomPlayers as RoomPlayer[] : undefined}
           roomHostId={roomHostId || undefined}
+          eventRunId={eventRunId ?? undefined}
           onResult={handleResult}
           onRoundRestart={() => {
-            roundTokenRef.current = Date.now();
             setGameResult(null);
           }}
           onMenu={handleMenu}
@@ -297,11 +246,13 @@ function SceneRouter() {
 export default function NjamboApp() {
   return (
     <AuthProvider>
-      <GameProvider>
-        <LobbyProvider>
-          <SceneRouter />
-        </LobbyProvider>
-      </GameProvider>
+      <EconomyProvider>
+        <GameProvider>
+          <LobbyProvider>
+            <SceneRouter />
+          </LobbyProvider>
+        </GameProvider>
+      </EconomyProvider>
     </AuthProvider>
   );
 }

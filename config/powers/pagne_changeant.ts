@@ -16,7 +16,7 @@ export const pagneChangeant: PowerModule = {
     activationText: "Ta prochaine carte suit la tendance",
     description: "Ta prochaine carte hors tendance compte comme tendance si tu n'as pas la couleur.",
     costCauris: 72,
-    costFcfa: 1250,
+    costNkap: 1250,
     animTags: ["hand_self_boost"],
   },
   script: {

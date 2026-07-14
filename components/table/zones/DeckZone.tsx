@@ -11,7 +11,7 @@ import { NjamboIcon } from "@/components/ui/Art";
 import { Chip } from "@/components/ui/Chip";
 import { displayFont } from "@/components/ui/Shell";
 import { T } from "@/config/theme";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { useRegisterZone } from "./ZoneRegistry";
 
 interface DeckZoneProps {
@@ -94,7 +94,7 @@ export const DeckZone = memo(function DeckZone({
         <div ref={potRef} style={{ position: "relative" }}>
           <Chip strong style={{ fontSize: 13 }}>
             <NjamboIcon name="coin" tone="gold" size={16} />
-            <span style={{ ...displayFont, fontWeight: 900, color: T.gold }}>{FCFA(pot)}</span>
+            <span style={{ ...displayFont, fontWeight: 900, color: T.gold }}>{NKAP(pot)}</span>
           </Chip>
           {potFlash && (
             <div key={potFlash.key} className="nj-pot-flash" aria-hidden="true">

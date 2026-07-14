@@ -37,6 +37,10 @@ function authError(code?: string): string {
     "auth/too-many-requests": "Trop de tentatives. Réessaie plus tard.",
     "auth/network-request-failed": "Erreur réseau. Vérifie ta connexion.",
     "auth/invalid-credential": "E-mail ou mot de passe incorrect.",
+    "auth/invalid-phone-number": "Numéro invalide. Utilise le format +237…",
+    "auth/invalid-verification-code": "Code SMS incorrect.",
+    "auth/code-expired": "Le code SMS a expiré. Demande un nouveau code.",
+    "auth/popup-closed-by-user": "La fenêtre Google a été fermée.",
   };
   return map[code] ?? "Erreur inconnue. Réessaie.";
 }
@@ -46,12 +50,19 @@ interface AuthGateProps {
 }
 
 export function AuthGate({ children }: AuthGateProps) {
-  const { user, loading, loginWithEmail, registerWithEmail, logout } = useAuth();
+  const {
+    user, loading, loginWithEmail, registerWithEmail, loginWithGoogle,
+    requestPhoneCode, confirmPhoneCode, logout,
+  } = useAuth();
 
   /* Formulaire */
   const [mode, setMode] = useState<"login" | "register">("login");
+  const [authMethod, setAuthMethod] = useState<"phone" | "email">("phone");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("+237");
+  const [smsCode, setSmsCode] = useState("");
+  const [codeSent, setCodeSent] = useState(false);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState(AVATARS[0]);
   const [busy, setBusy] = useState(false);
@@ -68,7 +79,7 @@ export function AuthGate({ children }: AuthGateProps) {
   }
 
   /* ── Connecté → afficher les enfants ── */
-  if (user) {
+  if (user && !user.isAnonymous) {
     return (
       <>
         {/* Barre de connexion */}
@@ -95,6 +106,7 @@ export function AuthGate({ children }: AuthGateProps) {
                 {user.email}
               </span>
             )}
+            {user.phoneNumber && <span className="nj-subtle" style={{ fontSize: 11 }}>{user.phoneNumber}</span>}
           </div>
           <button
             type="button"
@@ -124,6 +136,30 @@ export function AuthGate({ children }: AuthGateProps) {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    if (authMethod === "phone") {
+      const normalizedPhone = phoneNumber.replace(/\s+/g, "");
+      if (!/^\+[1-9]\d{7,14}$/.test(normalizedPhone)) {
+        setError("Entre le numéro complet, par exemple +2376XXXXXXXX.");
+        return;
+      }
+      if (codeSent && !/^\d{6}$/.test(smsCode.trim())) {
+        setError("Entre le code SMS à 6 chiffres.");
+        return;
+      }
+      setBusy(true);
+      try {
+        if (codeSent) await confirmPhoneCode(smsCode.trim(), name.trim() || user?.name, user?.emoji || emoji);
+        else {
+          await requestPhoneCode(normalizedPhone, "nj-phone-recaptcha");
+          setCodeSent(true);
+        }
+      } catch (err: unknown) {
+        setError(authError((err as { code?: string })?.code));
+      } finally {
+        setBusy(false);
+      }
+      return;
+    }
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
     const trimmedName = name.trim();
@@ -163,10 +199,12 @@ export function AuthGate({ children }: AuthGateProps) {
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <NjamboIcon name="profile" tone="gold" size={40} />
           <div style={{ fontWeight: 900, marginTop: 10, fontSize: 18 }}>
-            {isRegister ? "Créer un compte" : "Connexion"}
+            {user?.isAnonymous ? "Sauvegarder mon compte" : isRegister ? "Créer un compte" : "Connexion"}
           </div>
           <div className="nj-subtle" style={{ marginTop: 4 }}>
-            {isRegister
+            {user?.isAnonymous
+              ? "Passe en compte permanent sans perdre ta progression."
+              : isRegister
               ? "Inscris-toi pour jouer en ligne."
               : "Connecte-toi pour rejoindre une salle."}
           </div>
@@ -189,6 +227,23 @@ export function AuthGate({ children }: AuthGateProps) {
 
         {/* Champs */}
         <div className="nj-stack" style={{ gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <button className={`nj-choice${authMethod === "phone" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("phone"); setError(""); }}>Téléphone</button>
+            <button className={`nj-choice${authMethod === "email" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("email"); setError(""); }}>E-mail</button>
+          </div>
+
+          {authMethod === "phone" && (
+            <>
+              {!codeSent ? (
+                <input className="nj-input" type="tel" inputMode="tel" placeholder="+237 6XX XX XX XX" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} autoComplete="tel" disabled={busy} />
+              ) : (
+                <input className="nj-input" type="text" inputMode="numeric" maxLength={6} placeholder="Code SMS à 6 chiffres" value={smsCode} onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ""))} autoComplete="one-time-code" disabled={busy} />
+              )}
+              <div id="nj-phone-recaptcha" />
+            </>
+          )}
+
+          {authMethod === "email" && <>
           {/* Pseudo (inscription seulement) */}
           {isRegister && (
             <input
@@ -252,6 +307,7 @@ export function AuthGate({ children }: AuthGateProps) {
               </div>
             </div>
           )}
+          </>}
 
           {/* Bouton submit */}
           <button
@@ -277,11 +333,16 @@ export function AuthGate({ children }: AuthGateProps) {
             }}
           >
             <NjamboIcon name={isRegister ? "play" : "home"} tone="gold" size={20} />
-            {busy ? "…" : isRegister ? "Créer mon compte" : "Se connecter"}
+            {busy ? "…" : authMethod === "phone" ? (codeSent ? "Valider le code" : "Recevoir le code") : isRegister ? "Créer mon compte" : "Se connecter"}
           </button>
 
+          <button className="nj-choice" type="button" disabled={busy} onClick={() => {
+            setBusy(true); setError("");
+            void loginWithGoogle().catch((err: unknown) => setError(authError((err as { code?: string })?.code))).finally(() => setBusy(false));
+          }}>Continuer avec Google</button>
+
           {/* Toggle mode */}
-          <button
+          {authMethod === "email" && <button
             type="button"
             onClick={() => { setMode(isRegister ? "login" : "register"); setError(""); }}
             style={{
@@ -296,7 +357,7 @@ export function AuthGate({ children }: AuthGateProps) {
             }}
           >
             {isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? Créer un compte"}
-          </button>
+          </button>}
         </div>
       </form>
     </Surface>

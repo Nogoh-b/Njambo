@@ -15,7 +15,7 @@ export const mainGriot: PowerModule = {
     activationText: "Meilleure carte suggérée",
     description: "Suggère ta meilleure carte légale pendant 6 secondes.",
     costCauris: 32,
-    costFcfa: 520,
+    costNkap: 520,
     animTags: ["hand_self_recommend"],
   },
   script: {

@@ -1,18 +1,20 @@
 import type { Metadata, Viewport } from "next";
-import { Fraunces, Space_Grotesk } from "next/font/google";
+import localFont from "next/font/local";
 import "./globals.css";
+import "./ter-nocturne.css";
+import { PwaRegistration } from "@/components/PwaRegistration";
 
-const fraunces = Fraunces({
-  variable: "--font-display",
-  subsets: ["latin"],
-  weight: ["700", "900"],
+const bricolage = localFont({
+  src: "./fonts/bricolage-grotesque-latin.woff2",
+  variable: "--font-bricolage",
+  weight: "700 800",
   display: "swap",
 });
 
-const spaceGrotesk = Space_Grotesk({
-  variable: "--font-sans",
-  subsets: ["latin"],
-  weight: ["400", "500", "700"],
+const manrope = localFont({
+  src: "./fonts/manrope-latin.woff2",
+  variable: "--font-manrope",
+  weight: "400 800",
   display: "swap",
 });
 
@@ -24,8 +26,8 @@ export const metadata: Metadata = {
 export const viewport: Viewport = {
   width: "device-width",
   initialScale: 1,
-  maximumScale: 1,
-  userScalable: false,
+  viewportFit: "cover",
+  userScalable: true,
   themeColor: "#231348",
 };
 
@@ -35,8 +37,8 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr" className={`${fraunces.variable} ${spaceGrotesk.variable}`}>
-      <body>{children}</body>
+    <html lang="fr">
+      <body className={`${bricolage.variable} ${manrope.variable}`}>{children}<PwaRegistration /></body>
     </html>
   );
 }

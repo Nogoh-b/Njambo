@@ -18,7 +18,7 @@ export const trocCible: PowerModule = {
     activationText: "La carte de TON choix est échangée",
     description: "Choisis une carte de ta main : elle est échangée contre le dessus de la pioche.",
     costCauris: 40,
-    costFcfa: 650,
+    costNkap: 650,
     animTags: ["hand_self_mutate"],
   },
   script: {

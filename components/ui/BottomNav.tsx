@@ -6,10 +6,11 @@ import { useAuth } from "@/hooks/useAuth";
 import { listenSocialCounts } from "@/lib/socialData";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import type { SceneName } from "@/types/game";
+import styles from "./BottomNav.module.css";
 
 type SocialCounts = { notifications: number; messages: number; requests: number };
 type BadgeKey = keyof SocialCounts;
-export type BottomNavKey = "menu" | "players" | "notifications" | "messages" | "friends";
+export type BottomNavKey = "menu" | "play" | "events" | "shop" | "social" | "players" | "notifications" | "messages" | "friends";
 
 interface NavItem {
   key: BottomNavKey;
@@ -22,26 +23,27 @@ interface NavItem {
 
 const NAV_ITEMS: NavItem[] = [
   { key: "menu", scene: "menu", icon: "home", tone: "gold", label: "Accueil" },
-  { key: "players", scene: "players", icon: "search", tone: "teal", label: "Joueurs" },
-  { key: "notifications", scene: "notifications", icon: "notification", tone: "pink", label: "Notifs", badge: "notifications" },
-  { key: "messages", scene: "messages", icon: "message", tone: "cobalt", label: "Messages", badge: "messages" },
-  { key: "friends", scene: "friends", icon: "friends", tone: "gold", label: "Social", badge: "requests" },
+  { key: "play", scene: "play", icon: "play", tone: "teal", label: "Jouer" },
+  { key: "events", scene: "events", icon: "trophy", tone: "pink", label: "Événements" },
+  { key: "shop", scene: "shop", icon: "coin", tone: "cobalt", label: "Boutique" },
+  { key: "social", scene: "friends", icon: "friends", tone: "gold", label: "Social", badge: "requests" },
 ];
 
 function CountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
-  return <span className="nj-home-badge">{count > 99 ? "99+" : count}</span>;
+  return <span className={styles.badge}>{count > 99 ? "99+" : count}</span>;
 }
 
 interface BottomNavProps {
   active?: BottomNavKey;
 }
 
-/** Barre de navigation boisée partagée (extraite du menu d'accueil). */
+/** Dock principal partagé. Sa hauteur ne varie jamais avec l'onglet actif. */
 export function BottomNav({ active }: BottomNavProps) {
   const { navigateTo } = useGame();
   const { user } = useAuth();
   const [counts, setCounts] = useState<SocialCounts>({ notifications: 0, messages: 0, requests: 0 });
+  const normalizedActive: BottomNavKey | undefined = ["players", "notifications", "messages", "friends"].includes(active ?? "") ? "social" : active;
 
   useEffect(() => {
     if (!user?.uid) {
@@ -53,19 +55,22 @@ export function BottomNav({ active }: BottomNavProps) {
   }, [user?.uid]);
 
   return (
-    <nav className="nj-home-bottom-nav" aria-label="Menu principal">
+    <nav className={`${styles.dock} nj-home-bottom-nav`} aria-label="Menu principal">
       {NAV_ITEMS.map((item) => {
-        const isActive = item.key === active;
+        const isActive = item.key === normalizedActive;
         return (
           <button
             type="button"
             key={item.key}
-            className={`nj-home-nav-btn${isActive ? " nj-home-nav-btn-active" : ""}`}
+            className={`${styles.item}${isActive ? ` ${styles.active}` : ""}`}
             aria-current={isActive ? "page" : undefined}
+            aria-label={item.label}
             onClick={() => navigateTo(item.scene)}
           >
-            <NjamboIcon name={item.icon} tone={item.tone} size={isActive ? 27 : 25} />
-            <span>{item.label}</span>
+            <span className={styles.iconShell} aria-hidden="true">
+              <NjamboIcon name={item.icon} tone={item.tone} size={26} />
+            </span>
+            <span className={styles.label}>{item.label}</span>
             {item.badge && <CountBadge count={counts[item.badge]} />}
           </button>
         );

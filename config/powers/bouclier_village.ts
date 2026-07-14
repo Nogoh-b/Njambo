@@ -15,7 +15,7 @@ export const bouclierVillage: PowerModule = {
     activationText: "La prochaine attaque ciblée est bloquée",
     description: "Bloque la prochaine carte offensive ciblée contre toi.",
     costCauris: 55,
-    costFcfa: 900,
+    costNkap: 900,
     animTags: ["future_block"],
   },
   script: {

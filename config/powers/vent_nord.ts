@@ -15,7 +15,7 @@ export const ventNord: PowerModule = {
     activationText: "Ta plus faible carte change",
     description: "Échange une carte faible de ta main contre une carte de la pioche.",
     costCauris: 25,
-    costFcfa: 400,
+    costNkap: 400,
     animTags: ["hand_self_mutate"],
   },
   script: {

@@ -2,53 +2,294 @@ rules_version = '2';
 
 service cloud.firestore {
   match /databases/{database}/documents {
+    function signedIn() { return request.auth != null; }
+    function owner(uid) { return signedIn() && request.auth.uid == uid; }
+    function admin() { return signedIn() && request.auth.token.admin == true; }
+    function shortText(value, max) { return value is string && value.size() > 0 && value.size() <= max; }
+    function profileFields() { return ['name', 'emoji', 'locale', 'ageBand', 'preferences', 'createdAt', 'updatedAt']; }
+    function validProfile(data) {
+      return data.keys().hasOnly(profileFields())
+        && shortText(data.name, 32)
+        && shortText(data.emoji, 8)
+        && data.locale in ['fr', 'en']
+        && data.ageBand in ['unknown', '13_17', '18_plus']
+        && (!('preferences' in data) || data.preferences is map);
+    }
+    function validDraft(data) {
+      return data.keys().hasOnly(['type', 'contentId', 'revision', 'payload', 'status', 'createdBy', 'createdAt', 'updatedAt', 'publishedAt'])
+        && data.type in ['event', 'offer', 'booster_definition', 'reward_table', 'runtime_config']
+        && shortText(data.contentId, 96)
+        && data.revision is int && data.revision >= 1
+        && data.payload is map
+        && data.status in ['draft', 'published', 'disabled'];
+    }
+    function roomParticipant(roomId) {
+      return signedIn() && request.auth.uid in get(/databases/$(database)/documents/rooms/$(roomId)).data.playerUids;
+    }
+    function conversationParticipant(conversationId) {
+      return signedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(conversationId)).data.participants;
+    }
 
-    // ── Profils utilisateurs : cauris, powerInventory, equippedPowers ──
     match /users/{uid} {
-      allow read: if request.auth != null;
-      // Un utilisateur ne peut lire/écrire que son propre profil
-      allow write: if request.auth.uid == uid;
+      allow read: if owner(uid) || admin();
+      allow create: if owner(uid) && validProfile(request.resource.data);
+      allow update: if owner(uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name', 'emoji', 'locale', 'ageBand', 'preferences', 'updatedAt'])
+        && shortText(request.resource.data.name, 32)
+        && shortText(request.resource.data.emoji, 8)
+        && request.resource.data.locale in ['fr', 'en']
+        && request.resource.data.ageBand in ['unknown', '13_17', '18_plus'];
+      allow delete: if false;
 
-      // ── Inventaire des power cards ──
-      match /power_inventory/{cardId} {
-        allow read: if request.auth.uid == uid;
-        // Seul le propriétaire peut modifier son inventaire
-        // (les achats sont validés côté client + firestore rules)
-        allow create, update, delete: if request.auth.uid == uid;
+      match /matches/{matchId} {
+        allow read: if owner(uid) || admin();
+        allow write: if false;
+      }
+
+      match /friends/{friendUid} {
+        allow read: if owner(uid) || admin();
+        allow create, update: if signedIn()
+          && (request.auth.uid == uid || request.auth.uid == friendUid)
+          && request.resource.data.uid == friendUid
+          && shortText(request.resource.data.name, 32)
+          && shortText(request.resource.data.emoji, 8)
+          && request.resource.data.keys().hasOnly(['uid', 'name', 'emoji', 'online', 'lastSeen', 'createdAt']);
+        allow delete: if signedIn() && (request.auth.uid == uid || request.auth.uid == friendUid);
+      }
+
+      match /notifications/{notificationId} {
+        allow read: if owner(uid) || admin();
+        allow create: if signedIn()
+          && request.resource.data.actorUid == request.auth.uid
+          && request.resource.data.type in ['friend_request', 'friend_accept', 'room_invite', 'message']
+          && shortText(request.resource.data.actorName, 32)
+          && shortText(request.resource.data.actorEmoji, 8)
+          && shortText(request.resource.data.title, 80)
+          && shortText(request.resource.data.body, 240)
+          && request.resource.data.read == false
+          && request.resource.data.keys().hasOnly(['type', 'actorUid', 'actorName', 'actorEmoji', 'title', 'body', 'read', 'roomId', 'conversationId', 'createdAt']);
+        allow update: if owner(uid)
+          && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read'])
+          && request.resource.data.read is bool;
+        allow delete: if owner(uid);
+      }
+
+      match /{privateDocument=**} {
+        allow read: if owner(uid) || admin();
+        allow write: if false;
       }
     }
 
-    // ── Défis quotidiens ──
-    match /daily_challenges/{uid} {
-      allow read: if request.auth.uid == uid;
-      allow write: if request.auth.uid == uid;
+    match /players/{uid} {
+      allow read: if signedIn();
+      allow write: if false;
     }
 
-    // ── Salles et parties ──
+    match /players_presence/{uid} {
+      allow read: if signedIn();
+      allow create, update: if owner(uid)
+        && request.resource.data.keys().hasOnly(['online', 'lastSeen'])
+        && request.resource.data.online is bool;
+      allow delete: if owner(uid);
+    }
+
+    match /economies/{uid} {
+      allow read: if owner(uid) || admin();
+      allow write: if false;
+      match /ledger/{entryId} {
+        allow read: if owner(uid) || admin();
+        allow write: if false;
+      }
+    }
+
+    match /inventories/{uid} {
+      allow read: if owner(uid) || admin();
+      allow write: if false;
+    }
+
+    match /friendRequests/{requestId} {
+      allow read: if signedIn() && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid);
+      allow create: if signedIn()
+        && request.resource.data.fromUid == request.auth.uid
+        && request.resource.data.toUid != request.auth.uid
+        && request.resource.data.status == 'pending'
+        && shortText(request.resource.data.fromName, 32)
+        && shortText(request.resource.data.toName, 32)
+        && shortText(request.resource.data.fromEmoji, 8)
+        && shortText(request.resource.data.toEmoji, 8)
+        && request.resource.data.keys().hasOnly(['fromUid', 'fromName', 'fromEmoji', 'toUid', 'toName', 'toEmoji', 'status', 'createdAt', 'updatedAt']);
+      allow update: if signedIn()
+        && (resource.data.fromUid == request.auth.uid || resource.data.toUid == request.auth.uid)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt'])
+        && (
+          (resource.data.toUid == request.auth.uid && request.resource.data.status in ['accepted', 'rejected'])
+          || (resource.data.fromUid == request.auth.uid && request.resource.data.status == 'cancelled')
+        );
+      allow delete: if false;
+    }
+
+    match /conversations/{conversationId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participants;
+      allow create: if signedIn()
+        && request.auth.uid in request.resource.data.participants
+        && request.resource.data.participants is list
+        && request.resource.data.participants.size() == 2
+        && request.resource.data.lastMessage is string
+        && request.resource.data.lastMessage.size() <= 500
+        && request.resource.data.keys().hasOnly(['participants', 'participantMeta', 'lastMessage', 'lastMessageAt', 'unreadBy']);
+      allow update: if signedIn()
+        && request.auth.uid in resource.data.participants
+        && request.resource.data.participants == resource.data.participants
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['participantMeta', 'lastMessage', 'lastMessageAt', 'unreadBy'])
+        && request.resource.data.lastMessage is string
+        && request.resource.data.lastMessage.size() <= 500;
+      allow delete: if false;
+
+      match /messages/{messageId} {
+        allow read: if conversationParticipant(conversationId);
+        allow create: if conversationParticipant(conversationId)
+          && request.resource.data.fromUid == request.auth.uid
+          && shortText(request.resource.data.text, 500)
+          && request.resource.data.keys().hasOnly(['fromUid', 'text', 'createdAt']);
+        allow update, delete: if false;
+      }
+    }
+
     match /rooms/{roomId} {
-      allow read: if request.auth != null;
-      allow create: if request.auth != null;
-      allow update, delete: if request.auth != null;
+      allow read: if signedIn();
+      allow create: if signedIn()
+        && request.resource.data.hostId == request.auth.uid
+        && request.resource.data.playerUids is list
+        && request.resource.data.playerUids.size() == 1
+        && request.auth.uid in request.resource.data.playerUids
+        && request.resource.data.players is list
+        && request.resource.data.players.size() == 1
+        && request.resource.data.maxPlayers >= 2
+        && request.resource.data.maxPlayers <= 4
+        && request.resource.data.stake in [0, 100, 250, 500]
+        && request.resource.data.status == 'waiting'
+        && request.resource.data.keys().hasOnly(['code', 'hostId', 'stake', 'status', 'roomType', 'maxPlayers', 'players', 'playerUids', 'createdAt']);
+      allow update: if signedIn()
+        && request.resource.data.playerUids is list
+        && request.resource.data.players is list
+        && request.resource.data.players.size() == request.resource.data.playerUids.size()
+        && request.resource.data.playerUids.size() <= resource.data.maxPlayers
+        && request.resource.data.stake == resource.data.stake
+        && request.resource.data.maxPlayers == resource.data.maxPlayers
+        && request.resource.data.code == resource.data.code
+        && request.resource.data.hostId == resource.data.hostId
+        && (
+          (
+            !(request.auth.uid in resource.data.playerUids)
+            && resource.data.status == 'waiting'
+            && request.resource.data.status == resource.data.status
+            && request.auth.uid in request.resource.data.playerUids
+            && request.resource.data.playerUids.size() == resource.data.playerUids.size() + 1
+            && request.resource.data.playerUids.hasAll(resource.data.playerUids)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players', 'playerUids', 'updatedAt'])
+          )
+          || (
+            request.auth.uid in resource.data.playerUids
+            && request.auth.uid in request.resource.data.playerUids
+            && request.resource.data.playerUids == resource.data.playerUids
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players', 'status', 'updatedAt'])
+          )
+          || (
+            request.auth.uid in resource.data.playerUids
+            && !(request.auth.uid in request.resource.data.playerUids)
+            && request.resource.data.status == resource.data.status
+            && request.resource.data.playerUids.size() == resource.data.playerUids.size() - 1
+            && resource.data.playerUids.hasAll(request.resource.data.playerUids)
+            && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['players', 'playerUids', 'updatedAt'])
+          )
+        );
+      allow delete: if signedIn() && request.auth.uid == resource.data.hostId;
 
-      // ── Document de jeu (game/current) ──
-      match /game/{gameId} {
-        allow read: if request.auth != null;
-        // Les power activations sont écrites par les joueurs et validées par l'hôte
-        // Seul le pendingPowerActivation peut être écrit par un joueur non-hôte
-        // L'hôte écrit les effets confirmés
-        allow write: if request.auth != null;
+      match /reactions/{reactionId} {
+        allow read: if roomParticipant(roomId);
+        allow create: if roomParticipant(roomId)
+          && request.resource.data.fromUid == request.auth.uid
+          && shortText(request.resource.data.emoji, 8)
+          && request.resource.data.keys().hasOnly(['fromUid', 'emoji', 'createdAt']);
+        allow update, delete: if false;
       }
 
-      // ── Demandes de prise de contrôle d'hôte ──
+      match /game/{legacyGameId} {
+        allow read: if roomParticipant(roomId);
+        allow write: if false;
+      }
+
       match /takeoverRequests/{uid} {
-        allow read: if request.auth != null;
-        allow write: if request.auth != null;
+        allow read: if roomParticipant(roomId);
+        allow write: if false;
       }
     }
 
-    // ── Accès global (expire le 5 août 2026 — à remplacer par des règles strictes) ──
-    match /{document=**} {
-      allow read, write: if request.time < timestamp.date(2026, 8, 5);
+    match /room_consents/{consentId} {
+      allow read, write: if false;
     }
+
+    match /matches/{matchId} {
+      allow read: if signedIn() && request.auth.uid in resource.data.participantUids;
+      allow write: if false;
+      match /private/{uid} {
+        allow read: if owner(uid);
+        allow write: if false;
+      }
+      match /actions/{actionId} {
+        allow read: if signedIn() && request.auth.uid in get(/databases/$(database)/documents/matches/$(matchId)).data.participantUids;
+        allow write: if false;
+      }
+    }
+
+    match /event_runs/{runId} {
+      allow read: if signedIn() && (resource.data.uid == request.auth.uid || admin());
+      allow write: if false;
+    }
+
+    match /booster_openings/{openingId} {
+      // Contient les neuf résultats figés : jamais lisible par le client.
+      // getPlayerEconomy ne renvoie que l'identifiant et les neuf positions.
+      allow read: if admin();
+      allow write: if false;
+    }
+
+    match /daily_rotations/{day}/players/{uid} {
+      allow read: if owner(uid) || admin();
+      allow write: if false;
+    }
+
+    match /orders/{orderId} {
+      // Les récompenses aléatoires sont figées avant confirmation et doivent
+      // rester invisibles pour empêcher le reroll d'une commande impayée.
+      allow read: if admin();
+      allow write: if false;
+    }
+    match /payment_intents/{intentId} {
+      allow read: if admin();
+      allow write: if false;
+    }
+
+    match /catalog_items/{id} { allow read: if resource.data.published == true; allow write: if false; }
+    match /offers/{id} { allow read: if resource.data.published == true; allow write: if false; }
+    match /reward_tables/{id} { allow read: if resource.data.published == true; allow write: if false; }
+    match /booster_definitions/{id} { allow read: if resource.data.published == true; allow write: if false; }
+    match /events/{id} { allow read: if resource.data.published == true; allow write: if false; }
+    match /event_versions/{id} { allow read: if resource.data.published == true; allow write: if false; }
+    match /runtime_config/{id} { allow read: if true; allow write: if false; }
+
+    match /admin_drafts/{draftId} {
+      allow read: if admin();
+      allow create: if admin() && validDraft(request.resource.data) && request.resource.data.createdBy == request.auth.uid;
+      allow update: if admin() && validDraft(request.resource.data) && request.resource.data.createdBy == resource.data.createdBy;
+      allow delete: if admin();
+    }
+    match /admin_audit/{auditId} {
+      allow read: if admin();
+      allow write: if false;
+    }
+
+    match /command_receipts/{receiptId} { allow read, write: if false; }
+    match /{document=**} { allow read, write: if false; }
   }
 }

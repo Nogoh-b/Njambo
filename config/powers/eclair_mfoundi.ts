@@ -16,7 +16,7 @@ export const eclairMfoundi: PowerModule = {
     activationText: "+2 sur ta prochaine carte",
     description: "Ta prochaine carte gagne +2 valeur virtuelle, max 10.",
     costCauris: 58,
-    costFcfa: 950,
+    costNkap: 950,
     animTags: ["hand_self_boost"],
   },
   script: {

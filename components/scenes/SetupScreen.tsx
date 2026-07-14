@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CEREMONIAL_STRIP } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { Shell } from "@/components/ui/Shell";
 import { displayFont } from "@/components/ui/Shell";
@@ -44,7 +44,7 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
         <div style={{ display: "flex", gap: 10 }}>
           {cfg.stakes.map((m) => (
             <Btn key={m} variant={mise === m ? "gold" : "ghost"} onClick={() => setMise(m)}>
-              {FCFA(m)}
+              {NKAP(m)}
             </Btn>
           ))}
         </div>

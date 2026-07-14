@@ -1,0 +1,36 @@
+{
+  "assessmentDate": "2026-07-13",
+  "score": 4,
+  "scale": "1 (critique) à 5 (défense en profondeur)",
+  "status": "prototype_hardened_pending_emulator",
+  "strengths": [
+    "Règle terminale deny-all sans date d'expiration",
+    "Aucune écriture client sur économies, ledger, inventaires, couronnes, statistiques, matches, paiements ou contenu publié",
+    "Mains privées lisibles uniquement par leur propriétaire",
+    "Custom claim admin requis pour les brouillons",
+    "Schémas, tailles et champs mutables bornés pour profils et données sociales",
+    "Callables avec App Check hors émulateur et clés d'idempotence",
+    "Appartenance aux lobbies auto-déclarée uniquement et consentement prêt signé côté serveur avant débit"
+  ],
+  "remainingFindings": [
+    {
+      "severity": "medium",
+      "path": "tooling",
+      "finding": "Les tests de règles ne peuvent pas démarrer sur la machine actuelle car Java est absent.",
+      "impact": "La validation automatisée du parseur Firestore reste à exécuter avant déploiement.",
+      "remediation": "Installer Java 21+, puis exécuter npm run test:rules."
+    },
+    {
+      "severity": "low",
+      "path": "App Check",
+      "finding": "L'enforcement est codé dans les callables mais l'activation console n'est pas vérifiable hors connexion CLI.",
+      "remediation": "Enregistrer les applications Web/Android/iOS et activer l'enforcement avant production."
+    }
+  ],
+  "deploymentGate": [
+    "Authentifier Firebase CLI",
+    "Identifier l'édition de la base (default)",
+    "Exécuter les tests Emulator",
+    "Déployer Functions avant les règles et le client"
+  ]
+}

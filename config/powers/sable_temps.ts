@@ -15,7 +15,7 @@ export const sableTemps: PowerModule = {
     activationText: "Timer adverse gelé",
     description: "Gèle le timer d'un adversaire pendant 10 secondes.",
     costCauris: 30,
-    costFcfa: 500,
+    costNkap: 500,
     animTags: ["timer_target"],
   },
   script: {

@@ -4,13 +4,14 @@ import { useEffect, useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useEconomy } from "@/contexts/EconomyContext";
 import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenPlayer } from "@/lib/socialData";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Btn } from "@/components/ui/Btn";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { PlayerStats, PublicPlayerProfile } from "@/types/game";
 
 const AVATARS = [
@@ -30,7 +31,8 @@ const ZERO_STATS: PlayerStats = { played: 0, won: 0, bestWin: 0 };
 
 export function ProfileScreen() {
   const { profile, setProfile, navigateTo } = useGame();
-  const { user, updateUserProfile } = useAuth();
+  const { user, updateUserProfile, updateAgeBand } = useAuth();
+  const { economy, rank } = useEconomy();
   const [onlineProfile, setOnlineProfile] = useState<PublicPlayerProfile | null>(null);
   const [editing, setEditing] = useState(false);
   const [draftName, setDraftName] = useState(user?.name ?? profile.name);
@@ -48,7 +50,7 @@ export function ProfileScreen() {
 
   const shownName = onlineProfile?.name ?? user?.name ?? profile.name;
   const shownEmoji = onlineProfile?.emoji ?? user?.emoji ?? profile.emoji;
-  const shownBalance = onlineProfile?.balance ?? profile.balance;
+  const shownBalance = economy?.nkap ?? profile.balance;
   const stats = onlineProfile?.stats ?? ZERO_STATS;
   const level = getPlayerLevel(stats, shownBalance);
 
@@ -80,15 +82,14 @@ export function ProfileScreen() {
   };
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene narrow>
         <div className="nj-phone">
           <ScreenHeader title="Mon profil" kicker="Identite joueur" icon="profile" tone="gold" onBack={() => navigateTo("menu")} backLabel="Retour" />
 
           <div className="nj-stack" style={{ gap: 10 }}>
             {user && (
               <div className="nj-profile-status">
-                Connecte{user.email ? ` · ${user.email}` : " (anonyme)"}
+                Connecté{user.email ? ` · ${user.email}` : user.phoneNumber ? ` · ${user.phoneNumber}` : user.isAnonymous ? " (invité)" : ""}
               </div>
             )}
 
@@ -139,6 +140,17 @@ export function ProfileScreen() {
               </div>
             </Surface>
 
+            {user && !user.isAnonymous && (
+              <Surface className="nj-panel-pad-sm">
+                <div style={{ fontWeight: 900, marginBottom: 4 }}>Tranche d’âge</div>
+                <div className="nj-subtle" style={{ marginBottom: 10, fontSize: 12 }}>Les achats XAF restent bloqués tant que le compte n’est pas déclaré 18+.</div>
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+                  <button className={`nj-choice${user.ageBand === "13_17" ? " is-active" : ""}`} type="button" onClick={() => void updateAgeBand("13_17")}>13–17 ans</button>
+                  <button className={`nj-choice${user.ageBand === "18_plus" ? " is-active" : ""}`} type="button" onClick={() => void updateAgeBand("18_plus")}>18 ans ou plus</button>
+                </div>
+              </Surface>
+            )}
+
             {error && (
               <div style={{ color: T.bad, fontSize: 13, textAlign: "center", padding: "6px 12px", borderRadius: 10, background: `${T.bad}12` }}>
                 {error}
@@ -148,10 +160,13 @@ export function ProfileScreen() {
             {/* Statistiques */}
             <div className="nj-grid-2" style={{ gap: 8 }}>
               {[
-                { label: "Solde", value: FCFA(shownBalance), color: T.gold },
+                { label: "Nkap", value: NKAP(shownBalance), color: T.gold },
+                { label: "Cauris", value: String(economy?.cauris ?? 0), color: T.copper },
+                { label: "Énergie", value: economy?.energy.unlimited ? "∞" : `${economy?.energy.available ?? 0}/100`, color: T.good },
+                { label: "Couronnes", value: String(rank.crowns), color: T.gold },
                 { label: "Parties", value: String(stats.played), color: T.chalk },
                 { label: "Victoires", value: String(stats.won), color: T.good },
-                { label: "Meilleur gain", value: FCFA(stats.bestWin), color: T.copper },
+                { label: "Badge", value: rank.badge.label, color: T.copper },
               ].map((s) => (
                 <div key={s.label} className="nj-stat-card">
                   <div className="nj-stat-card__label">{s.label}</div>
@@ -160,9 +175,7 @@ export function ProfileScreen() {
               ))}
             </div>
           </div>
-          <BottomNav />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

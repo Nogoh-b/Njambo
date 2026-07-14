@@ -5,13 +5,12 @@ import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
-import { getPlayerLevel } from "@/lib/playerLevel";
+import { rankTier } from "@/domain";
 import { listenLeaderboard } from "@/lib/playerData";
-import { FCFA } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
+import { ScreenHeader, Surface, displayFont } from "@/components/ui/Shell";
 import type { OnlinePlayerProfile } from "@/types/game";
 
 export function LeaderboardScreen() {
@@ -30,8 +29,7 @@ export function LeaderboardScreen() {
   }, []);
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene narrow>
         <div className="nj-phone">
           <ScreenHeader title="Classement" kicker="Les forts du quartier" icon="trophy" tone="gold" onBack={() => navigateTo("menu")} backLabel="Retour" />
           <Surface scrollable>
@@ -44,7 +42,8 @@ export function LeaderboardScreen() {
               )}
               {players.map((p, i) => {
                 const isYou = p.uid === user?.uid;
-                const level = getPlayerLevel(p.stats, p.balance);
+                const crowns = p.crowns ?? 1_000;
+                const tier = rankTier(crowns);
                 return (
                   <div
                     key={p.uid}
@@ -72,21 +71,19 @@ export function LeaderboardScreen() {
                         {p.name}
                       </div>
                       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                        <Chip strong style={{ minHeight: 22, fontSize: 10 }}>Niv. {level.level}</Chip>
+                        <Chip strong style={{ minHeight: 22, fontSize: 10 }}>{tier.label}</Chip>
                         {isYou && <Chip strong style={{ minHeight: 22, fontSize: 10 }}>Toi</Chip>}
                       </div>
                     </div>
                     <div style={{ ...displayFont, color: T.gold, fontWeight: 900, fontSize: 19, whiteSpace: "nowrap" }}>
-                      {FCFA(p.balance)}
+                      {crowns.toLocaleString("fr-FR")} couronnes
                     </div>
                   </div>
                 );
               })}
             </div>
           </Surface>
-          <BottomNav />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

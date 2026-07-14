@@ -531,8 +531,8 @@ export class LocalGameSync implements GameSyncActions {
     this.phase = "result";
     this.pot = 0;
     this.activePowerEffects = []; // Nettoyer après résolution
-    // refund exposé au Result pour que la couche économie (handleResult +
-    // recordMatchResult) le crédite — sinon il serait écrasé au recalcul.
+    // Le remboursement reste purement local : cet adaptateur ne sert qu'à
+    // l'entraînement invité et ne peut jamais écrire l'économie serveur.
     this.result = { ...info, winner: final[winnerIdx], gain: potNow, playersCount: ps.length, refund: youRefund || undefined };
 
     // Mettre à jour le solde du profil

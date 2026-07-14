@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useRef, useState } from "react";
 import { T } from "@/config/theme";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
 import { useRegisterZone, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
 import type { Player } from "@/types/game";
@@ -182,7 +182,7 @@ export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, si
                   : "none",
           }}
         >
-          {FCFA(p.balance)}
+          {NKAP(p.balance)}
         </div>
         {floatDiff != null && floatDiff !== 0 && (
           <div
@@ -199,7 +199,7 @@ export const Avatar = memo(function Avatar({ p, active, seconds, turnSeconds, si
             }}
           >
             {floatDiff > 0 ? "+" : ""}
-            {FCFA(floatDiff)}
+            {NKAP(floatDiff)}
           </div>
         )}
       </div>

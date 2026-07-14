@@ -5,7 +5,7 @@ import { T } from "@/config/theme";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
@@ -131,7 +131,7 @@ export function LobbyScreen({
               <span>
                 <span className="nj-subtle">Mise par manche</span>
                 <span style={{ ...displayFont, display: "block", color: T.gold, fontWeight: 900, fontSize: "clamp(18px, 5vw, 22px)" }}>
-                  {FCFA(currentRoom?.stake ?? 0)}
+                  {NKAP(currentRoom?.stake ?? 0)}
                 </span>
               </span>
               <Chip strong>

@@ -6,11 +6,11 @@ import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenMatchHistory } from "@/lib/playerData";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
+import { ScreenHeader, Surface, displayFont } from "@/components/ui/Shell";
 import type { MatchHistoryEntry } from "@/types/game";
 
 function modeLabel(mode: MatchHistoryEntry["mode"]): string {
@@ -42,8 +42,7 @@ export function HistoryScreen() {
   }, [user?.uid]);
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene narrow>
         <div className="nj-phone">
           <ScreenHeader title="Historique" kicker="Dernieres parties" icon="history" tone="pink" onBack={() => navigateTo("menu")} backLabel="Retour" />
           <Surface
@@ -112,16 +111,14 @@ export function HistoryScreen() {
                         whiteSpace: "nowrap",
                       }}
                     >
-                      {match.gain >= 0 ? "+" : ""}{FCFA(match.gain)}
+                      {match.gain >= 0 ? "+" : ""}{NKAP(match.gain)}
                     </div>
                   </div>
                 ))}
               </div>
             )}
           </Surface>
-          <BottomNav />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

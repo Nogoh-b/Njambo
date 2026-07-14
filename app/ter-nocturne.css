@@ -1,0 +1,97 @@
+:root {
+  --font-display: sans-serif;
+  --font-sans: sans-serif;
+
+  --nj-night-950: #05060b;
+  --nj-night-900: #090b16;
+  --nj-indigo-850: #11172b;
+  --nj-indigo-750: #1b2340;
+  --nj-ebony-950: #140b07;
+  --nj-ebony-850: #26140b;
+  --nj-wood-700: #4a2b16;
+  --nj-wood-600: #704421;
+  --nj-brass-500: #f2bb45;
+  --nj-brass-300: #ffe39a;
+  --nj-copper-500: #c75b3a;
+  --nj-teal-500: #10b7a6;
+  --nj-pink-500: #d83c68;
+  --nj-cobalt-500: #4968e8;
+  --nj-cream-100: #fff4df;
+  --nj-cream-300: #e8d8bd;
+  --nj-text-muted: #b9afc4;
+  --nj-success: #6ee59c;
+  --nj-danger: #ff7182;
+  --nj-warning: #ffc85a;
+
+  --nj-gold: var(--nj-brass-500);
+  --nj-teal: var(--nj-teal-500);
+  --nj-pink: var(--nj-pink-500);
+  --nj-cobalt: var(--nj-cobalt-500);
+  --nj-text: var(--nj-cream-100);
+  --nj-surface: rgba(12, 12, 28, 0.88);
+  --nj-surface-soft: rgba(8, 9, 22, 0.78);
+  --nj-surface-strong: rgba(10, 10, 25, 0.95);
+  --nj-wood-edge: var(--nj-wood-600);
+  --nj-wood-grain:
+    repeating-linear-gradient(91deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 4px, rgba(255, 214, 150, 0.04) 4px 5px, transparent 5px 12px),
+    linear-gradient(158deg, var(--nj-wood-700), var(--nj-ebony-850) 52%, var(--nj-ebony-950));
+
+  --nj-surface-deep: linear-gradient(155deg, rgba(32, 20, 19, 0.97), rgba(7, 8, 15, 0.98));
+  --nj-surface-wood: linear-gradient(155deg, rgba(86, 48, 23, 0.96), rgba(25, 13, 9, 0.98));
+  --nj-surface-indigo: linear-gradient(150deg, rgba(24, 34, 66, 0.95), rgba(7, 9, 19, 0.98));
+  --nj-border-soft: rgba(255, 236, 199, 0.12);
+  --nj-border-brass: rgba(242, 187, 69, 0.38);
+  --nj-shadow-low: 0 10px 24px rgba(0, 0, 0, 0.28);
+  --nj-shadow-high: 0 22px 52px rgba(0, 0, 0, 0.44);
+  --nj-glow-brass: 0 0 28px rgba(242, 187, 69, 0.2);
+
+  --nj-space-1: 4px;
+  --nj-space-2: 8px;
+  --nj-space-3: 12px;
+  --nj-space-4: 16px;
+  --nj-space-5: 20px;
+  --nj-space-6: 24px;
+  --nj-space-8: 32px;
+  --nj-radius-sm: 10px;
+  --nj-radius-md: 16px;
+  --nj-radius-lg: 22px;
+  --nj-radius-xl: 28px;
+  --nj-dock-height: 64px;
+  --nj-motion-fast: 160ms;
+  --nj-motion-base: 240ms;
+  --nj-motion-normal: 280ms;
+  --nj-motion-slow: 360ms;
+}
+
+body {
+  /* Les variables next/font vivent sur la classe de <body>. Les alias doivent
+     donc être résolus ici (et non sur :root), puis hérités par les scènes. */
+  --font-display: var(--font-bricolage), sans-serif;
+  --font-sans: var(--font-manrope), sans-serif;
+  font-family: var(--font-manrope), sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+button,
+input,
+select,
+textarea {
+  font-family: inherit;
+}
+
+.nj-display-type,
+.nj-heading,
+.nj-home-brand-lockup h1,
+.nj-mode-plank-label {
+  font-family: var(--font-display);
+  font-optical-sizing: auto;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --nj-motion-fast: 1ms;
+    --nj-motion-base: 1ms;
+    --nj-motion-normal: 1ms;
+    --nj-motion-slow: 1ms;
+  }
+}

@@ -15,7 +15,7 @@ export const totemAncetres: PowerModule = {
     activationText: "Double pénalité protégée",
     description: "Protège du malus double si tu perds cette manche.",
     costCauris: 70,
-    costFcfa: 1200,
+    costNkap: 1200,
     animTags: ["result_economy"],
   },
   script: {

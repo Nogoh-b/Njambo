@@ -15,7 +15,7 @@ export const masqueBluffeur: PowerModule = {
     activationText: "La prochaine lecture est annulée",
     description: "Annule la prochaine révélation ou lecture adverse contre toi.",
     costCauris: 38,
-    costFcfa: 640,
+    costNkap: 640,
     animTags: ["future_block"],
   },
   script: {

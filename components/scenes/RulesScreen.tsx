@@ -3,11 +3,11 @@
 import type { ReactNode } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 
 /* ═══════════════ RulesScreen — « Comment jouer » ═══════════════
    Règles + mini-tutoriel du Njambo. Contenu factuel tiré de gameConfig
@@ -37,8 +37,7 @@ export function RulesScreen() {
   const deckSize = (cfg.ranks.max - cfg.ranks.min + 1) * cfg.suits.length;
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene narrow>
         <div className="nj-phone">
           <ScreenHeader
             title="Comment jouer"
@@ -90,15 +89,13 @@ export function RulesScreen() {
               basse carte est jouée automatiquement. Mises disponibles :{" "}
               <span style={{ display: "inline-flex", gap: 6, flexWrap: "wrap", marginTop: 6 }}>
                 {cfg.stakes.map((m) => (
-                  <Chip key={m} strong>{FCFA(m)}</Chip>
+                  <Chip key={m} strong>{NKAP(m)}</Chip>
                 ))}
               </span>
             </RuleCard>
           </div>
 
-          <BottomNav />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

@@ -10,6 +10,8 @@
 }
 
 :root {
+  --font-display: Georgia, "Times New Roman", serif;
+  --font-sans: "Trebuchet MS", "Segoe UI", system-ui, sans-serif;
   --night-1: #090917;
   --night-2: #10142d;
   --night-3: #1c1741;
@@ -974,6 +976,18 @@ button.nj-list-card {
   isolation: isolate;
 }
 
+.nj-game-home-safe > .nj-home-bottom-nav {
+  position: fixed;
+  width: min(calc(100vw - 28px), 540px);
+}
+
+.nj-game-home-scroll {
+  position: relative;
+  gap: 7px;
+  isolation: isolate;
+  scrollbar-gutter: auto;
+}
+
 .nj-game-home-pattern {
   position: absolute;
   inset: 0;
@@ -997,7 +1011,7 @@ button.nj-list-card {
   transform: rotate(-6deg) scale(1.04);
 }
 
-.nj-game-home-safe > :not(.nj-game-home-pattern) {
+.nj-game-home-scroll > :not(.nj-game-home-pattern) {
   position: relative;
   z-index: 1;
 }
@@ -1607,6 +1621,12 @@ button.nj-list-card {
 }
 
 .nj-home-bottom-nav {
+  position: fixed;
+  left: 50%;
+  bottom: max(8px, env(safe-area-inset-bottom));
+  z-index: 90;
+  width: min(calc(100vw - clamp(32px, 6vw, 56px)), 1120px);
+  transform: translateX(-50%);
   min-height: 56px;
   flex: 0 0 auto;
   display: grid;
@@ -1618,6 +1638,33 @@ button.nj-list-card {
     var(--wood-grain);
   border: 1px solid var(--wood-edge);
   box-shadow: 0 -8px 22px rgba(0, 0, 0, 0.26), inset 0 1px 0 rgba(255, 220, 160, 0.18);
+}
+
+.nj-phone > .nj-home-bottom-nav,
+.nj-bottom-nav-scene--narrow > .nj-home-bottom-nav {
+  width: min(calc(100vw - 28px), 500px);
+}
+
+.nj-bottom-nav-scene {
+  width: min(100%, 1120px);
+}
+
+.nj-bottom-nav-scene-scroll {
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  -webkit-overflow-scrolling: touch;
+}
+
+.nj-bottom-nav-scene--narrow .nj-bottom-nav-scene-scroll {
+  width: min(100%, 500px);
+  margin-inline: auto;
 }
 
 .nj-home-nav-btn {
@@ -4303,6 +4350,14 @@ button.nj-list-card {
     gap: 6px;
   }
 
+  .nj-game-home-safe > .nj-home-bottom-nav {
+    width: min(calc(100vw - 24px), 920px);
+  }
+
+  .nj-game-home-scroll {
+    gap: 6px;
+  }
+
   .nj-game-hud {
     grid-template-columns: minmax(230px, 0.52fr) minmax(330px, 0.48fr);
   }
@@ -4534,3 +4589,138 @@ button.nj-list-card {
     transition: none !important;
   }
 }
+
+/* ── Économie, Boutique et Ter ─────────────────────────────────────────── */
+.nj-liveops-page {
+  height: 100svh;
+  min-height: 0;
+  color: var(--cream, #fff8e8);
+}
+
+.nj-liveops-scroll {
+  display: block;
+  padding: 2px 2px 16px;
+}
+
+.nj-liveops-header {
+  width: min(100%, 1120px);
+  margin: 0 auto 18px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.nj-liveops-header h1 { margin: 0; font-size: clamp(28px, 5vw, 46px); color: var(--gold); }
+.nj-liveops-header p { margin: 3px 0 0; opacity: .72; }
+.nj-liveops-back {
+  width: 44px; height: 44px; border-radius: 14px; cursor: pointer;
+  border: 1px solid rgba(242, 187, 69, .32); color: inherit;
+  background: linear-gradient(145deg, rgba(74, 43, 20, .92), rgba(16, 10, 7, .94));
+}
+
+.nj-liveops-content { width: min(100%, 1120px); min-height: min-content; margin: 0 auto; display: grid; gap: 16px; }
+.nj-liveops-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 14px; }
+.nj-liveops-grid-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.nj-liveops-card {
+  display: grid; align-content: start; gap: 10px; padding: 18px; min-width: 0;
+  border: 1px solid rgba(242, 187, 69, .22); border-radius: 20px;
+  background: linear-gradient(155deg, rgba(68, 39, 20, .88), rgba(11, 9, 12, .94));
+  color: inherit; box-shadow: 0 18px 38px rgba(0, 0, 0, .28);
+}
+.nj-liveops-card strong { font-size: 19px; color: #fff5d2; }
+.nj-liveops-card p { margin: 0; line-height: 1.45; opacity: .78; }
+.nj-liveops-card small { line-height: 1.4; opacity: .68; }
+.nj-liveops-card .btn { margin-top: auto; }
+.nj-liveops-card-icon {
+  width: 50px; height: 50px; display: grid; place-items: center; border-radius: 16px;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.08);
+}
+.nj-liveops-mode { min-height: 190px; text-align: left; cursor: pointer; }
+.nj-liveops-mode:disabled { opacity: .48; cursor: not-allowed; }
+.nj-liveops-notice {
+  padding: 11px 14px; border: 1px solid rgba(242,187,69,.3); border-radius: 14px;
+  background: rgba(89, 52, 21, .48); color: #ffe9ac; font-size: 13px;
+}
+.nj-wallet-strip { display: flex; flex-wrap: wrap; gap: 8px; }
+.nj-wallet-strip span {
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px; border-radius: 999px;
+  border: 1px solid rgba(255,255,255,.1); background: rgba(7,6,9,.62); font-weight: 850;
+}
+.nj-liveops-tabs { display: flex; gap: 7px; overflow-x: auto; padding-bottom: 2px; }
+.nj-liveops-tabs button {
+  white-space: nowrap; padding: 9px 14px; border: 1px solid rgba(255,255,255,.12); border-radius: 999px;
+  color: inherit; background: rgba(8,7,10,.65); cursor: pointer; font-weight: 800;
+}
+.nj-liveops-tabs button.active { color: #231608; background: var(--gold); border-color: var(--gold); }
+.nj-liveops-probabilities { margin: 0 0 12px; font-size: 13px; opacity: .76; }
+.nj-booster-grid { display: grid; grid-template-columns: repeat(3, minmax(74px, 1fr)); gap: 10px; max-width: 620px; margin: 0 auto; }
+.nj-booster-grid button {
+  aspect-ratio: 3 / 4; display: grid; place-items: center; align-content: center; gap: 6px;
+  border: 2px solid rgba(242,187,69,.34); border-radius: 15px; cursor: pointer;
+  color: #fff5d2; background: radial-gradient(circle at 50% 35%, #684426, #21120b 62%, #080707);
+  box-shadow: inset 0 0 0 4px rgba(7,5,5,.42), 0 10px 22px rgba(0,0,0,.28);
+}
+.nj-booster-grid button span { font-size: clamp(25px, 6vw, 44px); font-weight: 950; color: var(--gold); }
+.nj-booster-grid button small { opacity: .72; }
+.nj-grid-slot { display: grid; gap: 5px; }
+.nj-grid-slot > button:first-child { width: 100%; }
+.nj-grid-slot .nj-grid-xaf { aspect-ratio: auto; min-height: 30px; padding: 5px; border-width: 1px; border-radius: 9px; font-size: 10px; }
+.nj-wheel-card { justify-items: center; text-align: center; max-width: 620px; margin: 0 auto; }
+.nj-wheel-disc {
+  width: 130px; height: 130px; display: grid; place-items: center; border-radius: 50%;
+  border: 8px double var(--gold); font-size: 46px; font-weight: 950; color: var(--gold);
+  background: conic-gradient(#833853 0 20%, #1e8b86 20% 40%, #b87a23 40% 60%, #35367e 60% 80%, #5b2c1d 80%);
+  box-shadow: 0 0 34px rgba(242,187,69,.25);
+}
+.nj-event-meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.nj-event-meta span { padding: 4px 8px; border-radius: 99px; background: rgba(255,255,255,.07); font-size: 11px; font-weight: 800; }
+.nj-event-card ol { list-style: none; padding: 0; margin: 0; display: grid; gap: 6px; }
+.nj-event-card li { display: flex; justify-content: space-between; gap: 10px; padding: 7px 9px; border-radius: 10px; background: rgba(0,0,0,.2); }
+.nj-economy-summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+.nj-economy-summary article { padding: 14px; border-radius: 16px; background: rgba(22,13,9,.82); border: 1px solid rgba(242,187,69,.18); display: grid; gap: 5px; }
+.nj-economy-summary span, .nj-economy-summary small { opacity: .68; }
+.nj-economy-summary strong { font-size: 22px; color: var(--gold); }
+.nj-ledger-list { display: grid; gap: 7px; }
+.nj-ledger-list article { display: flex; justify-content: space-between; gap: 12px; padding: 11px 13px; border-radius: 12px; background: rgba(7,6,9,.6); }
+.nj-ledger-list article div { display: grid; gap: 2px; }
+.nj-ledger-list small { opacity: .55; }
+
+@media (max-width: 720px) {
+  .nj-liveops-grid-3, .nj-economy-summary { grid-template-columns: 1fr 1fr; }
+  .nj-liveops-page { padding-inline: 10px; }
+}
+@media (max-width: 460px) {
+  .nj-liveops-grid-3 { grid-template-columns: 1fr; }
+  .nj-liveops-mode { min-height: 140px; }
+  .nj-liveops-card { padding: 14px; border-radius: 16px; }
+  .nj-liveops-header { margin-bottom: 10px; }
+  .nj-economy-summary { gap: 7px; }
+  .nj-economy-summary article { padding: 10px; }
+}
+
+/* Placé après les variantes responsive afin que leurs paddings raccourcis ne
+   puissent jamais supprimer l'espace réservé au dock fixe. */
+.nj-safe:has(.nj-home-bottom-nav) {
+  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+}
+
+.nj-admin {
+  min-height: 100svh; padding: clamp(18px, 4vw, 48px); color: #fff6df;
+  background: radial-gradient(circle at 15% 0, #583019, transparent 38%), #0a0808;
+  font-family: var(--font-sans), sans-serif;
+}
+.nj-admin > header { display: flex; justify-content: space-between; gap: 20px; align-items: start; margin-bottom: 22px; }
+.nj-admin h1 { margin: 2px 0; color: #f2bb45; font: 900 clamp(34px, 6vw, 58px)/1 var(--font-display), serif; }
+.nj-admin header span { font-size: 11px; letter-spacing: .18em; opacity: .58; }
+.nj-admin header p { margin: 7px 0 0; opacity: .72; }
+.nj-admin a { color: #f2bb45; }
+.nj-admin-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, .8fr); gap: 18px; margin-top: 18px; }
+.nj-admin form, .nj-admin aside { padding: 20px; border: 1px solid rgba(242,187,69,.2); border-radius: 18px; background: rgba(24,17,14,.9); }
+.nj-admin form { display: grid; gap: 13px; }
+.nj-admin label { display: grid; gap: 6px; font-size: 12px; font-weight: 800; color: #e8c98e; }
+.nj-admin input, .nj-admin select, .nj-admin textarea { width: 100%; padding: 10px 11px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; background: #090808; color: #fff6df; font: inherit; }
+.nj-admin textarea, .nj-admin pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
+.nj-admin pre { max-height: 560px; overflow: auto; padding: 12px; border-radius: 12px; background: #080707; color: #bce7cf; white-space: pre-wrap; }
+.nj-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.nj-admin button { padding: 10px 13px; border: 1px solid #b77c27; border-radius: 10px; background: #684019; color: #fff6df; cursor: pointer; font-weight: 800; }
+@media (max-width: 760px) { .nj-admin-grid { grid-template-columns: 1fr; } }

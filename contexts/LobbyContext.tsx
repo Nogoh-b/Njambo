@@ -14,7 +14,8 @@ import {
   runTransaction,
   type Unsubscribe,
 } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { httpsCallable } from "firebase/functions";
+import { db, functions } from "@/lib/firebase";
 import { useAuth } from "@/hooks/useAuth";
 import type { RoomDoc, RoomPlayer } from "@/types/game";
 
@@ -405,7 +406,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       if (remaining.length === 0) {
         await deleteDoc(roomRef);
       } else {
-        await updateDoc(roomRef, { players: remaining });
+        await updateDoc(roomRef, { players: remaining, playerUids: remaining.map((player) => player.uid) });
       }
     }
 
@@ -416,13 +417,8 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
   /* ── Changer le statut "prêt" ── */
   const setReady = useCallback(async (ready: boolean) => {
     if (!user || !currentRoom) return;
-    const roomRef = doc(db, "rooms", currentRoom.id);
-
-    const updatedPlayers = currentRoom.players.map((p) =>
-      p.uid === user.uid ? { ...p, ready } : p,
-    );
-
-    await updateDoc(roomRef, { players: updatedPlayers });
+    const call = httpsCallable(functions, "setRoomReady");
+    await call({ roomId: currentRoom.id, ready, idempotencyKey: `ready_${crypto.randomUUID()}` });
   }, [user, currentRoom]);
 
   /* ── Lancer la partie (host only) ── */

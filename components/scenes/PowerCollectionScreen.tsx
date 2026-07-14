@@ -1,6 +1,8 @@
 "use client";
 
 import { useGame } from "@/contexts/GameContext";
+import { useEconomy } from "@/contexts/EconomyContext";
+import { useAuth } from "@/hooks/useAuth";
 import { POWER_CARDS, MAX_EQUIPPED_POWERS } from "@/config/powerCards";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
@@ -15,17 +17,27 @@ import type { PowerCardId } from "@/types/game";
 
 export function PowerCollectionScreen() {
   const { navigateTo, profile, setProfile } = useGame();
-  const inventory = profile.powerInventory ?? {};
-  const equipped = profile.equippedPowers ?? [];
+  const { user } = useAuth();
+  const { inventory: serverInventory, command } = useEconomy();
+  const permanentAccount = Boolean(user && !user.isAnonymous);
+  const inventory = permanentAccount
+    ? Object.fromEntries(Object.keys(serverInventory.cards ?? {}).map((cardId) => [cardId, 1]))
+    : profile.powerInventory ?? {};
+  const equipped = permanentAccount
+    ? (serverInventory.equippedCards ?? []) as PowerCardId[]
+    : profile.equippedPowers ?? [];
 
   const toggleEquip = (id: PowerCardId) => {
     if ((inventory[id] ?? 0) <= 0) return;
+    let next: PowerCardId[];
+    if (equipped.includes(id)) next = equipped.filter((cardId) => cardId !== id);
+    else if (equipped.length >= MAX_EQUIPPED_POWERS) next = equipped;
+    else next = [...equipped, id];
+    if (permanentAccount) {
+      void command("equipPowerCards", { cardIds: next });
+      return;
+    }
     setProfile((prev) => {
-      const cur = prev.equippedPowers ?? [];
-      let next: PowerCardId[];
-      if (cur.includes(id)) next = cur.filter((c) => c !== id);
-      else if (cur.length >= MAX_EQUIPPED_POWERS) next = cur;
-      else next = [...cur, id];
       return { ...prev, equippedPowers: next };
     });
   };

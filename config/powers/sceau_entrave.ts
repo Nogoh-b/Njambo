@@ -15,7 +15,7 @@ export const sceauEntrave: PowerModule = {
     activationText: "Une carte jouable est interdite",
     description: "Bloque au hasard une carte légale d'un adversaire s'il dispose d'au moins deux choix.",
     costCauris: 60,
-    costFcfa: 950,
+    costNkap: 950,
     animTags: ["hand_target_restrict"],
   },
   script: {

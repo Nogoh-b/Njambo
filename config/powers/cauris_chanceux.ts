@@ -15,7 +15,7 @@ export const caurisChanceux: PowerModule = {
     activationText: "Remboursement si tu perds",
     description: "Récupère 50% de ta mise si tu perds la manche.",
     costCauris: 28,
-    costFcfa: 450,
+    costNkap: 450,
     animTags: ["result_economy"],
   },
   script: {

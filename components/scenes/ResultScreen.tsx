@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { T } from "@/config/theme";
 import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
@@ -63,8 +63,8 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
           v: totalGain,
           duration: motion.allowLongCascade ? 0.85 : 0.68,
           ease: "power2.out",
-          onUpdate: () => { gain.textContent = `+ ${FCFA(Math.round(counter.v))}`; },
-          onComplete: () => { gain.textContent = `+ ${FCFA(totalGain)}`; },
+          onUpdate: () => { gain.textContent = `+ ${NKAP(Math.round(counter.v))}`; },
+          onComplete: () => { gain.textContent = `+ ${NKAP(totalGain)}`; },
         }, 0.24);
     }
   }, [motion.enabled, totalGain]);
@@ -155,7 +155,7 @@ export function ResultScreen({ result, mise, onNext, onMenu, canNext, nextRequir
         )}
 
         <div ref={gainRef} className={motion.enabled ? "nj-result-gain" : undefined} style={{ ...displayFont, fontSize: "clamp(26px, 7vw, 36px)", fontWeight: 900, color: T.text, marginTop: 10, opacity: motion.enabled ? 0 : 1 }}>
-          + {FCFA(totalGain)}
+          + {NKAP(totalGain)}
         </div>
         <div className="nj-subtle">{result.doubles ? "pot + pénalités doublées" : "le pot rentre au ngata"}</div>
 

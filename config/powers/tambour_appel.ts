@@ -15,7 +15,7 @@ export const tambourAppel: PowerModule = {
     activationText: "+8 secondes",
     description: "Ajoute 8 secondes à ton timer ce tour.",
     costCauris: 22,
-    costFcfa: 350,
+    costNkap: 350,
     animTags: ["timer_self"],
   },
   script: {

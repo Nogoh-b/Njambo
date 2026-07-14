@@ -12,10 +12,10 @@ import {
   rejectFriendRequest,
 } from "@/lib/socialData";
 import { AvatarIllustration } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
 import type { FriendRequest, PublicPlayerProfile, SocialFriendEntry } from "@/types/game";
 
@@ -51,8 +51,7 @@ export function FriendsScreen() {
   const incomingCount = requests.filter((req) => req.toUid === user?.uid).length;
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene active="friends" narrow>
         <div className="nj-phone">
           <ScreenHeader title="Amis" kicker={`${friends.length} amis · ${incomingCount} demande${incomingCount > 1 ? "s" : ""}`} icon="friends" tone="teal" onBack={() => navigateTo("menu")} backLabel="Retour" />
           <Surface scrollable>
@@ -138,9 +137,7 @@ export function FriendsScreen() {
               ))}
             </div>
           </Surface>
-          <BottomNav active="friends" />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

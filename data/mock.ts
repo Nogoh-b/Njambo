@@ -22,4 +22,5 @@ export const BOTS: { name: string; emoji: string }[] = [
   { name: "Junior Akwa", emoji: "junior-akwa" },
 ];
 
-export const FCFA = (n: number): string => n.toLocaleString("fr-FR") + " F";
+/** Alias historique : les montants de jeu sont désormais des Nkap. */
+export const NKAP = (n: number): string => n.toLocaleString("fr-FR") + " Nkap";

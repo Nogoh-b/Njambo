@@ -5,6 +5,8 @@
 
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
+import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
 import {
   getFirestore,
   initializeFirestore,
@@ -29,7 +31,17 @@ const firebaseConfig = {
 
 /* ── Singletons (évite les réinitialisations en dev avec HMR) ── */
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
+const appCheckSiteKey = process.env.NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY;
+if (typeof window !== "undefined" && appCheckSiteKey) {
+  try {
+    initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey), isTokenAutoRefreshEnabled: true });
+  } catch { /* instance déjà créée par HMR */ }
+}
 const auth = getAuth(app);
+const functions = getFunctions(app, "africa-south1");
+if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "1") {
+  try { connectFunctionsEmulator(functions, "127.0.0.1", 5001); } catch { /* HMR */ }
+}
 const forceLongPolling = process.env.NEXT_PUBLIC_FIRESTORE_FORCE_LONG_POLLING === "1";
 
 /* Cache offline persistant (IndexedDB, multi-onglets) : les écrans affichent
@@ -47,4 +59,4 @@ try {
   db = getFirestore(app);
 }
 
-export { app, auth, db };
+export { app, auth, db, functions };

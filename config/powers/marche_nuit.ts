@@ -16,7 +16,7 @@ export const marcheNuit: PowerModule = {
     activationText: "Carte faible améliorée",
     description: "Remplace ta plus faible carte par une meilleure carte si la pioche le permet.",
     costCauris: 60,
-    costFcfa: 1000,
+    costNkap: 1000,
     animTags: ["hand_self_mutate"],
   },
   script: {

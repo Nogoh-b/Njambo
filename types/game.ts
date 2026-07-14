@@ -53,11 +53,12 @@ export type SceneName =
   | "profile" | "leaderboard" | "friends" | "options" | "history"
   | "players" | "friend_requests" | "notifications" | "messages" | "chat" | "public_profile"
   | "power_shop" | "power_collection"
+  | "play" | "events" | "shop" | "wallet" | "admin"
   | "rules";
 export type Phase = "idle" | "dealing" | "turns" | "trickEnd" | "result";
 export type BotDifficulty = "easy" | "normal" | "hard";
 export type Panel = "leaderboard" | "friends" | "options" | "rules" | null;
-export type GameMode = "online" | "friends" | "bot";
+export type GameMode = "online" | "friends" | "bot" | "event";
 
 export type InstantReason = "flush" | "under21" | "exact21";
 export type ResultType = "instant" | "lastTrick";
@@ -172,8 +173,8 @@ export interface PowerCardDef {
   description: string;
   /** Coût d'achat en cauris */
   costCauris: number;
-  /** Coût d'achat alternatif en FCFA */
-  costFcfa: number;
+  /** Coût d'achat alternatif en NKAP */
+  costNkap: number;
   /** Éléments animés influencés — voir PowerAnimTag pour la taxonomie complète. */
   animTags: PowerAnimTag[];
 }
@@ -259,6 +260,7 @@ export interface OnlinePlayerProfile {
   name: string;
   emoji: string;
   balance: number;
+  crowns?: number;
   online: boolean;
   lastSeen: number;
   stats: PlayerStats;
@@ -401,6 +403,9 @@ export interface AuthUser {
   name: string;
   emoji: string;
   email?: string;
+  phoneNumber?: string;
+  ageBand?: "unknown" | "13_17" | "18_plus";
+  isAnonymous?: boolean;
 }
 
 /** Joueur dans une salle (Firestore rooms/{roomId}) */

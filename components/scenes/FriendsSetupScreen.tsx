@@ -6,7 +6,7 @@ import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useOnlinePlayers } from "@/hooks/useOnlinePlayers";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
@@ -152,7 +152,7 @@ export function FriendsSetupScreen() {
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
                     {cfg.stakes.map((m) => (
                       <Btn key={m} variant={mise === m ? "gold" : "ghost"} onClick={() => setMise(m)} style={{ width: "100%", minHeight: 34, fontSize: 13 }}>
-                        {FCFA(m)}
+                        {NKAP(m)}
                       </Btn>
                     ))}
                   </div>
@@ -211,7 +211,7 @@ export function FriendsSetupScreen() {
                   <span style={{ flexShrink: 0, textAlign: "center", lineHeight: 1.2 }}>
                     <span className="nj-subtle" style={{ fontSize: 11, display: "block" }}>{seats} joueurs</span>
                     <span style={{ ...displayFont, color: T.gold, fontWeight: 900, fontSize: "clamp(16px, 5vw, 20px)", whiteSpace: "nowrap" }}>
-                      {FCFA(mise * seats)}
+                      {NKAP(mise * seats)}
                     </span>
                   </span>
                 </div>

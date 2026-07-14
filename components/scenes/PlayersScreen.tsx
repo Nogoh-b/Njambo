@@ -6,8 +6,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenDiscoverPlayers } from "@/lib/socialData";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
 import type { PublicPlayerProfile } from "@/types/game";
 
@@ -29,8 +29,7 @@ export function PlayersScreen() {
   }, [search, user?.uid]);
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene active="players" narrow>
         <div className="nj-phone">
           <ScreenHeader title="Joueurs" kicker="Decouverte" icon="search" tone="teal" onBack={() => navigateTo("menu")} backLabel="Retour" />
           <Surface scrollable>
@@ -67,9 +66,7 @@ export function PlayersScreen() {
               ))}
             </div>
           </Surface>
-          <BottomNav active="players" />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

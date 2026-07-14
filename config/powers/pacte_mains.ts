@@ -15,7 +15,7 @@ export const pacteMains: PowerModule = {
     activationText: "Les mains échangent leurs secrets",
     description: "Choisis jusqu'à 3 cartes et échange-les contre autant de cartes aléatoires d'un adversaire.",
     costCauris: 85,
-    costFcfa: 1400,
+    costNkap: 1400,
     animTags: ["hand_swap_players"],
   },
   script: {

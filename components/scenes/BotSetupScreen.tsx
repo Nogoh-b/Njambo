@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
-import { FCFA, BOTS } from "@/data/mock";
+import { useEconomy } from "@/contexts/EconomyContext";
+import { useAuth } from "@/hooks/useAuth";
+import { NKAP, BOTS } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
 import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
@@ -21,11 +23,16 @@ const DIFFICULTIES: { key: BotDifficulty; label: string }[] = [
 ];
 
 export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
-  const { profile, navigateTo, cfg } = useGame();
+  const { navigateTo, cfg } = useGame();
+  const { user } = useAuth();
+  const { economy } = useEconomy();
   const [botCount, setBotCount] = useState(2);
   const [mise, setMise] = useState(cfg.stakes[1]);
   const [difficulty, setDifficulty] = useState<BotDifficulty>("normal");
   const pot = mise * (botCount + 1);
+  const training = !user || user.isAnonymous;
+  const enoughEnergy = training || economy?.energy.unlimited || (economy?.energy.available ?? 0) >= 5;
+  const enoughNkap = training || (economy?.nkap ?? 0) >= mise;
 
   return (
     <Shell>
@@ -78,6 +85,8 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
               </div>
             </Surface>
 
+            {training && <div className="nj-liveops-notice">Entraînement invité : aucune énergie, aucune mise et aucun gain.</div>}
+
             <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
               <div style={{ fontWeight: 900, marginBottom: 12 }}>Difficulté</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
@@ -94,20 +103,20 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
               </div>
             </Surface>
 
-            <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
+            {!training && <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
               <div style={{ fontWeight: 900, marginBottom: 12 }}>Mise par manche</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
                 {cfg.stakes.map((m) => (
                   <Btn key={m} variant={mise === m ? "gold" : "ghost"} onClick={() => setMise(m)} style={{ width: "100%" }}>
-                    {FCFA(m)}
+                    {NKAP(m)}
                   </Btn>
                 ))}
               </div>
-            </Surface>
+            </Surface>}
 
-            <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
+            {!training && <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
               <EquippedPowersBar />
-            </Surface>
+            </Surface>}
 
             <Surface
               className="nj-panel-pad-sm"
@@ -129,22 +138,23 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
                 </span>
               </span>
               <span style={{ ...displayFont, color: T.gold, fontWeight: 900, fontSize: "clamp(18px, 5vw, 24px)", whiteSpace: "nowrap" }}>
-                {FCFA(pot)}
+                {training ? "Entraînement" : NKAP(pot)}
               </span>
             </Surface>
 
           </div>
 
           <div className="nj-screen-footer" style={{ flexDirection: "column", gap: 8 }}>
-            {profile.balance < mise && <div style={{ color: T.bad, textAlign: "center", fontSize: 13 }}>Solde insuffisant pour cette mise.</div>}
+            {!enoughNkap && <div style={{ color: T.bad, textAlign: "center", fontSize: 13 }}>Nkap insuffisants pour cette mise.</div>}
+            {!enoughEnergy && <div style={{ color: T.bad, textAlign: "center", fontSize: 13 }}>Il faut 5 énergie pour cette manche.</div>}
             <div className="nj-action-row">
               <Btn variant="ghost" onClick={() => navigateTo("menu")}>
                 ← Menu
               </Btn>
               <Btn
                 variant="pink"
-                onClick={() => onStart(botCount, mise, difficulty)}
-                disabled={profile.balance < mise}
+                onClick={() => onStart(botCount, training ? 0 : mise, difficulty)}
+                disabled={!enoughNkap || !enoughEnergy}
                 style={{ flex: 1 }}
                 icon={<NjamboIcon name="play" tone="light" size={20} />}
               >

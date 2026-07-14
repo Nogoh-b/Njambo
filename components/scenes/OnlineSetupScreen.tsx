@@ -5,9 +5,10 @@ import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
+import { useEconomy } from "@/contexts/EconomyContext";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenDiscoverPlayers } from "@/lib/socialData";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
@@ -22,6 +23,7 @@ import type { PublicPlayerProfile } from "@/types/game";
 export function OnlineSetupScreen() {
   const { navigateTo, cfg } = useGame();
   const { user } = useAuth();
+  const { economy } = useEconomy();
   const motion = useMotionProfile();
   const { createRoom, joinRoomById, findAvailableRoom, publicRooms, roomError, clearError } = useLobby();
   const [playerSearch, setPlayerSearch] = useState("");
@@ -29,6 +31,9 @@ export function OnlineSetupScreen() {
   const [selectedStake, setSelectedStake] = useState(cfg.stakes[1]);
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [busy, setBusy] = useState(false);
+  const canPayEnergy = economy?.energy.unlimited || (economy?.energy.available ?? 0) >= 10;
+  const canPayStake = (economy?.nkap ?? 0) >= selectedStake;
+  const canStart = Boolean(user && !user.isAnonymous && canPayEnergy && canPayStake);
 
   useEffect(() => {
     const unsub = listenDiscoverPlayers(user?.uid, playerSearch, setPlayers);
@@ -101,6 +106,8 @@ export function OnlineSetupScreen() {
             <div className="nj-stack">
               {/* Barre fixe : config + actions */}
               <Surface style={{ flex: "0 0 auto", padding: "clamp(14px, 4vw, 18px)" }}>
+                {!canPayEnergy && <div className="nj-liveops-notice" style={{ marginBottom: 8 }}>Il faut 10 énergie pour une manche classée.</div>}
+                {!canPayStake && <div className="nj-liveops-notice" style={{ marginBottom: 8 }}>Nkap insuffisants pour cette mise.</div>}
                 <div className="nj-subtle" style={{ fontSize: 12, marginBottom: 8 }}>Mise par manche</div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 14 }}>
                   {cfg.stakes.map((m) => (
@@ -110,13 +117,13 @@ export function OnlineSetupScreen() {
                       onClick={() => setSelectedStake(m)}
                       style={{ width: "100%", minHeight: 34, fontSize: 13 }}
                     >
-                      {FCFA(m)}
+                      {NKAP(m)}
                     </Btn>
                   ))}
                 </div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
                   <span className="nj-subtle" style={{ fontSize: 12 }}>Nombre de joueurs</span>
-                  <span className="nj-subtle" style={{ fontSize: 12 }}>Pot {FCFA(selectedStake * maxPlayers)}</span>
+                  <span className="nj-subtle" style={{ fontSize: 12 }}>Pot {NKAP(selectedStake * maxPlayers)}</span>
                 </div>
                 <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 14 }}>
                   {[2, 3, 4].map((n) => (
@@ -137,7 +144,7 @@ export function OnlineSetupScreen() {
                   <Btn
                     variant="gold"
                     onClick={handleCreate}
-                    disabled={busy}
+                    disabled={busy || !canStart}
                     style={{ width: "100%" }}
                     icon={<NjamboIcon name="home" tone="gold" size={18} />}
                   >
@@ -145,7 +152,7 @@ export function OnlineSetupScreen() {
                   </Btn>
                   <Btn
                     variant="ghost"
-                    disabled={busy}
+                    disabled={busy || !canStart}
                     style={{ width: "100%" }}
                     icon={<NjamboIcon name="play" tone="gold" size={18} />}
                     onClick={handleAutoMatch}
@@ -201,7 +208,7 @@ export function OnlineSetupScreen() {
                       <button
                         key={room.id}
                         type="button"
-                        disabled={busy}
+                        disabled={busy || !canStart || room.stake > (economy?.nkap ?? 0)}
                         onClick={() => handleJoinRoom(room.id)}
                         className="nj-list-card nj-list-card--teal"
                         style={{
@@ -215,7 +222,7 @@ export function OnlineSetupScreen() {
                             {room.code}
                           </span>
                           <span className="nj-subtle" style={{ marginLeft: 10, fontSize: 13 }}>
-                            {FCFA(room.stake)} · {room.players.length}/{room.maxPlayers}
+                            {NKAP(room.stake)} · {room.players.length}/{room.maxPlayers}
                           </span>
                         </span>
                         <NjamboIcon name="play" tone="teal" size={20} />

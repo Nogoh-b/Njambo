@@ -15,7 +15,7 @@ export const criChef: PowerModule = {
     activationText: "-3s aux adversaires",
     description: "Si tu es leader du pli, retire 3 secondes aux adversaires.",
     costCauris: 36,
-    costFcfa: 580,
+    costNkap: 580,
     animTags: ["timer_all_opponents"],
   },
   script: {

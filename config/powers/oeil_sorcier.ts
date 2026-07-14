@@ -15,7 +15,7 @@ export const oeilSorcier: PowerModule = {
     activationText: "Main adverse révélée",
     description: "Vois la main d'un adversaire pendant 5 secondes.",
     costCauris: 30,
-    costFcfa: 500,
+    costNkap: 500,
     animTags: ["hand_target_reveal"],
   },
   script: {

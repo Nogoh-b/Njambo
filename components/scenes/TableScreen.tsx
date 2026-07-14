@@ -19,7 +19,7 @@ import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { DEV } from "@/config/devConfig";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
-import { BOTS, FCFA } from "@/data/mock";
+import { BOTS, NKAP } from "@/data/mock";
 import { powerRequiresTarget as requiresTarget, powerScriptOf } from "@/config/powers";
 import { selectInHand } from "@/engine/power/selectors";
 import type {
@@ -33,8 +33,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
 import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
-import { FirestoreGameSync } from "@/sync/FirestoreGameSync";
 import { LocalGameSync } from "@/sync/LocalGameSync";
+import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
 import type {
   BotDifficulty,
   Card,
@@ -54,7 +54,7 @@ import type {
    La logique de jeu est déléguée au GameSync (Local ou Firestore). */
 
 interface TableScreenProps {
-  gameMode: "bot" | "online" | "friends";
+  gameMode: "bot" | "online" | "friends" | "event";
   onResult: (result: Result) => void;
   onRoundRestart: () => void;
   onMenu: () => void;
@@ -64,6 +64,7 @@ interface TableScreenProps {
   roomId?: string;
   roomPlayers?: RoomPlayer[];
   roomHostId?: string;
+  eventRunId?: string;
   onNextRoundRef: { current: (() => void) | null };
 }
 
@@ -225,7 +226,6 @@ function GameMomentOverlay({ moment, motionLevel }: { moment: MomentOverlay; mot
 export function TableScreen({
   gameMode,
   onResult,
-  onRoundRestart,
   onMenu,
   initialBotCount = 2,
   initialMise = 250,
@@ -233,9 +233,10 @@ export function TableScreen({
   roomId,
   roomPlayers,
   roomHostId,
+  eventRunId,
   onNextRoundRef,
 }: TableScreenProps) {
-  const { profile, setProfile, cfg, sfx } = useGame();
+  const { profile, cfg, sfx } = useGame();
   const motion = useMotionProfile();
   const { user: authUser } = useAuth();
   const authUid = authUser?.uid ?? "";
@@ -245,7 +246,7 @@ export function TableScreen({
   // Clé d'identité de session : en mode bot, l'auth n'a aucun rôle → on ne
   // veut PAS relancer (re-distribuer) la partie quand l'auth Firebase se
   // résout après le montage. Seuls online/friends dépendent de l'uid.
-  const sessionAuthKey = gameMode === "bot" ? "" : authUid;
+  const sessionAuthKey = `${authUid}:${authUser?.isAnonymous ? "guest" : "account"}`;
 
   /* ----- responsive ----- */
   const vp = useViewport();
@@ -337,7 +338,7 @@ export function TableScreen({
   /* ----- Dérivés de l'état ----- */
   const { players, phase, trickNo, trickPlays, turnIdx, pot, dominantIdx } = gameState;
   const n = players.length;
-  const expectedPlayerCount = n || (gameMode === "bot" ? initialBotCount + 1 : roomPlayers?.length ?? 0);
+  const expectedPlayerCount = n || (gameMode === "bot" || gameMode === "event" ? initialBotCount + 1 : roomPlayers?.length ?? 0);
   const displayedPot = roundIntro ? mise * Math.max(expectedPlayerCount, 1) : pot;
   const you = players[0];
   const ledSuit: string | null = trickPlays[0]?.card.suit ?? null;
@@ -442,9 +443,9 @@ export function TableScreen({
   };
 
   /* ----- Callbacks pour le sync ----- */
-  const handleUpdateBalance = useCallback((balance: number) => {
-    setProfile((pr) => ({ ...pr, balance }));
-  }, [setProfile]);
+  // Le solde affiché vient désormais du snapshot economy. L'adapter local invité
+  // peut calculer un pot pour l'animation, mais il ne modifie aucune ressource.
+  const handleUpdateBalance = useCallback(() => {}, []);
 
   const handleBanner = useCallback((text: string) => {
     setBanner(text);
@@ -760,7 +761,7 @@ export function TableScreen({
   useEffect(() => {
     let sync: GameSyncActions;
 
-    if (gameMode === "bot") {
+    if (gameMode === "bot" && (!authUser || authUser.isAnonymous)) {
       sync = new LocalGameSync({
         profile,
         bots: BOTS,
@@ -772,26 +773,26 @@ export function TableScreen({
         onUpdateBalance: handleUpdateBalance,
         onBanner: handleBanner,
       });
-    } else {
-      if (!roomId || !roomHostId || !authUid || !roomPlayers?.length) {
+    } else if (authUid) {
+      if ((gameMode === "online" || gameMode === "friends") && (!roomId || !roomHostId || !roomPlayers?.length)) {
         setBanner("Connexion a la salle...");
         return;
       }
-
-      // online ou friends
-      sync = new FirestoreGameSync({
+      sync = new AuthoritativeGameSync({
+        mode: gameMode,
+        uid: authUid,
+        hostId: roomHostId,
         roomId,
         roomPlayers,
-        hostId: roomHostId,
-        myUid: authUid,
+        eventRunId,
         profile,
-        cfg,
-        mise,
+        stake: mise,
+        botCount: initialBotCount,
         onResult,
-        onUpdateBalance: handleUpdateBalance,
-        onRoundRestart,
-        onRematchExpired: onMenu,
       });
+    } else {
+      setBanner("Un compte permanent est requis.");
+      return;
     }
 
     syncRef.current = sync;
@@ -969,7 +970,7 @@ export function TableScreen({
       showMomentOverlay({
         type: "roundStart",
         title: "À LA TABLE",
-        subtitle: `${expectedPlayerCount} joueurs · Pot ${FCFA(mise * Math.max(expectedPlayerCount, 1))}`,
+        subtitle: `${expectedPlayerCount} joueurs · Pot ${NKAP(mise * Math.max(expectedPlayerCount, 1))}`,
         tone: "gold",
         asset: "mark",
       }, ROUND_INTRO_MS);
@@ -1288,7 +1289,7 @@ export function TableScreen({
         <Chip strong>
           Tour {Math.min(trickNo, cfg.cardsPerPlayer)}/{cfg.cardsPerPlayer}
         </Chip>
-        <Chip>Mise {FCFA(mise)}</Chip>
+        <Chip>Mise {NKAP(mise)}</Chip>
         {gameMode !== "bot" && syncStatus.state !== "live" && (
           <Chip
             strong

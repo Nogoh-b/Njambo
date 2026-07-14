@@ -1,6 +1,6 @@
 import type { PowerModule } from "@/engine/power/types";
 
-/** Pluie d'Étoiles — +200 FCFA au pot si l'activateur remporte ce pli. */
+/** Pluie d'Étoiles — +200 NKAP au pot si l'activateur remporte ce pli. */
 export const pluieEtoiles: PowerModule = {
   def: {
     id: "pluie_etoiles",
@@ -12,10 +12,10 @@ export const pluieEtoiles: PowerModule = {
     targetMode: "none",
     art: "/assets/power-cards/pluie_etoiles.webp",
     activationTitle: "PLUIE D'OR",
-    activationText: "+200 FCFA dans le pot",
-    description: "+200 FCFA bonus au pot si tu remportes ce pli.",
+    activationText: "+200 Nkap dans le pot",
+    description: "+200 Nkap bonus au pot si tu remportes ce pli.",
     costCauris: 50,
-    costFcfa: 800,
+    costNkap: 800,
     animTags: ["pot_bonus"],
   },
   script: {

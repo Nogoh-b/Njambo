@@ -7,8 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenNotifications, markNotificationRead } from "@/lib/socialData";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { NotificationEntry } from "@/types/game";
 
 export function NotificationsScreen() {
@@ -56,8 +56,7 @@ export function NotificationsScreen() {
   };
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene active="notifications" narrow>
         <div className="nj-phone">
           <ScreenHeader title="Notifications" kicker="Activite" icon="notification" tone="pink" onBack={() => navigateTo("menu")} backLabel="Retour" />
           <Surface scrollable>
@@ -84,9 +83,7 @@ export function NotificationsScreen() {
               ))}
             </div>
           </Surface>
-          <BottomNav active="notifications" />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

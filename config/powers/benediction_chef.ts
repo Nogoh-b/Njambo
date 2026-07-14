@@ -15,7 +15,7 @@ export const benedictionChef: PowerModule = {
     activationText: "Gain du pli x2",
     description: "Double le gain si tu remportes ce pli.",
     costCauris: 35,
-    costFcfa: 600,
+    costNkap: 600,
     animTags: ["pot_bonus"],
   },
   script: {

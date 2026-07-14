@@ -5,11 +5,11 @@ import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenPlayer } from "@/lib/socialData";
-import { FCFA } from "@/data/mock";
+import { NKAP } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
-import { BottomNav } from "@/components/ui/BottomNav";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
+import { ScreenHeader, Surface, displayFont } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
 import type { PublicPlayerProfile } from "@/types/game";
 
@@ -33,8 +33,7 @@ export function PublicProfileScreen() {
   }, [socialTarget.peerUid, socialTarget.playerUid]);
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene narrow>
         <div className="nj-phone">
           <ScreenHeader title="Profil joueur" kicker="Public" icon="profile" tone="gold" onBack={() => navigateTo("players")} backLabel="Joueurs" />
           <Surface style={{ textAlign: "center" }}>
@@ -63,7 +62,7 @@ export function PublicProfileScreen() {
                     </div>
                   </div>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, width: "100%" }}>
-                    <Chip strong>{FCFA(player.balance)}</Chip>
+                    <Chip strong>{NKAP(player.balance)}</Chip>
                     <Chip>{player.stats.played} parties</Chip>
                     <Chip tone="teal">{player.stats.won} victoires</Chip>
                   </div>
@@ -74,9 +73,7 @@ export function PublicProfileScreen() {
               );
             })()}
           </Surface>
-          <BottomNav />
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }
