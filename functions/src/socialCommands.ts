@@ -18,7 +18,7 @@ function userLite(data: Record<string, unknown>, key: string): UserLite {
   const value = raw as Record<string, unknown>;
   const uid = typeof value.uid === "string" && value.uid.length > 0 && value.uid.length <= 128 ? value.uid : null;
   const name = typeof value.name === "string" && value.name.trim().length > 0 && value.name.length <= 32 ? value.name : null;
-  const emoji = typeof value.emoji === "string" && value.emoji.length > 0 && value.emoji.length <= 8 ? value.emoji : null;
+  const emoji = typeof value.emoji === "string" && value.emoji.length > 0 && value.emoji.length <= 32 ? value.emoji : null;
   if (!uid || !name || !emoji) throw new HttpsError("invalid-argument", `INVALID_${key.toUpperCase()}`);
   return { uid, name, emoji };
 }
@@ -61,7 +61,7 @@ export async function saveProfileHandler(request: CallableRequest<unknown>) {
   const uid = requireUid(request);
   const data = asObject(request.data);
   const name = requiredString(data, "name", 32);
-  const emoji = requiredString(data, "emoji", 8);
+  const emoji = requiredString(data, "emoji", 32);
   const locale = optionalString(data, "locale", 8) ?? "fr";
   const ageBand = optionalString(data, "ageBand", 16) ?? "unknown";
   if (!["fr", "en"].includes(locale)) throw new HttpsError("invalid-argument", "INVALID_LOCALE");

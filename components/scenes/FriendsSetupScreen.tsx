@@ -151,7 +151,7 @@ export function FriendsSetupScreen() {
                   <span className="nj-subtle" style={{ fontSize: 12 }}>Mise</span>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
                     {cfg.stakes.map((m) => (
-                      <Btn key={m} variant={mise === m ? "gold" : "ghost"} onClick={() => setMise(m)} style={{ width: "100%", minHeight: 34, fontSize: 13 }}>
+                      <Btn key={m} variant={mise === m ? "gold" : "ghost"} ariaPressed={mise === m} onClick={() => setMise(m)} style={{ width: "100%", minHeight: 34, fontSize: 13 }}>
                         {NKAP(m)}
                       </Btn>
                     ))}
@@ -166,7 +166,7 @@ export function FriendsSetupScreen() {
                   <span className="nj-subtle" style={{ fontSize: 12 }}>Joueurs</span>
                   <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6 }}>
                     {[2, 3, 4].map((n) => (
-                      <Btn key={`seat-${n}`} variant={seats === n ? "gold" : "ghost"} onClick={() => changeSeats(n)} style={{ width: "100%", minHeight: 34, fontSize: 13 }}>
+                      <Btn key={`seat-${n}`} variant={seats === n ? "gold" : "ghost"} ariaPressed={seats === n} onClick={() => changeSeats(n)} style={{ width: "100%", minHeight: 34, fontSize: 13 }}>
                         {n}
                       </Btn>
                     ))}

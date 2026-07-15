@@ -56,9 +56,9 @@ export function FriendsScreen() {
           <ScreenHeader title="Amis" kicker={`${friends.length} amis · ${incomingCount} demande${incomingCount > 1 ? "s" : ""}`} icon="friends" tone="teal" onBack={() => navigateTo("menu")} backLabel="Retour" />
           <Surface scrollable>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 12 }}>
-              <Btn variant={tab === "friends" ? "gold" : "ghost"} onClick={() => setTab("friends")}>Amis</Btn>
+              <Btn variant={tab === "friends" ? "gold" : "ghost"} ariaPressed={tab === "friends"} onClick={() => setTab("friends")}>Amis</Btn>
               <Btn variant={tab === "requests" ? "pink" : "ghost"} onClick={() => setTab("requests")}>Demandes</Btn>
-              <Btn variant={tab === "players" ? "gold" : "ghost"} onClick={() => setTab("players")}>Joueurs</Btn>
+              <Btn variant={tab === "players" ? "gold" : "ghost"} ariaPressed={tab === "players"} onClick={() => setTab("players")}>Joueurs</Btn>
             </div>
 
             {tab === "players" && (

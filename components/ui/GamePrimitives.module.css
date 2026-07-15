@@ -1,21 +1,21 @@
 .tone-gold {
-  --primitive-accent: var(--nj-gold, var(--gold, #f2bb45));
-  --primitive-accent-rgb: 242, 187, 69;
+  --primitive-accent: var(--nj-gold, var(--gold, #d0a35d));
+  --primitive-accent-rgb: 208, 163, 93;
 }
 
 .tone-teal {
-  --primitive-accent: var(--nj-teal, var(--teal, #10b7a6));
-  --primitive-accent-rgb: 16, 183, 166;
+  --primitive-accent: var(--nj-teal, var(--teal, #559b91));
+  --primitive-accent-rgb: 85, 155, 145;
 }
 
 .tone-pink {
-  --primitive-accent: var(--nj-pink, var(--pink, #d83c68));
-  --primitive-accent-rgb: 216, 60, 104;
+  --primitive-accent: var(--nj-pink, var(--pink, #ad6972));
+  --primitive-accent-rgb: 173, 105, 114;
 }
 
 .tone-cobalt {
-  --primitive-accent: var(--nj-cobalt, var(--cobalt, #3154d4));
-  --primitive-accent-rgb: 49, 84, 212;
+  --primitive-accent: var(--nj-cobalt, var(--cobalt, #687c99));
+  --primitive-accent-rgb: 104, 124, 153;
 }
 
 .card {
@@ -378,8 +378,8 @@
 
 .tabActive {
   color: #fff3cf;
-  background: linear-gradient(145deg, rgba(242, 187, 69, 0.23), rgba(169, 112, 31, 0.16));
-  box-shadow: inset 0 0 0 1px rgba(242, 187, 69, 0.32);
+  background: linear-gradient(145deg, rgba(208, 163, 93, 0.18), rgba(110, 79, 47, 0.14));
+  box-shadow: inset 0 0 0 1px rgba(208, 163, 93, 0.26);
 }
 
 .tab:disabled {
@@ -402,19 +402,19 @@
 }
 
 .status-info {
-  --status-color: 49, 84, 212;
+  --status-color: 104, 124, 153;
 }
 
 .status-success {
-  --status-color: 16, 183, 166;
+  --status-color: 85, 155, 145;
 }
 
 .status-warning {
-  --status-color: 242, 187, 69;
+  --status-color: 208, 163, 93;
 }
 
 .status-error {
-  --status-color: 216, 60, 104;
+  --status-color: 173, 105, 114;
 }
 
 .statusIcon {

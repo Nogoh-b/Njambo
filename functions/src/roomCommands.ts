@@ -30,7 +30,7 @@ function generateCode(): string {
 function playerIdentity(data: Record<string, unknown>) {
   return {
     name: requiredString(data, "name", 32),
-    emoji: requiredString(data, "emoji", 8),
+    emoji: requiredString(data, "emoji", 32),
   };
 }
 

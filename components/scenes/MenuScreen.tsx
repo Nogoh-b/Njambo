@@ -133,7 +133,7 @@ function ResourceButton({
   progress?: number;
 }) {
   return (
-    <button data-nj-skin={tone}
+    <button data-nj-skin="none"
       type="button"
       className={`${styles.resource} ${styles[`tone${tone}`]}`}
       onClick={onClick}
@@ -192,7 +192,7 @@ function ModeCard({
     >
       <button data-nj-skin="none" type="button" className={styles.modeOpen} onClick={onOpen} aria-label={`Jouer ${mode.label}`}>
         <span className={styles.modeTopline}>
-          <span className={styles.modeGlyph}><NjamboIcon name={mode.icon} tone={mode.tone} size={mode.primary ? 27 : 23} /></span>
+          <span className={styles.modeGlyph}><NjamboIcon name={mode.icon} tone={mode.tone} size={mode.primary ? 32 : 28} /></span>
           <span className={styles.modeKicker}>{mode.primary ? "Table classée" : "Table libre"}</span>
         </span>
         <span className={styles.modeCopy}>
@@ -207,7 +207,7 @@ function ModeCard({
             </span>
           ))}
         </span>
-        <span className={styles.playDisc} aria-hidden="true"><NjamboIcon name="play" tone="light" size={18} /></span>
+        <span className={styles.playDisc} aria-hidden="true"><NjamboIcon name="play" tone={mode.tone} size={27} /></span>
         {locked && (
           <span className={styles.modeLock}>
             <NjamboIcon name="profile" tone="light" size={15} />
@@ -362,7 +362,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
 
       <div className={styles.homeBody} ref={stageRef}>
         <header className={styles.identityBar} data-home-enter>
-          <button data-nj-skin="dark"
+          <button data-nj-skin="none"
             type="button"
             className={styles.playerIdentity}
             onClick={() => openLink("profile")}
@@ -383,11 +383,11 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           </button>
 
           <div className={styles.headerActions}>
-            <button data-nj-skin="icon" type="button" className={styles.iconButton} onClick={() => openLink("notifications")} aria-label={`Notifications : ${socialCounts.notifications + socialCounts.requests} non lues`}>
+            <button data-nj-skin="none" type="button" className={styles.iconButton} onClick={() => openLink("notifications")} aria-label={`Notifications : ${socialCounts.notifications + socialCounts.requests} non lues`}>
               <NjamboIcon name="notification" tone="pink" size={22} />
               <CountBadge count={socialCounts.notifications + socialCounts.requests} />
             </button>
-            <button data-nj-skin="icon" type="button" className={styles.iconButton} onClick={() => openLink("options")} aria-label="Réglages">
+            <button data-nj-skin="none" type="button" className={styles.iconButton} onClick={() => openLink("options")} aria-label="Réglages">
               <NjamboIcon name="settings" tone="gold" size={22} />
             </button>
           </div>
@@ -436,7 +436,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                 <small>{t("home.playKicker")}</small>
                 <h1 id="home-play-title">{t("home.playTitle")}</h1>
               </span>
-              <button data-nj-skin="teal" type="button" onClick={() => openLink("play")}>{t("home.allModes")} <span aria-hidden="true">→</span></button>
+              <button data-nj-skin="none" type="button" onClick={() => openLink("play")}>{t("home.allModes")} <span aria-hidden="true">→</span></button>
             </div>
 
             <ModeCard
@@ -527,7 +527,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
 
             <nav className={styles.quickLinks} aria-label="Raccourcis" data-home-activity>
               {QUICK_LINKS.map((link) => (
-                <button data-nj-skin="ghost" type="button" key={link.scene} onClick={() => openLink(link.scene)}>
+                <button data-nj-skin="none" type="button" key={link.scene} onClick={() => openLink(link.scene)}>
                   <span><NjamboIcon name={link.icon} tone="gold" size={20} /></span>
                   {link.label}
                 </button>

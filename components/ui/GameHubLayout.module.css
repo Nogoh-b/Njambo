@@ -1,6 +1,6 @@
 .scene {
-  --hub-accent: var(--nj-gold, var(--gold, #f2bb45));
-  --hub-accent-rgb: 242, 187, 69;
+  --hub-accent: var(--nj-gold, var(--gold, #d0a35d));
+  --hub-accent-rgb: 208, 163, 93;
   isolation: isolate;
 }
 
@@ -16,23 +16,23 @@
 }
 
 .toneGold {
-  --hub-accent: var(--nj-gold, var(--gold, #f2bb45));
-  --hub-accent-rgb: 242, 187, 69;
+  --hub-accent: var(--nj-gold, var(--gold, #d0a35d));
+  --hub-accent-rgb: 208, 163, 93;
 }
 
 .toneTeal {
-  --hub-accent: var(--nj-teal, var(--teal, #10b7a6));
-  --hub-accent-rgb: 16, 183, 166;
+  --hub-accent: var(--nj-teal, var(--teal, #559b91));
+  --hub-accent-rgb: 85, 155, 145;
 }
 
 .tonePink {
-  --hub-accent: var(--nj-pink, var(--pink, #d83c68));
-  --hub-accent-rgb: 216, 60, 104;
+  --hub-accent: var(--nj-pink, var(--pink, #ad6972));
+  --hub-accent-rgb: 173, 105, 114;
 }
 
 .toneCobalt {
-  --hub-accent: var(--nj-cobalt, var(--cobalt, #3154d4));
-  --hub-accent-rgb: 49, 84, 212;
+  --hub-accent: var(--nj-cobalt, var(--cobalt, #687c99));
+  --hub-accent-rgb: 104, 124, 153;
 }
 
 .scroll {

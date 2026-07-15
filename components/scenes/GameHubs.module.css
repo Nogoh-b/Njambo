@@ -24,10 +24,10 @@
 .bannerButton {
   min-height: 44px;
   padding: 0 14px;
-  border: 1px solid rgba(243, 201, 105, 0.45);
+  border: 1px solid rgba(208, 163, 93, 0.34);
   border-radius: 12px;
-  color: #241409;
-  background: linear-gradient(145deg, #ffe39a, var(--nj-gold, #f3c969));
+  color: var(--nj-cream, #fff4df);
+  background: linear-gradient(155deg, rgba(67, 43, 27, 0.97), rgba(18, 14, 13, 0.99));
   font-size: 0.78rem;
   font-weight: 850;
   cursor: pointer;
@@ -56,9 +56,9 @@
   min-height: 270px;
 }
 
-.modeTone_teal { --mode-accent: var(--nj-teal, #35dbc4); }
-.modeTone_gold { --mode-accent: var(--nj-gold, #f3c969); }
-.modeTone_pink { --mode-accent: var(--nj-pink, #ec5b83); }
+.modeTone_teal { --mode-accent: var(--nj-teal, #559b91); }
+.modeTone_gold { --mode-accent: var(--nj-gold, #d0a35d); }
+.modeTone_pink { --mode-accent: var(--nj-pink, #ad6972); }
 
 .modeArt {
   height: 100%;
@@ -78,8 +78,8 @@
 
 .modeShade {
   background:
-    linear-gradient(90deg, rgba(4, 7, 17, 0.97) 0%, rgba(4, 7, 17, 0.8) 52%, rgba(4, 7, 17, 0.18) 100%),
-    linear-gradient(0deg, rgba(4, 7, 17, 0.92), transparent 58%);
+    linear-gradient(90deg, rgba(4, 7, 17, 0.91) 0%, rgba(4, 7, 17, 0.62) 52%, rgba(4, 7, 17, 0.08) 100%),
+    linear-gradient(0deg, rgba(4, 7, 17, 0.8), transparent 60%);
   inset: 0;
   position: absolute;
   z-index: -2;
@@ -87,14 +87,14 @@
 
 .modePrimary .modeShade {
   background:
-    linear-gradient(90deg, rgba(3, 10, 20, 0.98) 0%, rgba(3, 10, 20, 0.74) 52%, rgba(3, 10, 20, 0.12) 100%),
-    linear-gradient(0deg, rgba(3, 10, 20, 0.95), transparent 65%);
+    linear-gradient(90deg, rgba(3, 10, 20, 0.93) 0%, rgba(3, 10, 20, 0.6) 52%, rgba(3, 10, 20, 0.05) 100%),
+    linear-gradient(0deg, rgba(3, 10, 20, 0.84), transparent 66%);
 }
 
 .modeCard::after {
-  border: 1px solid color-mix(in srgb, var(--mode-accent) 52%, transparent);
+  border: 1px solid color-mix(in srgb, var(--mode-accent) 20%, #8a6845);
   border-radius: inherit;
-  box-shadow: inset 0 0 40px color-mix(in srgb, var(--mode-accent) 8%, transparent);
+  box-shadow: inset 0 0 40px color-mix(in srgb, var(--mode-accent) 4%, transparent);
   content: "";
   inset: 0;
   pointer-events: none;
@@ -134,9 +134,9 @@
 
 .modeIcon {
   align-items: center;
-  background: color-mix(in srgb, var(--mode-accent) 14%, rgba(3, 6, 14, 0.75));
-  border: 1px solid color-mix(in srgb, var(--mode-accent) 48%, transparent);
-  border-radius: 14px;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
   display: inline-flex;
   flex: 0 0 auto;
   height: 48px;
@@ -162,7 +162,7 @@
   align-items: center;
   backdrop-filter: blur(8px);
   background: rgba(4, 8, 18, 0.72);
-  border: 1px solid color-mix(in srgb, var(--mode-accent) 28%, rgba(255, 255, 255, 0.1));
+  border: 1px solid color-mix(in srgb, var(--mode-accent) 14%, rgba(255, 255, 255, 0.12));
   border-radius: 999px;
   color: var(--nj-cream, #fff4df);
   display: inline-flex;
@@ -192,9 +192,9 @@
 }
 
 .modeCta {
-  background: linear-gradient(135deg, color-mix(in srgb, var(--mode-accent) 88%, white), color-mix(in srgb, var(--mode-accent) 65%, #7e4420));
-  box-shadow: 0 10px 28px color-mix(in srgb, var(--mode-accent) 23%, transparent);
-  color: #081015;
+  background: linear-gradient(155deg, rgba(67, 43, 27, 0.97), rgba(18, 14, 13, 0.99));
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.28);
+  color: var(--nj-cream, #fff4df);
   gap: 14px;
   margin-top: 18px;
   padding: 0 18px;
@@ -211,8 +211,8 @@
 .lockVeil {
   align-items: center;
   backdrop-filter: blur(14px);
-  background: linear-gradient(90deg, rgba(9, 8, 13, 0.92), rgba(38, 23, 20, 0.84));
-  border: 1px solid rgba(243, 201, 105, 0.34);
+  background: linear-gradient(90deg, rgba(9, 8, 13, 0.9), rgba(31, 24, 20, 0.82));
+  border: 1px solid rgba(208, 163, 93, 0.24);
   border-radius: 14px;
   display: flex;
   gap: 10px;
@@ -519,9 +519,9 @@
 .stageReward { color: var(--nj-gold, #f3c969); font-size: 0.68rem; font-weight: 800; grid-column: 2; }
 
 .eventCta {
-  --mode-accent: var(--nj-pink, #ec5b83);
-  background: linear-gradient(135deg, #d94d79, #8f2850);
-  color: #fff8ec;
+  --mode-accent: var(--nj-pink, #ad6972);
+  background: linear-gradient(155deg, rgba(67, 43, 27, 0.97), rgba(18, 14, 13, 0.99));
+  color: var(--nj-cream, #fff4df);
   gap: 12px;
   padding: 0 18px;
   width: 100%;
@@ -586,7 +586,7 @@
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   padding: 2px 2px 8px;
-  scrollbar-color: rgba(93, 140, 255, 0.35) transparent;
+  scrollbar-color: rgba(208, 163, 93, 0.28) transparent;
   scrollbar-width: thin;
   scroll-snap-type: inline proximity;
 }
@@ -607,15 +607,15 @@
 
 .offerCategories button:hover,
 .offerCategories button:focus-visible {
-  border-color: rgba(93, 140, 255, 0.55);
+  border-color: rgba(208, 163, 93, 0.42);
   color: var(--nj-cream, #fff4df);
 }
 
 .offerCategories .offerCategoryActive {
-  border-color: rgba(93, 140, 255, 0.7);
-  color: #e8eeff;
-  background: linear-gradient(145deg, rgba(93, 140, 255, 0.3), rgba(45, 69, 148, 0.2));
-  box-shadow: inset 0 0 0 1px rgba(93, 140, 255, 0.08), 0 8px 24px rgba(27, 47, 111, 0.18);
+  border-color: rgba(208, 163, 93, 0.58);
+  color: var(--nj-cream, #fff4df);
+  background: linear-gradient(145deg, rgba(121, 83, 47, 0.46), rgba(31, 24, 20, 0.72));
+  box-shadow: inset 0 0 0 1px rgba(208, 163, 93, 0.08), 0 8px 22px rgba(0, 0, 0, 0.18);
 }
 
 .offerGrid,
@@ -712,9 +712,9 @@
 }
 
 .priceCauris {
-  background: rgba(93, 140, 255, 0.1);
-  border: 1px solid rgba(93, 140, 255, 0.28);
-  color: #b7cbff;
+  background: rgba(104, 124, 153, 0.1);
+  border: 1px solid rgba(104, 124, 153, 0.26);
+  color: #bcc6d4;
 }
 
 .priceXaf {
@@ -724,9 +724,9 @@
 }
 
 .buyButton {
-  --mode-accent: var(--nj-cobalt, #5d8cff);
-  background: linear-gradient(135deg, #557ee7, #304da6);
-  color: white;
+  --mode-accent: var(--nj-cobalt, #687c99);
+  background: linear-gradient(155deg, rgba(67, 43, 27, 0.97), rgba(18, 14, 13, 0.99));
+  color: var(--nj-cream, #fff4df);
   padding: 0 16px;
   width: 100%;
 }
@@ -736,7 +736,7 @@
 }
 
 .oddsDetails summary {
-  color: #b7cbff;
+  color: #bcc6d4;
 }
 
 .oddsDetails ul {
@@ -1050,9 +1050,9 @@
 }
 
 .wheelButton {
-  --mode-accent: var(--nj-gold, #f3c969);
-  background: linear-gradient(135deg, #f2c45c, #b8752e);
-  color: #1c1110;
+  --mode-accent: var(--nj-gold, #d0a35d);
+  background: linear-gradient(155deg, rgba(67, 43, 27, 0.97), rgba(18, 14, 13, 0.99));
+  color: var(--nj-cream, #fff4df);
   gap: 9px;
   padding: 0 18px;
   width: 100%;

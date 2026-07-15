@@ -141,30 +141,26 @@ function markSvg() {
 }
 
 const buttonThemes = {
-  gold: { edge: "#f2bb45", light: "#ffe39a", surface1: "#704421", surface2: "#26140b", inlay: "#10b7a6" },
-  teal: { edge: "#10b7a6", light: "#9cf1e6", surface1: "#164f4d", surface2: "#081d20", inlay: "#f2bb45" },
-  pink: { edge: "#d83c68", light: "#ff9ab7", surface1: "#64223c", surface2: "#200b18", inlay: "#f2bb45" },
-  dark: { edge: "#9b6536", light: "#d7a957", surface1: "#4a2b16", surface2: "#140b07", inlay: "#10b7a6" },
-  ghost: { edge: "#c58a45", light: "#ffe0a0", surface1: "#2e2119", surface2: "#09080b", inlay: "#3154d4" },
+  gold: { edge: "#d0a35d", light: "#f0d59a", surface1: "#5a3b22", surface2: "#1d130e", inlay: "#aa7041" },
+  teal: { edge: "#609d93", light: "#b5d5ca", surface1: "#30423c", surface2: "#101917", inlay: "#b68a50" },
+  pink: { edge: "#ad6972", light: "#d8afb0", surface1: "#452d2d", surface2: "#19100f", inlay: "#b68a50" },
+  dark: { edge: "#8c6746", light: "#c5a574", surface1: "#3d291d", surface2: "#120d0b", inlay: "#675443" },
+  ghost: { edge: "#5f5144", light: "#8e7960", surface1: "#25201c", surface2: "#0b0a0b", inlay: "#4c453d" },
 };
 
 function buttonSvg(theme, iconOnly = false) {
   const width = iconOnly ? 256 : 720;
   const height = iconOnly ? 256 : 288;
-  const radius = iconOnly ? 120 : 92;
-  const x = iconOnly ? 12 : 16;
-  const y = iconOnly ? 12 : 16;
-  const w = width - x * 2;
-  const h = height - y * 2;
   const geometry = iconOnly
-    ? `<circle cx="128" cy="128" r="114" fill="url(#surface)" stroke="url(#edge)" stroke-width="16"/><circle cx="128" cy="128" r="91" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".55" stroke-width="5"/><circle cx="128" cy="128" r="79" fill="#090917" fill-opacity=".34"/>`
-    : `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="${radius}" fill="url(#surface)" stroke="url(#edge)" stroke-width="16"/><rect x="43" y="43" width="634" height="202" rx="65" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".48" stroke-width="5"/><rect x="62" y="61" width="596" height="166" rx="52" fill="#05060b" fill-opacity=".2"/><path d="M92 62h536M92 226h536" stroke="${theme.light}" stroke-opacity=".18" stroke-width="5"/>`;
+    ? `<circle cx="128" cy="128" r="114" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><circle cx="128" cy="128" r="94" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".42" stroke-width="4"/><circle cx="128" cy="128" r="78" fill="#08090d" fill-opacity=".48" stroke="#e8d4af" stroke-opacity=".09" stroke-width="3"/><path d="M128 13l10 14-10 14-10-14 10-14Zm0 202 10 14-10 14-10-14 10-14ZM13 128l14-10 14 10-14 10-14-10Zm202 0 14-10 14 10-14 10-14-10Z" fill="${theme.light}" fill-opacity=".68"/>`
+    : `<path d="M72 12h576l60 60v144l-60 60H72l-60-60V72l60-60Z" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><path d="M91 38h538l53 53v106l-53 53H91l-53-53V91l53-53Z" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".5" stroke-width="5"/><path d="M108 59h504l46 46v78l-46 46H108l-46-46v-78l46-46Z" fill="#07080d" fill-opacity=".3" stroke="#ead8b8" stroke-opacity=".08" stroke-width="3"/><path d="M72 30h576M72 258h576" stroke="${theme.light}" stroke-opacity=".2" stroke-width="4"/><path d="M57 71l13-13 13 13-13 13-13-13Zm580 0 13-13 13 13-13 13-13-13ZM57 217l13-13 13 13-13 13-13-13Zm580 0 13-13 13 13-13 13-13-13Z" fill="${theme.light}" fill-opacity=".72" stroke="${theme.edge}" stroke-width="3"/>`;
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <defs>
       <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${theme.surface1}"/><stop offset=".5" stop-color="${theme.surface2}"/><stop offset="1" stop-color="#070609"/></linearGradient>
-      <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${theme.light}"/><stop offset=".35" stop-color="${theme.edge}"/><stop offset=".72" stop-color="#6f321d"/><stop offset="1" stop-color="${theme.edge}"/></linearGradient>
+      <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${theme.light}"/><stop offset=".38" stop-color="${theme.edge}"/><stop offset=".72" stop-color="#5d402b"/><stop offset="1" stop-color="${theme.edge}"/></linearGradient>
       <pattern id="weave" width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 8h34M0 26h34" stroke="${theme.edge}" stroke-opacity=".13" stroke-width="4"/><path d="M8 0v34M26 0v34" stroke="${theme.inlay}" stroke-opacity=".1" stroke-width="3"/></pattern>
     </defs>
+    <rect width="${width}" height="${height}" fill="#09080a" fill-opacity="0"/>
     ${geometry}
   </svg>`);
 }
@@ -173,9 +169,10 @@ async function writeRasterVariants(svg, directory, name, sizes) {
   const master = path.join(directory, `${name}.png`);
   await sharp(svg).png({ compressionLevel: 9 }).toFile(master);
   for (const size of sizes) {
-    await sharp(master)
-      .resize(size.width, size.height, { fit: "fill" })
-      .webp({ quality: 88, alphaQuality: 100, effort: 2 })
+    const raster = sharp(master).resize(size.width, size.height, { fit: "fill" });
+    await (size.lossless
+      ? raster.webp({ lossless: true, effort: 2 })
+      : raster.webp({ quality: 88, alphaQuality: 100, effort: 2 }))
       .toFile(path.join(directory, size.suffix ? `${name}-${size.suffix}.webp` : `${name}.webp`));
   }
 }
@@ -196,11 +193,11 @@ await writeRasterVariants(markSvg(), brandDir, "njambo-mark", [
 ]);
 
 for (const [name, theme] of Object.entries(buttonThemes)) {
-  await writeRasterVariants(buttonSvg(theme), buttonDir, name, [{ width: 360, height: 144, suffix: "frame" }]);
+  await writeRasterVariants(buttonSvg(theme), buttonDir, name, [{ width: 360, height: 144, suffix: "frame", lossless: true }]);
 }
 await writeRasterVariants(buttonSvg(buttonThemes.dark, true), buttonDir, "icon-plate", [
-  { width: 128, height: 128, suffix: 128 },
-  { width: 64, height: 64, suffix: 64 },
+  { width: 128, height: 128, suffix: 128, lossless: true },
+  { width: 64, height: 64, suffix: 64, lossless: true },
 ]);
 
 const cellWidth = 180;

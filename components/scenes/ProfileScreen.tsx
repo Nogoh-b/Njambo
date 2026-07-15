@@ -135,6 +135,7 @@ export function ProfileScreen() {
                     onClick={() => { void saveProfile({ ...profile, name: shownName, emoji: a, balance: shownBalance }); }}
                     className={`nj-avatar-choice${shownEmoji === a ? " is-selected" : ""}`}
                     aria-label={`Choisir avatar ${a}`}
+                    aria-pressed={shownEmoji === a}
                   >
                     <AvatarIllustration seed={a} size={38} />
                   </button>
@@ -147,8 +148,8 @@ export function ProfileScreen() {
                 <div style={{ fontWeight: 900, marginBottom: 4 }}>Tranche d’âge</div>
                 <div className="nj-subtle" style={{ marginBottom: 10, fontSize: 12 }}>Les achats XAF restent bloqués tant que le compte n’est pas déclaré 18+.</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <button data-nj-skin={user.ageBand === "13_17" ? "gold" : "ghost"} className={`nj-choice${user.ageBand === "13_17" ? " is-active" : ""}`} type="button" onClick={() => void updateAgeBand("13_17")}>13–17 ans</button>
-                  <button data-nj-skin={user.ageBand === "18_plus" ? "gold" : "ghost"} className={`nj-choice${user.ageBand === "18_plus" ? " is-active" : ""}`} type="button" onClick={() => void updateAgeBand("18_plus")}>18 ans ou plus</button>
+                  <button data-nj-skin={user.ageBand === "13_17" ? "gold" : "ghost"} className={`nj-choice${user.ageBand === "13_17" ? " is-active" : ""}`} type="button" aria-pressed={user.ageBand === "13_17"} onClick={() => void updateAgeBand("13_17")}>13–17 ans</button>
+                  <button data-nj-skin={user.ageBand === "18_plus" ? "gold" : "ghost"} className={`nj-choice${user.ageBand === "18_plus" ? " is-active" : ""}`} type="button" aria-pressed={user.ageBand === "18_plus"} onClick={() => void updateAgeBand("18_plus")}>18 ans ou plus</button>
                 </div>
               </Surface>
             )}

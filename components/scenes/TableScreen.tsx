@@ -1609,6 +1609,7 @@ export function TableScreen({
                 onClick={() => handlePowerTap(cardId)}
                 disabled={disabled}
                 aria-label={def.name}
+                aria-pressed={active}
                 title={`${def.name} — ${def.description}`}
                 style={{
                   width: 62,

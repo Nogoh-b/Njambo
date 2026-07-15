@@ -54,6 +54,9 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
                   <button data-nj-skin={botCount === n ? "gold" : "ghost"}
                     type="button"
                     key={n}
+                    className="nj-player-count-choice"
+                    aria-label={`${n} adversaire${n > 1 ? "s" : ""}`}
+                    aria-pressed={botCount === n}
                     onClick={() => setBotCount(n)}
                     style={{
                       display: "flex",
@@ -64,8 +67,6 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
                       width: 92,
                       padding: "0 10px",
                       borderRadius: 16,
-                      border: `1.5px solid ${botCount === n ? T.gold : "var(--wood-edge)"}`,
-                      background: botCount === n ? `${T.gold}22` : "linear-gradient(160deg, rgba(60,37,20,.5), rgba(10,8,6,.86))",
                       color: T.text,
                       fontWeight: 900,
                       fontSize: 16,
@@ -80,6 +81,7 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
                         </span>
                       ))}
                     </span>
+                    <span className="nj-player-count-value" aria-hidden="true">{n}</span>
                   </button>
                 ))}
               </div>
@@ -94,6 +96,7 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
                   <Btn
                     key={d.key}
                     variant={difficulty === d.key ? "gold" : "ghost"}
+                    ariaPressed={difficulty === d.key}
                     onClick={() => setDifficulty(d.key)}
                     style={{ width: "100%", paddingInline: 6, fontSize: 13 }}
                   >
@@ -107,7 +110,7 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
               <div style={{ fontWeight: 900, marginBottom: 12 }}>Mise par manche</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
                 {cfg.stakes.map((m) => (
-                  <Btn key={m} variant={mise === m ? "gold" : "ghost"} onClick={() => setMise(m)} style={{ width: "100%" }}>
+                  <Btn key={m} variant={mise === m ? "gold" : "ghost"} ariaPressed={mise === m} onClick={() => setMise(m)} style={{ width: "100%" }}>
                     {NKAP(m)}
                   </Btn>
                 ))}

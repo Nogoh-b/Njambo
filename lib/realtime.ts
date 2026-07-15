@@ -83,6 +83,7 @@ function flushOperations() {
 function handleMessage(message: ServerMessage) {
   if (message.type === "ready") {
     ready = true;
+    connecting = false;
     retryDelay = 1_000;
     flushOperations();
     return;
@@ -128,6 +129,8 @@ async function ensureConnection() {
   watchAuthChanges();
   try {
     const token = await user.getIdToken();
+    // Une connexion concurrente a pu aboutir pendant l'attente du token.
+    if (socket?.readyState === WebSocket.OPEN) { connecting = false; return; }
     const ws = new WebSocket(WS_URL);
     socket = ws;
     ws.onopen = () => { ws.send(JSON.stringify({ type: "auth", token })); };
@@ -136,11 +139,12 @@ async function ensureConnection() {
     };
     ws.onclose = () => {
       if (socket === ws) { socket = null; ready = false; }
+      connecting = false;
       for (const pending of pendingGets.values()) pending.sent = false;
       scheduleReconnect();
     };
     ws.onerror = () => { ws.close(); };
-  } finally {
+  } catch {
     connecting = false;
   }
 }

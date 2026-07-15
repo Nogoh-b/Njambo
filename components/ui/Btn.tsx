@@ -13,6 +13,7 @@ interface BtnProps {
   className?: string;
   icon?: ReactNode;
   ariaLabel?: string;
+  ariaPressed?: boolean;
 }
 
 export function Btn({
@@ -24,6 +25,7 @@ export function Btn({
   className,
   icon,
   ariaLabel,
+  ariaPressed,
 }: BtnProps) {
   const iconOnly = !!icon && !children;
 
@@ -34,6 +36,7 @@ export function Btn({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
+      aria-pressed={ariaPressed}
       className={`btn btn-${variant}${iconOnly ? " btn-icon-only" : ""}${className ? ` ${className}` : ""}`}
       style={style}
     >

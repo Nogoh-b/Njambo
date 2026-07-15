@@ -211,7 +211,7 @@ export function ResourcePill({
   );
 
   return onClick ? (
-    <button data-nj-skin="dark"
+    <button data-nj-skin="none"
       type="button"
       className={pillClassName}
       onClick={onClick}
@@ -354,7 +354,7 @@ export function GameTabs({ tabs, activeId, onChange, ariaLabel, className }: Gam
       {tabs.map((tab, index) => {
         const isActive = tab.id === activeId;
         return (
-          <button data-nj-skin="dark"
+          <button data-nj-skin="none"
             key={tab.id}
             ref={(node) => {
               buttonRefs.current[tab.id] = node;

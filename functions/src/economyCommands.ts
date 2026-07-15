@@ -86,7 +86,7 @@ export async function ensurePlayerProfileHandler(request: CallableRequest<unknow
   const uid = requireUid(request);
   const data = asObject(request.data);
   const name = optionalString(data, "name", 32) ?? "Joueur du Mboa";
-  const emoji = optionalString(data, "emoji", 8) ?? "🎴";
+  const emoji = optionalString(data, "emoji", 32) ?? "🎴";
   return runIdempotent(uid, "ensurePlayerProfile", data.idempotencyKey, async (transaction, now) => {
     const refs = {
       user: db.doc(`users/${uid}`), player: db.doc(`players/${uid}`),

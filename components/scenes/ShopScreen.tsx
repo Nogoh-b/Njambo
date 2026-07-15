@@ -185,7 +185,7 @@ export function ShopScreen() {
           </div>
           <div className={styles.offerCategories} aria-label="Catégories d’offres">
             {OFFER_CATEGORIES.filter((category) => category.id === "featured" || offers.some((offer) => offer.type === category.id)).map((category) => (
-              <button data-nj-skin={offerCategory === category.id ? "gold" : "ghost"}
+              <button data-nj-skin="none"
                 key={category.id}
                 type="button"
                 className={offerCategory === category.id ? styles.offerCategoryActive : undefined}

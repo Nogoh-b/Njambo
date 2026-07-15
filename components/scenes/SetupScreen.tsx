@@ -34,7 +34,7 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
         <div style={{ margin: "20px 0 8px", fontWeight: 700 }}>Adversaires</div>
         <div style={{ display: "flex", gap: 10 }}>
           {[1, 2, 3].map((n) => (
-            <Btn key={n} variant={botCount === n ? "gold" : "ghost"} onClick={() => setBotCount(n)}>
+            <Btn key={n} variant={botCount === n ? "gold" : "ghost"} ariaPressed={botCount === n} onClick={() => setBotCount(n)}>
               {n} bot{n > 1 ? "s" : ""}
             </Btn>
           ))}
@@ -43,7 +43,7 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
         <div style={{ margin: "20px 0 8px", fontWeight: 700 }}>Mise par manche</div>
         <div style={{ display: "flex", gap: 10 }}>
           {cfg.stakes.map((m) => (
-            <Btn key={m} variant={mise === m ? "gold" : "ghost"} onClick={() => setMise(m)}>
+            <Btn key={m} variant={mise === m ? "gold" : "ghost"} ariaPressed={mise === m} onClick={() => setMise(m)}>
               {NKAP(m)}
             </Btn>
           ))}

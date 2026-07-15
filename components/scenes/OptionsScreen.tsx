@@ -48,7 +48,7 @@ export function OptionsScreen() {
               </div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
                 {LANGUAGES.map((l) => (
-                  <Btn key={l} variant={language === l ? "gold" : "ghost"} onClick={() => setLanguage(l)} style={{ paddingInline: 8, fontSize: 12 }}>
+                  <Btn key={l} variant={language === l ? "gold" : "ghost"} ariaPressed={language === l} onClick={() => setLanguage(l)} style={{ paddingInline: 8, fontSize: 12 }}>
                     {l}
                   </Btn>
                 ))}
