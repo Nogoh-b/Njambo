@@ -219,7 +219,7 @@ export function WalletScreen() {
             icon="history"
             title={!user || user.isAnonymous ? "Historique réservé au compte permanent" : filter === "all" ? "Ton journal est encore vide" : `Aucun mouvement en ${filter}`}
             description={!user || user.isAnonymous ? "Crée un compte pour synchroniser et retrouver toutes tes opérations." : "Tes gains, achats et mises apparaîtront ici dès leur confirmation."}
-            action={!user || user.isAnonymous ? <button type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button> : undefined}
+            action={!user || user.isAnonymous ? <button data-nj-skin="dark" type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button> : undefined}
           />
         )}
       </section>

@@ -105,7 +105,7 @@ export function ProfileScreen() {
                     <Btn variant="gold" onClick={save} disabled={saving}>{saving ? "..." : "OK"}</Btn>
                   </div>
                 ) : (
-                  <button
+                  <button data-nj-skin="ghost"
                     type="button"
                     onClick={() => { setDraftName(shownName); setEditing(true); setError(""); }}
                     className="nj-profile-name-btn"
@@ -129,7 +129,7 @@ export function ProfileScreen() {
               <div className="nj-subtle" style={{ marginBottom: 8, fontSize: 12 }}>Choisis ton avatar</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 7 }}>
                 {AVATARS.map((a) => (
-                  <button
+                  <button data-nj-skin={shownEmoji === a ? "gold" : "ghost"}
                     type="button"
                     key={a}
                     onClick={() => { void saveProfile({ ...profile, name: shownName, emoji: a, balance: shownBalance }); }}
@@ -147,8 +147,8 @@ export function ProfileScreen() {
                 <div style={{ fontWeight: 900, marginBottom: 4 }}>Tranche d’âge</div>
                 <div className="nj-subtle" style={{ marginBottom: 10, fontSize: 12 }}>Les achats XAF restent bloqués tant que le compte n’est pas déclaré 18+.</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <button className={`nj-choice${user.ageBand === "13_17" ? " is-active" : ""}`} type="button" onClick={() => void updateAgeBand("13_17")}>13–17 ans</button>
-                  <button className={`nj-choice${user.ageBand === "18_plus" ? " is-active" : ""}`} type="button" onClick={() => void updateAgeBand("18_plus")}>18 ans ou plus</button>
+                  <button data-nj-skin={user.ageBand === "13_17" ? "gold" : "ghost"} className={`nj-choice${user.ageBand === "13_17" ? " is-active" : ""}`} type="button" onClick={() => void updateAgeBand("13_17")}>13–17 ans</button>
+                  <button data-nj-skin={user.ageBand === "18_plus" ? "gold" : "ghost"} className={`nj-choice${user.ageBand === "18_plus" ? " is-active" : ""}`} type="button" onClick={() => void updateAgeBand("18_plus")}>18 ans ou plus</button>
                 </div>
               </Surface>
             )}

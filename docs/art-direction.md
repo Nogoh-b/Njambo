@@ -21,3 +21,14 @@ Contraintes : silhouettes immédiatement distinctes à 64 px, reflets contenus, 
 Chaque objet validé sera livré en PNG transparent 1024 × 1024 puis WebP 256/128/64 px. Nommage : `public/assets/njambo/economy/<asset>-master.png` et variantes `<asset>-{size}.webp`.
 
 Liste : `cauri`, `nkap`, `energy`, `ticket-bronze`, `ticket-argent`, `ticket-or`, `book-normal`, `book-rare`, `book-exceptionnel`, `pack-quartier`, `pack-mboa`, `pack-chefferie`, `loyalty-wheel`, puis les sept badges de rang.
+
+## Système d'interface camerounais contemporain
+
+Les icônes d'interface sont des médaillons 2,5D en bois d'ébène, cuivre, laiton et incrustations turquoise. Le symbole central reste universel et immédiatement lisible ; seuls le support, les matières et la lumière portent l'identité Njambo. Les motifs sont géométriques et abstraits, sans reproduction de symbole traditionnel précis ou sacré.
+
+Les boutons utilisent cinq cadres raster 9-slice (`gold`, `teal`, `pink`, `dark`, `ghost`) et une plaque ronde pour les actions à icône seule. Le texte reste toujours du HTML afin de préserver l'accessibilité, la traduction et l'adaptation aux libellés longs.
+
+- Planche de référence : `docs/njambo-ui-validation-board.png`.
+- Masters et variantes : `public/assets/njambo/ui/`.
+- Régénération : `npm run ui:generate-assets`.
+- Validation technique : `npm run test:ui-assets`.

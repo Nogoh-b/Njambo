@@ -114,7 +114,7 @@ export const RevealOverlay = memo(function RevealOverlay() {
           )}
         </div>
         {reveal.pick && (
-          <button
+          <button data-nj-skin="dark"
             type="button"
             onClick={() => settle(null)}
             style={{

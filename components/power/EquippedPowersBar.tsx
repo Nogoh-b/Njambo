@@ -16,7 +16,7 @@ export function EquippedPowersBar() {
   const slots = Array.from({ length: MAX_EQUIPPED_POWERS }, (_, i) => equipped[i]);
 
   return (
-    <button
+    <button data-nj-skin="dark"
       type="button"
       onClick={() => navigateTo("power_collection")}
       aria-label="Équiper des cartes pouvoir"

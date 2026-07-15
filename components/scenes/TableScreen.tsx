@@ -1307,7 +1307,7 @@ export function TableScreen({
           </Chip>
         )}
       </div>
-      <button
+      <button data-nj-skin="icon"
         onClick={onMenu}
         style={{
           position: "absolute",
@@ -1506,8 +1506,8 @@ export function TableScreen({
       {powerChoiceConfirm && (
         <div className="nj-power-choice-confirm">
           <span>{powerChoiceConfirm.selected}/{powerChoiceConfirm.max} sélectionnée(s)</span>
-          <button type="button" onClick={powerChoiceConfirm.onCancel}>Annuler</button>
-          <button
+          <button data-nj-skin="ghost" type="button" onClick={powerChoiceConfirm.onCancel}>Annuler</button>
+          <button data-nj-skin="teal"
             type="button"
             disabled={powerChoiceConfirm.selected < powerChoiceConfirm.min}
             onClick={powerChoiceConfirm.onConfirm}
@@ -1567,7 +1567,7 @@ export function TableScreen({
       {isOnline && (
         <div className="nj-reaction-bar" aria-label="Réactions">
           {REACTION_EMOJIS.map((em) => (
-            <button key={em} type="button" onClick={() => handleSendReaction(em)} aria-label={`Réaction ${em}`}>
+            <button data-nj-skin="icon" key={em} type="button" onClick={() => handleSendReaction(em)} aria-label={`Réaction ${em}`}>
               {em}
             </button>
           ))}
@@ -1603,7 +1603,7 @@ export function TableScreen({
             const active = targetingCard === cardId;
             const tint = def.tone === "gold" ? T.gold : def.tone === "teal" ? T.teal : def.tone === "pink" ? T.pink : T.cobalt;
             return (
-              <button
+              <button data-nj-skin={def.tone === "cobalt" ? "dark" : def.tone}
                 key={cardId}
                 type="button"
                 onClick={() => handlePowerTap(cardId)}

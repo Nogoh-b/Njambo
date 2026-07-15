@@ -108,7 +108,7 @@ export function AuthGate({ children }: AuthGateProps) {
             )}
             {user.phoneNumber && <span className="nj-subtle" style={{ fontSize: 11 }}>{user.phoneNumber}</span>}
           </div>
-          <button
+          <button data-nj-skin="dark"
             type="button"
             onClick={() => { logout(); }}
             style={{
@@ -228,8 +228,8 @@ export function AuthGate({ children }: AuthGateProps) {
         {/* Champs */}
         <div className="nj-stack" style={{ gap: 10 }}>
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <button className={`nj-choice${authMethod === "phone" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("phone"); setError(""); }}>Téléphone</button>
-            <button className={`nj-choice${authMethod === "email" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("email"); setError(""); }}>E-mail</button>
+            <button data-nj-skin="dark" className={`nj-choice${authMethod === "phone" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("phone"); setError(""); }}>Téléphone</button>
+            <button data-nj-skin="dark" className={`nj-choice${authMethod === "email" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("email"); setError(""); }}>E-mail</button>
           </div>
 
           {authMethod === "phone" && (
@@ -286,7 +286,7 @@ export function AuthGate({ children }: AuthGateProps) {
               <div className="nj-subtle" style={{ marginBottom: 8, fontSize: 12 }}>Choisis ton avatar</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                 {AVATARS.map((a) => (
-                  <button
+                  <button data-nj-skin="dark"
                     key={a}
                     type="button"
                     onClick={() => setEmoji(a)}
@@ -310,7 +310,7 @@ export function AuthGate({ children }: AuthGateProps) {
           </>}
 
           {/* Bouton submit */}
-          <button
+          <button data-nj-skin="dark"
             type="submit"
             disabled={busy}
             style={{
@@ -336,13 +336,13 @@ export function AuthGate({ children }: AuthGateProps) {
             {busy ? "…" : authMethod === "phone" ? (codeSent ? "Valider le code" : "Recevoir le code") : isRegister ? "Créer mon compte" : "Se connecter"}
           </button>
 
-          <button className="nj-choice" type="button" disabled={busy} onClick={() => {
+          <button data-nj-skin="dark" className="nj-choice" type="button" disabled={busy} onClick={() => {
             setBusy(true); setError("");
             void loginWithGoogle().catch((err: unknown) => setError(authError((err as { code?: string })?.code))).finally(() => setBusy(false));
           }}>Continuer avec Google</button>
 
           {/* Toggle mode */}
-          {authMethod === "email" && <button
+          {authMethod === "email" && <button data-nj-skin="dark"
             type="button"
             onClick={() => { setMode(isRegister ? "login" : "register"); setError(""); }}
             style={{

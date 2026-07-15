@@ -64,7 +64,7 @@ export function NotificationsScreen() {
               {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement...</div>}
               {!loading && notifications.length === 0 && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Aucune notification.</div>}
               {notifications.map((item, i) => (
-                <button
+                <button data-nj-skin="dark"
                   key={item.id}
                   type="button"
                   onClick={() => { void openNotification(item); }}

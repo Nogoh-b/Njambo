@@ -63,7 +63,7 @@ export const PowerTargetModal = memo(function PowerTargetModal({
           {players.map((p, i) => {
             if (i === 0 && !allowSelf) return null;
             return (
-              <button
+              <button data-nj-skin="dark"
                 key={"tgt" + p.name}
                 type="button"
                 onClick={() => onPick(i)}
@@ -86,7 +86,7 @@ export const PowerTargetModal = memo(function PowerTargetModal({
             );
           })}
         </div>
-        <button
+        <button data-nj-skin="dark"
           type="button"
           onClick={onCancel}
           style={{

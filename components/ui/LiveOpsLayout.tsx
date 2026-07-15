@@ -13,7 +13,7 @@ export function LiveOpsLayout({ title, subtitle, active, children }: { title: st
   return (
     <BottomNavScene active={active} className="nj-liveops-page" contentClassName="nj-liveops-scroll">
       <header className="nj-liveops-header">
-        <button type="button" className="nj-liveops-back" onClick={() => navigateTo("menu")} aria-label={t("common.back")}>
+        <button data-nj-skin="dark" type="button" className="nj-liveops-back" onClick={() => navigateTo("menu")} aria-label={t("common.back")}>
           <NjamboIcon name="home" tone="gold" size={20} />
         </button>
         <div>

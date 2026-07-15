@@ -26,7 +26,7 @@ export function ModeCard({ icon, title, subtitle, tone, image, imagePosition = "
   } as CSSProperties;
 
   return (
-    <button
+    <button data-nj-skin="none"
       type="button"
       onClick={onClick}
       className={`mode-card mode-card-${tone}${muted ? " mode-card-muted" : ""}`}

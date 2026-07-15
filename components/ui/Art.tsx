@@ -1,311 +1,116 @@
 "use client";
 
+import Image from "next/image";
+import type { CSSProperties } from "react";
 import { T } from "@/config/theme";
 
-export type NjamboIconName =
-  | "bot"
-  | "cards"
-  | "check"
-  | "coin"
-  | "code"
-  | "copy"
-  | "crown"
-  | "cut"
-  | "empty"
-  | "eye"
-  | "friends"
-  | "globe"
-  | "history"
-  | "home"
-  | "hourglass"
-  | "language"
-  | "message"
-  | "music"
-  | "notification"
-  | "online"
-  | "play"
-  | "plus"
-  | "profile"
-  | "search"
-  | "settings"
-  | "sound"
-  | "spark"
-  | "sparkle"
-  | "star"
-  | "trophy"
-  | "users"
-  | "wind";
+export const NJAMBO_ICON_NAMES = [
+  "bot", "cards", "check", "coin", "code", "copy", "crown", "cut",
+  "empty", "eye", "friends", "globe", "history", "home", "hourglass", "language",
+  "message", "music", "notification", "online", "play", "plus", "profile", "search",
+  "settings", "sound", "spark", "sparkle", "star", "trophy", "users", "wind",
+] as const;
+
+export type NjamboIconName = (typeof NJAMBO_ICON_NAMES)[number];
+export type NjamboIconTone = "gold" | "teal" | "pink" | "cobalt" | "light";
+
+const ICON_ASSETS: Record<NjamboIconName, string> = {
+  bot: "bot",
+  cards: "cards",
+  check: "check",
+  coin: "coin",
+  code: "code",
+  copy: "copy",
+  crown: "crown",
+  cut: "cut",
+  empty: "empty",
+  eye: "eye",
+  friends: "friends",
+  globe: "globe",
+  history: "history",
+  home: "home",
+  hourglass: "hourglass",
+  language: "language",
+  message: "message",
+  music: "music",
+  notification: "notification",
+  online: "online",
+  play: "play",
+  plus: "plus",
+  profile: "profile",
+  search: "search",
+  settings: "settings",
+  sound: "sound",
+  spark: "spark",
+  sparkle: "sparkle",
+  star: "star",
+  trophy: "trophy",
+  users: "users",
+  wind: "wind",
+};
+
+const TONE_GLOW: Record<NjamboIconTone, string> = {
+  gold: "rgba(242, 187, 69, .38)",
+  teal: "rgba(16, 183, 166, .38)",
+  pink: "rgba(216, 60, 104, .36)",
+  cobalt: "rgba(49, 84, 212, .38)",
+  light: "rgba(255, 244, 223, .26)",
+};
 
 interface MarkProps {
   size?: number;
   compact?: boolean;
 }
 
+function responsiveAsset(base: string, size: number, available: readonly number[]) {
+  const chosen = available.find((candidate) => candidate >= size) ?? available.at(-1) ?? size;
+  return `${base}-${chosen}.webp`;
+}
+
+/** Marque Njambo peinte : bitmap volontairement aligné sur les objets 2,5D du jeu. */
 export function NjamboMark({ size = 112, compact = false }: MarkProps) {
-  const s = size;
+  const src = responsiveAsset("/assets/njambo/ui/brand/njambo-mark", size, [64, 128, 256]);
   return (
-    <svg width={s} height={s} viewBox="0 0 120 120" aria-hidden="true">
-      <defs>
-        <radialGradient id="nj-mark-glow" cx="45%" cy="32%" r="70%">
-          <stop offset="0%" stopColor={T.gold} stopOpacity="0.95" />
-          <stop offset="52%" stopColor={T.copper} stopOpacity="0.78" />
-          <stop offset="100%" stopColor={T.night3} />
-        </radialGradient>
-        <pattern id="nj-mark-grid" width="16" height="16" patternUnits="userSpaceOnUse">
-          <path d="M0 8H16M8 0V16" stroke={T.chalk} strokeOpacity="0.13" strokeWidth="1.2" />
-          <circle cx="8" cy="8" r="2" fill={T.teal} fillOpacity="0.35" />
-        </pattern>
-      </defs>
-      <circle cx="60" cy="60" r="55" fill="url(#nj-mark-glow)" />
-      <circle cx="60" cy="60" r="51" fill="url(#nj-mark-grid)" />
-      <circle cx="60" cy="60" r="42" fill={T.night1} fillOpacity="0.7" stroke={T.gold} strokeWidth="2.5" />
-      <path
-        d="M33 76C43 52 52 39 60 39c9 0 14 17 27 17 5 0 9-2 13-6-6 21-16 32-29 32-12 0-16-17-25-17-5 0-9 3-13 11Z"
-        fill={T.gold}
-      />
-      <path
-        d="M37 45c8-6 16-9 23-9 12 0 21 8 26 22-9-7-16-10-23-10-10 0-18 7-26 21V45Z"
-        fill={T.teal}
-        opacity="0.86"
-      />
-      {!compact && (
-        <>
-          <circle cx="26" cy="31" r="4" fill={T.pink} />
-          <circle cx="93" cy="86" r="4" fill={T.teal} />
-          <path d="M24 88h16M80 30h18" stroke={T.chalk} strokeOpacity="0.6" strokeWidth="3" strokeLinecap="round" />
-        </>
-      )}
-    </svg>
+    <span
+      className={`njambo-mark-asset${compact ? " njambo-mark-asset--compact" : ""}`}
+      style={{ "--nj-mark-size": `${size}px` } as CSSProperties}
+      aria-hidden="true"
+    >
+      <Image src={src} alt="" width={size} height={size} sizes={`${size}px`} draggable={false} />
+    </span>
   );
 }
 
 interface IconProps {
   name: NjamboIconName;
   size?: number;
-  tone?: "gold" | "teal" | "pink" | "cobalt" | "light";
+  tone?: NjamboIconTone;
 }
 
+/**
+ * Icône de jeu matérialisée en médaillon 2,5D.
+ * `tone` colore uniquement l'aura contextuelle : le bitmap conserve sa matière et sa palette.
+ */
 export function NjamboIcon({ name, size = 28, tone = "gold" }: IconProps) {
-  const color = {
-    gold: T.gold,
-    teal: T.teal,
-    pink: T.pink,
-    cobalt: T.cobalt,
-    light: T.chalk,
-  }[tone];
+  const sourceSize = size > 64 ? 128 : 64;
+  const style = {
+    "--nj-icon-glow": TONE_GLOW[tone],
+    width: size,
+    height: size,
+  } as CSSProperties;
 
   return (
-    <svg width={size} height={size} viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-      {renderIcon(name, color)}
-    </svg>
+    <span className={`njambo-asset-icon njambo-asset-icon--${tone}`} style={style} aria-hidden="true">
+      <Image
+        src={`/assets/njambo/ui/icons/${ICON_ASSETS[name]}-${sourceSize}.webp`}
+        alt=""
+        width={size}
+        height={size}
+        sizes={`${size}px`}
+        draggable={false}
+      />
+    </span>
   );
-}
-
-function renderIcon(name: NjamboIconName, color: string) {
-  const soft = `${color}33`;
-  const stroke = { stroke: color, strokeWidth: 3.2, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-
-  switch (name) {
-    case "online":
-    case "globe":
-      return (
-        <>
-          <circle cx="24" cy="24" r="16" fill={soft} {...stroke} />
-          <path d="M9 24h30M24 8c5 5 7 10 7 16s-2 11-7 16M24 8c-5 5-7 10-7 16s2 11 7 16" fill="none" {...stroke} />
-        </>
-      );
-    case "friends":
-    case "users":
-      return (
-        <>
-          <circle cx="18" cy="18" r="7" fill={soft} {...stroke} />
-          <circle cx="32" cy="20" r="6" fill="none" {...stroke} />
-          <path d="M7 38c3-8 18-8 22 0M25 37c3-5 11-5 15 0" fill="none" {...stroke} />
-        </>
-      );
-    case "bot":
-      return (
-        <>
-          <rect x="11" y="15" width="26" height="22" rx="8" fill={soft} {...stroke} />
-          <path d="M24 15V9M18 9h12M18 27h.1M30 27h.1M18 34c4 2 8 2 12 0" fill="none" {...stroke} />
-        </>
-      );
-    case "trophy":
-      return (
-        <>
-          <path d="M16 10h16v10c0 7-4 12-8 12s-8-5-8-12V10Z" fill={soft} {...stroke} />
-          <path d="M16 15H9c0 7 3 11 8 11M32 15h7c0 7-3 11-8 11M24 32v6M16 40h16" fill="none" {...stroke} />
-        </>
-      );
-    case "history":
-      return (
-        <>
-          <path d="M12 13h24v27H12z" fill={soft} {...stroke} />
-          <path d="M17 9v8M31 9v8M17 24h14M17 31h10" fill="none" {...stroke} />
-        </>
-      );
-    case "notification":
-      return (
-        <>
-          <path d="M15 34h18l-3-5V20c0-6-3-10-6-10s-6 4-6 10v9l-3 5Z" fill={soft} {...stroke} />
-          <path d="M21 38c1 2 5 2 6 0M30 12c3 2 5 5 5 9" fill="none" {...stroke} />
-        </>
-      );
-    case "message":
-      return (
-        <>
-          <path d="M10 12h28v21H20l-8 7v-7h-2V12Z" fill={soft} {...stroke} />
-          <path d="M17 21h14M17 27h9" fill="none" {...stroke} />
-        </>
-      );
-    case "search":
-      return (
-        <>
-          <circle cx="21" cy="21" r="11" fill={soft} {...stroke} />
-          <path d="m30 30 9 9" fill="none" {...stroke} />
-        </>
-      );
-    case "plus":
-      return (
-        <>
-          <circle cx="24" cy="24" r="15" fill={soft} {...stroke} />
-          <path d="M24 16v16M16 24h16" fill="none" {...stroke} />
-        </>
-      );
-    case "settings":
-      return (
-        <>
-          <circle cx="24" cy="24" r="6" fill={soft} {...stroke} />
-          <path d="M24 7v6M24 35v6M7 24h6M35 24h6M12 12l4 4M32 32l4 4M36 12l-4 4M16 32l-4 4" fill="none" {...stroke} />
-        </>
-      );
-    case "home":
-      return (
-        <>
-          <path d="M9 23 24 10l15 13v17H14V25" fill={soft} {...stroke} />
-          <path d="M20 40V29h8v11" fill="none" {...stroke} />
-        </>
-      );
-    case "coin":
-      return (
-        <>
-          <ellipse cx="24" cy="24" rx="15" ry="12" fill={soft} {...stroke} />
-          <path d="M18 24h12M21 18h9M21 30h9" fill="none" {...stroke} />
-        </>
-      );
-    case "cards":
-      return (
-        <>
-          <rect x="14" y="9" width="18" height="27" rx="4" fill={soft} {...stroke} transform="rotate(-8 23 23)" />
-          <rect x="20" y="12" width="18" height="27" rx="4" fill={T.night2} {...stroke} transform="rotate(8 29 25)" />
-          <path d="M28 22c3-5 9-2 6 3-2 3-6 6-6 6s-4-3-6-6c-3-5 3-8 6-3Z" fill={color} />
-        </>
-      );
-    case "crown":
-      return (
-        <>
-          <path d="m9 34 4-20 10 11 8-14 6 23H9Z" fill={soft} {...stroke} />
-          <path d="M12 39h24" fill="none" {...stroke} />
-        </>
-      );
-    case "copy":
-      return (
-        <>
-          <rect x="16" y="15" width="20" height="24" rx="4" fill={soft} {...stroke} />
-          <path d="M12 31H9a3 3 0 0 1-3-3V12a3 3 0 0 1 3-3h16a3 3 0 0 1 3 3v2" fill="none" {...stroke} />
-        </>
-      );
-    case "code":
-      return <path d="m18 16-9 8 9 8M30 16l9 8-9 8M27 11l-6 26" fill="none" {...stroke} />;
-    case "check":
-      return <path d="M10 25 20 35 39 13" fill="none" {...stroke} />;
-    case "music":
-      return (
-        <>
-          <path d="M18 31V12l19-4v20" fill="none" {...stroke} />
-          <circle cx="14" cy="34" r="5" fill={soft} {...stroke} />
-          <circle cx="33" cy="31" r="5" fill={soft} {...stroke} />
-        </>
-      );
-    case "sound":
-      return (
-        <>
-          <path d="M8 28V20h8l10-8v24L16 28H8Z" fill={soft} {...stroke} />
-          <path d="M32 18c3 4 3 8 0 12M38 13c6 8 6 14 0 22" fill="none" {...stroke} />
-        </>
-      );
-    case "language":
-      return (
-        <>
-          <path d="M8 13h18M17 9v4M24 13c-3 8-8 14-15 18M12 18c3 5 7 9 12 12M27 39l8-20 8 20M31 31h8" fill="none" {...stroke} />
-        </>
-      );
-    case "play":
-      return <path d="M17 11v26l22-13-22-13Z" fill={soft} {...stroke} />;
-    case "profile":
-      return (
-        <>
-          <circle cx="24" cy="17" r="8" fill={soft} {...stroke} />
-          <path d="M10 40c4-10 24-10 28 0" fill="none" {...stroke} />
-        </>
-      );
-    case "empty":
-      return (
-        <>
-          <rect x="14" y="9" width="20" height="30" rx="5" fill={soft} {...stroke} />
-          <path d="M19 18h10M19 25h10M19 32h6" fill="none" {...stroke} />
-        </>
-      );
-    /* ── Power cards ── */
-    case "eye":
-      return (
-        <>
-          <path d="M5 24s7-12 19-12 19 12 19 12-7 12-19 12S5 24 5 24Z" fill={soft} {...stroke} />
-          <circle cx="24" cy="24" r="6" fill={color} />
-          <circle cx="26" cy="22" r="1.6" fill={T.night1} />
-        </>
-      );
-    case "cut":
-      return (
-        <>
-          <circle cx="13" cy="14" r="5" fill={soft} {...stroke} />
-          <circle cx="13" cy="34" r="5" fill={soft} {...stroke} />
-          <path d="M17 16 40 33M17 32 40 15" fill="none" {...stroke} />
-        </>
-      );
-    case "star":
-      return <path d="M24 6 30 18l13 2-9 9 2 13-12-6-12 6 2-13-9-9 13-2Z" fill={soft} {...stroke} />;
-    case "sparkle":
-      return (
-        <>
-          <path d="M22 8c1.4 9 3 10.6 12 12-9 1.4-10.6 3-12 12-1.4-9-3-10.6-12-12 9-1.4 10.6-3 12-12Z" fill={soft} {...stroke} />
-          <path d="M37 29c.6 4 1.2 4.6 5 5-3.8.4-4.4 1-5 5-.6-4-1.2-4.6-5-5 3.8-.4 4.4-1 5-5Z" fill={color} />
-        </>
-      );
-    case "wind":
-      return (
-        <>
-          <path d="M6 18h20a5 5 0 1 0-5-5" fill="none" {...stroke} />
-          <path d="M6 26h29a5 5 0 1 1-5 5" fill="none" {...stroke} />
-          <path d="M6 34h16a4 4 0 1 1-4 4" fill="none" {...stroke} />
-        </>
-      );
-    case "hourglass":
-      return (
-        <>
-          <path d="M14 8h20M14 40h20" fill="none" {...stroke} />
-          <path d="M16 8c0 9 8 11 8 16 0-5 8-7 8-16M16 40c0-9 8-11 8-16 0 5 8 7 8 16Z" fill={soft} {...stroke} />
-        </>
-      );
-    case "spark":
-    default:
-      return (
-        <>
-          <path d="M24 7 29 20l12 4-12 5-5 12-5-12-12-5 12-4 5-13Z" fill={soft} {...stroke} />
-          <path d="M11 10v7M7 14h8M38 32v6M35 35h6" fill="none" {...stroke} />
-        </>
-      );
-  }
 }
 
 interface AvatarIllustrationProps {

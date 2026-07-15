@@ -113,7 +113,7 @@ export function GameCard({
 
   if (onClick) {
     return (
-      <button
+      <button data-nj-skin="none"
         type="button"
         className={cardClassName}
         onClick={onClick}
@@ -211,7 +211,7 @@ export function ResourcePill({
   );
 
   return onClick ? (
-    <button
+    <button data-nj-skin="dark"
       type="button"
       className={pillClassName}
       onClick={onClick}
@@ -354,7 +354,7 @@ export function GameTabs({ tabs, activeId, onChange, ariaLabel, className }: Gam
       {tabs.map((tab, index) => {
         const isActive = tab.id === activeId;
         return (
-          <button
+          <button data-nj-skin="dark"
             key={tab.id}
             ref={(node) => {
               buttonRefs.current[tab.id] = node;

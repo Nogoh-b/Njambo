@@ -62,7 +62,7 @@ export function Panel({ title, children, onClose }: PanelProps) {
           <h3 style={{ fontFamily: "var(--font-display), serif", fontSize: 24, color: T.gold, margin: 0 }}>
             {title}
           </h3>
-          <button
+          <button data-nj-skin="dark"
             onClick={onClose}
             className="panel-close"
             style={{ background: "none", border: "none", color: T.text, fontSize: 22, cursor: "pointer" }}

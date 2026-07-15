@@ -108,7 +108,7 @@ export function EventsScreen({ onStart }: { onStart?: (runId: string) => void })
       }
     >
       {(!user || user.isAnonymous) && (
-        <StatusBanner severity="warning" action={<button type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button>}>
+        <StatusBanner severity="warning" action={<button data-nj-skin="gold" type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button>}>
           <strong>Le Ter garde ta progression.</strong> Crée un compte permanent avant de prendre un ticket.
         </StatusBanner>
       )}
@@ -204,7 +204,7 @@ export function EventsScreen({ onStart }: { onStart?: (runId: string) => void })
                   </ol>
                 </details>
 
-                <button
+                <button data-nj-skin="pink"
                   className={styles.eventCta}
                   type="button"
                   disabled={blocked || busy === event.eventId}

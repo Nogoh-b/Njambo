@@ -51,7 +51,7 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
               <div className="nj-subtle" style={{ fontSize: 12, marginBottom: 8 }}>Nombre d&apos;adversaires</div>
               <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
                 {[1, 2, 3].map((n) => (
-                  <button
+                  <button data-nj-skin={botCount === n ? "gold" : "ghost"}
                     type="button"
                     key={n}
                     onClick={() => setBotCount(n)}

@@ -184,6 +184,23 @@ try {
     await delay(900);
   };
 
+  const clickButton = async ({ ariaLabel, ariaPrefix, text }) => {
+    const clicked = await evaluate(`(() => {
+      const buttons = [...document.querySelectorAll('button')];
+      const button = buttons.find((item) => {
+        const label = item.getAttribute('aria-label') ?? '';
+        const copy = item.textContent?.trim().replace(/\\s+/g, ' ') ?? '';
+        return ${JSON.stringify(ariaLabel ?? null)} ? label === ${JSON.stringify(ariaLabel ?? "")} :
+          ${JSON.stringify(ariaPrefix ?? null)} ? label.startsWith(${JSON.stringify(ariaPrefix ?? "")}) :
+          copy.includes(${JSON.stringify(text ?? "")});
+      });
+      button?.click();
+      return Boolean(button);
+    })()`);
+    if (!clicked) throw new Error(`Bouton introuvable : ${ariaLabel ?? ariaPrefix ?? text}`);
+    await delay(900);
+  };
+
   await capture("home");
   if (!homeOnly) {
     await clickDock("Jouer");
@@ -192,7 +209,12 @@ try {
     await capture("events");
     await clickDock("Boutique");
     await capture("shop");
+    await clickDock("Social");
+    await capture("social");
     await clickDock("Accueil");
+    await clickButton({ ariaLabel: "Réglages" });
+    await capture("options");
+    await clickButton({ ariaLabel: "Retour" });
     const walletOpened = await evaluate(`(() => {
       const button = [...document.querySelectorAll('button')].find((item) => item.getAttribute('aria-label')?.startsWith('Nkap :'));
       button?.click();
@@ -200,6 +222,13 @@ try {
     })()`);
     if (!walletOpened) throw new Error("Raccourci Portefeuille introuvable");
     await capture("wallet");
+    await clickButton({ ariaLabel: "Retour" });
+    await clickDock("Jouer");
+    await clickButton({ ariaPrefix: "Jouer à Contre l’IA" });
+    await capture("bot-setup");
+    await clickButton({ text: "À la table" });
+    await delay(1_500);
+    await capture("table");
   }
 } finally {
   socket?.close();

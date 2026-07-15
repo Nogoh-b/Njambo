@@ -530,14 +530,30 @@ button.nj-list-card {
 }
 
 .btn-gold {
-  color: #1b1010;
-  background: linear-gradient(145deg, #f7cb63, #d88832);
-  box-shadow: 0 12px 26px rgba(242, 187, 69, 0.22);
+  --nj-button-accent: #d7a957;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 84% 16%, rgba(215, 169, 87, 0.18), transparent 38%),
+    linear-gradient(155deg, #4a2d18, #21140e 58%, #0e0b0c);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 226, 166, 0.12);
 }
 
 .btn-pink {
-  background: linear-gradient(145deg, #e34c78, #bc4f35);
-  box-shadow: 0 12px 26px rgba(216, 60, 104, 0.22);
+  --nj-button-accent: #b86c78;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 84% 16%, rgba(184, 108, 120, 0.16), transparent 38%),
+    linear-gradient(155deg, #43261d, #21140f 58%, #0e0b0c);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(255, 226, 166, 0.1);
+}
+
+.btn-teal {
+  --nj-button-accent: #5eaa9d;
+  color: var(--text);
+  background:
+    radial-gradient(circle at 84% 16%, rgba(94, 170, 157, 0.16), transparent 38%),
+    linear-gradient(155deg, #343023, #171916 58%, #0b0c0d);
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.28), inset 0 1px 0 rgba(213, 255, 242, 0.1);
 }
 
 .btn-ghost {
@@ -555,6 +571,95 @@ button.nj-list-card {
     linear-gradient(160deg, rgba(60, 37, 20, 0.5), rgba(10, 8, 6, 0.86));
   border-color: var(--wood-edge);
   box-shadow: inset 0 1px 0 rgba(255, 220, 160, 0.1);
+}
+
+/* Surfaces raster 9-slice : le texte reste du HTML, les matières viennent des assets. */
+button[data-nj-skin]:not([data-nj-skin="none"]):not([data-nj-skin="icon"]) {
+  --nj-button-frame: url("/assets/njambo/ui/buttons/dark-frame.webp");
+  --nj-button-accent: #9b7045;
+  position: relative;
+  border-style: solid;
+  border-width: 1px;
+  border-image-source: var(--nj-button-frame) !important;
+  border-image-slice: 38 72 !important;
+  border-image-width: 8px 12px !important;
+  border-image-outset: 0 !important;
+  isolation: isolate;
+}
+
+button[data-nj-skin="gold"],
+.btn-gold {
+  --nj-button-frame: url("/assets/njambo/ui/buttons/dark-frame.webp");
+  --nj-button-accent: #d7a957;
+}
+
+button[data-nj-skin="teal"],
+.btn-teal {
+  --nj-button-frame: url("/assets/njambo/ui/buttons/dark-frame.webp");
+  --nj-button-accent: #5eaa9d;
+}
+
+button[data-nj-skin="pink"],
+.btn-pink {
+  --nj-button-frame: url("/assets/njambo/ui/buttons/dark-frame.webp");
+  --nj-button-accent: #b86c78;
+}
+
+button[data-nj-skin="ghost"],
+.btn-ghost {
+  --nj-button-accent: #a97a46;
+  --nj-button-frame: url("/assets/njambo/ui/buttons/ghost-frame.webp");
+}
+
+button[data-nj-skin="dark"],
+.btn-dark {
+  --nj-button-accent: #8f633c;
+  --nj-button-frame: url("/assets/njambo/ui/buttons/dark-frame.webp");
+}
+
+button[data-nj-skin="none"] {
+  border-image: none !important;
+}
+
+button[data-nj-skin="icon"],
+.btn-icon-only {
+  border-image: none !important;
+  border-color: transparent;
+  background:
+    url("/assets/njambo/ui/buttons/icon-plate-128.webp") center / 112% 112% no-repeat,
+    transparent !important;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
+}
+
+.njambo-asset-icon {
+  position: relative;
+  display: inline-grid;
+  flex: 0 0 auto;
+  place-items: center;
+  line-height: 0;
+  vertical-align: middle;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 7px var(--nj-icon-glow));
+}
+
+.njambo-asset-icon img,
+.njambo-mark-asset img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  user-select: none;
+}
+
+.njambo-mark-asset {
+  width: var(--nj-mark-size);
+  height: var(--nj-mark-size);
+  display: inline-grid;
+  place-items: center;
+  filter: drop-shadow(0 12px 20px rgba(0, 0, 0, 0.46));
+}
+
+.njambo-mark-asset--compact {
+  filter: drop-shadow(0 7px 12px rgba(0, 0, 0, 0.4));
 }
 
 .chip {
@@ -770,7 +875,7 @@ button.nj-list-card {
   background: repeating-conic-gradient(from 12deg, rgba(255, 248, 232, 0.13) 0deg 4deg, transparent 4deg 12deg);
 }
 
-.nj-menu-mark svg {
+.nj-menu-mark .njambo-mark-asset {
   position: relative;
   z-index: 1;
   filter: drop-shadow(0 14px 24px rgba(0, 0, 0, 0.34)) drop-shadow(0 0 18px rgba(242, 187, 69, 0.18));
@@ -1294,7 +1399,7 @@ button.nj-list-card {
   text-shadow: 0 4px 0 rgba(5, 5, 12, 0.48), 0 0 24px rgba(242, 187, 69, 0.22);
 }
 
-.nj-home-brand-lockup svg {
+.nj-home-brand-lockup .njambo-mark-asset {
   width: clamp(46px, 11vw, 62px);
   height: clamp(46px, 11vw, 62px);
   filter: drop-shadow(0 9px 16px rgba(0, 0, 0, 0.42));
@@ -3946,7 +4051,7 @@ button.nj-list-card {
 .nj-motion-level-balanced .nj-menu-hero::before,
 .nj-motion-level-balanced .nj-menu-mark::before,
 .nj-motion-level-balanced .nj-home-table-art,
-.nj-motion-level-balanced .nj-home-brand-lockup svg,
+.nj-motion-level-balanced .nj-home-brand-lockup .njambo-mark-asset,
 .nj-motion-level-balanced .nj-mode-plank-shine,
 .nj-motion-level-balanced .nj-result-panel::after,
 .nj-motion-level-balanced .nj-power-card-sheen {
@@ -3963,7 +4068,7 @@ button.nj-list-card {
 .nj-motion-level-balanced .nj-reaction-bubble,
 .nj-motion-level-balanced .nj-avatar-seat-active::before,
 .nj-motion-level-balanced .nj-home-table-art,
-.nj-motion-level-balanced .nj-home-brand-lockup svg,
+.nj-motion-level-balanced .nj-home-brand-lockup .njambo-mark-asset,
 .nj-motion-level-balanced .nj-splash-logo {
   filter: none;
 }
@@ -3980,7 +4085,7 @@ button.nj-list-card {
 .nj-motion-level-lite .nj-menu-mark::before,
 .nj-motion-level-lite .nj-menu-sparkles,
 .nj-motion-level-lite .nj-home-table-art,
-.nj-motion-level-lite .nj-home-brand-lockup svg,
+.nj-motion-level-lite .nj-home-brand-lockup .njambo-mark-asset,
 .nj-motion-level-lite .nj-splash-logo,
 .nj-motion-level-lite .nj-mode-plank-shine,
 .nj-motion-level-lite .nj-result-aura,
@@ -4315,7 +4420,7 @@ button.nj-list-card {
     margin: 0 !important;
   }
 
-  .nj-menu-mark svg {
+  .nj-menu-mark .njambo-mark-asset {
     width: 86px;
     height: 86px;
   }
@@ -4422,7 +4527,7 @@ button.nj-list-card {
     max-height: min(15svh, 104px);
   }
 
-  .nj-home-brand-lockup svg {
+  .nj-home-brand-lockup .njambo-mark-asset {
     width: clamp(36px, 8.5vw, 46px);
     height: clamp(36px, 8.5vw, 46px);
   }

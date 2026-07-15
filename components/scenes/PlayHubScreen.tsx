@@ -110,7 +110,7 @@ export function PlayHubScreen() {
                     </span>
                   ))}
                 </span>
-                <button
+                <button data-nj-skin={mode.tone}
                   className={styles.modeCta}
                   type="button"
                   onClick={() => navigateTo(locked ? "profile" : mode.scene)}

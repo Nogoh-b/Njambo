@@ -11,7 +11,7 @@ interface ToggleProps {
 
 export function Toggle({ label, caption, on, onChange }: ToggleProps) {
   return (
-    <button
+    <button data-nj-skin="dark"
       type="button"
       role="switch"
       aria-checked={on}

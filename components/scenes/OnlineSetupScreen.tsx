@@ -205,7 +205,7 @@ export function OnlineSetupScreen() {
                   </div>
                   <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "grid", gap: 9, alignContent: "start", paddingRight: 2 }}>
                     {publicRooms.map((room) => (
-                      <button
+                      <button data-nj-skin="dark"
                         key={room.id}
                         type="button"
                         disabled={busy || !canStart || room.stake > (economy?.nkap ?? 0)}

@@ -10,6 +10,8 @@
     "start": "next start",
     "lint": "eslint",
     "test": "vitest run",
+    "test:ui-assets": "node scripts/verify-ui-assets.mjs",
+    "ui:generate-assets": "node scripts/generate-ui-assets.mjs",
     "test:rules": "set XDG_CONFIG_HOME=.firebase-config&& firebase emulators:exec --only firestore,auth \"vitest run tests/firestore.rules.test.ts\"",
     "build:functions": "npm --prefix functions run build",
     "emulators": "firebase emulators:start --only auth,firestore,functions"

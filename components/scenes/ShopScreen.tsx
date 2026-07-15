@@ -166,7 +166,7 @@ export function ShopScreen() {
         />
       </div>
 
-      {guestBlocked && <StatusBanner severity="warning" action={<button type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button>}>Crée un compte permanent pour acheter et conserver tes objets.</StatusBanner>}
+      {guestBlocked && <StatusBanner severity="warning" action={<button data-nj-skin="gold" type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button>}>Crée un compte permanent pour acheter et conserver tes objets.</StatusBanner>}
       {(contentLoading || gridLoading || economyLoading) && <StatusBanner severity="info">La vitrine se synchronise avec le quartier…</StatusBanner>}
       {contentError && <StatusBanner severity="warning">{contentError}</StatusBanner>}
       {!guestBlocked && economy?.spendingBlocked && (
@@ -185,7 +185,7 @@ export function ShopScreen() {
           </div>
           <div className={styles.offerCategories} aria-label="Catégories d’offres">
             {OFFER_CATEGORIES.filter((category) => category.id === "featured" || offers.some((offer) => offer.type === category.id)).map((category) => (
-              <button
+              <button data-nj-skin={offerCategory === category.id ? "gold" : "ghost"}
                 key={category.id}
                 type="button"
                 className={offerCategory === category.id ? styles.offerCategoryActive : undefined}
@@ -248,7 +248,7 @@ export function ShopScreen() {
                     <span className={`${styles.priceTag} ${xaf ? styles.priceXaf : styles.priceCauris}`}>
                       {offer.prices.map(priceLabel).join(" / ")}
                     </span>
-                    <button type="button" className={styles.buyButton} disabled={blocked || busy === offer.id} onClick={() => void run(offer.id, () => purchase(offer.id))}>
+                    <button data-nj-skin="gold" type="button" className={styles.buyButton} disabled={blocked || busy === offer.id} onClick={() => void run(offer.id, () => purchase(offer.id))}>
                       {busy === offer.id ? "Validation…" : xaf ? "Simuler l’achat" : "Acheter"}
                     </button>
                   </div>
@@ -289,7 +289,7 @@ export function ShopScreen() {
                       <span className={`${styles.priceTag} ${styles.priceCauris}`}>
                         {ownedBooks > 0 ? `${ownedBooks} livre${ownedBooks > 1 ? "s" : ""} possédé${ownedBooks > 1 ? "s" : ""}` : caurisPrice ? priceLabel(caurisPrice) : "Indisponible"}
                       </span>
-                      <button type="button" className={styles.buyButton} disabled={blocked || busy === booster.id} onClick={() => void run(booster.id, async () => {
+                      <button data-nj-skin="gold" type="button" className={styles.buyButton} disabled={blocked || busy === booster.id} onClick={() => void run(booster.id, async () => {
                         const result = await command<{ openingId: string; positions: number[] }>("openBoosterBook", { boosterId: booster.id });
                         setOpening({ openingId: result.openingId, positions: result.positions ?? Array.from({ length: 9 }, (_, i) => i) });
                         return `${booster.title} prêt : choisis une carte.`;
@@ -308,7 +308,7 @@ export function ShopScreen() {
               </div>
               <div className={styles.cardGrid} aria-label="Neuf cartes cachées">
                 {opening.positions.map((position) => (
-                  <button key={position} type="button" disabled={busy !== null} onClick={() => void run(`slot-${position}`, async () => {
+                  <button data-nj-skin="gold" key={position} type="button" disabled={busy !== null} onClick={() => void run(`slot-${position}`, async () => {
                     const result = await command<{ reward: { cardId: string; rarity: string }; duplicateCompensation: number }>("chooseBoosterCard", { openingId: opening.openingId, position });
                     setOpening(null);
                     return `${result.reward.cardId} · ${RARITY_LABELS[result.reward.rarity] ?? result.reward.rarity}${result.duplicateCompensation ? ` · +${result.duplicateCompensation} cauris pour le doublon` : ""}`;
@@ -354,11 +354,11 @@ export function ShopScreen() {
                   )}
                   {!reward && (
                     <>
-                      <button type="button" disabled={blocked || busy !== null} onClick={() => void run(`grid-${position}`, async () => {
+                      <button data-nj-skin="gold" type="button" disabled={blocked || busy !== null} onClick={() => void run(`grid-${position}`, async () => {
                         const result = await command<{ reward: Reward }>("buyDailyGridSlot", { position });
                         return `${rewardLabel(result.reward)} rejoint ta collection.`;
                       })}>15 cauris</button>
-                      <button type="button" className={styles.xafButton} disabled={blocked || busy !== null} onClick={() => void run(`grid-xaf-${position}`, () => buyGridWithXaf(position))}>150 XAF <small>simulé</small></button>
+                      <button data-nj-skin="teal" type="button" className={styles.xafButton} disabled={blocked || busy !== null} onClick={() => void run(`grid-xaf-${position}`, () => buyGridWithXaf(position))}>150 XAF <small>simulé</small></button>
                     </>
                   )}
                 </div>
@@ -388,7 +388,7 @@ export function ShopScreen() {
               </ul>
             </details>
             <span className={styles.spinCount}>{economy?.daily.availableSpins ?? 0} rotation{(economy?.daily.availableSpins ?? 0) > 1 ? "s" : ""} disponible{(economy?.daily.availableSpins ?? 0) > 1 ? "s" : ""}</span>
-            <button type="button" className={styles.wheelButton} disabled={blocked || !economy?.daily.availableSpins || busy !== null} onClick={() => void run("wheel", async () => {
+            <button data-nj-skin="gold" type="button" className={styles.wheelButton} disabled={blocked || !economy?.daily.availableSpins || busy !== null} onClick={() => void run("wheel", async () => {
               const result = await command<{ reward: Reward }>("spinLoyaltyWheel");
               return `La roue t’offre ${rewardLabel(result.reward)}.`;
             })}>

@@ -2,7 +2,7 @@
 
 import type { CSSProperties, ReactNode } from "react";
 
-export type BtnVariant = "gold" | "pink" | "ghost" | "dark";
+export type BtnVariant = "gold" | "teal" | "pink" | "ghost" | "dark";
 
 interface BtnProps {
   children?: ReactNode;
@@ -30,6 +30,7 @@ export function Btn({
   return (
     <button
       type="button"
+      data-nj-skin={iconOnly ? "icon" : variant}
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}

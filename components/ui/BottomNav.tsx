@@ -62,6 +62,7 @@ export function BottomNav({ active }: BottomNavProps) {
         const label = t(item.labelKey);
         return (
           <button
+            data-nj-skin="none"
             type="button"
             key={item.key}
             className={`${styles.item}${isActive ? ` ${styles.active}` : ""}`}

@@ -43,7 +43,7 @@ export function MessagesScreen() {
                 const peer = conv.participantMeta[peerUid] ?? { name: "Joueur", emoji: "😎" };
                 const unread = !!(user?.uid && conv.unreadBy?.[user.uid]);
                 return (
-                  <button
+                  <button data-nj-skin="dark"
                     key={conv.id}
                     type="button"
                     onClick={() => {

@@ -104,7 +104,7 @@ export function FriendsSetupScreen() {
                   {players.map((f, i) => {
                     const isSelected = selected.has(f.uid);
                     return (
-                      <button
+                      <button data-nj-skin="dark"
                         type="button"
                         key={f.uid}
                         onClick={() => toggleFriend(f.uid, f.online)}
