@@ -1,22 +1,12 @@
 /* ═══════════════ FILE: lib/firebase.ts ═══════════════
-   Initialisation Firebase — single instance.
-   Import uniquement depuis les hooks (useAuth, useLobby, useGameSync).
-   Ne jamais importer côté composant render. */
+   Initialisation Firebase — single instance. Depuis la migration VPS, seul
+   Firebase Auth (+ Messaging via `app`) est utilisé : les données vivent dans
+   le backend VPS (Postgres). `db` n'est plus une instance Firestore mais un
+   simple jeton passé aux fonctions du shim lib/firestoreClient.ts, qui
+   l'ignorent — conservé pour garder les signatures d'appel du SDK. */
 
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
-import { connectFunctionsEmulator, getFunctions } from "firebase/functions";
-import { initializeAppCheck, ReCaptchaEnterpriseProvider } from "firebase/app-check";
-import {
-  getFirestore,
-  initializeFirestore,
-  persistentLocalCache,
-  persistentMultipleTabManager,
-  type Firestore,
-} from "firebase/firestore";
-import { serverTimestamp } from "firebase/firestore";
-
-export { serverTimestamp };
 
 /* ── Config Firebase (variables d'environnement) ── */
 const firebaseConfig = {
@@ -31,32 +21,9 @@ const firebaseConfig = {
 
 /* ── Singletons (évite les réinitialisations en dev avec HMR) ── */
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const appCheckSiteKey = process.env.NEXT_PUBLIC_FIREBASE_APP_CHECK_SITE_KEY;
-if (typeof window !== "undefined" && appCheckSiteKey) {
-  try {
-    initializeAppCheck(app, { provider: new ReCaptchaEnterpriseProvider(appCheckSiteKey), isTokenAutoRefreshEnabled: true });
-  } catch { /* instance déjà créée par HMR */ }
-}
 const auth = getAuth(app);
-const functions = getFunctions(app, "africa-south1");
-if (process.env.NEXT_PUBLIC_USE_FIREBASE_EMULATORS === "1") {
-  try { connectFunctionsEmulator(functions, "127.0.0.1", 5001); } catch { /* HMR */ }
-}
-const forceLongPolling = process.env.NEXT_PUBLIC_FIRESTORE_FORCE_LONG_POLLING === "1";
 
-/* Cache offline persistant (IndexedDB, multi-onglets) : les écrans affichent
-   instantanément les données de la dernière session puis se rafraîchissent
-   depuis le serveur — supprime l'écran vide au boot.
-   Le try/catch couvre le HMR dev : initializeFirestore lève si l'instance
-   existe déjà avec d'autres options → on récupère l'instance en place. */
-let db: Firestore;
-try {
-  db = initializeFirestore(app, {
-    localCache: persistentLocalCache({ tabManager: persistentMultipleTabManager() }),
-    ...(forceLongPolling ? { experimentalForceLongPolling: true } : {}),
-  });
-} catch {
-  db = getFirestore(app);
-}
+/** Jeton opaque consommé par lib/firestoreClient.ts (API compatible SDK). */
+const db = Object.freeze({ __backend: "njambo-vps" });
 
-export { app, auth, db, functions };
+export { app, auth, db };

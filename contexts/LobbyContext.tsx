@@ -7,17 +7,13 @@ import {
   getDocs,
   onSnapshot,
   query,
-  addDoc,
-  updateDoc,
-  deleteDoc,
   where,
-  runTransaction,
   type Unsubscribe,
-} from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "@/lib/firebase";
+} from "@/lib/firestoreClient";
+import { db } from "@/lib/firebase";
+import { callBackend } from "@/lib/backend";
 import { useAuth } from "@/hooks/useAuth";
-import type { RoomDoc, RoomPlayer } from "@/types/game";
+import type { RoomDoc } from "@/types/game";
 
 /* ═══════════════ LobbyContext — Firestore Rooms (shared state) ═══════════════
    Gère la création, la recherche, le suivi temps réel et la
@@ -53,13 +49,6 @@ interface LobbyContextValue {
 const LobbyContext = createContext<LobbyContextValue | null>(null);
 
 /* ── Helpers ── */
-
-function generateCode(): string {
-  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-  let code = "NJAM";
-  for (let i = 0; i < 3; i++) code += chars[Math.floor(Math.random() * chars.length)];
-  return code;
-}
 
 function roomFromDoc(d: { id: string; data: () => unknown }): RoomDoc {
   return { id: d.id, ...(d.data() as Omit<RoomDoc, "id">) };
@@ -192,33 +181,17 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       throw new Error("Nombre de joueurs invalide");
     }
 
-    const player: RoomPlayer = {
-      uid: user.uid,
-      name: user.name,
-      emoji: user.emoji,
-      ready: true,
-      balance: 5000,
-      joinedAt: Date.now(),
-    };
-
-    const roomData: Omit<RoomDoc, "id"> = {
-      code: generateCode(),
-      hostId: user.uid,
-      stake,
-      status: "waiting" as const,
-      roomType,
-      maxPlayers,
-      players: [player],
-      playerUids: [user.uid],
-      createdAt: Date.now(),
-    };
-
     try {
-      const docRef = await addDoc(collection(db, "rooms"), roomData);
-      const roomId = docRef.id;
-      setCurrentRoom({ id: roomId, ...roomData });
-      listenRoom(roomId);
-      return roomId;
+      const response = await callBackend<{ roomId: string; room: RoomDoc }>("createRoom", {
+        stake,
+        maxPlayers,
+        roomType,
+        name: user.name,
+        emoji: user.emoji,
+      });
+      setCurrentRoom(response.data.room);
+      listenRoom(response.data.roomId);
+      return response.data.roomId;
     } catch (err) {
       console.error("[LobbyContext] createRoom error:", err);
       setRoomError("Impossible de créer la salle. Réessaie.");
@@ -231,63 +204,13 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     if (!user) throw new Error("Non connecté");
     setRoomError(null);
 
-    const player: RoomPlayer = {
-      uid: user.uid,
-      name: user.name,
-      emoji: user.emoji,
-      ready: false,
-      balance: 5000,
-      joinedAt: Date.now(),
-    };
-
-    const roomRef = doc(db, "rooms", roomId);
-    let joinedRoom: RoomDoc;
-
     try {
-      joinedRoom = await runTransaction(db, async (transaction) => {
-        const roomSnap = await transaction.get(roomRef);
-
-        if (!roomSnap.exists()) {
-          throw new Error("Cette salle n'existe plus.");
-        }
-
-        const room = { id: roomSnap.id, ...roomSnap.data() } as RoomDoc;
-        const players = Array.isArray(room.players) ? room.players : [];
-
-        if (players.some((p) => p.uid === user.uid)) {
-          const updatedPlayers = players.map((p) =>
-            p.uid === user.uid
-              ? { ...p, name: user.name, emoji: user.emoji }
-              : p,
-          );
-          transaction.update(roomRef, {
-            players: updatedPlayers,
-            playerUids: updatedPlayers.map((p) => p.uid),
-          });
-          return { ...room, players: updatedPlayers, playerUids: updatedPlayers.map((p) => p.uid) };
-        }
-
-        if (room.status !== "waiting") {
-          throw new Error("La partie a déjà commencé.");
-        }
-
-        if (players.length >= room.maxPlayers) {
-          throw new Error("La salle est pleine.");
-        }
-
-        // Validation: la mise de la room est-elle valide ?
-        if (room.stake && ![100, 250, 500].includes(room.stake)) {
-          throw new Error("Mise invalide dans cette salle.");
-        }
-
-        const updatedPlayers = [...players, player];
-        transaction.update(roomRef, {
-          players: updatedPlayers,
-          playerUids: updatedPlayers.map((p) => p.uid),
-        });
-
-        return { ...room, players: updatedPlayers, playerUids: updatedPlayers.map((p) => p.uid) };
+      const response = await callBackend<{ roomId: string; room: RoomDoc }>("joinRoom", {
+        roomId,
+        name: user.name,
+        emoji: user.emoji,
       });
+      setCurrentRoom(response.data.room);
     } catch (err) {
       const message = err instanceof Error && err.message
         ? err.message
@@ -297,7 +220,6 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       return false;
     }
 
-    setCurrentRoom(joinedRoom);
     listenRoom(roomId);
     return true;
   }, [user, listenRoom]);
@@ -366,25 +288,15 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
         return null;
       }
 
-      const updatedPlayers = room.players.map((p) =>
-        p.uid === user.uid
-          ? { ...p, name: user.name, emoji: user.emoji }
-          : p,
-      );
-      const hydratedRoom = {
-        ...room,
-        players: updatedPlayers,
-        playerUids: updatedPlayers.map((p) => p.uid),
-      };
-
-      await updateDoc(doc(db, "rooms", room.id), {
-        players: updatedPlayers,
-        playerUids: hydratedRoom.playerUids,
+      const response = await callBackend<{ roomId: string; room: RoomDoc }>("refreshRoomPlayer", {
+        roomId: room.id,
+        name: user.name,
+        emoji: user.emoji,
       });
 
-      setCurrentRoom(hydratedRoom);
+      setCurrentRoom(response.data.room);
       listenRoom(room.id);
-      return hydratedRoom;
+      return response.data.room;
     } catch (err) {
       console.error("[LobbyContext] resumeActiveRoom error:", err);
       setRoomError("Impossible de reprendre la partie.");
@@ -395,20 +307,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
   /* ── Quitter la salle ── */
   const leaveRoom = useCallback(async () => {
     if (!user || !currentRoom) return;
-    const roomRef = doc(db, "rooms", currentRoom.id);
-
-    const isHost = currentRoom.hostId === user.uid;
-
-    if (isHost) {
-      await deleteDoc(roomRef);
-    } else {
-      const remaining = currentRoom.players.filter((p) => p.uid !== user.uid);
-      if (remaining.length === 0) {
-        await deleteDoc(roomRef);
-      } else {
-        await updateDoc(roomRef, { players: remaining, playerUids: remaining.map((player) => player.uid) });
-      }
-    }
+    await callBackend("leaveRoom", { roomId: currentRoom.id });
 
     unsubRoom.current?.();
     setCurrentRoom(null);
@@ -417,8 +316,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
   /* ── Changer le statut "prêt" ── */
   const setReady = useCallback(async (ready: boolean) => {
     if (!user || !currentRoom) return;
-    const call = httpsCallable(functions, "setRoomReady");
-    await call({ roomId: currentRoom.id, ready, idempotencyKey: `ready_${crypto.randomUUID()}` });
+    await callBackend("setRoomReady", { roomId: currentRoom.id, ready });
   }, [user, currentRoom]);
 
   /* ── Lancer la partie (host only) ── */
@@ -442,11 +340,7 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       return;
     }
 
-    const roomRef = doc(db, "rooms", currentRoom.id);
-    await updateDoc(roomRef, {
-      status: "playing",
-      playerUids: currentRoom.players.map((p) => p.uid),
-    });
+    await callBackend("startGame", { roomId: currentRoom.id });
   }, [user, currentRoom]);
 
   return (

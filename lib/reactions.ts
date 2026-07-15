@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  addDoc,
   collection,
   limit,
   onSnapshot,
@@ -9,8 +8,9 @@ import {
   query,
   where,
   type Unsubscribe,
-} from "firebase/firestore";
+} from "@/lib/firestoreClient";
 import { db } from "@/lib/firebase";
+import { callBackend } from "@/lib/backend";
 
 /* ═══════════════ lib/reactions.ts ═══════════════
    Réactions émoji éphémères en partie en ligne. Sous-collection dédiée
@@ -28,11 +28,7 @@ export const REACTION_EMOJIS = ["👍", "😂", "🔥", "😮", "🙏"];
 
 export async function sendReaction(roomId: string, fromUid: string, emoji: string): Promise<void> {
   if (!roomId || !fromUid || !emoji) return;
-  await addDoc(collection(db, "rooms", roomId, "reactions"), {
-    fromUid,
-    emoji,
-    createdAt: Date.now(),
-  });
+  await callBackend("sendReaction", { roomId, emoji });
 }
 
 /** Écoute les réactions créées APRÈS `sinceMs` (évite de rejouer l'historique). */

@@ -1,7 +1,8 @@
 import { createHash, randomInt } from "node:crypto";
 import { getApps, initializeApp } from "firebase-admin/app";
-import { getFirestore, type DocumentData, type Transaction } from "firebase-admin/firestore";
+import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import type { CompatFirestore, DocumentData, Transaction } from "./firestoreTypes";
 import {
   DEFAULT_ECONOMY,
   DUPLICATE_COMPENSATION,
@@ -13,7 +14,22 @@ import {
 import type { Reward } from "../../domain/catalog";
 
 if (getApps().length === 0) initializeApp();
-export const db = getFirestore();
+
+/* Backend de persistance échangeable : Firestore (défaut, Cloud Functions)
+   ou la façade Postgres du VPS (server/src/firestoreCompat), injectée au boot
+   via setDbBackend AVANT le premier appel de commande. Les handlers importent
+   `db` tel quel — aucune autre ligne ne change selon le backend. */
+let backend: CompatFirestore | null = null;
+export function setDbBackend(instance: CompatFirestore) { backend = instance; }
+function active(): CompatFirestore {
+  return backend ?? (backend = getFirestore() as unknown as CompatFirestore);
+}
+export const db: CompatFirestore = {
+  doc: (path) => active().doc(path),
+  collection: (path) => active().collection(path),
+  runTransaction: (fn) => active().runTransaction(fn),
+  batch: () => active().batch(),
+};
 
 export function requireUid(request: CallableRequest<unknown>): string {
   const uid = request.auth?.uid;

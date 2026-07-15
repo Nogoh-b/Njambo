@@ -11,6 +11,7 @@ import { NKAP } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Btn } from "@/components/ui/Btn";
+import { AuthGate } from "@/components/ui/AuthGate";
 import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { PlayerStats, PublicPlayerProfile } from "@/types/game";
 
@@ -86,6 +87,7 @@ export function ProfileScreen() {
         <div className="nj-phone">
           <ScreenHeader title="Mon profil" kicker="Identite joueur" icon="profile" tone="gold" onBack={() => navigateTo("menu")} backLabel="Retour" />
 
+          <AuthGate>
           <div className="nj-stack" style={{ gap: 10 }}>
             {user && (
               <div className="nj-profile-status">
@@ -175,6 +177,7 @@ export function ProfileScreen() {
               ))}
             </div>
           </div>
+          </AuthGate>
         </div>
     </BottomNavScene>
   );

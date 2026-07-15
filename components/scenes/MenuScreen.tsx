@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
-import { GameModeCard } from "@/components/ui/GamePrimitives";
+import { GameModeCard, StatusBanner } from "@/components/ui/GamePrimitives";
 import { AvatarIllustration, NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
@@ -230,7 +230,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
   const { profile, navigateTo } = useGame();
   const motion = useMotionProfile();
   const { user } = useAuth();
-  const { economy, inventory, rank, loading, command } = useEconomy();
+  const { economy, inventory, rank, loading, error: economyError, refresh, command } = useEconomy();
   const { events } = useLiveOpsContent();
   const [socialCounts, setSocialCounts] = useState<SocialCounts>({ notifications: 0, messages: 0, requests: 0 });
   const [onlineProfile, setOnlineProfile] = useState<PublicPlayerProfile | null>(null);
@@ -419,6 +419,15 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
             onClick={() => openLink("wallet")}
           />
         </section>
+
+        {!isGuest && economyError && !economy && (
+          <StatusBanner
+            severity="error"
+            action={<button type="button" className="nj-choice" onClick={() => void refresh()}>Réessayer</button>}
+          >
+            Impossible de charger ton énergie. Vérifie la connexion au serveur puis réessaie.
+          </StatusBanner>
+        )}
 
         <div className={styles.dashboard}>
           <section className={styles.playZone} aria-labelledby="home-play-title">

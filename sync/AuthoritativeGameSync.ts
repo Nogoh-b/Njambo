@@ -1,8 +1,8 @@
 "use client";
 
-import { doc, onSnapshot, type Unsubscribe } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
-import { db, functions } from "@/lib/firebase";
+import { doc, onSnapshot, type Unsubscribe } from "@/lib/firestoreClient";
+import { db } from "@/lib/firebase";
+import { backendCallable } from "@/lib/backendCallable";
 import type {
   Card, GameState, GameSyncActions, Player, PowerCardActivation, Profile,
   Result, RoomPlayer, SyncStatus,
@@ -83,7 +83,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     if (this.startPending || this.destroyed) return;
     this.startPending = true;
     try {
-      const call = httpsCallable<Record<string, unknown>, ServerState | MatchmakingState>(functions, "startMatch");
+      const call = backendCallable<Record<string, unknown>, ServerState | MatchmakingState>("startMatch");
       const response = await call({
         idempotencyKey: `start_${crypto.randomUUID()}`,
         mode: this.opts.mode,
@@ -137,7 +137,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
 
   private async reconnect(matchId: string) {
     try {
-      const call = httpsCallable<Record<string, unknown>, ServerState>(functions, "reconnectMatch");
+      const call = backendCallable<Record<string, unknown>, ServerState>("reconnectMatch");
       const response = await call({ idempotencyKey: `reconnect_${crypto.randomUUID()}`, matchId });
       this.applyServerState(response.data);
       this.subscribe(matchId);
@@ -243,7 +243,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     if (!this.matchId || !this.match || this.match.status !== "playing") return;
     const card = this.hand[cardIdx];
     if (!card) return;
-    const call = httpsCallable<Record<string, unknown>, ServerState>(functions, "submitGameAction");
+    const call = backendCallable<Record<string, unknown>, ServerState>("submitGameAction");
     void call({ idempotencyKey: `play_${crypto.randomUUID()}`, matchId: this.matchId, turnId: this.match.turnId, cardId: card.id })
       .then((response) => this.applyServerState(response.data))
       .catch((cause) => this.status("error", cause instanceof Error ? cause.message : "Action refusée"));
@@ -268,7 +268,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
   }
   destroy = () => {
     if (this.opts.mode === "event" && this.opts.eventRunId && !this.matchId) {
-      const leave = httpsCallable<Record<string, unknown>, { ticketReturned: boolean }>(functions, "leaveEvent");
+      const leave = backendCallable<Record<string, unknown>, { ticketReturned: boolean }>("leaveEvent");
       void leave({ idempotencyKey: `leave_${crypto.randomUUID()}`, runId: this.opts.eventRunId });
     }
     this.destroyed = true;

@@ -1,9 +1,10 @@
 import { onDocumentUpdated } from "firebase-functions/v2/firestore";
 import { onSchedule } from "firebase-functions/v2/scheduler";
 import { boundedNumber, economyFrom, db, ledger, stableId } from "./core";
+import type { DocumentData } from "./firestoreTypes";
 import { refundEnergy } from "../../domain";
 
-export async function refundCancelledMatchImpl(matchId: string, after: FirebaseFirestore.DocumentData) {
+export async function refundCancelledMatchImpl(matchId: string, after: DocumentData) {
   if (after.refundId) return;
   const participants = (after.participants ?? []) as Array<{ uid: string; bot: boolean }>;
   const real = participants.filter((participant) => !participant.bot);

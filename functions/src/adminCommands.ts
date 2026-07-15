@@ -1,6 +1,27 @@
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { DEFAULT_BOOSTERS, DEFAULT_EVENTS, DEFAULT_OFFERS } from "../../domain";
-import { asObject, db, economyFrom, requireAdmin, requiredString, runIdempotent } from "./core";
+import { asObject, db, economyFrom, integer, requireAdmin, requiredString, runIdempotent } from "./core";
+
+/* Brouillon de régie (admin_drafts) : remplace l'addDoc direct du client
+   (components/admin/AdminConsole.tsx), validation portée de validDraft
+   dans firestore.rules. */
+const DRAFT_TYPES = ["event", "offer", "booster_definition", "reward_table", "runtime_config"];
+
+export async function saveAdminDraftHandler(request: CallableRequest<unknown>) {
+  const uid = requireAdmin(request);
+  const data = asObject(request.data);
+  const type = requiredString(data, "type", 32);
+  if (!DRAFT_TYPES.includes(type)) throw new HttpsError("invalid-argument", "INVALID_DRAFT_TYPE");
+  const contentId = requiredString(data, "contentId", 96);
+  const revision = integer(data, "revision", 1, 1_000_000);
+  const payload = data.payload;
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) throw new HttpsError("invalid-argument", "INVALID_PAYLOAD");
+  return runIdempotent(uid, "saveAdminDraft", data.idempotencyKey, async (transaction, now) => {
+    const draftRef = db.collection("admin_drafts").doc();
+    transaction.create(draftRef, { type, contentId, revision, payload, status: "draft", createdBy: uid, createdAt: now, updatedAt: now });
+    return { draftId: draftRef.id };
+  });
+}
 
 export async function seedLiveOpsHandler(request: CallableRequest<unknown>) {
   const uid = requireAdmin(request);

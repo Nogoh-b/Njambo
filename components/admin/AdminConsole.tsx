@@ -1,12 +1,11 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { addDoc, collection } from "firebase/firestore";
 import { getIdTokenResult } from "firebase/auth";
-import { httpsCallable } from "firebase/functions";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { auth, db, functions } from "@/lib/firebase";
+import { auth } from "@/lib/firebase";
+import { backendCallable } from "@/lib/backendCallable";
 
 function ConsoleBody() {
   const { user, loading } = useAuth();
@@ -32,25 +31,24 @@ function ConsoleBody() {
 
   const saveDraft = async () => {
     if (!payload) { setStatus("JSON invalide"); return; }
-    const ref = await addDoc(collection(db, "admin_drafts"), {
-      type, contentId, revision, payload, status: "draft", createdBy: user.uid, createdAt: Date.now(), updatedAt: Date.now(),
-    });
-    setLastDraftId(ref.id);
-    setStatus(`Brouillon ${ref.id} enregistré.`);
+    const call = backendCallable<Record<string, unknown>, { draftId: string }>("saveAdminDraft");
+    const result = await call({ type, contentId, revision, payload });
+    setLastDraftId(result.data.draftId);
+    setStatus(`Brouillon ${result.data.draftId} enregistré.`);
   };
   const publish = async () => {
     if (!lastDraftId) return;
-    const call = httpsCallable(functions, "publishAdminDraft");
+    const call = backendCallable("publishAdminDraft");
     const result = await call({ draftId: lastDraftId, idempotencyKey: `publish_${lastDraftId}_${crypto.randomUUID()}` });
     setStatus(`Publication confirmée : ${JSON.stringify(result.data)}`);
   };
   const seed = async () => {
-    const call = httpsCallable(functions, "seedLiveOps");
+    const call = backendCallable("seedLiveOps");
     const result = await call({ idempotencyKey: `seed_${crypto.randomUUID()}` });
     setStatus(`Données initiales prêtes : ${JSON.stringify(result.data)}`);
   };
   const activatePreview = async () => {
-    const call = httpsCallable(functions, "updateFeatureFlags");
+    const call = backendCallable("updateFeatureFlags");
     const result = await call({
       flags: { economy: true, authoritativeMatches: true, shop: true, events: true, simulatedPayments: true, admin: true, notifications: true },
       idempotencyKey: `features_${crypto.randomUUID()}`,

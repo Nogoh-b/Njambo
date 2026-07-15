@@ -20,8 +20,22 @@ import {
   verifyStorePurchaseHandler,
 } from "./economyCommands";
 import { abandonMatchHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "./matchCommands";
-import { migrateLegacyPlayerHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "./adminCommands";
+import { migrateLegacyPlayerHandler, saveAdminDraftHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "./adminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
+import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
+import {
+  acceptFriendRequestHandler,
+  markConversationReadHandler,
+  markNotificationReadHandler,
+  rejectFriendRequestHandler,
+  removeFriendHandler,
+  saveProfileHandler,
+  sendFriendRequestHandler,
+  sendMessageHandler,
+  sendReactionHandler,
+  sendRoomInviteHandler,
+  setPresenceHandler,
+} from "./socialCommands";
 export { refundCancelledMatch, refundExpiredEventQueues } from "./triggers";
 export { notifyFullEnergy } from "./notificationCommands";
 
@@ -51,3 +65,22 @@ export const seedLiveOps = onCall(callable, seedLiveOpsHandler);
 export const migrateLegacyPlayer = onCall(callable, migrateLegacyPlayerHandler);
 export const registerPushToken = onCall(callable, registerPushTokenHandler);
 export const updateFeatureFlags = onCall(callable, updateFeatureFlagsHandler);
+export const saveAdminDraft = onCall(callable, saveAdminDraftHandler);
+
+export const createRoom = onCall(callable, createRoomHandler);
+export const joinRoom = onCall(callable, joinRoomHandler);
+export const leaveRoom = onCall(callable, leaveRoomHandler);
+export const refreshRoomPlayer = onCall(callable, refreshRoomPlayerHandler);
+export const startGame = onCall(callable, startGameHandler);
+
+export const saveProfile = onCall(callable, saveProfileHandler);
+export const setPresence = onCall(callable, setPresenceHandler);
+export const sendFriendRequest = onCall(callable, sendFriendRequestHandler);
+export const acceptFriendRequest = onCall(callable, acceptFriendRequestHandler);
+export const rejectFriendRequest = onCall(callable, rejectFriendRequestHandler);
+export const removeFriend = onCall(callable, removeFriendHandler);
+export const markNotificationRead = onCall(callable, markNotificationReadHandler);
+export const sendRoomInvite = onCall(callable, sendRoomInviteHandler);
+export const sendMessage = onCall(callable, sendMessageHandler);
+export const markConversationRead = onCall(callable, markConversationReadHandler);
+export const sendReaction = onCall(callable, sendReactionHandler);

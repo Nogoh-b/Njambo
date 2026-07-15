@@ -35,6 +35,7 @@ import {
   stableId,
 } from "./core";
 import { paymentProvider } from "./payments/providers";
+import type { Transaction } from "./firestoreTypes";
 
 const CARD_POOL: Record<CardRarity, string[]> = {
   village: ["oeil_sorcier", "pluie_etoiles", "vent_nord", "bouclier_village", "tambour_appel"],
@@ -68,7 +69,7 @@ function resolveOfferRewards(offer: OfferDefinition): Reward[] {
   ];
 }
 
-async function economyAndInventory(transaction: FirebaseFirestore.Transaction, uid: string, now: number) {
+async function economyAndInventory(transaction: Transaction, uid: string, now: number) {
   const economyRef = db.doc(`economies/${uid}`);
   const inventoryRef = db.doc(`inventories/${uid}`);
   const [economySnap, inventorySnap] = await Promise.all([transaction.get(economyRef), transaction.get(inventoryRef)]);

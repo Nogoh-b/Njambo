@@ -28,8 +28,9 @@ import {
   type User,
 } from "firebase/auth";
 import { EmailAuthProvider } from "firebase/auth";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "@/lib/firestoreClient";
 import { auth, db } from "@/lib/firebase";
+import { callBackend } from "@/lib/backend";
 import { setPlayerPresence } from "@/lib/playerData";
 import type { AuthUser } from "@/types/game";
 
@@ -81,6 +82,14 @@ const DEFAULT_PROFILE: UserProfile = {
   createdAt: 0,
 };
 
+function profileFromFirebase(fbUser: User): UserProfile {
+  return {
+    ...DEFAULT_PROFILE,
+    name: fbUser.displayName?.trim() || DEFAULT_PROFILE.name,
+    emoji: fbUser.photoURL || DEFAULT_PROFILE.emoji,
+  };
+}
+
 /** Lit le profil Firestore d'un utilisateur */
 async function getUserProfile(uid: string, fbUser?: User | null): Promise<UserProfile> {
   const snap = await getDoc(doc(db, "users", uid));
@@ -93,12 +102,7 @@ async function getUserProfile(uid: string, fbUser?: User | null): Promise<UserPr
     return playerSnap.data() as UserProfile;
   }
 
-  const displayName = fbUser?.displayName?.trim();
-  return {
-    ...DEFAULT_PROFILE,
-    name: displayName || DEFAULT_PROFILE.name,
-    emoji: fbUser?.photoURL || DEFAULT_PROFILE.emoji,
-  };
+  return fbUser ? profileFromFirebase(fbUser) : DEFAULT_PROFILE;
 }
 
 /**
@@ -119,9 +123,8 @@ async function saveUserProfile(
     locale: existing.locale ?? "fr",
     ageBand: profile.ageBand ?? existing.ageBand ?? "unknown",
     createdAt: (profile.createdAt ?? existing.createdAt) || now,
-    updatedAt: now,
   };
-  await setDoc(doc(db, "users", uid), payload, { merge: true });
+  await callBackend("saveProfile", payload);
 }
 
 const AuthContext = createContext<UseAuthReturn | null>(null);
@@ -138,9 +141,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const unsub = onAuthStateChanged(auth, async (fbUser: User | null) => {
       if (cancelled) return;
       if (fbUser) {
-        const profile = fbUser.isAnonymous
-          ? { ...DEFAULT_PROFILE, name: fbUser.displayName || DEFAULT_PROFILE.name, emoji: fbUser.photoURL || DEFAULT_PROFILE.emoji }
-          : await getUserProfile(fbUser.uid, fbUser);
+        let profile = profileFromFirebase(fbUser);
+        if (!fbUser.isAnonymous) {
+          try {
+            profile = await getUserProfile(fbUser.uid, fbUser);
+          } catch (error) {
+            // L'API de profil ne doit jamais laisser toute l'interface Auth
+            // bloquée sur « Chargement… » quand le backend redémarre.
+            console.error("[AuthContext] lecture profil échouée, profil Firebase utilisé:", error);
+          }
+        }
         if (cancelled) return;
         // L'UI est débloquée dès la LECTURE ; la synchro du miroir
         // users/players part en tâche de fond (hors chemin critique).

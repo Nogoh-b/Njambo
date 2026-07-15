@@ -1,7 +1,6 @@
 "use client";
 
 import {
-  addDoc,
   collection,
   doc,
   getDoc,
@@ -10,13 +9,11 @@ import {
   onSnapshot,
   orderBy,
   query,
-  runTransaction,
-  setDoc,
-  updateDoc,
   where,
   type Unsubscribe,
-} from "firebase/firestore";
+} from "@/lib/firestoreClient";
 import { db } from "@/lib/firebase";
+import { callBackend } from "@/lib/backend";
 import type {
   ChatMessage,
   ConversationEntry,
@@ -119,10 +116,6 @@ function chatMessage(id: string, raw: Record<string, unknown>): ChatMessage {
   };
 }
 
-function requestId(fromUid: string, toUid: string) {
-  return `${fromUid}_${toUid}`;
-}
-
 export function conversationId(a: string, b: string) {
   return [a, b].sort().join("__");
 }
@@ -179,89 +172,20 @@ export function listenFriendRequests(uid: string, cb: (requests: FriendRequest[]
 
 export async function sendFriendRequest(from: SocialUserLite, to: SocialUserLite): Promise<void> {
   if (from.uid === to.uid) return;
-  const now = Date.now();
-  const id = requestId(from.uid, to.uid);
-  const existingFriend = await getDoc(doc(db, "users", from.uid, "friends", to.uid));
-  if (existingFriend.exists()) return;
-
-  const existingRequest = await getDoc(doc(db, "friendRequests", id));
-  if (existingRequest.exists()) {
-    const current = request(existingRequest.id, existingRequest.data());
-    if (current.status === "pending" || current.status === "accepted") return;
-  }
-
-  const reverseRequest = await getDoc(doc(db, "friendRequests", requestId(to.uid, from.uid)));
-  if (reverseRequest.exists()) {
-    const current = request(reverseRequest.id, reverseRequest.data());
-    if (current.status === "pending" || current.status === "accepted") return;
-  }
-
-  await setDoc(doc(db, "friendRequests", id), {
-    fromUid: from.uid,
-    fromName: from.name,
-    fromEmoji: from.emoji,
-    toUid: to.uid,
-    toName: to.name,
-    toEmoji: to.emoji,
-    status: "pending",
-    createdAt: now,
-    updatedAt: now,
-  }, { merge: true });
-  await addDoc(collection(db, "users", to.uid, "notifications"), {
-    type: "friend_request",
-    actorUid: from.uid,
-    actorName: from.name,
-    actorEmoji: from.emoji,
-    title: "Demande d'amitie",
-    body: `${from.name} veut t'ajouter en ami.`,
-    read: false,
-    createdAt: now,
-  });
+  // Les contrôles (déjà amis, requête existante/inverse) sont faits côté
+  // serveur, dans une transaction — la commande répond {sent:false} en no-op.
+  await callBackend("sendFriendRequest", { from, to });
 }
 
 export async function acceptFriendRequest(req: FriendRequest): Promise<void> {
-  const now = Date.now();
-  const reqRef = doc(db, "friendRequests", req.id);
-  const fromFriendRef = doc(db, "users", req.fromUid, "friends", req.toUid);
-  const toFriendRef = doc(db, "users", req.toUid, "friends", req.fromUid);
-  const notificationRef = doc(collection(db, "users", req.fromUid, "notifications"));
-
-  await runTransaction(db, async (transaction) => {
-    transaction.update(reqRef, { status: "accepted", updatedAt: now });
-    transaction.set(fromFriendRef, {
-      uid: req.toUid,
-      name: req.toName,
-      emoji: req.toEmoji,
-      online: false,
-      lastSeen: now,
-      createdAt: now,
-    }, { merge: true });
-    transaction.set(toFriendRef, {
-      uid: req.fromUid,
-      name: req.fromName,
-      emoji: req.fromEmoji,
-      online: false,
-      lastSeen: now,
-      createdAt: now,
-    }, { merge: true });
-    transaction.set(notificationRef, {
-      type: "friend_accept",
-      actorUid: req.toUid,
-      actorName: req.toName,
-      actorEmoji: req.toEmoji,
-      title: "Demande acceptee",
-      body: `${req.toName} a accepte ta demande.`,
-      read: false,
-      createdAt: now,
-    });
-  });
+  await callBackend("acceptFriendRequest", { requestId: req.id });
 }
 
 export async function rejectFriendRequest(requestIdToUpdate: string, cancelled = false): Promise<void> {
-  await updateDoc(doc(db, "friendRequests", requestIdToUpdate), {
-    status: cancelled ? "cancelled" : "rejected",
-    updatedAt: Date.now(),
-  });
+  // Le serveur déduit le statut du rôle de l'appelant : destinataire → rejected,
+  // émetteur → cancelled (le paramètre est conservé pour la signature).
+  void cancelled;
+  await callBackend("rejectFriendRequest", { requestId: requestIdToUpdate });
 }
 
 export function listenNotifications(uid: string, cb: (notifications: NotificationEntry[]) => void): Unsubscribe {
@@ -271,22 +195,12 @@ export function listenNotifications(uid: string, cb: (notifications: Notificatio
   });
 }
 
-export async function markNotificationRead(uid: string, notificationId: string): Promise<void> {
-  await updateDoc(doc(db, "users", uid, "notifications", notificationId), { read: true });
+export async function markNotificationRead(_uid: string, notificationId: string): Promise<void> {
+  await callBackend("markNotificationRead", { notificationId });
 }
 
 export async function sendRoomInvite(from: SocialUserLite, to: SocialUserLite, roomId: string): Promise<void> {
-  await addDoc(collection(db, "users", to.uid, "notifications"), {
-    type: "room_invite",
-    actorUid: from.uid,
-    actorName: from.name,
-    actorEmoji: from.emoji,
-    title: "Invitation de table",
-    body: `${from.name} t'invite a une partie.`,
-    read: false,
-    roomId,
-    createdAt: Date.now(),
-  });
+  await callBackend("sendRoomInvite", { from, to, roomId });
 }
 
 export function listenConversations(uid: string, cb: (conversations: ConversationEntry[]) => void): Unsubscribe {
@@ -308,42 +222,12 @@ export function listenMessages(conversationIdToListen: string, cb: (messages: Ch
 export async function sendMessage(from: SocialUserLite, to: SocialUserLite, text: string): Promise<string> {
   const clean = text.trim();
   if (!clean) return conversationId(from.uid, to.uid);
-  const id = conversationId(from.uid, to.uid);
-  const now = Date.now();
-  const convRef = doc(db, "conversations", id);
-  await setDoc(convRef, {
-    participants: [from.uid, to.uid],
-    participantMeta: {
-      [from.uid]: { name: from.name, emoji: from.emoji },
-      [to.uid]: { name: to.name, emoji: to.emoji },
-    },
-    lastMessage: clean,
-    lastMessageAt: now,
-    unreadBy: { [to.uid]: true },
-  }, { merge: true });
-  await addDoc(collection(db, "conversations", id, "messages"), {
-    fromUid: from.uid,
-    text: clean,
-    createdAt: now,
-  });
-  await addDoc(collection(db, "users", to.uid, "notifications"), {
-    type: "message",
-    actorUid: from.uid,
-    actorName: from.name,
-    actorEmoji: from.emoji,
-    title: "Nouveau message",
-    body: clean,
-    read: false,
-    conversationId: id,
-    createdAt: now,
-  });
-  return id;
+  const result = await callBackend<{ conversationId: string }>("sendMessage", { from, to, text: clean });
+  return result.data.conversationId;
 }
 
-export async function markConversationRead(uid: string, convId: string): Promise<void> {
-  await setDoc(doc(db, "conversations", convId), {
-    unreadBy: { [uid]: false },
-  }, { merge: true });
+export async function markConversationRead(_uid: string, convId: string): Promise<void> {
+  await callBackend("markConversationRead", { conversationId: convId });
 }
 
 export function listenSocialCounts(uid: string, cb: (counts: { notifications: number; messages: number; requests: number }) => void): Unsubscribe {

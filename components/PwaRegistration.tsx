@@ -2,8 +2,8 @@
 
 import { useEffect } from "react";
 import { getToken, isSupported } from "firebase/messaging";
-import { httpsCallable } from "firebase/functions";
-import { app, auth, functions } from "@/lib/firebase";
+import { app, auth } from "@/lib/firebase";
+import { backendCallable } from "@/lib/backendCallable";
 import { getMessaging } from "firebase/messaging";
 
 export function PwaRegistration() {
@@ -14,7 +14,7 @@ export function PwaRegistration() {
       if (!vapidKey || Notification.permission !== "granted" || !auth.currentUser || auth.currentUser.isAnonymous || !(await isSupported())) return;
       const token = await getToken(getMessaging(app), { vapidKey, serviceWorkerRegistration: registration });
       if (!token) return;
-      const call = httpsCallable(functions, "registerPushToken");
+      const call = backendCallable("registerPushToken");
       await call({ token, platform: "web", idempotencyKey: `push_${crypto.randomUUID()}` });
     }).catch(() => { /* L'installation PWA ne doit jamais bloquer le jeu. */ });
   }, []);

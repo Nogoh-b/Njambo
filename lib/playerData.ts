@@ -2,15 +2,14 @@
 
 import {
   collection,
-  doc,
   limit,
   onSnapshot,
   orderBy,
   query,
-  setDoc,
   type Unsubscribe,
-} from "firebase/firestore";
-import { db, serverTimestamp } from "@/lib/firebase";
+} from "@/lib/firestoreClient";
+import { db } from "@/lib/firebase";
+import { callBackend } from "@/lib/backend";
 import type { MatchHistoryEntry, OnlinePlayerProfile, PlayerStats } from "@/types/game";
 
 function normalizeStats(raw: unknown): PlayerStats {
@@ -71,7 +70,7 @@ export function listenMatchHistory(uid: string, cb: (matches: MatchHistoryEntry[
   return onSnapshot(historyQuery, (snapshot) => cb(snapshot.docs.map((matchDoc) => normalizeMatch(matchDoc.id, matchDoc.data()))));
 }
 
-/** La seule écriture client conservée ici : la présence, bornée par les Rules. */
-export async function setPlayerPresence(uid: string, online: boolean): Promise<void> {
-  await setDoc(doc(db, "players_presence", uid), { online, lastSeen: serverTimestamp() }, { merge: true });
+/** Présence : commande serveur (le backend horodate lastSeen lui-même). */
+export async function setPlayerPresence(_uid: string, online: boolean): Promise<void> {
+  await callBackend("setPresence", { online });
 }

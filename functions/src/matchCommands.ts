@@ -2,6 +2,7 @@ import { randomInt } from "node:crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { crownWinGain, resolveEventProgress, splitCrownLoss, spendEnergy, type EnergyState, type Reward } from "../../domain";
 import { applyReward, asObject, boundedNumber, db, economyFrom, integer, ledger, requireUid, requiredString, runIdempotent, stableId } from "./core";
+import type { DocumentReference, DocumentSnapshot } from "./firestoreTypes";
 
 type MatchMode = "bot" | "online" | "friends" | "event";
 type Suit = "♥" | "♦" | "♣" | "♠";
@@ -102,14 +103,14 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
   let matchId = stableId(uid, "match", String(data.idempotencyKey)).slice(0, 40);
   return runIdempotent(uid, "startMatch", data.idempotencyKey, async (transaction, now) => {
     let participants: MatchParticipant[] = [];
-    let eventRunRefs: FirebaseFirestore.DocumentReference[] = [];
-    let eventRunSnaps: FirebaseFirestore.DocumentSnapshot[] = [];
+    let eventRunRefs: DocumentReference[] = [];
+    let eventRunSnaps: DocumentSnapshot[] = [];
     let eventRunIds: Record<string, string> = {};
     let eventStake = 0;
     let eventRanked = false;
-    let eventQueueRef: FirebaseFirestore.DocumentReference | null = null;
+    let eventQueueRef: DocumentReference | null = null;
     let eventQueueEntries: Array<{ uid: string; runId: string; joinedAt: number }> | null = null;
-    let roomRef: FirebaseFirestore.DocumentReference | null = null;
+    let roomRef: DocumentReference | null = null;
     if (mode === "bot") {
       const botCount = integer(data, "botCount", 1, 3);
       const playerSnap = await transaction.get(db.doc(`players/${uid}`));
@@ -478,8 +479,8 @@ export async function abandonMatchHandler(request: CallableRequest<unknown>) {
     if (matchSnap.get("status") !== "playing") return { matchId, status: matchSnap.get("status") };
     const eventRunIds = (matchSnap.get("eventRunIds") ?? {}) as Record<string, string>;
     const eventRunId = eventRunIds[uid] ?? matchSnap.get("eventRunId");
-    let runRef: FirebaseFirestore.DocumentReference | null = null;
-    let runSnap: FirebaseFirestore.DocumentSnapshot | null = null;
+    let runRef: DocumentReference | null = null;
+    let runSnap: DocumentSnapshot | null = null;
     if (eventRunId) {
       runRef = db.doc(`event_runs/${eventRunId}`);
       runSnap = await transaction.get(runRef);

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, where } from "@/lib/firestoreClient";
 import {
   DEFAULT_BOOSTERS,
   DEFAULT_EVENTS,

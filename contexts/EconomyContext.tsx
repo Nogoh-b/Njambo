@@ -1,10 +1,10 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
-import { doc, onSnapshot } from "firebase/firestore";
-import { httpsCallable } from "firebase/functions";
+import { doc, onSnapshot } from "@/lib/firestoreClient";
 import { calculateEnergy, rankTier, type PlayerEconomy } from "@/domain";
-import { db, functions } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
+import { backendCallable } from "@/lib/backendCallable";
 import { useAuth } from "@/hooks/useAuth";
 
 interface PublicEconomy {
@@ -58,7 +58,7 @@ export function EconomyProvider({ children }: { children: ReactNode }) {
   const [error, setError] = useState<string | null>(null);
 
   const command = useCallback(async <T,>(name: string, payload: Record<string, unknown> = {}) => {
-    const call = httpsCallable<Record<string, unknown>, T>(functions, name);
+    const call = backendCallable<Record<string, unknown>, T>(name);
     const result = await call({ ...payload, idempotencyKey: payload.idempotencyKey ?? idempotencyKey(name) });
     return result.data;
   }, []);
