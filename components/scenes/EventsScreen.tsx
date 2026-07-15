@@ -9,6 +9,7 @@ import { useLiveOpsContent, usePlayerEventRuns } from "@/hooks/useLiveOpsContent
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
 import { GameCard, RewardPreview, StatusBanner, TicketBadge } from "@/components/ui/GamePrimitives";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
+import { t } from "@/lib/i18n";
 import styles from "./GameHubs.module.css";
 
 type EventState = "active" | "upcoming" | "ended" | "full" | "eliminated";
@@ -94,9 +95,9 @@ export function EventsScreen({ onStart }: { onStart?: (runId: string) => void })
   return (
     <GameHubLayout
       tone="events"
-      kicker="Le Ter"
-      title="Les rendez-vous du Mboa"
-      subtitle="Entre avec ton ticket, franchis les tables et repars avec les honneurs."
+      kicker={t("events.kicker")}
+      title={t("events.title")}
+      subtitle={t("events.subtitle")}
       active="events"
       headerAction={
         <div className={styles.ticketWallet} aria-label="Tes tickets">

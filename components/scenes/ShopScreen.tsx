@@ -7,19 +7,32 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useGame } from "@/contexts/GameContext";
 import { useDailyGrid, useLiveOpsContent } from "@/hooks/useLiveOpsContent";
+import { t } from "@/lib/i18n";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
-import { GameCard, GameTabs, ResourcePill, RewardPreview, StatusBanner } from "@/components/ui/GamePrimitives";
+import { EmptyState, GameCard, GameTabs, ResourcePill, RewardPreview, StatusBanner } from "@/components/ui/GamePrimitives";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import styles from "./GameHubs.module.css";
 
 type ShopTab = "offers" | "boosters" | "grid" | "wheel";
+type OfferCategory = "featured" | OfferDefinition["type"];
 
 const SHOP_TABS = [
-  { id: "offers", label: "À la une" },
-  { id: "boosters", label: "Livres" },
-  { id: "grid", label: "Grille du jour" },
-  { id: "wheel", label: "Roulette" },
+  { id: "offers", label: t("shop.offers") },
+  { id: "boosters", label: t("shop.boosters") },
+  { id: "grid", label: t("shop.dailyGrid") },
+  { id: "wheel", label: t("shop.wheel") },
 ];
+
+const OFFER_CATEGORIES: Array<{ id: OfferCategory; label: string }> = [
+  { id: "featured", label: t("shop.category.featured") },
+  { id: "cauris_pack", label: t("shop.category.cauris") },
+  { id: "nkap_conversion", label: t("shop.category.nkap") },
+  { id: "energy_pass", label: t("shop.category.energy") },
+  { id: "ticket", label: t("shop.category.tickets") },
+  { id: "element_pack", label: t("shop.category.packs") },
+];
+
+const FEATURED_OFFER_IDS = ["cauris_110", "nkap_3000", "energy_120", "ticket_bronze", "pack_mboa"];
 
 const RARITY_LABELS: Record<string, string> = {
   village: "Village",
@@ -65,6 +78,7 @@ export function ShopScreen() {
   const { offers: publishedOffers, boosters, loading: contentLoading, error: contentError } = useLiveOpsContent();
   const { purchased: gridRewards, loading: gridLoading } = useDailyGrid(user && !user.isAnonymous ? user.uid : undefined);
   const [tab, setTab] = useState<ShopTab>("offers");
+  const [offerCategory, setOfferCategory] = useState<OfferCategory>("featured");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ severity: "success" | "warning" | "error"; text: string } | null>(null);
   const [opening, setOpening] = useState<{ openingId: string; positions: number[] } | null>(null);
@@ -78,6 +92,19 @@ export function ShopScreen() {
   }, [pendingBoosterOpening]);
 
   const offers = useMemo(() => publishedOffers.filter((offer) => offer.published && offer.id !== "daily_grid_slot_xaf"), [publishedOffers]);
+  const visibleOffers = useMemo(() => {
+    if (offerCategory !== "featured") return offers.filter((offer) => offer.type === offerCategory);
+
+    const configuredSelection = FEATURED_OFFER_IDS
+      .map((id) => offers.find((offer) => offer.id === id))
+      .filter((offer): offer is OfferDefinition => Boolean(offer));
+    if (configuredSelection.length >= 3) return configuredSelection;
+
+    return OFFER_CATEGORIES
+      .filter((category) => category.id !== "featured")
+      .map((category) => offers.find((offer) => offer.type === category.id))
+      .filter((offer): offer is OfferDefinition => Boolean(offer));
+  }, [offerCategory, offers]);
 
   const run = async (key: string, action: () => Promise<string | void>) => {
     setBusy(key);
@@ -119,9 +146,9 @@ export function ShopScreen() {
   return (
     <GameHubLayout
       tone="shop"
-      kicker="La boutique du quartier"
-      title="Équipe ton jeu"
-      subtitle="Livres, énergie et objets du Ter — les probabilités restent toujours visibles."
+      kicker={t("shop.kicker")}
+      title={t("shop.title")}
+      subtitle={t("shop.subtitle")}
       active="shop"
       headerAction={
         <div className={styles.shopWallet} aria-label="Portefeuille">
@@ -148,11 +175,40 @@ export function ShopScreen() {
       {message && <StatusBanner severity={message.severity}>{message.text}</StatusBanner>}
 
       {tab === "offers" && (
-        <section className={styles.offerGrid} aria-label="Offres à la une">
-          {offers.map((offer) => {
-            const xaf = offer.prices.some((price) => price.currency === "xaf");
-            return (
-              <GameCard key={offer.id} variant="default" className={`${styles.offerCard} ${styles[`offer_${offer.type}`]}`}>
+        <section aria-labelledby="shop-offers-title">
+          <div className={styles.offerCategoryHeader}>
+            <div>
+              <span className={styles.eyebrow}>Rayons du quartier</span>
+              <h2 id="shop-offers-title">Choisis ce qu’il te faut</h2>
+            </div>
+            <span>{visibleOffers.length} offre{visibleOffers.length > 1 ? "s" : ""}</span>
+          </div>
+          <div className={styles.offerCategories} aria-label="Catégories d’offres">
+            {OFFER_CATEGORIES.filter((category) => category.id === "featured" || offers.some((offer) => offer.type === category.id)).map((category) => (
+              <button
+                key={category.id}
+                type="button"
+                className={offerCategory === category.id ? styles.offerCategoryActive : undefined}
+                aria-pressed={offerCategory === category.id}
+                onClick={() => setOfferCategory(category.id)}
+              >
+                {category.label}
+              </button>
+            ))}
+          </div>
+          {visibleOffers.length === 0 ? (
+            <EmptyState
+              icon="coin"
+              tone="cobalt"
+              title="Ce rayon se prépare"
+              description="Les nouvelles offres apparaîtront ici dès leur publication par le Ter."
+            />
+          ) : (
+            <div className={styles.offerGrid} aria-live="polite">
+              {visibleOffers.map((offer) => {
+                const xaf = offer.prices.some((price) => price.currency === "xaf");
+                return (
+                  <GameCard key={offer.id} variant="default" className={`${styles.offerCard} ${styles[`offer_${offer.type}`]}`}>
                 <div
                   className={styles.productArt}
                   style={{ "--product-art": `url(${offerArt(offer)})` } as CSSProperties}
@@ -197,9 +253,11 @@ export function ShopScreen() {
                     </button>
                   </div>
                 </div>
-              </GameCard>
-            );
-          })}
+                  </GameCard>
+                );
+              })}
+            </div>
+          )}
         </section>
       )}
 
@@ -255,7 +313,7 @@ export function ShopScreen() {
                     setOpening(null);
                     return `${result.reward.cardId} · ${RARITY_LABELS[result.reward.rarity] ?? result.reward.rarity}${result.duplicateCompensation ? ` · +${result.duplicateCompensation} cauris pour le doublon` : ""}`;
                   })}>
-                    <Image src="/assets/njambo/card-back.webp" alt="Carte cachée" width={180} height={250} />
+                    <Image src="/assets/njambo/books/card-back-256.webp" alt="Carte cachée" width={180} height={250} />
                     <span>Choisir</span>
                   </button>
                 ))}
@@ -292,7 +350,7 @@ export function ShopScreen() {
                       <small>Déjà obtenue aujourd’hui</small>
                     </div>
                   ) : (
-                    <Image src="/assets/njambo/card-back.webp" alt="Carte quotidienne cachée" width={180} height={250} />
+                    <Image src="/assets/njambo/books/card-back-256.webp" alt="Carte quotidienne cachée" width={180} height={250} />
                   )}
                   {!reward && (
                     <>

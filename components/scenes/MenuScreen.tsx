@@ -10,6 +10,7 @@ import { useEconomy } from "@/contexts/EconomyContext";
 import { DEFAULT_EVENTS, doualaDayKey, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveOpsContent } from "@/hooks/useLiveOpsContent";
+import { t } from "@/lib/i18n";
 import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
 import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
@@ -395,7 +396,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
         <section className={styles.resourceRibbon} aria-label="Ressources" data-home-enter>
           <ResourceButton
             asset="/assets/njambo/economy/energy-flask-64.webp"
-            label="Énergie"
+            label={t("economy.energy")}
             value={economyPending || isGuest ? "—" : energyValue}
             tone="teal"
             progress={economyPending || isGuest ? undefined : energyProgress}
@@ -403,7 +404,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           />
           <ResourceButton
             asset="/assets/njambo/economy/nkap-64.webp"
-            label="Nkap"
+            label={t("economy.nkap")}
             value={economyPending || isGuest ? "—" : formatRibbonAmount(displayProfile.balance)}
             fullValue={economyPending || isGuest ? undefined : displayProfile.balance.toLocaleString("fr-FR")}
             tone="gold"
@@ -411,7 +412,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           />
           <ResourceButton
             asset="/assets/njambo/economy/cauri-64.webp"
-            label="Cauris"
+            label={t("economy.cauris")}
             value={economyPending || isGuest ? "—" : formatRibbonAmount(displayProfile.cauris)}
             fullValue={economyPending || isGuest ? undefined : displayProfile.cauris.toLocaleString("fr-FR")}
             tone="pink"
@@ -423,10 +424,10 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           <section className={styles.playZone} aria-labelledby="home-play-title">
             <div className={styles.sectionHeading} data-home-enter>
               <span>
-                <small>Le Ter est chaud</small>
-                <h1 id="home-play-title">À toi de jouer</h1>
+                <small>{t("home.playKicker")}</small>
+                <h1 id="home-play-title">{t("home.playTitle")}</h1>
               </span>
-              <button type="button" onClick={() => openLink("play")}>Tous les modes <span aria-hidden="true">→</span></button>
+              <button type="button" onClick={() => openLink("play")}>{t("home.allModes")} <span aria-hidden="true">→</span></button>
             </div>
 
             <ModeCard

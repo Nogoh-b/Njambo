@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useGame } from "@/contexts/GameContext";
 import { db } from "@/lib/firebase";
+import { t } from "@/lib/i18n";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
 import { EmptyState, GameTabs, RankBadge, ResourcePill, Skeleton, StatusBanner } from "@/components/ui/GamePrimitives";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
@@ -126,9 +127,9 @@ export function WalletScreen() {
     <GameHubLayout
       tone="wallet"
       active="shop"
-      kicker="Tes richesses"
-      title="Portefeuille du joueur"
-      subtitle="Chaque mouvement est confirmé et conservé par le serveur."
+      kicker={t("wallet.kicker")}
+      title={t("wallet.title")}
+      subtitle={t("wallet.subtitle")}
       headerAction={<RankBadge label={rank.badge.label} crowns={rank.crowns} compact />}
     >
       {(error || ledgerError) && <StatusBanner severity="error">{ledgerError ?? "Ton économie est temporairement indisponible."}</StatusBanner>}

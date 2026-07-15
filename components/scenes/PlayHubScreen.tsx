@@ -5,6 +5,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
 import { GameModeCard } from "@/components/ui/GamePrimitives";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
+import { t } from "@/lib/i18n";
 import type { SceneName } from "@/types/game";
 import styles from "./GameHubs.module.css";
 
@@ -74,9 +75,9 @@ export function PlayHubScreen() {
   return (
     <GameHubLayout
       tone="play"
-      kicker="Choisis ton terrain"
-      title="Les tables du Mboa"
-      subtitle="Une table pour chaque façon de jouer."
+      kicker={t("play.kicker")}
+      title={t("play.title")}
+      subtitle={t("play.subtitle")}
       active="play"
     >
       <section className={styles.modeGrid} aria-label="Modes de jeu">
