@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Œil du Sorcier — révèle la main d'un adversaire pendant 5 secondes. */
 export const oeilSorcier: PowerModule = {

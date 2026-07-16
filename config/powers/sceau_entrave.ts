@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Sceau d'Entrave — bloque une carte légale si une alternative reste disponible. */
 export const sceauEntrave: PowerModule = {

@@ -27,7 +27,7 @@ Date : 13 juillet 2026
 1. Installer Java 21+ puis exécuter `npm run test:rules`.
 2. Authentifier Firebase CLI, confirmer l’édition de la base `(default)` et sauvegarder Firestore.
 3. Finaliser le worker de timeout/forfait automatique (carte légale, deux tours manqués ou 60 secondes hors ligne).
-4. Migrer et valider chaque carte pouvoir dans le moteur serveur ; elles restent volontairement désactivées en partie authentifiée jusque-là.
+4. Cartes pouvoir côté serveur : implémentées (2026-07-15) via la commande `usePowerCard` (functions/src/powerCommands.ts) qui exécute le moteur PowerScript partagé — état moteur (pioche, effets, restrictions) persisté dans `matches/{id}/private/__engine`, activation résolue diffusée dans `recentPowerActivations` (identités des cartes cachées expurgées du broadcast). Reste à valider carte par carte en conditions réelles.
 5. Valider la planche artistique avant de générer les masters PNG/WebP.
 6. Tester les adaptateurs réels MTN/Orange/stores et Capacitor dans un chantier ultérieur ; la V1 demeure simulée.
 

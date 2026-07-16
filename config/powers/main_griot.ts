@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Main du Griot — suggère ta meilleure carte légale pendant 6 secondes. */
 export const mainGriot: PowerModule = {

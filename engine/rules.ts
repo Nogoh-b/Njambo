@@ -1,5 +1,5 @@
-import { GAME_CONFIG } from "@/config/gameConfig";
-import type { Card, GameConfig, InstantWinCore, Player, TrickPlay } from "@/types/game";
+import { GAME_CONFIG } from "../config/gameConfig";
+import type { Card, GameConfig, InstantWinCore, Player, TrickPlay } from "../types/game";
 
 /* ═══════════════ FILE: engine/rules.js ═══════════════ */
 export const sumHand = (hand: Card[]): number => hand.reduce((s, c) => s + c.value, 0);

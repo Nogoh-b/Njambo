@@ -19,6 +19,7 @@ import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { DEV } from "@/config/devConfig";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
+import { useEconomy } from "@/contexts/EconomyContext";
 import { BOTS, NKAP } from "@/data/mock";
 import { powerRequiresTarget as requiresTarget, powerScriptOf } from "@/config/powers";
 import { selectInHand } from "@/engine/power/selectors";
@@ -240,6 +241,11 @@ export function TableScreen({
   const motion = useMotionProfile();
   const { user: authUser } = useAuth();
   const authUid = authUser?.uid ?? "";
+  /* Prédicat UNIQUE de sélection du sync : partagé entre l'instanciation du
+     sync et le sourcing des pouvoirs équipés — s'ils divergent, on afficherait
+     des pouvoirs locaux sur un match serveur (→ POWER_NOT_EQUIPPED). */
+  const isLocalSync = gameMode === "bot" && (!authUser || authUser.isAnonymous);
+  const { inventory: serverInventory } = useEconomy();
   const A = cfg.anim;
   const mise = initialMise;
   const roomPlayersKey = roomPlayers?.map((p) => p.uid).join("|") ?? "";
@@ -299,8 +305,13 @@ export function TableScreen({
     updatedAt: Date.now(),
   });
 
-  /* ----- Cartes pouvoir (UI d'activation) ----- */
-  const equippedPowers = profile.equippedPowers ?? [];
+  /* ----- Cartes pouvoir (UI d'activation) -----
+     Sync serveur → source de vérité = inventaire serveur (equippedCards,
+     validé par usePowerCardHandler) ; sync local (invité) → profil local
+     (+ triches dev NEXT_PUBLIC_DEV_*). */
+  const equippedPowers: PowerCardId[] = isLocalSync
+    ? (profile.equippedPowers ?? [])
+    : ((serverInventory.equippedCards ?? []) as PowerCardId[]);
   const [usedPowers, setUsedPowers] = useState<Set<PowerCardId>>(new Set());
   const [targetingCard, setTargetingCard] = useState<PowerCardId | null>(null);
 
@@ -507,6 +518,13 @@ export function TableScreen({
     if (uid.startsWith("bot-")) {
       const idx = Number(uid.slice(4));
       return Number.isFinite(idx) ? idx : null;
+    }
+    // Sync serveur : moi = seat 0 en mode bot/event PvE ; les bots serveur
+    // (`bot_<matchId>_<n>`) occupent les seats suivants dans l'ordre.
+    if (authUid && uid === authUid) return 0;
+    if (uid.startsWith("bot_")) {
+      const idx = Number(uid.slice(uid.lastIndexOf("_") + 1));
+      return Number.isFinite(idx) ? idx + 1 : null;
     }
     if (!authUid || !roomPlayers?.length) return null;
     const serverIdx = roomPlayers.findIndex((player) => player.uid === uid);
@@ -761,7 +779,7 @@ export function TableScreen({
   useEffect(() => {
     let sync: GameSyncActions;
 
-    if (gameMode === "bot" && (!authUser || authUser.isAnonymous)) {
+    if (isLocalSync) {
       sync = new LocalGameSync({
         profile,
         bots: BOTS,

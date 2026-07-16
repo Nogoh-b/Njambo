@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Cri du Chef — si tu ouvres le pli, retire 3 secondes aux adversaires. */
 export const criChef: PowerModule = {

@@ -2,14 +2,19 @@ import { randomInt } from "node:crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { crownWinGain, resolveEventProgress, splitCrownLoss, spendEnergy, type EnergyState, type Reward } from "../../domain";
 import { applyReward, asObject, boundedNumber, db, economyFrom, integer, ledger, requireUid, requiredString, runIdempotent, stableId } from "./core";
-import type { DocumentReference, DocumentSnapshot } from "./firestoreTypes";
+import type { DocumentReference, DocumentSnapshot, Transaction } from "./firestoreTypes";
+import { GAME_CONFIG } from "../../config/gameConfig";
+import { PowerRuntimeState } from "../../engine/power/runtimeState";
+import { applyTrickPowerRewards, consumeNextCardModifiers } from "../../engine/power/rewards";
+import { loadEngineState, persistEngineState } from "./powerCommands";
+import type { Card as EngineCard } from "../../types/game";
 
 type MatchMode = "bot" | "online" | "friends" | "event";
 type Suit = "♥" | "♦" | "♣" | "♠";
 interface ServerCard { id: string; suit: Suit; value: number; rank: string; color: string }
-interface MatchParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number }
+export interface MatchParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number }
 interface MatchPlay { uid: string; card: ServerCard; turnId: string }
-interface MatchDocument {
+export interface MatchDocument {
   status: string;
   mode: MatchMode;
   eventRunId?: string | null;
@@ -50,11 +55,19 @@ function legalCards(hand: ServerCard[], ledSuit: Suit | null) {
   return following.length > 0 ? following : hand;
 }
 
+/* Même sémantique que engine/rules.trickWinner : la couleur demandée est la
+   couleur BRUTE de la première carte ; la comparaison honore les
+   modificateurs des cartes pouvoir (effectiveSuit / effectiveValue). */
 function winnerIndex(plays: MatchPlay[], participants: MatchParticipant[]) {
+  const effSuit = (card: ServerCard) => (card as EngineCard).effectiveSuit ?? card.suit;
+  const effValue = (card: ServerCard) => (card as EngineCard).effectiveValue ?? card.value;
   const led = plays[0].card.suit;
-  let best = plays[0];
-  for (const play of plays.slice(1)) if (play.card.suit === led && play.card.value > best.card.value) best = play;
-  return participants.findIndex((participant) => participant.uid === best.uid);
+  let best: MatchPlay | null = null;
+  for (const play of plays) {
+    if (effSuit(play.card) === led && (!best || effValue(play.card) > effValue(best.card))) best = play;
+  }
+  const winner = best ?? plays[0];
+  return participants.findIndex((participant) => participant.uid === winner.uid);
 }
 
 function matchCost(mode: MatchMode) {
@@ -256,6 +269,9 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     });
     transaction.create(db.doc(`matches/${matchId}`), match);
     participants.forEach((participant) => transaction.create(db.doc(`matches/${matchId}/private/${participant.uid}`), { uid: participant.uid, hand: hands.get(participant.uid), updatedAt: now }));
+    // Pioche restante + état moteur des cartes pouvoir — doc privé illisible
+    // par les clients (le segment `__engine` n'est jamais un uid participant).
+    persistEngineState(transaction, matchId, { deck: deck as EngineCard[], effects: [], runtime: {}, usedPowers: {}, updatedAt: now }, now);
     if (roomRef) transaction.update(roomRef, { activeMatchId: matchId, status: "playing", updatedAt: now });
     if (eventQueueRef && eventQueueEntries) transaction.set(eventQueueRef, { entries: eventQueueEntries, updatedAt: now }, { merge: true });
     eventRunRefs.forEach((ref, index) => transaction.update(ref, {
@@ -274,14 +290,52 @@ export async function submitGameActionHandler(request: CallableRequest<unknown>)
   const cardId = requiredString(data, "cardId", 64);
   const suppliedTurnId = requiredString(data, "turnId", 64);
   return runIdempotent(uid, "submitGameAction", data.idempotencyKey, async (transaction, now) => {
-    const matchRef = db.doc(`matches/${matchId}`);
-    const matchSnap = await transaction.get(matchRef);
+    const matchSnap = await transaction.get(db.doc(`matches/${matchId}`));
     if (!matchSnap.exists) throw new HttpsError("not-found", "MATCH_NOT_FOUND");
     const match = matchSnap.data() as MatchDocument;
     if (match.status !== "playing" || !match.participantUids.includes(uid)) throw new HttpsError("failed-precondition", "MATCH_NOT_PLAYABLE");
     if (match.turnId !== suppliedTurnId) throw new HttpsError("aborted", "STALE_TURN");
+    if ((match.participants as MatchParticipant[])[match.turnIndex].uid !== uid) throw new HttpsError("failed-precondition", "NOT_YOUR_TURN");
+    return performGameAction(transaction, now, matchId, match, {
+      actorUid: uid,
+      requestedCardId: cardId,
+      pick: "random",
+      automatic: false,
+      actionSeed: String(data.idempotencyKey),
+    });
+  });
+}
+
+export interface GameActionOptions {
+  actorUid: string;
+  /** null → sélection automatique selon `pick`. */
+  requestedCardId: string | null;
+  /** "lowest" = carte légale la plus faible (timeout humain, parité
+   *  LocalGameSync) ; "random" = comportement bot historique. */
+  pick: "random" | "lowest";
+  automatic: boolean;
+  /** Graine des playIds/docs actions — l'idempotencyKey client, ou une
+   *  graine déterministe (matchId+turnId) pour le worker de timeout. */
+  actionSeed: string;
+  /** Incréments à fusionner dans match.missedTurns (worker de timeout). */
+  missedTurnsDelta?: Record<string, number>;
+}
+
+/** Cœur d'un coup de jeu : joue la carte de l'acteur, enchaîne les bots,
+ *  applique restrictions/modificateurs/récompenses des pouvoirs, règle la
+ *  manche si terminée et persiste tout. Les GARDES (auth, turnId, tour de
+ *  l'acteur) appartiennent aux appelants — submitGameActionHandler et le
+ *  worker d'auto-play (functions/src/matchTimeouts.ts). */
+export async function performGameAction(
+  transaction: Transaction,
+  now: number,
+  matchId: string,
+  match: MatchDocument,
+  opts: GameActionOptions,
+) {
+    const uid = opts.actorUid;
+    const matchRef = db.doc(`matches/${matchId}`);
     const participants = match.participants as MatchParticipant[];
-    if (participants[match.turnIndex].uid !== uid) throw new HttpsError("failed-precondition", "NOT_YOUR_TURN");
     const realParticipants = participants.filter((participant) => !participant.bot);
     const privateRefs = participants.map((participant) => db.doc(`matches/${matchId}/private/${participant.uid}`));
     const runIdsByUid = match.eventRunIds ?? (match.eventRunId ? { [uid]: match.eventRunId } : {});
@@ -295,6 +349,12 @@ export async function submitGameActionHandler(request: CallableRequest<unknown>)
       Promise.all(eventInventoryRefs.map((ref) => transaction.get(ref))),
     ]);
     const hands = new Map(participants.map((participant, index) => [participant.uid, [...(privateSnaps[index].get("hand") ?? [])] as ServerCard[]]));
+    // État moteur des cartes pouvoir : restrictions de jeu, effets actifs,
+    // pénalités de timer — même consommation que LocalGameSync.
+    const engine = await loadEngineState(transaction, matchId);
+    const runtime = PowerRuntimeState.fromJSON(engine.runtime);
+    let effects = [...engine.effects];
+    let pot = Number(match.potNkap ?? 0);
     const actions: Array<{ uid: string; card: ServerCard; turnId: string; automatic: boolean }> = [];
     let turnIndex = Number(match.turnIndex);
     let leaderIndex = Number(match.leaderIndex);
@@ -304,20 +364,53 @@ export async function submitGameActionHandler(request: CallableRequest<unknown>)
     let finished = false;
     let finalWinnerIndex = -1;
 
-    const play = (actor: MatchParticipant, requestedCardId: string | null, automatic: boolean) => {
+    const play = (actor: MatchParticipant, requestedCardId: string | null, automatic: boolean, pick: "random" | "lowest") => {
+      const seat = participants.findIndex((participant) => participant.uid === actor.uid);
       const hand = hands.get(actor.uid) ?? [];
       const ledSuit = trickPlays[0]?.card.suit ?? null;
       const legal = legalCards(hand, ledSuit);
-      const card = requestedCardId ? hand.find((candidate) => candidate.id === requestedCardId) : legal[randomInt(legal.length)];
-      if (!card || !legal.some((candidate) => candidate.id === card.id)) throw new HttpsError("failed-precondition", "ILLEGAL_CARD");
-      hands.set(actor.uid, hand.filter((candidate) => candidate.id !== card.id));
+      let card = requestedCardId
+        ? hand.find((candidate) => candidate.id === requestedCardId)
+        : pick === "lowest"
+          ? [...legal].sort((a, b) => a.value - b.value)[0]
+          : legal[randomInt(legal.length)];
+      if (!card || !legal.some((candidate) => candidate.id === card?.id)) throw new HttpsError("failed-precondition", "ILLEGAL_CARD");
+
+      // Restrictions des pouvoirs (Coupe-Circuit, Filet, Sceau…) : carte
+      // forcée remplace le choix ; carte verrouillée → refus (le client
+      // affiche l'erreur), un bot bascule sur une alternative légale.
+      if (runtime.hasRestriction(seat)) {
+        const requestedIdx = hand.findIndex((candidate) => candidate.id === card?.id);
+        let resolvedIdx = runtime.resolvePlay(seat, hand as EngineCard[], ledSuit, requestedIdx);
+        if (resolvedIdx === null && automatic) {
+          for (const alternative of legal) {
+            const alternativeIdx = hand.findIndex((candidate) => candidate.id === alternative.id);
+            if (alternativeIdx === requestedIdx) continue;
+            resolvedIdx = runtime.resolvePlay(seat, hand as EngineCard[], ledSuit, alternativeIdx);
+            if (resolvedIdx !== null) break;
+          }
+        }
+        if (resolvedIdx === null) throw new HttpsError("failed-precondition", "Cette carte est bloquée — choisis-en une autre.");
+        card = hand[resolvedIdx];
+      }
+
+      // Modificateurs « prochaine carte » (Éclair, Pagne Changeant).
+      const modifiers = consumeNextCardModifiers(effects, seat, card as EngineCard, ledSuit, GAME_CONFIG.ranks.max);
+      effects = modifiers.effects;
+      const resolvedCard = modifiers.card as ServerCard;
+
+      hands.set(actor.uid, hand.filter((candidate) => candidate.id !== card?.id));
       const turnId = String(match.turnId);
-      trickPlays.push({ uid: actor.uid, card, turnId });
-      deposits[actor.uid] = [...(deposits[actor.uid] ?? []), card];
-      actions.push({ uid: actor.uid, card, turnId, automatic });
+      trickPlays.push({ uid: actor.uid, card: resolvedCard, turnId });
+      deposits[actor.uid] = [...(deposits[actor.uid] ?? []), resolvedCard];
+      actions.push({ uid: actor.uid, card: resolvedCard, turnId, automatic });
       turnIndex = (turnIndex + 1) % participants.length;
       if (trickPlays.length === participants.length) {
         finalWinnerIndex = winnerIndex(trickPlays, participants);
+        // Bonus/multiplicateurs de pot du vainqueur du pli (scoped au pli courant, 1-based).
+        const trickRewards = applyTrickPowerRewards(effects, trickNumber + 1, finalWinnerIndex, pot);
+        pot = trickRewards.pot;
+        effects = trickRewards.effects;
         leaderIndex = finalWinnerIndex;
         turnIndex = finalWinnerIndex;
         trickPlays = [];
@@ -326,8 +419,8 @@ export async function submitGameActionHandler(request: CallableRequest<unknown>)
       }
     };
 
-    play(participants[turnIndex], cardId, false);
-    while (!finished && participants[turnIndex].bot) play(participants[turnIndex], null, true);
+    play(participants[turnIndex], opts.requestedCardId, opts.automatic, opts.pick);
+    while (!finished && participants[turnIndex].bot) play(participants[turnIndex], null, true, "random");
 
     const handCounts = Object.fromEntries(participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0]));
     const nextTurnId = stableId(matchId, "turn", String(trickNumber), String(actions.length), String(now)).slice(0, 24);
@@ -343,7 +436,7 @@ export async function submitGameActionHandler(request: CallableRequest<unknown>)
       realParticipants.forEach((participant, index) => {
         const stats = (playerSnaps[index].get("stats") ?? {}) as { played?: number; won?: number; bestWin?: number };
         const won = participant.uid === winnerUid;
-        const gain = won ? Number(match.potNkap ?? 0) : 0;
+        const gain = won ? pot : 0;
         transaction.set(db.doc(`players/${participant.uid}`), {
           stats: {
             played: Number(stats.played ?? 0) + 1,
@@ -360,13 +453,30 @@ export async function submitGameActionHandler(request: CallableRequest<unknown>)
       });
     }
 
+    if (finished) {
+      // Remboursement partiel des perdants protégés (Cauris Chanceux — refundOnLoss).
+      const stakeNkap = Number(match.stakeNkap ?? 0);
+      realParticipants.forEach((participant, index) => {
+        const seat = participants.findIndex((candidate) => candidate.uid === participant.uid);
+        if (seat === finalWinnerIndex || stakeNkap <= 0) return;
+        const ratio = effects.find((effect) => effect.activatedBy === seat && effect.refundOnLoss)?.refundOnLoss;
+        if (!ratio) return;
+        const amount = Math.round(stakeNkap * ratio);
+        if (amount <= 0) return;
+        const loserEconomy = economyFrom(economySnaps[index].data(), now);
+        loserEconomy.nkap += amount;
+        transaction.set(db.doc(`economies/${participant.uid}`), loserEconomy, { merge: false });
+        ledger(transaction, participant.uid, stableId(participant.uid, "power-refund", matchId), "powerRefund", { nkap: amount }, loserEconomy, now, { matchId });
+      });
+    }
+
     if (finished && !participants[finalWinnerIndex].bot) {
       const winnerUid = participants[finalWinnerIndex].uid;
       const winnerEconomyIndex = realParticipants.findIndex((participant) => participant.uid === winnerUid);
       const winnerEconomy = economyFrom(economySnaps[winnerEconomyIndex].data(), now);
-      winnerEconomy.nkap += Number(match.potNkap ?? 0);
+      winnerEconomy.nkap += pot;
       transaction.set(db.doc(`economies/${winnerUid}`), winnerEconomy, { merge: false });
-      ledger(transaction, winnerUid, stableId(winnerUid, "match-settle", matchId), "settleMatch", { nkap: Number(match.potNkap ?? 0) }, winnerEconomy, now, { matchId });
+      ledger(transaction, winnerUid, stableId(winnerUid, "match-settle", matchId), "settleMatch", { nkap: pot }, winnerEconomy, now, { matchId });
       if (match.ranked === true && realParticipants.length > 1) {
         const crownValues = playerSnaps.map((snap) => Number(snap.get("crowns") ?? 1_000));
         const winnerPlayerIndex = realParticipants.findIndex((participant) => participant.uid === winnerUid);
@@ -422,7 +532,7 @@ export async function submitGameActionHandler(request: CallableRequest<unknown>)
         if (!claimed.includes(stageKey)) claimed.push(stageKey);
         if (isFinal && !claimed.includes("final")) { rewards.push(...version.finalReward); claimed.push("final"); }
         const beforeRewards = economyFrom(economySnaps[index].data(), now);
-        beforeRewards.nkap += Number(match.potNkap ?? 0);
+        beforeRewards.nkap += pot;
         let nextEconomy = beforeRewards;
         let nextInventory = eventInventorySnap.data() ?? {};
         for (const reward of rewards) ({ economy: nextEconomy, inventory: nextInventory } = applyReward(nextEconomy, nextInventory, reward, now));
@@ -445,17 +555,31 @@ export async function submitGameActionHandler(request: CallableRequest<unknown>)
     }
 
     participants.forEach((participant, index) => transaction.set(privateRefs[index], { uid: participant.uid, hand: hands.get(participant.uid) ?? [], updatedAt: now }, { merge: false }));
-    actions.forEach((action, index) => transaction.create(db.doc(`matches/${matchId}/actions/${stableId(String(data.idempotencyKey), String(index)).slice(0, 32)}`), { ...action, createdAt: now + index }));
+    actions.forEach((action, index) => transaction.create(db.doc(`matches/${matchId}/actions/${stableId(opts.actionSeed, String(index)).slice(0, 32)}`), { ...action, createdAt: now + index }));
+    // Pénalité de timer différée (Cri du Chef…) : consommée au début du tour
+    // du prochain joueur — parité avec LocalGameSync.startTurnSeconds. À faire
+    // AVANT la persistance du runtime pour que la consommation soit durable.
+    const nextTurnSeconds = runtime.consumeTimerPenalty(turnIndex, GAME_CONFIG.turnSeconds, 3);
+    // Persistance de l'état moteur des pouvoirs (effets restants, restrictions
+    // consommées, pénalités) — la pioche n'est pas touchée par un pli.
+    persistEngineState(transaction, matchId, { ...engine, effects: finished ? [] : effects, runtime: runtime.toJSON() }, now);
+    let missedTurns: Record<string, number> | undefined;
+    if (opts.missedTurnsDelta) {
+      missedTurns = { ...((match.missedTurns as Record<string, number> | undefined) ?? {}) };
+      for (const [player, delta] of Object.entries(opts.missedTurnsDelta)) {
+        missedTurns[player] = Number(missedTurns[player] ?? 0) + delta;
+      }
+    }
     const update = {
-      turnIndex, leaderIndex, trickNumber, trickPlays, deposits, handCounts,
-      turnId: nextTurnId, turnStartedAt: now, actionDeadlineAt: now + 15_000,
+      turnIndex, leaderIndex, trickNumber, trickPlays, deposits, handCounts, potNkap: pot,
+      turnId: nextTurnId, turnStartedAt: now, actionDeadlineAt: now + nextTurnSeconds * 1_000,
       status: finished ? "settled" : "playing", result,
-      recentActions: actions.map((action, index) => ({ ...action, playId: stableId(String(data.idempotencyKey), String(index)).slice(0, 32) })),
+      recentActions: actions.map((action, index) => ({ ...action, playId: stableId(opts.actionSeed, String(index)).slice(0, 32) })),
+      ...(missedTurns ? { missedTurns } : {}),
       settlementId: finished ? stableId("settlement", matchId) : null, updatedAt: now,
     };
     transaction.update(matchRef, update);
     return publicState(matchId, { ...match, ...update }, hands.get(uid) ?? []);
-  });
 }
 
 export async function reconnectMatchHandler(request: CallableRequest<unknown>) {

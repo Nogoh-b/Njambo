@@ -3,14 +3,40 @@
    Instancié par CHAQUE sync (local et host Firestore) — la logique de
    consommation est ainsi partagée au lieu d'être dupliquée. */
 
-import { legalCards } from "@/engine/rules";
-import type { Card } from "@/types/game";
+import { legalCards } from "../rules";
+import type { Card } from "../../types/game";
 import type { PlayRestriction } from "./adapter";
+
+/** Forme JSON du runtime — persistable tel quel (doc serveur, snapshot…). */
+export interface PowerRuntimeSnapshot {
+  restrictions?: Record<string, PlayRestriction>;
+  frozenUntil?: Record<string, number>;
+  pendingTimerPenalty?: Record<string, number>;
+}
 
 export class PowerRuntimeState {
   private restrictions = new Map<number, PlayRestriction>();
   private frozenUntil = new Map<number, number>();
   private pendingTimerPenalty = new Map<number, number>();
+
+  /** Rehydrate un runtime depuis sa forme JSON (sync serveur : une
+   *  transaction = une instance, l'état vit dans un doc privé du match). */
+  static fromJSON(snapshot: PowerRuntimeSnapshot | undefined | null): PowerRuntimeState {
+    const runtime = new PowerRuntimeState();
+    if (!snapshot) return runtime;
+    for (const [seat, restriction] of Object.entries(snapshot.restrictions ?? {})) runtime.restrictions.set(Number(seat), restriction);
+    for (const [seat, until] of Object.entries(snapshot.frozenUntil ?? {})) runtime.frozenUntil.set(Number(seat), until);
+    for (const [seat, penalty] of Object.entries(snapshot.pendingTimerPenalty ?? {})) runtime.pendingTimerPenalty.set(Number(seat), penalty);
+    return runtime;
+  }
+
+  toJSON(): PowerRuntimeSnapshot {
+    return {
+      restrictions: Object.fromEntries(this.restrictions),
+      frozenUntil: Object.fromEntries(this.frozenUntil),
+      pendingTimerPenalty: Object.fromEntries(this.pendingTimerPenalty),
+    };
+  }
 
   /** À appeler à chaque nouvelle manche. */
   reset() {

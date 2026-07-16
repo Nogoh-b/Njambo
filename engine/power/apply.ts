@@ -2,7 +2,7 @@
    PowerStateAdapter. Remplace les deux copies dupliquées de
    LocalGameSync.applyPowerEffect et FirestoreGameSync.hostProcessPowerActivation. */
 
-import type { ActivePowerEffect } from "@/types/game";
+import type { ActivePowerEffect } from "../../types/game";
 import type { PowerApplyMeta, PowerStateAdapter } from "./adapter";
 import type { ResolvedOp } from "./interpret";
 

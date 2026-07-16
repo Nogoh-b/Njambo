@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Coupe-Circuit — force un adversaire à jouer sa plus faible carte légale. */
 export const coupeCircuit: PowerModule = {

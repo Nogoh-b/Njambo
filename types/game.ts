@@ -8,7 +8,7 @@ import type {
   PowerFxTone,
   PowerResolved,
   PowerScriptTag,
-} from "@/engine/power/types";
+} from "../engine/power/types";
 
 export interface Card {
   rank: string;
@@ -613,6 +613,9 @@ export interface GameConfig {
     landSettle: number;
     /** Temps de lecture du FX d'une carte pouvoir avant que le bot ne joue (ms) */
     powerBeat: number;
+    /** Replay serveur : « réflexion » simulée avant un coup adverse (ms). */
+    replayBotThinkMin: number;
+    replayBotThinkMax: number;
   };
   economy: {
     /** Montant du bonus quotidien (F) */

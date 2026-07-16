@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Bénédiction du Chef — double le gain si tu remportes ce pli. */
 export const benedictionChef: PowerModule = {

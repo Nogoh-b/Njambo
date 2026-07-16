@@ -1,5 +1,5 @@
-import type { PowerCardDef, PowerCardId } from "@/types/game";
-import { POWER_MODULES } from "@/config/powers";
+import type { PowerCardDef, PowerCardId } from "../types/game";
+import { POWER_MODULES } from "./powers";
 
 /**
  * Les définitions vivent désormais dans `config/powers/<id>.ts` (un module

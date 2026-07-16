@@ -4,7 +4,7 @@
    script attaquant sont DÉRIVÉS de son contenu — l'interception devient un
    simple test d'intersection, sans aucun `if (cardId === ...)`. */
 
-import type { ActivePowerEffect } from "@/types/game";
+import type { ActivePowerEffect } from "../../types/game";
 import type { PowerScript, PowerScriptTag } from "./types";
 
 /** Tags dérivés automatiquement d'un script (voir doc de PowerScriptTag). */

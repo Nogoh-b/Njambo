@@ -1,5 +1,5 @@
-import { POWER_CARDS } from "@/config/powerCards";
-import type { PowerCardId } from "@/types/game";
+import { POWER_CARDS } from "./powerCards";
+import type { PowerCardId } from "../types/game";
 
 /* ═══════════════ FILE: config/devConfig.ts ═══════════════
    Triches de DÉVELOPPEMENT, pilotées par des variables d'environnement

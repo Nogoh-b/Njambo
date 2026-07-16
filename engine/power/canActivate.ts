@@ -1,7 +1,7 @@
 /* Validation d'activation 100 % déclarative : règles communes + TargetSpec
    + conditions du script. Remplace canActivatePowerCard et ses branches en dur. */
 
-import { DEV } from "@/config/devConfig";
+import { DEV } from "../../config/devConfig";
 import type { PowerRunContext, PowerScript } from "./types";
 import { checkConditions } from "./conditions";
 

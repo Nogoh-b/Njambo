@@ -1,5 +1,5 @@
-import { GAME_CONFIG } from "@/config/gameConfig";
-import type { Card, GameConfig } from "@/types/game";
+import { GAME_CONFIG } from "../config/gameConfig";
+import type { Card, GameConfig } from "../types/game";
 
 /* ═══════════════ FILE: engine/deck.js ═══════════════ */
 export function buildDeck(cfg: GameConfig = GAME_CONFIG): Card[] {

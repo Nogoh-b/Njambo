@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Filet du Pêcheur — force la cible à jouer sa plus basse carte légale. */
 export const filetPecheur: PowerModule = {

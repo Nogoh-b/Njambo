@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Vent du Nord — échange ta plus faible carte contre le dessus de la pioche. */
 export const ventNord: PowerModule = {

@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Cauris Chanceux — récupère 50 % de ta mise si tu perds la manche. */
 export const caurisChanceux: PowerModule = {

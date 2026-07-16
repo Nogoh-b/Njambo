@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Masque du Bluffeur — annule la prochaine révélation/lecture adverse contre toi. */
 export const masqueBluffeur: PowerModule = {

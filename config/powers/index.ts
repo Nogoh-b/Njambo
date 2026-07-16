@@ -1,5 +1,5 @@
-import type { PowerCardId } from "@/types/game";
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerCardId } from "../../types/game";
+import type { PowerModule } from "../../engine/power/types";
 
 import { oeilSorcier } from "./oeil_sorcier";
 import { pluieEtoiles } from "./pluie_etoiles";

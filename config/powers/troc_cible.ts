@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Troc Ciblé (carte de DEV) — démonstration du CLIC GÉNÉRIQUE : le joueur
  *  CHOISIT la carte de sa main à échanger contre le dessus de la pioche

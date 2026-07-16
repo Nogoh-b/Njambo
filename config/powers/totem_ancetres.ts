@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Totem des Ancêtres — protège du malus double si tu perds cette manche. */
 export const totemAncetres: PowerModule = {

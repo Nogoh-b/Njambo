@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Tambour d'Appel — ajoute 8 secondes à ton timer ce tour. */
 export const tambourAppel: PowerModule = {

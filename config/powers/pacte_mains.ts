@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Pacte des Mains — échange 1 à 3 cartes choisies contre autant de cartes adverses. */
 export const pacteMains: PowerModule = {

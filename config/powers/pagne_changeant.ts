@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Pagne Changeant — ta prochaine carte hors tendance compte comme tendance
  *  si tu n'as pas la couleur demandée. */

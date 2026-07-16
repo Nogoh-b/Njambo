@@ -141,19 +141,19 @@ function markSvg() {
 }
 
 const buttonThemes = {
-  gold: { edge: "#d0a35d", light: "#f0d59a", surface1: "#5a3b22", surface2: "#1d130e", inlay: "#aa7041" },
-  teal: { edge: "#609d93", light: "#b5d5ca", surface1: "#30423c", surface2: "#101917", inlay: "#b68a50" },
-  pink: { edge: "#ad6972", light: "#d8afb0", surface1: "#452d2d", surface2: "#19100f", inlay: "#b68a50" },
-  dark: { edge: "#8c6746", light: "#c5a574", surface1: "#3d291d", surface2: "#120d0b", inlay: "#675443" },
-  ghost: { edge: "#5f5144", light: "#8e7960", surface1: "#25201c", surface2: "#0b0a0b", inlay: "#4c453d" },
+  gold: { edge: "#d0a35d", light: "#f0d59a", surface1: "#5a3b22", surface2: "#1d130e", inlay: "#aa7041", warm: "#e1b548", hot: "#a94135" },
+  teal: { edge: "#609d93", light: "#b5d5ca", surface1: "#30423c", surface2: "#101917", inlay: "#b68a50", warm: "#dfaa3e", hot: "#b24739" },
+  pink: { edge: "#ad6972", light: "#d8afb0", surface1: "#452d2d", surface2: "#19100f", inlay: "#b68a50", warm: "#e0ae43", hot: "#9f382f" },
+  dark: { edge: "#8c6746", light: "#c5a574", surface1: "#3d291d", surface2: "#120d0b", inlay: "#675443", warm: "#d7a33c", hot: "#a43c32" },
+  ghost: { edge: "#5f5144", light: "#8e7960", surface1: "#25201c", surface2: "#0b0a0b", inlay: "#4c453d", warm: "#b98a36", hot: "#87382f" },
 };
 
 function buttonSvg(theme, iconOnly = false) {
   const width = iconOnly ? 256 : 720;
   const height = iconOnly ? 256 : 288;
   const geometry = iconOnly
-    ? `<circle cx="128" cy="128" r="114" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><circle cx="128" cy="128" r="94" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".42" stroke-width="4"/><circle cx="128" cy="128" r="78" fill="#08090d" fill-opacity=".48" stroke="#e8d4af" stroke-opacity=".09" stroke-width="3"/><path d="M128 13l10 14-10 14-10-14 10-14Zm0 202 10 14-10 14-10-14 10-14ZM13 128l14-10 14 10-14 10-14-10Zm202 0 14-10 14 10-14 10-14-10Z" fill="${theme.light}" fill-opacity=".68"/>`
-    : `<path d="M72 12h576l60 60v144l-60 60H72l-60-60V72l60-60Z" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><path d="M91 38h538l53 53v106l-53 53H91l-53-53V91l53-53Z" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".5" stroke-width="5"/><path d="M108 59h504l46 46v78l-46 46H108l-46-46v-78l46-46Z" fill="#07080d" fill-opacity=".3" stroke="#ead8b8" stroke-opacity=".08" stroke-width="3"/><path d="M72 30h576M72 258h576" stroke="${theme.light}" stroke-opacity=".2" stroke-width="4"/><path d="M57 71l13-13 13 13-13 13-13-13Zm580 0 13-13 13 13-13 13-13-13ZM57 217l13-13 13 13-13 13-13-13Zm580 0 13-13 13 13-13 13-13-13Z" fill="${theme.light}" fill-opacity=".72" stroke="${theme.edge}" stroke-width="3"/>`;
+    ? `<circle cx="128" cy="128" r="114" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><circle cx="128" cy="128" r="94" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".42" stroke-width="4"/><circle cx="128" cy="128" r="78" fill="#08090d" fill-opacity=".48" stroke="#e8d4af" stroke-opacity=".09" stroke-width="3"/><path d="M128 10l12 17-12 17-12-17 12-17Zm0 202 12 17-12 17-12-17 12-17Z" fill="${theme.warm}" stroke="#5d3519" stroke-width="3"/><path d="M10 128l17-12 17 12-17 12-17-12Zm202 0 17-12 17 12-17 12-17-12Z" fill="${theme.hot}" stroke="#4d1e1a" stroke-width="3"/>`
+    : `<path d="M72 12h576l60 60v144l-60 60H72l-60-60V72l60-60Z" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><path d="M91 38h538l53 53v106l-53 53H91l-53-53V91l53-53Z" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".5" stroke-width="5"/><path d="M108 59h504l46 46v78l-46 46H108l-46-46v-78l46-46Z" fill="#07080d" fill-opacity=".3" stroke="#ead8b8" stroke-opacity=".08" stroke-width="3"/><path d="M72 30h576M72 258h576" stroke="${theme.light}" stroke-opacity=".2" stroke-width="4"/><path d="M54 71l16-16 16 16-16 16-16-16Zm577 146 16-16 16 16-16 16-16-16Z" fill="${theme.warm}" stroke="#5d3519" stroke-width="3"/><path d="M634 71l16-16 16 16-16 16-16-16ZM54 217l16-16 16 16-16 16-16-16Z" fill="${theme.hot}" stroke="#4d1e1a" stroke-width="3"/><path d="M138 19h140M442 269h140" stroke="${theme.warm}" stroke-width="10" stroke-linecap="round"/><path d="M442 19h140M138 269h140" stroke="${theme.hot}" stroke-width="10" stroke-linecap="round"/>`;
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <defs>
       <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${theme.surface1}"/><stop offset=".5" stop-color="${theme.surface2}"/><stop offset="1" stop-color="#070609"/></linearGradient>

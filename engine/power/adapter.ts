@@ -3,7 +3,7 @@
    Toutes les méthodes travaillent en SEATS ; chaque sync fait ses conversions
    (idx local, uid Firestore) et sa persistance (mutation directe / updates doc). */
 
-import type { ActivePowerEffect, Card, GameState, PowerCardId } from "@/types/game";
+import type { ActivePowerEffect, Card, GameState, PowerCardId } from "../../types/game";
 import type { CardSelector } from "./types";
 
 export interface PlayRestriction {

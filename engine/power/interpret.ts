@@ -13,7 +13,7 @@ import type {
 } from "./types";
 import { resolvePlayerRef } from "./targets";
 import { selectInDeck, selectInHand, selectManyInHand } from "./selectors";
-import { legalCards } from "@/engine/rules";
+import { legalCards } from "../rules";
 
 /** Opération concrète, prête à être appliquée par un PowerStateAdapter. */
 export type ResolvedOp =

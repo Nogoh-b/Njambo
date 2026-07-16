@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Bouclier du Village — bloque la prochaine carte offensive ciblée contre toi. */
 export const bouclierVillage: PowerModule = {

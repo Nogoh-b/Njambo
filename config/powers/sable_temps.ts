@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Sable du Temps — gèle le timer d'un adversaire pendant 10 secondes. */
 export const sableTemps: PowerModule = {

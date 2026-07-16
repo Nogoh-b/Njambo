@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Éclair du Mfoundi — ta prochaine carte gagne +2 valeur virtuelle (max 10).
  *  Le badge « boosté » apparaît sur le dépôt au moment où la carte est jouée. */

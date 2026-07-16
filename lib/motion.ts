@@ -51,9 +51,12 @@ function deriveMotionLevel({ width, height, hardwareConcurrency, deviceMemory }:
   const smallestSide = Math.min(width, height);
   const isCompact = width < 640 || smallestSide < 430;
   const lowCpu = hardwareConcurrency <= 4;
-  const mediumCpu = hardwareConcurrency <= 8;
-  const lowMemory = deviceMemory != null && deviceMemory <= 4;
-  const mediumMemory = deviceMemory != null && deviceMemory <= 8;
+  const mediumCpu = hardwareConcurrency <= 6;
+  // navigator.deviceMemory est PLAFONNÉ à 8 par Chrome : `<= 8` serait toujours
+  // vrai et rendrait le niveau "full" inatteignable. Seuils réels : ≤2 = bas,
+  // ≤4 = moyen ; 8 (= plafond) compte comme confortable.
+  const lowMemory = deviceMemory != null && deviceMemory <= 2;
+  const mediumMemory = deviceMemory != null && deviceMemory <= 4;
 
   if ((isCompact && (lowCpu || lowMemory)) || (lowCpu && lowMemory)) return "lite";
   if (isCompact || mediumCpu || mediumMemory) return "balanced";

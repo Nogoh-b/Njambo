@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Feu de Camp — +100 NKAP au pot si tu remportes ce pli. */
 export const feuCamp: PowerModule = {

@@ -1,8 +1,8 @@
 /* Évaluation des CardSelector sur une collection (main, pioche).
    Fonctions PURES — aucune mutation. */
 
-import { legalCards } from "@/engine/rules";
-import type { Card, GameState } from "@/types/game";
+import { legalCards } from "../rules";
+import type { Card, GameState } from "../../types/game";
 import type { CardSelector, PowerChoices } from "./types";
 
 export function weakestCardIndex(hand: Card[]): number {

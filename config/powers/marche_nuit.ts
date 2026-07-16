@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Marché de Nuit — remplace ta plus faible carte par une MEILLEURE carte de
  *  la pioche. Peut no-op (aucune carte plus forte) → la carte n'est pas consommée. */

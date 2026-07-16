@@ -1,4 +1,4 @@
-import type { GameConfig, Suit } from "@/types/game";
+import type { GameConfig, Suit } from "../types/game";
 
 /* ═══════════════ FILE: config/gameConfig.js ═══════════════
    TOUTES les règles se changent ICI. */
@@ -33,6 +33,13 @@ export const GAME_CONFIG: GameConfig = {
     trickPause: 2200, // pause après résolution d'un tour (contient pose+settle+moment)
     landSettle: 260, // beat de pose avant l'annonce du gagnant
     powerBeat: 900, // lecture du FX carte pouvoir avant le coup du bot
+    // Cadence du REPLAY serveur (AuthoritativeGameSync) : "réflexion" simulée
+    // avant chaque coup adverse d'un batch. Plus court que le bot local
+    // (le coup est déjà décidé). COUPLÉ à TIMEOUT_GRACE_MS côté serveur
+    // (functions/src/matchTimeouts.ts) : le pire replay (3 bots + trickPause)
+    // doit rester sous la grâce du worker d'auto-play.
+    replayBotThinkMin: 700,
+    replayBotThinkMax: 1400,
   },
   economy: {
     dailyBonus: 500, // jetons offerts par réclamation

@@ -23,7 +23,7 @@
  */
 
 import type { ComponentType } from "react";
-import type { Card, GameState, PowerCardDef, PowerCardId } from "@/types/game";
+import type { Card, GameState, PowerCardDef, PowerCardId } from "../../types/game";
 
 /**
  * Référence de joueur ABSTRAITE — résolue en « seat » (index dans l'ordre du

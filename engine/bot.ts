@@ -1,6 +1,6 @@
-import { GAME_CONFIG } from "@/config/gameConfig";
-import { legalCards } from "@/engine/rules";
-import type { BotDifficulty, Card } from "@/types/game";
+import { GAME_CONFIG } from "../config/gameConfig";
+import { legalCards } from "./rules";
+import type { BotDifficulty, Card } from "../types/game";
 
 /* ═══════════════ FILE: engine/bot.ts ═══════════════
    IA du bot, à 3 niveaux de difficulté.

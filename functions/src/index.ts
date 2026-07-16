@@ -20,6 +20,7 @@ import {
   verifyStorePurchaseHandler,
 } from "./economyCommands";
 import { abandonMatchHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "./matchCommands";
+import { usePowerCardHandler } from "./powerCommands";
 import { migrateLegacyPlayerHandler, saveAdminDraftHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "./adminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
@@ -59,6 +60,7 @@ export const submitGameAction = onCall(callable, submitGameActionHandler);
 export const reconnectMatch = onCall(callable, reconnectMatchHandler);
 export const abandonMatch = onCall(callable, abandonMatchHandler);
 export const setRoomReady = onCall(callable, setRoomReadyHandler);
+export const usePowerCard = onCall(callable, usePowerCardHandler);
 
 export const publishAdminDraft = onCall(callable, publishAdminDraftHandler);
 export const seedLiveOps = onCall(callable, seedLiveOpsHandler);

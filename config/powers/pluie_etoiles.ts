@@ -1,4 +1,4 @@
-import type { PowerModule } from "@/engine/power/types";
+import type { PowerModule } from "../../engine/power/types";
 
 /** Pluie d'Étoiles — +200 NKAP au pot si l'activateur remporte ce pli. */
 export const pluieEtoiles: PowerModule = {

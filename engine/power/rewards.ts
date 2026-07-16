@@ -3,7 +3,7 @@
    - modificateurs « prochaine carte » (Éclair, Pagne Changeant) ;
    - bonus/multiplicateurs de pot à la résolution d'un pli. */
 
-import type { ActivePowerEffect, Card } from "@/types/game";
+import type { ActivePowerEffect, Card } from "../../types/game";
 
 /**
  * Applique et consomme les modificateurs « prochaine carte » du joueur
