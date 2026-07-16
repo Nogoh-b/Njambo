@@ -1,5 +1,5 @@
-import NjamboApp from "@/components/NjamboApp";
+import AppBootstrap from "@/components/AppBootstrap";
 
 export default function Page() {
-  return <NjamboApp />;
+  return <AppBootstrap />;
 }

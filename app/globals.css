@@ -4831,6 +4831,63 @@ button[data-nj-skin="icon"],
   contain: content;
 }
 
+.nj-bootstrap-splash {
+  min-height: 100svh;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  padding: 24px;
+  text-align: center;
+}
+
+.nj-bootstrap-mark {
+  display: block;
+  width: clamp(132px, 34vw, 178px);
+  aspect-ratio: 1;
+  margin-bottom: 18px;
+  background: url("/assets/njambo/ui/brand/njambo-mark-256.webp") center / contain no-repeat;
+  filter: drop-shadow(0 18px 38px rgba(0, 0, 0, 0.42));
+}
+
+.nj-bootstrap-splash h1 {
+  margin: 6px 0 0;
+  color: #fff4df;
+  font-family: var(--font-display), serif;
+  font-size: clamp(54px, 16vw, 92px);
+  font-weight: 900;
+  line-height: 0.88;
+}
+
+.nj-bootstrap-splash p {
+  margin: 12px 0 0;
+  color: rgba(255, 244, 223, 0.72);
+  font-weight: 800;
+}
+
+.nj-bootstrap-bar,
+.nj-bootstrap-strip {
+  background: linear-gradient(90deg, #f3c969, #29b7a4 36%, #df4f82 68%, #3154d4);
+}
+
+.nj-bootstrap-bar {
+  width: min(260px, 70vw);
+  height: 7px;
+  margin-top: 22px;
+  border-radius: 999px;
+}
+
+.nj-bootstrap-strip {
+  position: fixed;
+  left: 0;
+  right: 0;
+  z-index: 2;
+  height: 10px;
+  opacity: 0.8;
+}
+
+.nj-bootstrap-strip-top { top: 0; }
+.nj-bootstrap-strip-bottom { bottom: 0; }
+
 /* ── Économie, Boutique et Ter ─────────────────────────────────────────── */
 .nj-liveops-page {
   height: 100svh;

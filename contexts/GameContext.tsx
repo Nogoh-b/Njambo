@@ -97,7 +97,10 @@ function storeProfile(p: Profile) {
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const cfg = GAME_CONFIG;
-  const [scene, setScene] = useState<SceneName>("splashscreen");
+  const [scene, setScene] = useState<SceneName>(() => {
+    if (typeof window !== "undefined" && sessionStorage.getItem("njambo-splash-seen") === "1") return "menu";
+    return "splashscreen";
+  });
   const [transitioning, setTransitioning] = useState(false);
   const [profile, setProfileRaw] = useState<Profile>(() => applyDevProfile(loadStoredProfile()));
   const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>({});
