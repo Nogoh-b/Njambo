@@ -26,6 +26,8 @@ import type {
   ActivePowerEffect, Card, GameState, Player, PowerCardActivation, PowerCardId,
 } from "../../types/game";
 
+const POWER_ANIMATION_BUDGET_MS = 8_000;
+
 /* ── État moteur persisté par match ── */
 
 export interface EngineDocument {
@@ -73,6 +75,7 @@ interface MatchLike {
   trickPlays: Array<{ uid: string; card: Card }>;
   deposits: Record<string, Card[]>;
   potNkap: number;
+  eliminatedUids?: string[];
   [key: string]: unknown;
 }
 
@@ -152,6 +155,8 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     const participants = match.participants;
     const seat = participants.findIndex((participant) => participant.uid === uid);
     if (seat < 0) throw new HttpsError("failed-precondition", "NOT_A_PARTICIPANT");
+    const eliminated = new Set(match.eliminatedUids ?? []);
+    if (eliminated.has(uid)) throw new HttpsError("failed-precondition", "PLAYER_ELIMINATED");
 
     // Bypass DEV opt-in (server/.env : POWERS_DEV_BYPASS=1) — parité avec
     // DEV.unlimitedPowers côté client : saute équipement + usage unique.
@@ -185,13 +190,14 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
 
     const requestedSeat = targetUid ? participants.findIndex((participant) => participant.uid === targetUid) : -1;
     if (targetUid && requestedSeat < 0) throw new HttpsError("invalid-argument", "INVALID_TARGET");
+    if (targetUid && eliminated.has(targetUid)) throw new HttpsError("failed-precondition", "TARGET_ELIMINATED");
 
     const buildState = () => buildEngineGameState(match, hands, pot, effects, devBypass ? {} : engine.usedPowers);
     const targets = resolveTargets(script.target, {
       activatedBy: seat,
       playerCount: participants.length,
       requested: requestedSeat >= 0 ? requestedSeat : undefined,
-    });
+    }).filter((targetSeat) => !eliminated.has(participants[targetSeat]?.uid));
     const ctx = { state: buildState(), activatedBy: seat, targets, deck, maxValue: GAME_CONFIG.ranks.max, choices };
 
     const refusal = canActivatePower(script, ctx);
@@ -277,20 +283,25 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     persistEngineState(transaction, matchId, { ...engine, deck, effects, runtime: runtime.toJSON() }, now);
     for (const touchedUid of touchedHands) {
       const index = participants.findIndex((participant) => participant.uid === touchedUid);
-      transaction.set(privateRefs[index], { uid: touchedUid, hand: hands.get(touchedUid) ?? [], updatedAt: now }, { merge: false });
+      transaction.set(privateRefs[index], { uid: touchedUid, hand: hands.get(touchedUid) ?? [], updatedAt: now }, { merge: true });
     }
 
     const update: DocumentData = clean({
       potNkap: pot,
       handCounts: Object.fromEntries(participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0])),
-      ...(deadlineDelta !== 0 ? { actionDeadlineAt: Number(match.actionDeadlineAt) + deadlineDelta } : {}),
+      actionDeadlineAt: Number(match.actionDeadlineAt) + POWER_ANIMATION_BUDGET_MS + deadlineDelta,
       recentPowerActivations: [redactActivationForBroadcast(activation)],
       updatedAt: now,
     });
     transaction.update(matchRef, update);
 
     return {
-      state: { matchId, match: { ...match, ...update }, hand: hands.get(uid) ?? [] },
+      state: {
+        matchId,
+        match: { ...match, ...update },
+        hand: hands.get(uid) ?? [],
+        equippedPowers: (privateSnaps[seat].get("equippedPowers") ?? []) as PowerCardId[],
+      },
       activation: clean(activation),
     };
   });

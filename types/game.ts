@@ -562,6 +562,8 @@ export interface GameSyncActions {
   /** Activer une carte pouvoir (cardId + cible optionnelle + choix de cartes
    *  pour les étapes interactives du script — clic générique). */
   usePowerCard: (cardId: PowerCardId, targetIdx?: number, choices?: PowerChoices) => void;
+  /** Abandonner le match en cours et attendre la confirmation serveur. */
+  abandon?: () => Promise<void>;
   /** Nettoyer les ressources */
   destroy: () => void;
 

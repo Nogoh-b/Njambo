@@ -132,12 +132,16 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
 
       setPublicRooms(allRooms);
 
-      if (matchingRooms.length === 0) {
-        setRoomError("Aucune table disponible pour cette mise. Crée une salle si tu veux ouvrir une table.");
+      // Priorité aux tables à la mise choisie, mais on ne laisse jamais un
+      // joueur sur le carreau si une table à une autre mise attend du monde
+      // (la mise réelle est celle de la salle, comme pour un clic direct).
+      const candidates = matchingRooms.length > 0 ? matchingRooms : allRooms;
+      if (candidates.length === 0) {
+        setRoomError("Aucune table disponible. Crée une salle si tu veux ouvrir une table.");
         return null;
       }
 
-      return matchingRooms[0];
+      return candidates[0];
     } catch (err) {
       console.error("[LobbyContext] findAvailableRoom error:", err);
       setRoomError("Impossible de charger les salles disponibles.");

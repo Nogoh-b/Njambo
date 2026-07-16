@@ -43,7 +43,7 @@ import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/typ
 function SceneRouter() {
   const { scene, navigateTo, endTransition, profile, setProfile, cfg, animationsOn } = useGame();
   const motionProfile = useMotionProfile();
-  const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint } = useLobby();
+  const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, leaveRoom } = useLobby();
   const { user } = useAuth();
 
   /* État partagé entre TableScreen et ResultScreen */
@@ -59,6 +59,7 @@ function SceneRouter() {
   const nextRoundRef = useRef<(() => void) | null>(null);
 
   /* Dérivés du lobby (partagés via LobbyContext) */
+  const isRoomMode = gameMode === "online" || gameMode === "friends";
   const roomId = currentRoom?.id ?? null;
   const roomPlayers = currentRoom?.players ?? [];
   const roomHostId = currentRoom?.hostId ?? "";
@@ -135,7 +136,6 @@ function SceneRouter() {
   }, []);
 
   const handleNextRound = useCallback(() => {
-    setGameResult(null);
     nextRoundRef.current?.();
   }, []);
 
@@ -143,8 +143,12 @@ function SceneRouter() {
     setGameResult(null);
     setGameActive(false);
     nextRoundRef.current = null;
+    // Quitter la table = quitter la salle. Sans ça, currentRoom résiduel
+    // contaminait la partie suivante (roomId injecté dans une table bot) et
+    // ré-armait l'affordance « Reprendre ».
+    if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
     navigateTo("menu");
-  }, [navigateTo]);
+  }, [navigateTo, currentRoom, leaveRoom, refreshActiveRoomHint]);
 
   /* Rendu de la scène courante (hors table/result, gérés séparément en overlay). */
   const renderScene = (): ReactNode => {
@@ -204,17 +208,19 @@ function SceneRouter() {
           <div style={{ minHeight: "100vh" }}>{renderScene()}</div>
         )}
 
-      {/* TableScreen — monté pendant toute la session de jeu */}
+      {/* TableScreen — monté pendant toute la session de jeu. Les props de
+          salle ne sont transmises QU'AUX modes salle : une table bot ne doit
+          jamais hériter d'une salle résiduelle du lobby. */}
       {gameActive && (
         <TableScreen
-          key={gameMode + "-" + gameBotCount + "-" + gameMise + "-" + gameDifficulty + "-" + (roomId ?? "") + "-" + (eventRunId ?? "")}
+          key={gameMode + "-" + gameBotCount + "-" + gameMise + "-" + gameDifficulty + "-" + (isRoomMode ? roomId ?? "" : "") + "-" + (eventRunId ?? "")}
           gameMode={gameMode}
           initialBotCount={gameBotCount}
           initialMise={gameMise}
           initialDifficulty={gameDifficulty}
-          roomId={roomId ?? undefined}
-          roomPlayers={roomPlayers.length > 0 ? roomPlayers as RoomPlayer[] : undefined}
-          roomHostId={roomHostId || undefined}
+          roomId={isRoomMode ? roomId ?? undefined : undefined}
+          roomPlayers={isRoomMode && roomPlayers.length > 0 ? roomPlayers as RoomPlayer[] : undefined}
+          roomHostId={isRoomMode ? roomHostId || undefined : undefined}
           eventRunId={eventRunId ?? undefined}
           onResult={handleResult}
           onRoundRestart={() => {
@@ -233,7 +239,7 @@ function SceneRouter() {
           onNext={handleNextRound}
           onMenu={handleMenu}
           canNext={!!profile && profile.balance >= gameMise}
-          nextRequiresConsensus={gameMode !== "bot"}
+          nextRequiresConsensus={gameMode === "online" || gameMode === "friends"}
           socialPlayers={gameMode === "bot" ? [] : roomPlayers as RoomPlayer[]}
         />
       )}

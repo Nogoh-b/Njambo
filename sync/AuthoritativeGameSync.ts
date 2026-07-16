@@ -1,6 +1,6 @@
 "use client";
 
-import { doc, onSnapshot, type Unsubscribe } from "@/lib/firestoreClient";
+import { doc, onSnapshot, type DocumentSnapshot, type Unsubscribe } from "@/lib/firestoreClient";
 import { db } from "@/lib/firebase";
 import { backendCallable } from "@/lib/backendCallable";
 import { GAME_CONFIG } from "@/config/gameConfig";
@@ -18,6 +18,7 @@ interface ServerMatch {
   status: "playing" | "settled" | "forfeit" | "cancelled";
   participants: ServerParticipant[];
   participantUids: string[];
+  eliminatedUids?: string[];
   turnIndex: number;
   leaderIndex: number;
   trickNumber: number;
@@ -35,7 +36,7 @@ interface ServerMatch {
   recentPowerActivations?: PowerCardActivation[];
 }
 
-interface ServerState { matchId: string; match: ServerMatch; hand: Card[] }
+interface ServerState { matchId: string; match: ServerMatch; hand: Card[]; equippedPowers?: PowerCardId[] }
 interface MatchmakingState { waiting: true; status: "matchmaking"; runId: string; playersFound: number; playersRequired: number }
 interface Options {
   mode: "bot" | "online" | "friends" | "event";
@@ -57,6 +58,8 @@ type PlayListener = (play: { playerIdx: number; cardIdx: number; card: Card; pla
 type ReplayStep =
   | { kind: "play"; action: ServerAction; delayBefore: number }
   | { kind: "trickEnd"; winnerServerIdx: number }
+  /** Activation de pouvoir ADVERSE (broadcast) — rejouée en séquence. */
+  | { kind: "power"; activation: PowerCardActivation }
   /** Applique le dernier doc serveur reçu (source de vérité) en fin de file. */
   | { kind: "flush" };
 
@@ -64,9 +67,12 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private matchId: string | null = null;
   private match: ServerMatch | null = null;
   private hand: Card[] = [];
+  private equippedPowers: PowerCardId[] = [];
+  private currentHostId?: string;
   private matchUnsub: Unsubscribe | null = null;
   private handUnsub: Unsubscribe | null = null;
   private roomUnsub: Unsubscribe | null = null;
+  private latestRoomSnapshot: DocumentSnapshot | null = null;
   private eventRunUnsub: Unsubscribe | null = null;
   private timer: ReturnType<typeof setInterval> | null = null;
   private startPending = false;
@@ -74,6 +80,10 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private emittedActions = new Set<string>();
   private emittedPowerIds = new Set<string>();
   private emittedResult = false;
+  /** Match terminé et « consommé » par nextRound : le listener de salle ne
+   *  doit plus s'y reconnecter (revanche = attendre un NOUVEL activeMatchId). */
+  private consumedMatchId: string | null = null;
+  private rematchPending = false;
   /** Fenêtre de distribution synthétique : le serveur donne les mains d'un
    *  coup, on rejoue la chorégraphie carte-par-carte avant la phase "turns". */
   private dealing = false;
@@ -92,11 +102,6 @@ export class AuthoritativeGameSync implements GameSyncActions {
   /** Coup local en attente : ma main est déjà finale quand l'événement play
    *  est émis — on garde l'index cliqué pour que le vol parte du bon slot. */
   private pendingPlay: { cardId: string; cardIdx: number } | null = null;
-  /* ── Timer d'affichage : décompte local armé par turnId, figé pendant
-        dealing/replay (parité LocalGameSync — le temps démarre après les
-        animations ; l'autorité du timeout est le worker serveur). ── */
-  private turnCountdownEndsAt = 0;
-  private lastCountdownTurnId = "";
 
   private stateListeners = new Set<(state: GameState) => void>();
   private playListeners = new Set<PlayListener>();
@@ -106,14 +111,18 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private syncListeners = new Set<(status: SyncStatus) => void>();
   private powerListeners = new Set<(activation: PowerCardActivation) => void>();
 
-  constructor(private opts: Options) {}
+  constructor(private opts: Options) {
+    this.currentHostId = opts.hostId;
+  }
 
   start = () => { void this.startRound(); };
   nextRound = () => {
-    this.stopSnapshots(); this.stopDealing(); this.stopReplay();
+    // Le listener de salle (roomUnsub) SURVIT au changement de manche : c'est
+    // lui qui apprendra l'activeMatchId de la revanche.
+    this.consumedMatchId = this.matchId;
+    this.stopMatchSnapshots(); this.stopDealing(); this.stopReplay();
     this.matchId = null; this.match = null; this.hand = [];
     this.emittedActions.clear(); this.emittedPowerIds.clear(); this.emittedResult = false;
-    this.turnCountdownEndsAt = 0; this.lastCountdownTurnId = "";
     void this.startRound();
   };
 
@@ -151,11 +160,38 @@ export class AuthoritativeGameSync implements GameSyncActions {
 
   private async startRound() {
     this.status("connecting", "Le serveur prépare la table…");
-    if (this.opts.roomId && this.opts.hostId !== this.opts.uid) {
-      this.roomUnsub = onSnapshot(doc(db, "rooms", this.opts.roomId), (snapshot) => {
-        const activeMatchId = snapshot.get("activeMatchId");
-        if (typeof activeMatchId === "string" && activeMatchId !== this.matchId) void this.reconnect(activeMatchId);
-      }, () => this.status("error", "Salle indisponible"));
+    const roomMode = this.opts.mode === "online" || this.opts.mode === "friends";
+    if (roomMode && this.opts.roomId) {
+      if (this.currentHostId !== this.opts.uid) {
+        // INVITÉ : écoute persistante de la salle. Pour une revanche
+        // (consumedMatchId présent), se déclarer prêt — l'hôte relancera
+        // quand tous les invités auront validé.
+        this.subscribeRoom();
+        if (this.consumedMatchId) {
+          this.status("connecting", "En attente de l'hôte…");
+          const ready = backendCallable<Record<string, unknown>, { roomId: string; ready: boolean }>("setRoomReady");
+          void ready({ idempotencyKey: `ready_${crypto.randomUUID()}`, roomId: this.opts.roomId, ready: true })
+            .catch((cause) => this.status("error", cause instanceof Error ? cause.message : "Impossible de se déclarer prêt"));
+        }
+        return;
+      }
+      // HÔTE. Premier match : la salle est déjà "playing" (startGame du
+      // lobby) → démarrage direct. Revanche : attendre que les invités
+      // re-valident, puis startGame + startMatch (flux lobby standard).
+      if (this.consumedMatchId) {
+        this.status("connecting", "Les autres joueurs doivent valider…");
+        this.subscribeRoom();
+        const ready = backendCallable<Record<string, unknown>, { roomId: string; ready: boolean }>("setRoomReady");
+        try {
+          await ready({ idempotencyKey: `ready_${crypto.randomUUID()}`, roomId: this.opts.roomId, ready: true });
+        } catch (cause) {
+          this.status("error", cause instanceof Error ? cause.message : "Impossible de valider la revanche");
+          return;
+        }
+        if (this.latestRoomSnapshot) void this.maybeStartRematch(this.latestRoomSnapshot);
+        return;
+      }
+      await this.requestStart();
       return;
     }
     if (this.opts.mode === "event" && this.opts.eventRunId) {
@@ -179,6 +215,45 @@ export class AuthoritativeGameSync implements GameSyncActions {
     await this.requestStart();
   }
 
+  /** Écoute persistante de la salle (invité ET hôte en revanche) : survit
+   *  aux changements de manche — c'est le canal qui annonce le match suivant. */
+  private subscribeRoom() {
+    if (this.roomUnsub || !this.opts.roomId) return;
+    this.roomUnsub = onSnapshot(doc(db, "rooms", this.opts.roomId), (snapshot) => {
+      this.latestRoomSnapshot = snapshot;
+      if (!snapshot.exists()) { this.status("error", "La salle a été fermée."); return; }
+      const hostId = snapshot.get("hostId");
+      if (typeof hostId === "string") this.currentHostId = hostId;
+      const activeMatchId = snapshot.get("activeMatchId");
+      if (typeof activeMatchId === "string" && activeMatchId !== this.matchId && activeMatchId !== this.consumedMatchId) {
+        if (!this.startPending) void this.reconnect(activeMatchId);
+        return;
+      }
+      if (this.currentHostId === this.opts.uid) void this.maybeStartRematch(snapshot);
+    }, () => this.status("error", "Salle indisponible"));
+  }
+
+  /** Hôte en attente de revanche : relance dès que tous les invités ont
+   *  re-validé (players[].ready, re-vérifié côté serveur par startGame). */
+  private async maybeStartRematch(snapshot: DocumentSnapshot) {
+    if (this.destroyed || this.matchId || this.startPending || this.rematchPending) return;
+    if (String(snapshot.get("status")) !== "waiting") return;
+    const players = (snapshot.get("players") ?? []) as Array<{ uid: string; ready?: boolean }>;
+    if (players.length < 2) return;
+    const guestsReady = players.filter((player) => player.uid !== this.opts.uid).every((player) => player.ready === true);
+    if (!guestsReady) return;
+    this.rematchPending = true;
+    try {
+      const start = backendCallable<Record<string, unknown>, { roomId: string; status: string }>("startGame");
+      await start({ idempotencyKey: `rematch_${crypto.randomUUID()}`, roomId: this.opts.roomId });
+      await this.requestStart();
+    } catch (cause) {
+      this.status("error", cause instanceof Error ? cause.message : "Relance impossible");
+    } finally {
+      this.rematchPending = false;
+    }
+  }
+
   private async reconnect(matchId: string) {
     try {
       const call = backendCallable<Record<string, unknown>, ServerState>("reconnectMatch");
@@ -189,14 +264,19 @@ export class AuthoritativeGameSync implements GameSyncActions {
       this.stopReplay();
       this.match = null;
       this.emittedActions.clear(); this.emittedPowerIds.clear(); this.emittedResult = false;
-      this.lastCountdownTurnId = "";
+      // Un match FRAIS reçu par ce chemin (invité qui rejoint, revanche) a
+      // droit à sa chorégraphie de donne — le critère "fresh" de
+      // beginDealingWindow écarte les vraies reprises en cours de partie.
+      this.beginDealingWindow(response.data.match);
       this.applyServerState(response.data);
       this.subscribe(matchId);
     } catch (cause) { this.status("error", cause instanceof Error ? cause.message : "Reconnexion refusée"); }
   }
 
   private subscribe(matchId: string) {
-    this.stopSnapshots();
+    // Ne coupe QUE les abonnements de match : l'écoute de salle/événement
+    // reste vivante (c'est elle qui annonce les manches suivantes).
+    this.stopMatchSnapshots();
     this.matchId = matchId;
     this.matchUnsub = onSnapshot(doc(db, "matches", matchId), (snapshot) => {
       if (!snapshot.exists()) return;
@@ -205,13 +285,20 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.handUnsub = onSnapshot(doc(db, "matches", matchId, "private", this.opts.uid), (snapshot) => {
       if (!snapshot.exists()) return;
       this.hand = (snapshot.get("hand") ?? []) as Card[];
+      this.equippedPowers = (snapshot.get("equippedPowers") ?? this.equippedPowers) as PowerCardId[];
       this.emitState();
     });
     this.timer = setInterval(() => {
-      const frozen = this.dealing || this.replaying || this.turnCountdownEndsAt === 0 || this.match?.status !== "playing";
-      const seconds = frozen
+      // Décompte SYNCHRONE entre tous les clients : dérivé de la deadline
+      // serveur (qui inclut le budget d'animation du batch — le clamp à
+      // turnSeconds garde l'anneau plein pendant le replay et la donne).
+      const source = this.targetMatch ?? this.match;
+      const animationsPending = this.dealing || this.replaying || this.replayQueue.length > 0;
+      const seconds = animationsPending
         ? GAME_CONFIG.turnSeconds
-        : Math.max(0, Math.ceil((this.turnCountdownEndsAt - Date.now()) / 1000));
+        : source?.status === "playing"
+        ? Math.max(0, Math.min(GAME_CONFIG.turnSeconds, Math.ceil((source.actionDeadlineAt - Date.now()) / 1_000)))
+        : 0;
       this.timerListeners.forEach((listener) => listener(seconds));
     }, 1_000);
     this.status("live");
@@ -219,17 +306,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
 
   private applyServerState(state: ServerState) {
     this.matchId = state.matchId; this.hand = state.hand;
+    if (state.equippedPowers) this.equippedPowers = state.equippedPowers;
     this.ingestMatch(state.match);
-  }
-
-  /** (Re)démarre le décompte affiché — uniquement quand un NOUVEAU tour
-   *  commence (turnId) et hors animations (dealing/replay). */
-  private startTurnCountdown() {
-    const match = this.match;
-    if (!match || match.status !== "playing" || this.dealing || this.replaying) return;
-    if (match.turnId === this.lastCountdownTurnId) return;
-    this.lastCountdownTurnId = match.turnId;
-    this.turnCountdownEndsAt = Date.now() + GAME_CONFIG.turnSeconds * 1_000;
   }
 
   /** Point d'entrée UNIQUE des docs match (snapshot WS et réponses HTTP).
@@ -238,6 +316,16 @@ export class AuthoritativeGameSync implements GameSyncActions {
    *  cible (targetMatch) et appende ses nouveaux coups. */
   private ingestMatch(match: ServerMatch) {
     if (this.destroyed) return;
+    // Les abandons ordinaires restent en playing/settled : seuls un forfait
+    // d'événement ou une annulation technique passent dans cette branche.
+    if (match.status === "cancelled" || match.status === "forfeit") {
+      this.stopReplay(); this.stopDealing();
+      this.match = match; this.targetMatch = match;
+      this.status("error", this.opts.mode === "event"
+        ? "Un joueur a déclaré forfait — la partie est terminée."
+        : "La partie a été annulée.");
+      return;
+    }
     this.targetMatch = match;
 
     // Premier doc (démarrage frais ou reconnexion) : seed sans replay.
@@ -248,12 +336,18 @@ export class AuthoritativeGameSync implements GameSyncActions {
       this.simTrickPlays = match.trickPlays.map((play) => ({ uid: play.uid, card: play.card }));
       this.emitState();
       this.maybeEmitResult();
-      this.startTurnCountdown();
       return;
     }
 
-    // Activations de pouvoir : hors file (l'orchestrateur a sa propre cadence).
-    this.emitBroadcastPowerActivations(match);
+    // Activations de pouvoir ADVERSES : enfilées comme les coups pour que
+    // toutes les animations restent strictement séquentielles. Les miennes
+    // arrivent par la réponse HTTP (version complète) et restent immédiates.
+    for (const activation of match.recentPowerActivations ?? []) {
+      if (!activation?.playId || this.emittedPowerIds.has(activation.playId)) continue;
+      if (activation.activatedByUid === this.opts.uid) { this.emittedPowerIds.add(activation.playId); continue; }
+      this.emittedPowerIds.add(activation.playId);
+      this.replayQueue.push({ kind: "power", activation });
+    }
 
     for (const action of match.recentActions ?? []) {
       if (!action?.playId || this.emittedActions.has(action.playId)) continue;
@@ -265,7 +359,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
       const delayBefore = immediate ? 0 : replayBotThinkMin + Math.random() * (replayBotThinkMax - replayBotThinkMin);
       this.replayQueue.push({ kind: "play", action, delayBefore });
       this.simTrickPlays.push({ uid: action.uid, card: action.card });
-      if (this.simTrickPlays.length === match.participants.length) {
+      const activeCount = match.participants.filter((participant) => !(match.eliminatedUids ?? []).includes(participant.uid)).length;
+      if (this.simTrickPlays.length === activeCount) {
         this.replayQueue.push({ kind: "trickEnd", winnerServerIdx: this.simulatedTrickWinner(match.participants) });
         this.simTrickPlays = [];
       }
@@ -326,6 +421,14 @@ export class AuthoritativeGameSync implements GameSyncActions {
       return;
     }
 
+    if (step.kind === "power") {
+      // Déjà dédupliquée à l'enfilage — émission directe aux listeners, puis
+      // un beat de lecture avant l'événement suivant.
+      this.powerListeners.forEach((listener) => listener(step.activation));
+      this.replayTimer = setTimeout(() => this.pump(), GAME_CONFIG.anim.powerBeat);
+      return;
+    }
+
     // flush
     this.match = this.targetMatch ?? this.match;
     this.displayMatch = null;
@@ -333,7 +436,6 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.maybeEmitResult();
     if (this.replayQueue.length > 0) { this.pump(); return; }
     this.replaying = false;
-    this.startTurnCountdown();
   }
 
   private emitPlay(action: ServerAction) {
@@ -373,7 +475,11 @@ export class AuthoritativeGameSync implements GameSyncActions {
     display.handCounts[action.uid] = Math.max(0, Number(display.handCounts[action.uid] ?? 0) - 1);
     display.deposits[action.uid] = [...(display.deposits[action.uid] ?? []), action.card];
     display.trickPlays = [...display.trickPlays, { uid: action.uid, card: action.card }];
-    display.turnIndex = (display.turnIndex + 1) % display.participants.length;
+    const eliminated = new Set(display.eliminatedUids ?? []);
+    let next = display.turnIndex;
+    do next = (next + 1) % display.participants.length;
+    while (eliminated.has(display.participants[next].uid) && next !== display.turnIndex);
+    display.turnIndex = next;
   }
 
   private applyTrickEndToDisplay(winnerServerIdx: number) {
@@ -412,7 +518,6 @@ export class AuthoritativeGameSync implements GameSyncActions {
       this.dealing = false;
       if (this.destroyed) return;
       this.emitState();
-      this.startTurnCountdown();
       // Des coups ont pu être enfilés pendant la donne (adversaire rapide).
       if (this.replayQueue.length > 0 && !this.replaying) this.pump();
     }, dealTime);
@@ -425,9 +530,15 @@ export class AuthoritativeGameSync implements GameSyncActions {
   }
 
   private localOrder() {
-    if (!this.match) return [] as number[];
-    const mine = this.match.participants.findIndex((participant) => participant.uid === this.opts.uid);
-    return Array.from({ length: this.match.participants.length }, (_, index) => (mine + index) % this.match!.participants.length);
+    const match = this.viewMatch();
+    if (!match) return [] as number[];
+    const eliminated = new Set(match.eliminatedUids ?? []);
+    const active = match.participants
+      .map((participant, index) => ({ participant, index }))
+      .filter(({ participant }) => !eliminated.has(participant.uid))
+      .map(({ index }) => index);
+    const mine = active.findIndex((index) => match.participants[index].uid === this.opts.uid);
+    return mine < 0 ? active : [...active.slice(mine), ...active.slice(0, mine)];
   }
 
   private localIndex(serverIndex: number) { return this.localOrder().indexOf(serverIndex); }
@@ -448,7 +559,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
         balance: isYou ? this.opts.profile.balance : 0,
         hand: isYou ? this.hand : hidden,
         deposit: match.deposits?.[participant.uid] ?? [],
-        equippedPowers: isYou ? [] : undefined,
+        equippedPowers: isYou ? this.equippedPowers : undefined,
       };
     });
   }
@@ -470,16 +581,6 @@ export class AuthoritativeGameSync implements GameSyncActions {
       players: this.players(),
     };
     this.stateListeners.forEach((listener) => listener(state));
-  }
-
-  private emitBroadcastPowerActivations(match: ServerMatch) {
-    for (const activation of match.recentPowerActivations ?? []) {
-      if (!activation?.playId) continue;
-      // Mes propres activations arrivent toujours par la réponse de commande
-      // (version complète, non expurgée) — ignorer la copie broadcast.
-      if (activation.activatedByUid === this.opts.uid) { this.emittedPowerIds.add(activation.playId); continue; }
-      this.emitPowerActivation(activation);
-    }
   }
 
   private maybeEmitResult() {
@@ -530,18 +631,30 @@ export class AuthoritativeGameSync implements GameSyncActions {
         // L'activation de la réponse est la version COMPLÈTE (identités des
         // cartes cachées, revealedHand) — émise avant l'état pour que
         // l'orchestrateur démarre la transition avant le repaint.
-        this.emitPowerActivation(response.data.activation);
+        // FORCE : le broadcast WS de ma propre activation a pu arriver avant
+        // cette réponse et déjà marquer le playId (sans l'animer) → sans force,
+        // mon propre FX serait sauté par le dédup (bug "certains pouvoirs ne
+        // s'affichent pas chez moi").
+        this.emitPowerActivation(response.data.activation, true);
         this.applyServerState(response.data.state);
       })
       .catch((cause) => this.status("error", cause instanceof Error ? cause.message : "Pouvoir refusé"))
       .finally(() => { this.powerPending = false; });
   };
 
-  private emitPowerActivation(activation: PowerCardActivation) {
-    if (!activation?.playId || this.emittedPowerIds.has(activation.playId)) return;
+  private emitPowerActivation(activation: PowerCardActivation, force = false) {
+    if (!activation?.playId) return;
+    if (!force && this.emittedPowerIds.has(activation.playId)) return;
     this.emittedPowerIds.add(activation.playId);
     this.powerListeners.forEach((listener) => listener(activation));
   }
+
+  /** Abandon volontaire : le serveur élimine le joueur avant le retour menu. */
+  abandon = async () => {
+    if (!this.matchId || this.match?.status !== "playing") return;
+    const call = backendCallable<Record<string, unknown>, { matchId: string; status: string }>("abandonMatch");
+    await call({ idempotencyKey: `abandon_${crypto.randomUUID()}`, matchId: this.matchId });
+  };
 
   onStateUpdate = (cb: (state: GameState) => void) => { this.stateListeners.add(cb); return () => this.stateListeners.delete(cb); };
   onPlayCard = (cb: PlayListener) => { this.playListeners.add(cb); return () => this.playListeners.delete(cb); };
@@ -551,10 +664,17 @@ export class AuthoritativeGameSync implements GameSyncActions {
   onSyncStatus = (cb: (status: SyncStatus) => void) => { this.syncListeners.add(cb); return () => this.syncListeners.delete(cb); };
   onPowerActivated = (cb: (activation: PowerCardActivation) => void) => { this.powerListeners.add(cb); return () => this.powerListeners.delete(cb); };
 
-  private stopSnapshots() {
-    this.matchUnsub?.(); this.handUnsub?.(); this.roomUnsub?.(); this.eventRunUnsub?.();
-    this.matchUnsub = null; this.handUnsub = null; this.roomUnsub = null; this.eventRunUnsub = null;
+  private stopMatchSnapshots() {
+    this.matchUnsub?.(); this.handUnsub?.();
+    this.matchUnsub = null; this.handUnsub = null;
     if (this.timer) clearInterval(this.timer); this.timer = null;
+  }
+
+  private stopSnapshots() {
+    this.stopMatchSnapshots();
+    this.roomUnsub?.(); this.eventRunUnsub?.();
+    this.roomUnsub = null; this.eventRunUnsub = null;
+    this.latestRoomSnapshot = null;
   }
   destroy = () => {
     if (this.opts.mode === "event" && this.opts.eventRunId && !this.matchId) {

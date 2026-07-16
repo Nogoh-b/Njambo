@@ -35,9 +35,8 @@ export const GAME_CONFIG: GameConfig = {
     powerBeat: 900, // lecture du FX carte pouvoir avant le coup du bot
     // Cadence du REPLAY serveur (AuthoritativeGameSync) : "réflexion" simulée
     // avant chaque coup adverse d'un batch. Plus court que le bot local
-    // (le coup est déjà décidé). COUPLÉ à TIMEOUT_GRACE_MS côté serveur
-    // (functions/src/matchTimeouts.ts) : le pire replay (3 bots + trickPause)
-    // doit rester sous la grâce du worker d'auto-play.
+    // (le coup est déjà décidé). La deadline serveur inclut séparément tout
+    // le budget du replay avant les 15 secondes réellement jouables.
     replayBotThinkMin: 700,
     replayBotThinkMax: 1400,
   },

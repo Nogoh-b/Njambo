@@ -15,10 +15,12 @@
 import { db, stableId } from "./core";
 import { performGameAction, type MatchDocument, type MatchParticipant } from "./matchCommands";
 
-/** Grâce au-delà de la deadline serveur : absorbe le replay d'animations côté
-    client (pire cas ~9 s : 3 bots × (think 1,4 s + vol) + trickPause 2,2 s).
-    COUPLÉ à GAME_CONFIG.anim.replayBotThinkMin/Max (config/gameConfig.ts). */
-const TIMEOUT_GRACE_MS = 10_000;
+/** Grâce au-delà de la deadline serveur. Le budget d'animation du replay est
+    DÉJÀ inclus dans actionDeadlineAt (PLAY_ANIM_MS/TRICK_PAUSE_MS et
+    dealBudgetMs dans matchCommands.ts) : au moment où l'affichage atteint 0,
+    le joueur a bien eu ses 15 s réelles. Le worker agit donc dès zéro ; sa
+    boucle de 500 ms absorbe déjà la latence et l'écart d'horloge résiduel. */
+const TIMEOUT_GRACE_MS = 0;
 
 export async function autoPlayExpiredMatchesImpl(): Promise<void> {
   const cutoff = Date.now() - TIMEOUT_GRACE_MS;

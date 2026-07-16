@@ -16,7 +16,7 @@ import { ZoneRegistry, ZoneRegistryProvider } from "@/components/table/zones/Zon
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { Chip } from "@/components/ui/Chip";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
-import { DEV } from "@/config/devConfig";
+import { DEV, devEquippedPowers } from "@/config/devConfig";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
@@ -227,6 +227,7 @@ function GameMomentOverlay({ moment, motionLevel }: { moment: MomentOverlay; mot
 export function TableScreen({
   gameMode,
   onResult,
+  onRoundRestart,
   onMenu,
   initialBotCount = 2,
   initialMise = 250,
@@ -249,6 +250,7 @@ export function TableScreen({
   const A = cfg.anim;
   const mise = initialMise;
   const roomPlayersKey = roomPlayers?.map((p) => p.uid).join("|") ?? "";
+  const roomSessionReady = Boolean(roomId && roomHostId && roomPlayers?.length);
   // Clé d'identité de session : en mode bot, l'auth n'a aucun rôle → on ne
   // veut PAS relancer (re-distribuer) la partie quand l'auth Firebase se
   // résout après le montage. Seuls online/friends dépendent de l'uid.
@@ -299,6 +301,8 @@ export function TableScreen({
     onConfirm: () => void;
     onCancel: () => void;
   } | null>(null);
+  /* Confirmation avant de quitter une partie EN COURS (abandon + retour menu). */
+  const [confirmQuit, setConfirmQuit] = useState(false);
   const [seconds, setSeconds] = useState(cfg.turnSeconds);
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     state: gameMode === "bot" ? "live" : "connecting",
@@ -307,11 +311,12 @@ export function TableScreen({
 
   /* ----- Cartes pouvoir (UI d'activation) -----
      Sync serveur → source de vérité = inventaire serveur (equippedCards,
-     validé par usePowerCardHandler) ; sync local (invité) → profil local
-     (+ triches dev NEXT_PUBLIC_DEV_*). */
-  const equippedPowers: PowerCardId[] = isLocalSync
+     validé par usePowerCardHandler), enveloppée par les triches dev
+     (NEXT_PUBLIC_DEV_ALL_POWERS/POWER_COUNT — le serveur accepte via
+     POWERS_DEV_BYPASS) ; sync local (invité) → profil local. */
+  const fallbackEquippedPowers: PowerCardId[] = isLocalSync
     ? (profile.equippedPowers ?? [])
-    : ((serverInventory.equippedCards ?? []) as PowerCardId[]);
+    : devEquippedPowers((serverInventory.equippedCards ?? []) as PowerCardId[]);
   const [usedPowers, setUsedPowers] = useState<Set<PowerCardId>>(new Set());
   const [targetingCard, setTargetingCard] = useState<PowerCardId | null>(null);
 
@@ -345,6 +350,7 @@ export function TableScreen({
   const momentOverlayTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const momentOverlayQueueRef = useRef<MomentOverlayRequest[]>([]);
   const momentOverlayActiveRef = useRef(false);
+  const roundRestartPendingRef = useRef(false);
 
   /* ----- Dérivés de l'état ----- */
   const { players, phase, trickNo, trickPlays, turnIdx, pot, dominantIdx } = gameState;
@@ -352,10 +358,33 @@ export function TableScreen({
   const expectedPlayerCount = n || (gameMode === "bot" || gameMode === "event" ? initialBotCount + 1 : roomPlayers?.length ?? 0);
   const displayedPot = roundIntro ? mise * Math.max(expectedPlayerCount, 1) : pot;
   const you = players[0];
+  const authoritativePowers = you?.equippedPowers?.length
+    ? you.equippedPowers
+    : (serverInventory.equippedCards ?? []) as PowerCardId[];
+  const equippedPowers: PowerCardId[] = isLocalSync
+    ? fallbackEquippedPowers
+    : devEquippedPowers(authoritativePowers);
   const ledSuit: string | null = trickPlays[0]?.card.suit ?? null;
   const ledInfo: Suit | undefined = ledSuit ? cfg.suits.find((s) => s.s === ledSuit) : undefined;
   const isYourTurn = phase === "turns" && turnIdx === 0;
   const yourLegal = you && isYourTurn ? legalCards(you.hand, ledSuit) : null;
+
+  /* Quitter : confirmation quand une partie est EN COURS ; sinon retour direct.
+     En ligne, la confirmation serveur précède toujours le retour au menu. */
+  const matchInProgress = phase === "turns" || phase === "dealing" || phase === "trickEnd";
+  const handleMenuTap = () => {
+    if (matchInProgress) setConfirmQuit(true);
+    else onMenu();
+  };
+  const handleQuitConfirm = async () => {
+    setConfirmQuit(false);
+    try {
+      await syncRef.current?.abandon?.();
+      onMenu();
+    } catch {
+      setBanner("Abandon impossible. Vérifiez votre connexion puis réessayez.");
+    }
+  };
   const motionEnabled = motion.enabled;
   const motionLevel = motion.level;
   const liteMotion = isLiteMotion(motionLevel);
@@ -649,7 +678,8 @@ export function TableScreen({
     }
     powerTransitionDepthRef.current += 1;
     animatingRef.current = true;
-  }, []);
+    setSeconds(cfg.turnSeconds);
+  }, [cfg.turnSeconds]);
 
   const commitStateTransition = useCallback(() => {
     const pending = pendingPowerStateRef.current;
@@ -820,6 +850,10 @@ export function TableScreen({
     // l'orchestrateur anime depuis activation.resolved, source de vérité moteur.)
     const applyIncomingState = (state: GameState) => {
       setGameState(state);
+      if (roundRestartPendingRef.current && (state.phase === "dealing" || state.phase === "turns")) {
+        roundRestartPendingRef.current = false;
+        onRoundRestart();
+      }
     };
 
     const unsubState = sync.onStateUpdate((state) => {
@@ -856,6 +890,7 @@ export function TableScreen({
 
       if (from && to) {
         animatingRef.current = true;
+        setSeconds(cfg.turnSeconds);
         animationEndsAtRef.current = Date.now() + A.dropFlight;
         const dropRot = Math.random() * 18 - 9;
         handZone?.setHiddenCard(cardIdx);
@@ -948,6 +983,10 @@ export function TableScreen({
     });
 
     const unsubTimer = sync.onTimerTick((s) => {
+      if (animatingRef.current || powerTransitionDepthRef.current > 0) {
+        setSeconds(cfg.turnSeconds);
+        return;
+      }
       setSeconds(s);
       if (s <= 5 && playersRef.current[turnIdxRef.current]?.isYou) sfxRef.current((sn) => sn.tick());
     });
@@ -1032,11 +1071,41 @@ export function TableScreen({
     // Le sync doit vivre pour toute la session. On le relance seulement quand
     // l'identite de session arrive/change, pas quand le solde ou le viewport bouge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameMode, roomId, roomHostId, sessionAuthKey, roomPlayersKey]);
+  }, [gameMode, roomId, roomSessionReady, sessionAuthKey]);
 
   /* ----- nextRound exposé au router ----- */
   useEffect(() => {
     onNextRoundRef.current = () => {
+      if (delayedStateTimerRef.current) clearTimeout(delayedStateTimerRef.current);
+      delayedStateTimerRef.current = null;
+      if (roundIntroTimerRef.current) clearTimeout(roundIntroTimerRef.current);
+      roundIntroTimerRef.current = null;
+      if (dealSweepTimerRef.current) clearTimeout(dealSweepTimerRef.current);
+      dealSweepTimerRef.current = null;
+      if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
+      reactionTimerRef.current = null;
+      if (momentOverlayTimerRef.current) clearTimeout(momentOverlayTimerRef.current);
+      momentOverlayTimerRef.current = null;
+      burstTimersRef.current.forEach((timer) => clearTimeout(timer));
+      burstTimersRef.current = [];
+      momentOverlayQueueRef.current = [];
+      momentOverlayActiveRef.current = false;
+      pendingPowerStateRef.current = null;
+      powerTransitionDepthRef.current = 0;
+      animatedPlayIdsRef.current.clear();
+      setFlights([]);
+      setCardBursts([]);
+      setRoundIntro(false);
+      setMomentOverlay(null);
+      setTableReaction(null);
+      setGoldFlash(false);
+      setBanner("");
+      setPowerChoiceConfirm(null);
+      setConfirmQuit(false);
+      setSeconds(cfg.turnSeconds);
+      setUsedPowers(new Set());
+      setTargetingCard(null);
+      roundRestartPendingRef.current = true;
       syncRef.current?.nextRound();
     };
     return () => { onNextRoundRef.current = null; };
@@ -1326,7 +1395,7 @@ export function TableScreen({
         )}
       </div>
       <button data-nj-skin="icon"
-        onClick={onMenu}
+        onClick={handleMenuTap}
         style={{
           position: "absolute",
           top: 8,
@@ -1532,6 +1601,65 @@ export function TableScreen({
           >
             Valider
           </button>
+        </div>
+      )}
+
+      {/* Confirmation de sortie — même facture que PowerTargetModal (thème nuit/or). */}
+      {confirmQuit && (
+        <div
+          onClick={() => setConfirmQuit(false)}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 80,
+            background: "rgba(5,5,12,.72)",
+            display: "grid",
+            placeItems: "center",
+            padding: 20,
+          }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              background: `linear-gradient(160deg, ${T.night3}, ${T.night1})`,
+              border: `1.5px solid ${T.gold}55`,
+              borderRadius: 18,
+              padding: 20,
+              maxWidth: 320,
+              width: "100%",
+              textAlign: "center",
+            }}
+          >
+            <NjamboMark size={44} />
+            <div style={{ fontWeight: 900, fontSize: 18, margin: "10px 0 4px", color: T.text }}>
+              Quitter la partie ?
+            </div>
+            <div className="nj-subtle" style={{ fontSize: 13, marginBottom: 16 }}>
+              {isLocalSync
+                ? "La manche en cours sera perdue."
+                : gameMode === "event"
+                  ? "Abandonner compte comme une défaite de l'événement."
+                  : players.length <= 2
+                    ? "Abandonner compte comme une défaite et donne la victoire à l'adversaire."
+                    : "Vous serez éliminé de cette partie. Les autres joueurs continueront."}
+            </div>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
+              <button data-nj-skin="ghost"
+                type="button"
+                onClick={() => setConfirmQuit(false)}
+                style={{ padding: "10px 18px", borderRadius: 12, color: T.text, fontWeight: 800, cursor: "pointer" }}
+              >
+                Rester
+              </button>
+              <button data-nj-skin="gold"
+                type="button"
+                onClick={handleQuitConfirm}
+                style={{ padding: "10px 18px", borderRadius: 12, color: T.text, fontWeight: 900, cursor: "pointer" }}
+              >
+                Quitter
+              </button>
+            </div>
+          </div>
         </div>
       )}
 

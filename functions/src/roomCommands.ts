@@ -109,11 +109,21 @@ export async function leaveRoomHandler(request: CallableRequest<unknown>) {
     if (!players.some((player) => player.uid === uid)) return { roomId, left: true, deleted: false };
 
     const remaining = players.filter((player) => player.uid !== uid);
-    if (room.hostId === uid || remaining.length === 0) {
+    if (remaining.length === 0) {
       transaction.delete(roomRef);
       return { roomId, left: true, deleted: true };
     }
-    transaction.update(roomRef, { players: remaining, playerUids: remaining.map((player) => player.uid), updatedAt: now });
+    const hostLeftDuringMatch = room.hostId === uid && room.status === "playing";
+    if (room.hostId === uid && !hostLeftDuringMatch) {
+      transaction.delete(roomRef);
+      return { roomId, left: true, deleted: true };
+    }
+    transaction.update(roomRef, {
+      players: remaining,
+      playerUids: remaining.map((player) => player.uid),
+      ...(hostLeftDuringMatch ? { hostId: remaining[0].uid } : {}),
+      updatedAt: now,
+    });
     return { roomId, left: true, deleted: false };
   });
 }
