@@ -348,11 +348,14 @@ const RETRYABLE_SQLSTATES = new Set(["40001", "40P01", "23505"]);
 
 class PgTransaction implements Transaction {
   private writes: PendingWrite[] = [];
+  private queryQueue: Promise<void> = Promise.resolve();
   readonly events: ChangeEvent[] = [];
   constructor(private readonly client: PoolClient) {}
 
   async get(ref: DocumentReference): Promise<DocumentSnapshot> {
-    const result = await this.client.query("SELECT data FROM documents WHERE path = $1 FOR UPDATE", [ref.path]);
+    const query = this.queryQueue.then(() => this.client.query("SELECT data FROM documents WHERE path = $1 FOR UPDATE", [ref.path]));
+    this.queryQueue = query.then(() => undefined, () => undefined);
+    const result = await query;
     return new PgDocSnapshot(ref as PgDocRef, result.rowCount ? result.rows[0].data : null);
   }
 
@@ -374,6 +377,7 @@ class PgTransaction implements Transaction {
   }
 
   async flush(now: number) {
+    await this.queryQueue;
     for (const write of this.writes) {
       this.events.push(await applyWrite(this.client, write, now));
     }

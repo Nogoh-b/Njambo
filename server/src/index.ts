@@ -69,8 +69,9 @@ async function main() {
   attachRealtime(httpServer);
 
   const port = Number(process.env.PORT ?? 8081);
-  httpServer.listen(port, () => {
-    console.log(`njambo-server listening on :${port} (HTTP + WebSocket /ws)`);
+  const host = process.env.HOST ?? (process.env.NODE_ENV === "production" ? "127.0.0.1" : "0.0.0.0");
+  httpServer.listen(port, host, () => {
+    console.log(`njambo-server listening on ${host}:${port} (HTTP + WebSocket /ws)`);
     startJobs();
   });
 }

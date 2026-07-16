@@ -14,6 +14,8 @@
     "ui:generate-assets": "node scripts/generate-ui-assets.mjs",
     "test:rules": "set XDG_CONFIG_HOME=.firebase-config&& firebase emulators:exec --only firestore,auth \"vitest run tests/firestore.rules.test.ts\"",
     "build:functions": "npm --prefix functions run build",
+    "install:server": "npm --prefix functions ci --omit=dev && npm --prefix server ci --include=dev",
+    "build:server": "npm run install:server && npm --prefix server run build",
     "emulators": "firebase emulators:start --only auth,firestore,functions"
   },
   "dependencies": {
