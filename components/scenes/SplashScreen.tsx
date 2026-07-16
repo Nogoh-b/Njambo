@@ -13,8 +13,9 @@ export function SplashScreen() {
   const rootRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    /* Navigation : filet de sécurité indépendant de l'animation. */
-    const timer = setTimeout(() => navigateTo("menu"), 2500);
+    const seen = sessionStorage.getItem("njambo-splash-seen") === "1";
+    sessionStorage.setItem("njambo-splash-seen", "1");
+    const timer = setTimeout(() => navigateTo("menu"), seen ? 0 : 700);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);

@@ -86,12 +86,12 @@ function matchCost(mode: MatchMode) {
    moment où le worker d'auto-play peut tirer (matchTimeouts.ts, grâce courte).
    COUPLÉ à GAME_CONFIG.anim (replayBotThinkMax + dropFlight + landSettle ;
    trickPause ; dealPerCard/dealFlight) — config/gameConfig.ts. */
-const PLAY_ANIM_MS = 2_200;
-const TRICK_PAUSE_MS = 2_200;
+const PLAY_ANIM_MS = GAME_CONFIG.anim.replayBotThinkMax + GAME_CONFIG.anim.dropFlight + GAME_CONFIG.anim.landSettle;
+const TRICK_PAUSE_MS = GAME_CONFIG.anim.trickPause;
 const SERVER_DELIVERY_MARGIN_MS = 2_000;
 /** Miroir de la fenêtre "dealing" client (AuthoritativeGameSync.beginDealingWindow). */
 function dealBudgetMs(playerCount: number) {
-  return playerCount * 5 * 175 + 720 + 350;
+  return playerCount * GAME_CONFIG.cardsPerPlayer * GAME_CONFIG.anim.dealPerCard + GAME_CONFIG.anim.dealFlight + 350;
 }
 
 /** Fin de match de salle (settlement, abandon) : la salle redevient

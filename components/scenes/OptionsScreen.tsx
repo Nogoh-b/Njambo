@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
+import { useSettings, type MotionQualityPreference } from "@/contexts/SettingsContext";
 import { NjamboIcon } from "@/components/ui/Art";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Btn } from "@/components/ui/Btn";
@@ -12,8 +13,16 @@ import { ScreenHeader, Surface } from "@/components/ui/Shell";
 
 const LANGUAGES = ["Français", "English", "Duala"];
 
+const QUALITY_OPTIONS: Array<{ id: MotionQualityPreference; label: string }> = [
+  { id: "auto", label: "Auto" },
+  { id: "performance", label: "Performance" },
+  { id: "balanced", label: "Équilibré" },
+  { id: "quality", label: "Qualité" },
+];
+
 export function OptionsScreen() {
-  const { navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn, animationsOn, setAnimationsOn } = useGame();
+  const { navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn } = useGame();
+  const { animationsOn, setAnimationsOn, motionQuality, setMotionQuality } = useSettings();
   const [language, setLanguage] = useState("Français");
 
   return (
@@ -39,6 +48,13 @@ export function OptionsScreen() {
                 <div style={{ fontWeight: 900 }}>Interface</div>
               </div>
               <Toggle label="Animations" caption="Distribution, confettis et feedbacks" on={animationsOn} onChange={setAnimationsOn} />
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginTop: 10 }}>
+                {QUALITY_OPTIONS.map((option) => (
+                  <Btn key={option.id} variant={motionQuality === option.id ? "pink" : "ghost"} onClick={() => setMotionQuality(option.id)} style={{ paddingInline: 8 }}>
+                    {option.label}
+                  </Btn>
+                ))}
+              </div>
             </Surface>
 
             <Surface>

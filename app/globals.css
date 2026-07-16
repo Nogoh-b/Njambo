@@ -4205,6 +4205,22 @@ button[data-nj-skin="icon"],
   box-shadow: none !important;
 }
 
+.nj-motion-level-lite .nj-glass,
+.nj-motion-level-lite .nj-modal,
+.nj-motion-level-lite .nj-power-choice-confirm,
+.nj-motion-level-lite .nj-result-panel,
+.nj-motion-level-lite .nj-reaction-bar {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+.nj-motion-level-balanced .nj-flying-card,
+.nj-motion-level-balanced .nj-flying-card-fx,
+.nj-motion-level-balanced .nj-card-burst {
+  filter: none !important;
+  backdrop-filter: none !important;
+}
+
 .nj-power-choice-confirm {
   position: fixed;
   left: 50%;
@@ -4784,6 +4800,35 @@ button[data-nj-skin="icon"],
     animation: none !important;
     transition: none !important;
   }
+}
+
+.nj-table-paused {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.nj-table-paused *,
+.nj-table-paused *::before,
+.nj-table-paused *::after {
+  animation-play-state: paused !important;
+}
+
+.nj-performance-hud {
+  position: fixed;
+  top: max(8px, env(safe-area-inset-top));
+  right: 8px;
+  z-index: 10000;
+  display: grid;
+  gap: 2px;
+  min-width: 112px;
+  padding: 8px 10px;
+  border: 1px solid rgba(255, 220, 130, 0.35);
+  border-radius: 10px;
+  background: rgba(5, 8, 18, 0.88);
+  color: #fff8e8;
+  font: 700 11px/1.3 ui-monospace, monospace;
+  pointer-events: none;
+  contain: content;
 }
 
 /* ── Économie, Boutique et Ter ─────────────────────────────────────────── */

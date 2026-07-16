@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { createSound } from "@/lib/sound";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { STARTING_CAURIS } from "@/config/powerCards";
@@ -41,8 +41,6 @@ interface GameContextValue {
   sfxOn: boolean;
   setSfxOn: (v: boolean) => void;
   sfx: (fn: (s: ReturnType<typeof createSound>) => void) => void;
-  animationsOn: boolean;
-  setAnimationsOn: (v: boolean) => void;
 
   /* Config (shortcut) */
   cfg: typeof GAME_CONFIG;
@@ -105,7 +103,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>({});
   const [musicOn, setMusicOn] = useState(false);
   const [sfxOn, setSfxOn] = useState(true);
-  const [animationsOn, setAnimationsOn] = useState(true);
 
   /* Sauvegarder dans localStorage à chaque changement de profil */
   const setProfile = useCallback((p: Profile | ((prev: Profile) => Profile)) => {
@@ -148,26 +145,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setSocialTargetRaw((prev) => typeof target === "function" ? target(prev) : target);
   }, []);
 
+  const value = useMemo<GameContextValue>(() => ({
+    scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget,
+    profile, setProfile, musicOn, setMusicOn, sfxOn, setSfxOn, sfx, cfg,
+  }), [scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget, profile, setProfile, musicOn, sfxOn, sfx, cfg]);
+
   return (
     <GameContext.Provider
-      value={{
-        scene,
-        transitioning,
-        navigateTo,
-        endTransition,
-        socialTarget,
-        setSocialTarget,
-        profile,
-        setProfile,
-        musicOn,
-        setMusicOn,
-        sfxOn,
-        setSfxOn,
-        sfx,
-        animationsOn,
-        setAnimationsOn,
-        cfg,
-      }}
+      value={value}
     >
       {children}
     </GameContext.Provider>

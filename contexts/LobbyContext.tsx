@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
   collection,
   doc,
@@ -42,7 +42,7 @@ interface LobbyContextValue {
   refreshActiveRoomHint: () => void;
 
   publicRooms: RoomDoc[];
-  searchRooms: (filters?: RoomFilters) => void;
+  searchRooms: (filters?: RoomFilters) => () => void;
   findAvailableRoom: (filters?: RoomFilters) => Promise<RoomDoc | null>;
 }
 
@@ -118,6 +118,11 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
       console.error("[LobbyContext] searchRooms error:", err);
       setRoomError("Impossible de charger les salles disponibles.");
     });
+    return () => {
+      unsubPublic.current?.();
+      unsubPublic.current = null;
+      setPublicRooms([]);
+    };
   }, []);
 
   const findAvailableRoom = useCallback(async (filters: RoomFilters = {}): Promise<RoomDoc | null> => {
@@ -149,14 +154,13 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     }
   }, [user]);
 
-  /* Démarrer l'écoute publique au mount */
+  /* La liste publique est activée uniquement par l'écran de recherche. */
   useEffect(() => {
-    searchRooms();
     return () => {
       unsubPublic.current?.();
       unsubRoom.current?.();
     };
-  }, [searchRooms]);
+  }, []);
 
   /* ── Si currentRoom passe à "playing" → nettoyage ── */
   useEffect(() => {
@@ -347,25 +351,15 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     await callBackend("startGame", { roomId: currentRoom.id });
   }, [user, currentRoom]);
 
+  const value = useMemo<LobbyContextValue>(() => ({
+    currentRoom, roomError, clearError, createRoom, joinRoomByCode, joinRoomById,
+    leaveRoom, setReady, startGame, resumeActiveRoom, activeRoomHint,
+    refreshActiveRoomHint, publicRooms, searchRooms, findAvailableRoom,
+  }), [currentRoom, roomError, clearError, createRoom, joinRoomByCode, joinRoomById, leaveRoom, setReady, startGame, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, publicRooms, searchRooms, findAvailableRoom]);
+
   return (
     <LobbyContext.Provider
-      value={{
-        currentRoom,
-        roomError,
-        clearError,
-        createRoom,
-        joinRoomByCode,
-        joinRoomById,
-        leaveRoom,
-        setReady,
-        startGame,
-        resumeActiveRoom,
-        activeRoomHint,
-        refreshActiveRoomHint,
-        publicRooms,
-        searchRooms,
-        findAvailableRoom,
-      }}
+      value={value}
     >
       {children}
     </LobbyContext.Provider>

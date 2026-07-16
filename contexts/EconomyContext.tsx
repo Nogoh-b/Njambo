@@ -42,6 +42,7 @@ interface EconomyContextValue {
 }
 
 const EconomyContext = createContext<EconomyContextValue | null>(null);
+const InventoryContext = createContext<InventoryState | null>(null);
 
 function idempotencyKey(prefix: string) {
   return `${prefix}_${crypto.randomUUID()}`;
@@ -112,11 +113,21 @@ export function EconomyProvider({ children }: { children: ReactNode }) {
   }, [rawEnergy]);
 
   const value = useMemo(() => ({ economy, inventory, rank, pendingBoosterOpening, loading, error, refresh, command }), [economy, inventory, rank, pendingBoosterOpening, loading, error, refresh, command]);
-  return <EconomyContext.Provider value={value}>{children}</EconomyContext.Provider>;
+  return (
+    <EconomyContext.Provider value={value}>
+      <InventoryContext.Provider value={inventory}>{children}</InventoryContext.Provider>
+    </EconomyContext.Provider>
+  );
 }
 
 export function useEconomy() {
   const value = useContext(EconomyContext);
   if (!value) throw new Error("useEconomy doit être utilisé sous <EconomyProvider>");
+  return value;
+}
+
+export function useInventory() {
+  const value = useContext(InventoryContext);
+  if (!value) throw new Error("useInventory doit être utilisé sous <EconomyProvider>");
   return value;
 }

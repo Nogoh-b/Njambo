@@ -25,7 +25,7 @@ export function OnlineSetupScreen() {
   const { user } = useAuth();
   const { economy } = useEconomy();
   const motion = useMotionProfile();
-  const { createRoom, joinRoomById, findAvailableRoom, publicRooms, roomError, clearError } = useLobby();
+  const { createRoom, joinRoomById, findAvailableRoom, publicRooms, searchRooms, roomError, clearError } = useLobby();
   const [playerSearch, setPlayerSearch] = useState("");
   const [players, setPlayers] = useState<PublicPlayerProfile[]>([]);
   const [selectedStake, setSelectedStake] = useState(cfg.stakes[1]);
@@ -33,6 +33,8 @@ export function OnlineSetupScreen() {
   const [busy, setBusy] = useState(false);
   const canPayEnergy = economy?.energy.unlimited || (economy?.energy.available ?? 0) >= 10;
   const canPayStake = (economy?.nkap ?? 0) >= selectedStake;
+
+  useEffect(() => searchRooms(), [searchRooms]);
   const canStart = Boolean(user && !user.isAnonymous && canPayEnergy && canPayStake);
 
   useEffect(() => {

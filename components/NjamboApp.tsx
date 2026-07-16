@@ -1,38 +1,47 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { sceneVariants, useMotionProfile } from "@/lib/motion";
+import { MotionProfileProvider, sceneVariants, useMotionProfile } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
+import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
+import { GAME_CONFIG } from "@/config/gameConfig";
+import { PerformanceHud } from "@/components/perf/PerformanceHud";
+import { markPerformance } from "@/lib/performanceMetrics";
 import { EconomyProvider } from "@/contexts/EconomyContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { SplashScreen } from "@/components/scenes/SplashScreen";
 import { MenuScreen } from "@/components/scenes/MenuScreen";
-import { BotSetupScreen } from "@/components/scenes/BotSetupScreen";
-import { OnlineSetupScreen } from "@/components/scenes/OnlineSetupScreen";
-import { FriendsSetupScreen } from "@/components/scenes/FriendsSetupScreen";
-import { LobbyScreen } from "@/components/scenes/LobbyScreen";
-import { TableScreen } from "@/components/scenes/TableScreen";
-import { ResultScreen } from "@/components/scenes/ResultScreen";
-import { ProfileScreen } from "@/components/scenes/ProfileScreen";
-import { LeaderboardScreen } from "@/components/scenes/LeaderboardScreen";
-import { FriendsScreen } from "@/components/scenes/FriendsScreen";
-import { PlayersScreen } from "@/components/scenes/PlayersScreen";
-import { FriendRequestsScreen } from "@/components/scenes/FriendRequestsScreen";
-import { NotificationsScreen } from "@/components/scenes/NotificationsScreen";
-import { MessagesScreen } from "@/components/scenes/MessagesScreen";
-import { ChatScreen } from "@/components/scenes/ChatScreen";
-import { PublicProfileScreen } from "@/components/scenes/PublicProfileScreen";
-import { OptionsScreen } from "@/components/scenes/OptionsScreen";
-import { HistoryScreen } from "@/components/scenes/HistoryScreen";
-import { RulesScreen } from "@/components/scenes/RulesScreen";
-import { PowerCollectionScreen } from "@/components/scenes/PowerCollectionScreen";
-import { PlayHubScreen } from "@/components/scenes/PlayHubScreen";
-import { ShopScreen } from "@/components/scenes/ShopScreen";
-import { EventsScreen } from "@/components/scenes/EventsScreen";
-import { WalletScreen } from "@/components/scenes/WalletScreen";
 import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/types/game";
+
+const loading = () => null;
+const BotSetupScreen = dynamic(() => import("@/components/scenes/BotSetupScreen").then((module) => module.BotSetupScreen), { loading });
+const OnlineSetupScreen = dynamic(() => import("@/components/scenes/OnlineSetupScreen").then((module) => module.OnlineSetupScreen), { loading });
+const FriendsSetupScreen = dynamic(() => import("@/components/scenes/FriendsSetupScreen").then((module) => module.FriendsSetupScreen), { loading });
+const LobbyScreen = dynamic(() => import("@/components/scenes/LobbyScreen").then((module) => module.LobbyScreen), { loading });
+const TableScreen = dynamic(() => import("@/components/scenes/TableScreen").then((module) => module.TableScreen), { loading });
+const ResultScreen = dynamic(() => import("@/components/scenes/ResultScreen").then((module) => module.ResultScreen), { loading });
+const ProfileScreen = dynamic(() => import("@/components/scenes/ProfileScreen").then((module) => module.ProfileScreen), { loading });
+const LeaderboardScreen = dynamic(() => import("@/components/scenes/LeaderboardScreen").then((module) => module.LeaderboardScreen), { loading });
+const FriendsScreen = dynamic(() => import("@/components/scenes/FriendsScreen").then((module) => module.FriendsScreen), { loading });
+const PlayersScreen = dynamic(() => import("@/components/scenes/PlayersScreen").then((module) => module.PlayersScreen), { loading });
+const FriendRequestsScreen = dynamic(() => import("@/components/scenes/FriendRequestsScreen").then((module) => module.FriendRequestsScreen), { loading });
+const NotificationsScreen = dynamic(() => import("@/components/scenes/NotificationsScreen").then((module) => module.NotificationsScreen), { loading });
+const MessagesScreen = dynamic(() => import("@/components/scenes/MessagesScreen").then((module) => module.MessagesScreen), { loading });
+const ChatScreen = dynamic(() => import("@/components/scenes/ChatScreen").then((module) => module.ChatScreen), { loading });
+const PublicProfileScreen = dynamic(() => import("@/components/scenes/PublicProfileScreen").then((module) => module.PublicProfileScreen), { loading });
+const OptionsScreen = dynamic(() => import("@/components/scenes/OptionsScreen").then((module) => module.OptionsScreen), { loading });
+const HistoryScreen = dynamic(() => import("@/components/scenes/HistoryScreen").then((module) => module.HistoryScreen), { loading });
+const RulesScreen = dynamic(() => import("@/components/scenes/RulesScreen").then((module) => module.RulesScreen), { loading });
+const PowerCollectionScreen = dynamic(() => import("@/components/scenes/PowerCollectionScreen").then((module) => module.PowerCollectionScreen), { loading });
+const PlayHubScreen = dynamic(() => import("@/components/scenes/PlayHubScreen").then((module) => module.PlayHubScreen), { loading });
+const ShopScreen = dynamic(() => import("@/components/scenes/ShopScreen").then((module) => module.ShopScreen), { loading });
+const EventsScreen = dynamic(() => import("@/components/scenes/EventsScreen").then((module) => module.EventsScreen), { loading });
+const WalletScreen = dynamic(() => import("@/components/scenes/WalletScreen").then((module) => module.WalletScreen), { loading });
+
+const SCENE_TRANSITION_MS = GAME_CONFIG.anim.navigation;
 
 /* ═══════════════ SceneRouter ═══════════════
    Orchestrateur de scènes : gère la navigation
@@ -41,7 +50,8 @@ import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/typ
    ResultScreen s'affiche en overlay plein écran quand un résultat est prêt. */
 
 function SceneRouter() {
-  const { scene, navigateTo, endTransition, profile, setProfile, cfg, animationsOn } = useGame();
+  const { scene, navigateTo, endTransition, profile, setProfile, cfg } = useGame();
+  const { animationsOn } = useSettings();
   const motionProfile = useMotionProfile();
   const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, leaveRoom } = useLobby();
   const { user } = useAuth();
@@ -57,12 +67,17 @@ function SceneRouter() {
   const [gameActive, setGameActive] = useState(false);
   /* Ref vers nextRound de TableScreen pour le bouton "manche suivante" */
   const nextRoundRef = useRef<(() => void) | null>(null);
+  const tableEntryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* Dérivés du lobby (partagés via LobbyContext) */
   const isRoomMode = gameMode === "online" || gameMode === "friends";
   const roomId = currentRoom?.id ?? null;
   const roomPlayers = currentRoom?.players ?? [];
   const roomHostId = currentRoom?.hostId ?? "";
+
+  useEffect(() => {
+    markPerformance(`navigation:${scene}`);
+  }, [scene]);
 
   useEffect(() => {
     if (!user) return;
@@ -73,6 +88,26 @@ function SceneRouter() {
     }));
   }, [setProfile, user]);
 
+  useEffect(() => {
+    if (["play", "bot_setup", "online_setup", "friends_invite", "lobby", "events"].includes(scene)) {
+      void import("@/components/scenes/TableScreen");
+      void import("@/components/scenes/ResultScreen");
+    }
+  }, [scene]);
+
+  useEffect(() => () => {
+    if (tableEntryTimerRef.current) clearTimeout(tableEntryTimerRef.current);
+  }, []);
+
+  const enterTable = useCallback(() => {
+    if (tableEntryTimerRef.current) clearTimeout(tableEntryTimerRef.current);
+    navigateTo("table");
+    tableEntryTimerRef.current = setTimeout(() => {
+      tableEntryTimerRef.current = null;
+      setGameActive(true);
+    }, animationsOn ? SCENE_TRANSITION_MS : 0);
+  }, [animationsOn, navigateTo]);
+
   /* --- Bot setup --- */
   const handleBotStart = useCallback((botCount: number, mise: number, difficulty: BotDifficulty = "normal") => {
     setGameMode("bot");
@@ -80,9 +115,8 @@ function SceneRouter() {
     setGameDifficulty(difficulty);
     setGameMise(mise);
     setGameResult(null);
-    setGameActive(true);
-    navigateTo("table");
-  }, [navigateTo]);
+    enterTable();
+  }, [enterTable]);
 
   /* --- Game starts from lobby --- */
   const startOnlineGame = useCallback((room: RoomDoc | null | undefined) => {
@@ -90,9 +124,8 @@ function SceneRouter() {
     setGameMode(room.roomType === "friends" ? "friends" : "online");
     setGameMise(room.stake);
     setGameResult(null);
-    setGameActive(true);
-    navigateTo("table");
-  }, [navigateTo]);
+    enterTable();
+  }, [enterTable]);
 
   const handleGameStart = useCallback(() => {
     startOnlineGame(currentRoom);
@@ -104,9 +137,8 @@ function SceneRouter() {
     setGameMise(0);
     setGameBotCount(3);
     setGameResult(null);
-    setGameActive(true);
-    navigateTo("table");
-  }, [navigateTo]);
+    enterTable();
+  }, [enterTable]);
 
   const handleResumeGame = useCallback(async () => {
     const room = currentRoom?.status === "playing" ? currentRoom : await resumeActiveRoom();
@@ -130,6 +162,7 @@ function SceneRouter() {
 
   /* --- Résultat de partie --- */
   const handleResult = useCallback((result: Result) => {
+    markPerformance("result");
     setGameResult(result);
     // Aucun solde ni résultat n'est calculé ou persisté par le client.
     // La Function a déjà réglé un compte; l'invité reste en entraînement local.
@@ -192,7 +225,7 @@ function SceneRouter() {
         style={{ minHeight: "100vh", position: "relative" }}
       >
         {motionProfile.enabled ? (
-          <AnimatePresence mode="wait" onExitComplete={endTransition}>
+          <AnimatePresence initial={false} onExitComplete={endTransition}>
             <motion.div
               key={scene}
               variants={sceneVariants}
@@ -228,6 +261,7 @@ function SceneRouter() {
           }}
           onMenu={handleMenu}
           onNextRoundRef={nextRoundRef}
+          paused={Boolean(gameResult)}
         />
       )}
 
@@ -243,6 +277,7 @@ function SceneRouter() {
           socialPlayers={gameMode === "bot" ? [] : roomPlayers as RoomPlayer[]}
         />
       )}
+      <PerformanceHud />
       </div>
     </MotionConfig>
   );
@@ -253,11 +288,15 @@ export default function NjamboApp() {
   return (
     <AuthProvider>
       <EconomyProvider>
-        <GameProvider>
-          <LobbyProvider>
-            <SceneRouter />
-          </LobbyProvider>
-        </GameProvider>
+        <SettingsProvider>
+          <GameProvider>
+            <MotionProfileProvider>
+              <LobbyProvider>
+                <SceneRouter />
+              </LobbyProvider>
+            </MotionProfileProvider>
+          </GameProvider>
+        </SettingsProvider>
       </EconomyProvider>
     </AuthProvider>
   );

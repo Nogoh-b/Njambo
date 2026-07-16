@@ -607,10 +607,14 @@ export interface GameConfig {
   winnerPlaysLastNextRound: boolean;
   firstLeaderIndex: number;
   anim: {
+    navigation: number;
+    roundIntro: number;
     dealPerCard: number;
     dealFlight: number;
     dropFlight: number;
     trickPause: number;
+    moment: number;
+    powerMax: number;
     /** Beat de « pose » après l'atterrissage d'une carte, avant l'annonce (ms) */
     landSettle: number;
     /** Temps de lecture du FX d'une carte pouvoir avant que le bot ne joue (ms) */

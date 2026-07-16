@@ -1,9 +1,18 @@
 "use client";
 
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { createContext, createElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
-import { useGame } from "@/contexts/GameContext";
+import { useSettings } from "@/contexts/SettingsContext";
+import { GAME_CONFIG } from "@/config/gameConfig";
+import {
+  lowerMotionLevel,
+  lowestMotionLevel,
+  preferenceMotionLevel,
+  shouldDegradeMotion,
+  type MotionCapabilities,
+  type MotionLevel,
+} from "@/lib/motionPolicy";
 
 /* ═══════════════ FILE: lib/motion.ts ═══════════════
    Fondation transversale du système d'animation (Framer Motion + GSAP + tsparticles).
@@ -11,7 +20,7 @@ import { useGame } from "@/contexts/GameContext";
    le toggle utilisateur `animationsOn` ET la préférence système `prefers-reduced-motion`. */
 
 /** Vrai si les animations doivent jouer : toggle app activé ET pas de reduced-motion système. */
-export type MotionLevel = "full" | "balanced" | "lite";
+export type { MotionLevel } from "@/lib/motionPolicy";
 
 export interface MotionProfile {
   enabled: boolean;
@@ -23,12 +32,7 @@ export interface MotionProfile {
   allowLongCascade: boolean;
 }
 
-interface MotionEnv {
-  width: number;
-  height: number;
-  hardwareConcurrency: number;
-  deviceMemory: number | null;
-}
+type MotionEnv = MotionCapabilities;
 
 /** Env par défaut, utilisé au SSR ET au premier rendu client (hydration-safe).
     Donne le niveau "balanced" — la vraie mesure arrive après montage. */
@@ -47,24 +51,10 @@ function getMotionEnv(): MotionEnv {
   };
 }
 
-function deriveMotionLevel({ width, height, hardwareConcurrency, deviceMemory }: MotionEnv): MotionLevel {
-  const smallestSide = Math.min(width, height);
-  const isCompact = width < 640 || smallestSide < 430;
-  const lowCpu = hardwareConcurrency <= 4;
-  const mediumCpu = hardwareConcurrency <= 6;
-  // navigator.deviceMemory est PLAFONNÉ à 8 par Chrome : `<= 8` serait toujours
-  // vrai et rendrait le niveau "full" inatteignable. Seuils réels : ≤2 = bas,
-  // ≤4 = moyen ; 8 (= plafond) compte comme confortable.
-  const lowMemory = deviceMemory != null && deviceMemory <= 2;
-  const mediumMemory = deviceMemory != null && deviceMemory <= 4;
+const MotionProfileContext = createContext<MotionProfile | null>(null);
 
-  if ((isCompact && (lowCpu || lowMemory)) || (lowCpu && lowMemory)) return "lite";
-  if (isCompact || mediumCpu || mediumMemory) return "balanced";
-  return "full";
-}
-
-export function useMotionProfile(): MotionProfile {
-  const { animationsOn } = useGame();
+export function MotionProfileProvider({ children }: { children: ReactNode }) {
+  const { animationsOn, motionQuality } = useSettings();
   const prefersReducedRaw = useReducedMotion();
   // HYDRATION : le premier rendu client doit produire le MÊME HTML que le SSR
   // (le niveau de motion finit dans des className et styles inline). Les
@@ -72,6 +62,7 @@ export function useMotionProfile(): MotionProfile {
   // ne sont donc lus qu'APRÈS montage ; le profil réel s'applique au re-render.
   const [env, setEnv] = useState<MotionEnv>(SSR_MOTION_ENV);
   const [mounted, setMounted] = useState(false);
+  const [runtimeLevel, setRuntimeLevel] = useState<MotionLevel | null>(null);
 
   useEffect(() => {
     setMounted(true);
@@ -86,9 +77,41 @@ export function useMotionProfile(): MotionProfile {
     };
   }, []);
 
+  const selectedLevel = useMemo<MotionLevel>(() => {
+    return preferenceMotionLevel(motionQuality, env);
+  }, [env, motionQuality]);
+
+  useEffect(() => {
+    if (motionQuality !== "auto") {
+      setRuntimeLevel(null);
+      return;
+    }
+    if (!mounted || !animationsOn) return;
+    let animationFrame = 0;
+    const startedAt = performance.now();
+    let previous = startedAt;
+    let total = 0;
+    let slow = 0;
+    const sample = (now: number) => {
+      const delta = now - previous;
+      previous = now;
+      if (total > 0 && delta > 25) slow += 1;
+      total += 1;
+      if (now - startedAt >= 3_000) {
+        if (shouldDegradeMotion(total, slow)) {
+          setRuntimeLevel((current) => lowerMotionLevel(current ?? selectedLevel));
+        }
+        return;
+      }
+      animationFrame = requestAnimationFrame(sample);
+    };
+    animationFrame = requestAnimationFrame(sample);
+    return () => cancelAnimationFrame(animationFrame);
+  }, [animationsOn, motionQuality, mounted, selectedLevel]);
+
   const prefersReduced = mounted ? prefersReducedRaw : false;
 
-  return useMemo(() => {
+  const value = useMemo(() => {
     if (!animationsOn || prefersReduced) {
       return {
         enabled: false,
@@ -101,7 +124,7 @@ export function useMotionProfile(): MotionProfile {
       };
     }
 
-    const level = deriveMotionLevel(env);
+    const level = runtimeLevel ? lowestMotionLevel(runtimeLevel, selectedLevel) : selectedLevel;
     return {
       enabled: true,
       level,
@@ -111,7 +134,15 @@ export function useMotionProfile(): MotionProfile {
       allowEntranceCascade: level !== "lite",
       allowLongCascade: level === "full",
     };
-  }, [animationsOn, env, prefersReduced]);
+  }, [animationsOn, prefersReduced, runtimeLevel, selectedLevel]);
+
+  return createElement(MotionProfileContext.Provider, { value }, children);
+}
+
+export function useMotionProfile(): MotionProfile {
+  const value = useContext(MotionProfileContext);
+  if (!value) throw new Error("useMotionProfile doit être utilisé sous MotionProfileProvider");
+  return value;
 }
 
 export function useMotionEnabled(): boolean {
@@ -193,18 +224,14 @@ export const useIsomorphicLayoutEffect =
 
 /** Transition de scène : fondu + légère montée (cohérent avec riseIn/sceneFadeIn). */
 export const sceneVariants: Variants = {
-  out: { opacity: 0, y: 14, scale: 0.985 },
+  out: { opacity: 0 },
   in: {
     opacity: 1,
-    y: 0,
-    scale: 1,
-    transition: { duration: 0.32, ease: [0.22, 0.85, 0.3, 1] },
+    transition: { duration: GAME_CONFIG.anim.navigation / 1000, ease: [0.22, 0.85, 0.3, 1] },
   },
   exit: {
     opacity: 0,
-    y: -10,
-    scale: 0.99,
-    transition: { duration: 0.22, ease: [0.4, 0, 1, 1] },
+    transition: { duration: GAME_CONFIG.anim.navigation / 1000, ease: [0.4, 0, 1, 1] },
   },
 };
 

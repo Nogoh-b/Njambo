@@ -26,7 +26,7 @@ import type {
   ActivePowerEffect, Card, GameState, Player, PowerCardActivation, PowerCardId,
 } from "../../types/game";
 
-const POWER_ANIMATION_BUDGET_MS = 8_000;
+const POWER_ANIMATION_BUDGET_MS = GAME_CONFIG.anim.powerMax;
 
 /* ── État moteur persisté par match ── */
 

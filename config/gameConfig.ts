@@ -25,14 +25,16 @@ export const GAME_CONFIG: GameConfig = {
   winnerPlaysLastNextRound: true,
   firstLeaderIndex: 0,
   anim: {
-    // vitesses d'animation (ms) — réglables. Cadence « posée » : chaque action
-    // respire (vol → pose → settle → annonce → pause → coup suivant).
-    dealPerCard: 175, // décalage entre chaque carte distribuée
-    dealFlight: 720, // durée du vol d'une carte à la donne
-    dropFlight: 500, // durée du vol main → dépôt (vif)
-    trickPause: 2200, // pause après résolution d'un tour (contient pose+settle+moment)
-    landSettle: 260, // beat de pose avant l'annonce du gagnant
-    powerBeat: 900, // lecture du FX carte pouvoir avant le coup du bot
+    navigation: 160,
+    roundIntro: 1200,
+    dealPerCard: 80,
+    dealFlight: 420,
+    dropFlight: 380,
+    trickPause: 950,
+    moment: 1100,
+    powerMax: 1600,
+    landSettle: 140,
+    powerBeat: 500,
     // Cadence du REPLAY serveur (AuthoritativeGameSync) : "réflexion" simulée
     // avant chaque coup adverse d'un batch. Plus court que le bot local
     // (le coup est déjà décidé). La deadline serveur inclut séparément tout

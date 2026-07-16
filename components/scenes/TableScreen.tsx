@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 
 import { PlayCard } from "@/components/cards/PlayCard";
 import { PowerCardView } from "@/components/power/PowerCardView";
@@ -16,10 +16,11 @@ import { ZoneRegistry, ZoneRegistryProvider } from "@/components/table/zones/Zon
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { Chip } from "@/components/ui/Chip";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
+import { GAME_CONFIG } from "@/config/gameConfig";
 import { DEV, devEquippedPowers } from "@/config/devConfig";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
-import { useEconomy } from "@/contexts/EconomyContext";
+import { useInventory } from "@/contexts/EconomyContext";
 import { BOTS, NKAP } from "@/data/mock";
 import { powerRequiresTarget as requiresTarget, powerScriptOf } from "@/config/powers";
 import { selectInHand } from "@/engine/power/selectors";
@@ -33,6 +34,7 @@ import type {
 import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
 import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
+import { markPerformance, recordBoardRender } from "@/lib/performanceMetrics";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
 import { LocalGameSync } from "@/sync/LocalGameSync";
 import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
@@ -43,6 +45,7 @@ import type {
   GameState,
   GameSyncActions,
   Phase,
+  Player,
   PowerCardId,
   Result,
   RoomPlayer,
@@ -67,6 +70,7 @@ interface TableScreenProps {
   roomHostId?: string;
   eventRunId?: string;
   onNextRoundRef: { current: (() => void) | null };
+  paused?: boolean;
 }
 
 interface CardBurst {
@@ -99,26 +103,181 @@ interface MomentOverlay {
   durationMs?: number;
 }
 
+interface ReactionBubble {
+  key: string;
+  uiIdx: number;
+  emoji: string;
+}
+
+class TurnTimerStore {
+  private seconds: number;
+  private readonly listeners = new Set<() => void>();
+
+  constructor(initialSeconds: number) {
+    this.seconds = initialSeconds;
+  }
+
+  getSnapshot = () => this.seconds;
+
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  set(seconds: number) {
+    if (seconds === this.seconds) return;
+    this.seconds = seconds;
+    this.listeners.forEach((listener) => listener());
+  }
+}
+
+interface TimerAvatarProps {
+  store: TurnTimerStore;
+  player: Player;
+  seatIdx: number;
+  active: boolean;
+  turnSeconds: number;
+  size: number;
+  className: string;
+  style: CSSProperties;
+  motionEnabled: boolean;
+}
+
+const TimerAvatar = memo(function TimerAvatar({
+  store,
+  player,
+  seatIdx,
+  active,
+  turnSeconds,
+  size,
+  className,
+  style,
+  motionEnabled,
+}: TimerAvatarProps) {
+  const seconds = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
+  return (
+    <div
+      className={`${className}${motionEnabled && active && seconds <= 5 ? " nj-avatar-seat-urgent" : ""}`}
+      style={style}
+    >
+      <Avatar
+        p={player}
+        seatIdx={seatIdx}
+        active={active}
+        seconds={active ? seconds : turnSeconds}
+        turnSeconds={turnSeconds}
+        size={size}
+      />
+    </div>
+  );
+});
+
+interface TransientSnapshot {
+  flights: Flight[];
+  cardBursts: CardBurst[];
+  reactionBubbles: ReactionBubble[];
+}
+
+class TransientAnimationStore {
+  private snapshot: TransientSnapshot = { flights: [], cardBursts: [], reactionBubbles: [] };
+  private readonly listeners = new Set<() => void>();
+
+  getSnapshot = () => this.snapshot;
+
+  subscribe = (listener: () => void) => {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  };
+
+  private update(next: Partial<TransientSnapshot>) {
+    this.snapshot = { ...this.snapshot, ...next };
+    this.listeners.forEach((listener) => listener());
+  }
+
+  setFlights = (updater: (current: Flight[]) => Flight[]) => {
+    this.update({ flights: updater(this.snapshot.flights) });
+  };
+
+  setCardBursts = (updater: (current: CardBurst[]) => CardBurst[]) => {
+    this.update({ cardBursts: updater(this.snapshot.cardBursts) });
+  };
+
+  setReactionBubbles = (updater: (current: ReactionBubble[]) => ReactionBubble[]) => {
+    this.update({ reactionBubbles: updater(this.snapshot.reactionBubbles) });
+  };
+
+  clear() {
+    this.update({ flights: [], cardBursts: [], reactionBubbles: [] });
+  }
+}
+
+const TransientAnimationLayer = memo(function TransientAnimationLayer({
+  store,
+  motionEnabled,
+  liteMotion,
+  reactionPosition,
+}: {
+  store: TransientAnimationStore;
+  motionEnabled: boolean;
+  liteMotion: boolean;
+  reactionPosition: (uiIdx: number) => { left: string; top: string };
+}) {
+  const { flights, cardBursts, reactionBubbles } = useSyncExternalStore(
+    store.subscribe,
+    store.getSnapshot,
+    store.getSnapshot,
+  );
+
+  return (
+    <>
+      {flights.map((flight) => (
+        <FlyingCard key={flight.key} f={flight} effects={motionEnabled && !liteMotion} />
+      ))}
+      {motionEnabled && !liteMotion && cardBursts.map((burst) => (
+        <div
+          key={burst.key}
+          className="nj-card-burst"
+          style={{ left: burst.left, top: burst.top, "--burst-tone": burst.tone } as CSSProperties}
+          aria-hidden="true"
+        >
+          <span /><span /><span /><span />
+        </div>
+      ))}
+      {reactionBubbles.map((bubble) => {
+        const position = reactionPosition(bubble.uiIdx);
+        return (
+          <div
+            key={bubble.key}
+            style={{
+              position: "absolute",
+              left: position.left,
+              top: position.top,
+              transform: "translate(-50%,-140%)",
+              zIndex: 55,
+              pointerEvents: "none",
+            }}
+            aria-hidden="true"
+          >
+            <span className="nj-reaction-bubble" style={{ animation: "reactionFloat 2.4s ease-out both" }}>
+              {bubble.emoji}
+            </span>
+          </div>
+        );
+      })}
+    </>
+  );
+});
+
 interface MomentOverlayRequest {
   moment: Omit<MomentOverlay, "key">;
   duration: number;
 }
 
-function readEnvDurationMs(name: string, fallback: number): number {
-  const raw = process.env[name];
-  const parsed = Number(raw);
-  if (!Number.isFinite(parsed)) return fallback;
-  return Math.max(900, Math.min(6000, Math.round(parsed)));
-}
-
-const TABLE_READABILITY_MS = readEnvDurationMs("NEXT_PUBLIC_NJ_TABLE_READABILITY_MS", 2200);
-const ROUND_INTRO_MS = TABLE_READABILITY_MS + 250;
-const MOMENT_DEFAULT_MS = TABLE_READABILITY_MS;
-const TABLE_REACTION_MS = Math.max(1400, TABLE_READABILITY_MS - 150);
-const POWER_OVERLAY_MS = readEnvDurationMs(
-  "NEXT_PUBLIC_NJ_POWER_OVERLAY_MS",
-  TABLE_READABILITY_MS + 700,
-);
+const TABLE_READABILITY_MS = GAME_CONFIG.anim.moment;
+const ROUND_INTRO_MS = GAME_CONFIG.anim.roundIntro;
+const MOMENT_DEFAULT_MS = GAME_CONFIG.anim.moment;
+const TABLE_REACTION_MS = GAME_CONFIG.anim.moment;
+const POWER_OVERLAY_MS = GAME_CONFIG.anim.powerMax;
 
 function isLiteMotion(level: MotionLevel): boolean {
   return level === "lite";
@@ -237,7 +396,13 @@ export function TableScreen({
   roomHostId,
   eventRunId,
   onNextRoundRef,
+  paused = false,
 }: TableScreenProps) {
+  useEffect(() => {
+    markPerformance("table:mount");
+    return () => markPerformance("table:unmount");
+  }, []);
+  useEffect(() => recordBoardRender());
   const { profile, cfg, sfx } = useGame();
   const motion = useMotionProfile();
   const { user: authUser } = useAuth();
@@ -246,7 +411,7 @@ export function TableScreen({
      sync et le sourcing des pouvoirs équipés — s'ils divergent, on afficherait
      des pouvoirs locaux sur un match serveur (→ POWER_NOT_EQUIPPED). */
   const isLocalSync = gameMode === "bot" && (!authUser || authUser.isAnonymous);
-  const { inventory: serverInventory } = useEconomy();
+  const serverInventory = useInventory();
   const A = cfg.anim;
   const mise = initialMise;
   const roomPlayersKey = roomPlayers?.map((p) => p.uid).join("|") ?? "";
@@ -286,8 +451,12 @@ export function TableScreen({
   });
 
   /* ----- État d'animation (local au TableScreen) ----- */
-  const [flights, setFlights] = useState<Flight[]>([]);
-  const [cardBursts, setCardBursts] = useState<CardBurst[]>([]);
+  const transientStoreRef = useRef<TransientAnimationStore | null>(null);
+  if (!transientStoreRef.current) transientStoreRef.current = new TransientAnimationStore();
+  const transientStore = transientStoreRef.current;
+  const setFlights = transientStore.setFlights;
+  const setCardBursts = transientStore.setCardBursts;
+  const setReactionBubbles = transientStore.setReactionBubbles;
   const [roundIntro, setRoundIntro] = useState(false);
   const [momentOverlay, setMomentOverlay] = useState<MomentOverlay | null>(null);
   const [tableReaction, setTableReaction] = useState<TableReaction | null>(null);
@@ -303,7 +472,9 @@ export function TableScreen({
   } | null>(null);
   /* Confirmation avant de quitter une partie EN COURS (abandon + retour menu). */
   const [confirmQuit, setConfirmQuit] = useState(false);
-  const [seconds, setSeconds] = useState(cfg.turnSeconds);
+  const timerStoreRef = useRef<TurnTimerStore | null>(null);
+  if (!timerStoreRef.current) timerStoreRef.current = new TurnTimerStore(cfg.turnSeconds);
+  const timerStore = timerStoreRef.current;
   const [syncStatus, setSyncStatus] = useState<SyncStatus>({
     state: gameMode === "bot" ? "live" : "connecting",
     updatedAt: Date.now(),
@@ -354,6 +525,10 @@ export function TableScreen({
 
   /* ----- Dérivés de l'état ----- */
   const { players, phase, trickNo, trickPlays, turnIdx, pot, dominantIdx } = gameState;
+  useEffect(() => {
+    if (phase === "dealing") markPerformance("distribution:start");
+    if (phase === "turns") markPerformance("distribution:ready");
+  }, [phase]);
   const n = players.length;
   const expectedPlayerCount = n || (gameMode === "bot" || gameMode === "event" ? initialBotCount + 1 : roomPlayers?.length ?? 0);
   const displayedPot = roundIntro ? mise * Math.max(expectedPlayerCount, 1) : pot;
@@ -367,7 +542,10 @@ export function TableScreen({
   const ledSuit: string | null = trickPlays[0]?.card.suit ?? null;
   const ledInfo: Suit | undefined = ledSuit ? cfg.suits.find((s) => s.s === ledSuit) : undefined;
   const isYourTurn = phase === "turns" && turnIdx === 0;
-  const yourLegal = you && isYourTurn ? legalCards(you.hand, ledSuit) : null;
+  const yourLegal = useMemo(
+    () => you && isYourTurn ? legalCards(you.hand, ledSuit) : null,
+    [isYourTurn, ledSuit, you],
+  );
 
   /* Quitter : confirmation quand une partie est EN COURS ; sinon retour direct.
      En ligne, la confirmation serveur précède toujours le retour au menu. */
@@ -390,7 +568,7 @@ export function TableScreen({
   const liteMotion = isLiteMotion(motionLevel);
   const balancedMotion = isBalancedMotion(motionLevel);
   const premiumFxAllowed = motionLevel === "full";
-  const baseTableFx = roundIntro || phase === "dealing" || flights.length > 0 || !!momentOverlay || !!tableReaction;
+  const baseTableFx = roundIntro || phase === "dealing" || !!momentOverlay || !!tableReaction;
   const getYourDropRect = useCallback(() => registryRef.current?.deposit(0)?.getRect() ?? null, []);
 
   useEffect(() => {
@@ -666,7 +844,7 @@ export function TableScreen({
       }, A.dropFlight);
       burstTimersRef.current.push(timer);
     });
-  }, [A.dropFlight, depW]);
+  }, [A.dropFlight, depW, setFlights]);
 
   const beginStateTransition = useCallback(() => {
     if (powerTransitionDepthRef.current === 0) {
@@ -678,8 +856,8 @@ export function TableScreen({
     }
     powerTransitionDepthRef.current += 1;
     animatingRef.current = true;
-    setSeconds(cfg.turnSeconds);
-  }, [cfg.turnSeconds]);
+    timerStore.set(cfg.turnSeconds);
+  }, [cfg.turnSeconds, timerStore]);
 
   const commitStateTransition = useCallback(() => {
     const pending = pendingPowerStateRef.current;
@@ -878,6 +1056,7 @@ export function TableScreen({
     });
 
     const unsubPlay = sync.onPlayCard(({ playerIdx, cardIdx, card, playId }) => {
+      markPerformance("card:play");
       if (playId) {
         if (animatedPlayIds.has(playId)) return;
         animatedPlayIds.add(playId);
@@ -890,7 +1069,7 @@ export function TableScreen({
 
       if (from && to) {
         animatingRef.current = true;
-        setSeconds(cfg.turnSeconds);
+        timerStore.set(cfg.turnSeconds);
         animationEndsAtRef.current = Date.now() + A.dropFlight;
         const dropRot = Math.random() * 18 - 9;
         handZone?.setHiddenCard(cardIdx);
@@ -984,16 +1163,17 @@ export function TableScreen({
 
     const unsubTimer = sync.onTimerTick((s) => {
       if (animatingRef.current || powerTransitionDepthRef.current > 0) {
-        setSeconds(cfg.turnSeconds);
+        timerStore.set(cfg.turnSeconds);
         return;
       }
-      setSeconds(s);
+      timerStore.set(s);
       if (s <= 5 && playersRef.current[turnIdxRef.current]?.isYou) sfxRef.current((sn) => sn.tick());
     });
 
     const unsubSyncStatus = sync.onSyncStatus(setSyncStatus);
 
     const unsubPower = sync.onPowerActivated((activation) => {
+      markPerformance("power:activate");
       const mine = activation.activatedByUid === "local" || activation.activatedByUid === authUid;
       // `activation.used` peut être FAUX si la carte n'a eu aucun effet (ex :
       // Marché de Nuit sans carte plus forte dans la pioche) — dans ce cas
@@ -1093,8 +1273,7 @@ export function TableScreen({
       pendingPowerStateRef.current = null;
       powerTransitionDepthRef.current = 0;
       animatedPlayIdsRef.current.clear();
-      setFlights([]);
-      setCardBursts([]);
+      transientStore.clear();
       setRoundIntro(false);
       setMomentOverlay(null);
       setTableReaction(null);
@@ -1102,7 +1281,7 @@ export function TableScreen({
       setBanner("");
       setPowerChoiceConfirm(null);
       setConfirmQuit(false);
-      setSeconds(cfg.turnSeconds);
+      timerStore.set(cfg.turnSeconds);
       setUsedPowers(new Set());
       setTargetingCard(null);
       roundRestartPendingRef.current = true;
@@ -1247,7 +1426,6 @@ export function TableScreen({
   /* ----- Réactions émoji (online/friends uniquement) ----- */
   const isOnline = gameMode !== "bot";
   const myUid = authUid;
-  const [reactionBubbles, setReactionBubbles] = useState<{ key: string; uiIdx: number; emoji: string }[]>([]);
   const reactionShownRef = useRef<Set<string>>(new Set());
   const reactionCleanupRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -1258,7 +1436,7 @@ export function TableScreen({
       setReactionBubbles((b) => b.filter((x) => x.key !== key));
     }, 2400);
     reactionCleanupRef.current.push(timer);
-  }, []);
+  }, [setReactionBubbles]);
 
   const handleSendReaction = useCallback((emoji: string) => {
     if (!isOnline || !roomId || !myUid) return;
@@ -1300,7 +1478,11 @@ export function TableScreen({
     <ZoneRegistryProvider registry={zoneRegistry}>
     <div
       ref={tableRootRef}
-      className={activeTableFx ? "nj-table-active-fx" : undefined}
+      className={[
+        activeTableFx ? "nj-table-active-fx" : "",
+        paused ? "nj-table-paused" : "",
+      ].filter(Boolean).join(" ") || undefined}
+      aria-hidden={paused}
       style={{
         position: "fixed",
         inset: 0,
@@ -1519,31 +1701,30 @@ export function TableScreen({
       {players.map((p, i) => {
         const edge = seatEdge(i);
         const active = phase === "turns" && turnIdx === i;
+        const avatarClassName = [
+          "nj-avatar-seat",
+          motionEnabled && active ? "nj-avatar-seat-active" : "",
+          motionEnabled && !liteMotion && roundIntro ? "nj-round-seat-reveal" : "",
+        ].filter(Boolean).join(" ");
+        const avatarStyle = {
+          position: "absolute",
+          zIndex: 40,
+          "--seat-delay": `${i * 110}ms`,
+          ...avatarPos(edge),
+        } as CSSProperties;
         return (
-          <div
+          <TimerAvatar
             key={"av" + p.name}
-            className={[
-              "nj-avatar-seat",
-              motionEnabled && active ? "nj-avatar-seat-active" : "",
-              motionEnabled && active && seconds <= 5 ? "nj-avatar-seat-urgent" : "",
-              motionEnabled && !liteMotion && roundIntro ? "nj-round-seat-reveal" : "",
-            ].filter(Boolean).join(" ")}
-            style={{
-              position: "absolute",
-              zIndex: 40,
-              "--seat-delay": `${i * 110}ms`,
-              ...avatarPos(edge),
-            } as CSSProperties}
-          >
-            <Avatar
-              p={p}
-              seatIdx={i}
-              active={active}
-              seconds={active ? seconds : cfg.turnSeconds}
-              turnSeconds={cfg.turnSeconds}
-              size={p.isYou ? 58 : 50}
-            />
-          </div>
+            store={timerStore}
+            player={p}
+            seatIdx={i}
+            active={active}
+            turnSeconds={cfg.turnSeconds}
+            size={p.isYou ? 58 : 50}
+            className={avatarClassName}
+            style={avatarStyle}
+            motionEnabled={motionEnabled}
+          />
         );
       })}
 
@@ -1664,51 +1845,14 @@ export function TableScreen({
       )}
 
       {/* Cartes en vol */}
-      {flights.map((f) => (
-        <FlyingCard key={f.key} f={f} effects={motionEnabled && !liteMotion} />
-      ))}
-
-      {motionEnabled && !liteMotion && cardBursts.map((burst) => (
-        <div
-          key={burst.key}
-          className="nj-card-burst"
-          style={{
-            left: burst.left,
-            top: burst.top,
-            "--burst-tone": burst.tone,
-          } as CSSProperties}
-          aria-hidden="true"
-        >
-          <span />
-          <span />
-          <span />
-          <span />
-        </div>
-      ))}
+      <TransientAnimationLayer
+        store={transientStore}
+        motionEnabled={motionEnabled}
+        liteMotion={liteMotion}
+        reactionPosition={(uiIdx) => depositPos(seatEdge(uiIdx))}
+      />
 
       {/* Réactions émoji entrantes — bulle flottante près du dépôt de l'auteur */}
-      {reactionBubbles.map((b) => {
-        const dp = depositPos(seatEdge(b.uiIdx));
-        return (
-          <div
-            key={b.key}
-            style={{
-              position: "absolute",
-              left: dp.left,
-              top: dp.top,
-              transform: "translate(-50%,-140%)",
-              zIndex: 55,
-              pointerEvents: "none",
-            }}
-            aria-hidden="true"
-          >
-            <span className="nj-reaction-bubble" style={{ animation: "reactionFloat 2.4s ease-out both" }}>
-              {b.emoji}
-            </span>
-          </div>
-        );
-      })}
-
       {/* Barre d'émojis — parties en ligne / entre amis */}
       {isOnline && (
         <div className="nj-reaction-bar" aria-label="Réactions">
