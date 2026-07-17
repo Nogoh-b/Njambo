@@ -5,6 +5,70 @@ import { GAME_CONFIG } from "@/config/gameConfig";
 import { CEREMONIAL_STRIP, RAFFIA_WEAVE, T } from "@/config/theme";
 import type { Card } from "@/types/game";
 
+const CARD_BASE_STYLE: CSSProperties = {
+  flexShrink: 0,
+  position: "relative",
+  overflow: "hidden",
+};
+
+const CARD_BACK_STYLE: CSSProperties = {
+  border: `2px solid ${T.gold}66`,
+  background: `
+    linear-gradient(180deg, rgba(5,5,12,.06), rgba(5,5,12,.18)),
+    url("/assets/njambo/card-back.webp") center / cover no-repeat,
+    radial-gradient(circle at 50% 38%, ${T.night3}, ${T.night1} 68%)`,
+  backgroundSize: "100% 100%, cover, 100% 100%",
+  backgroundPosition: "center",
+};
+
+const CARD_BACK_INSET_STYLE: CSSProperties = {
+  position: "absolute",
+  inset: 5,
+  border: "1px solid rgba(255,248,232,.18)",
+};
+
+const CEREMONIAL_STRIP_STYLE: CSSProperties = {
+  position: "absolute",
+  left: 0,
+  right: 0,
+  top: "50%",
+  height: 4,
+  transform: "translateY(-50%)",
+  background: CEREMONIAL_STRIP,
+  opacity: 0.78,
+};
+
+const CARD_FACE_STYLE: CSSProperties = {
+  background: `linear-gradient(160deg, ${T.chalk}, ${T.cream})`,
+  border: "1px solid rgba(27,16,16,.22)",
+  display: "flex",
+  flexDirection: "column",
+  justifyContent: "space-between",
+};
+
+const RAFFIA_WEAVE_STYLE: CSSProperties = {
+  position: "absolute",
+  inset: 0,
+  opacity: 0.36,
+  background: RAFFIA_WEAVE(0.22),
+  backgroundSize: "28px 28px, 28px 28px",
+  pointerEvents: "none",
+};
+
+const ROTATED_CORNER_STYLE: CSSProperties = { transform: "rotate(180deg)" };
+
+const CORNER_BASE_STYLE: CSSProperties = {
+  position: "relative",
+  zIndex: 1,
+  display: "inline-flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+  gap: 1,
+  fontFamily: "var(--font-display), Georgia, serif",
+  fontWeight: 900,
+  lineHeight: 0.85,
+};
+
 export interface PlayCardProps {
   card?: Card;
   hidden?: boolean;
@@ -35,57 +99,40 @@ export const PlayCard = memo(function PlayCard({
       : {};
 
   const base: CSSProperties = {
+    ...CARD_BASE_STYLE,
     width: w,
     height: h,
     borderRadius: Math.max(8, w * 0.14),
-    flexShrink: 0,
-    position: "relative",
     transform: `rotate(${rot}deg) translateY(${lift}px)`,
     cursor: onClick ? "pointer" : "default",
     opacity: dim ? 0.34 : 1,
     ["--card-rot" as string]: `${rot}deg`,
     ["--card-lift" as string]: `${lift}px`,
-    boxShadow: glow
-      ? `0 0 0 3px ${T.gold}, 0 16px 30px rgba(0,0,0,.48)`
-      : "0 9px 18px rgba(0,0,0,.42)",
     ...anim,
   };
+
+  const className = [
+    "nj-playcard",
+    glow ? "nj-playcard-glow" : "",
+    !hidden && onClick ? "playcard-clickable" : "",
+  ].filter(Boolean).join(" ");
 
   if (hidden) {
     return (
       <div
+        className={className}
         style={{
           ...base,
-          overflow: "hidden",
-          border: `2px solid ${T.gold}66`,
-          background: `
-            linear-gradient(180deg, rgba(5,5,12,.06), rgba(5,5,12,.18)),
-            url("/assets/njambo/card-back.webp") center / cover no-repeat,
-            radial-gradient(circle at 50% 38%, ${T.night3}, ${T.night1} 68%)`,
-          backgroundSize: "100% 100%, cover, 100% 100%",
-          backgroundPosition: "center",
+          ...CARD_BACK_STYLE,
         }}
       >
         <div
           style={{
-            position: "absolute",
-            inset: 5,
+            ...CARD_BACK_INSET_STYLE,
             borderRadius: Math.max(6, w * 0.1),
-            border: "1px solid rgba(255,248,232,.18)",
           }}
         />
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            top: "50%",
-            height: 4,
-            transform: "translateY(-50%)",
-            background: CEREMONIAL_STRIP,
-            opacity: 0.78,
-          }}
-        />
+        <div style={CEREMONIAL_STRIP_STYLE} />
       </div>
     );
   }
@@ -98,29 +145,15 @@ export const PlayCard = memo(function PlayCard({
   return (
     <div
       onClick={onClick}
-      className={onClick ? "playcard-clickable" : undefined}
+      className={className}
       style={{
         ...base,
-        overflow: "hidden",
-        background: `linear-gradient(160deg, ${T.chalk}, ${T.cream})`,
-        border: "1px solid rgba(27,16,16,.22)",
+        ...CARD_FACE_STYLE,
         color: suitColor,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "space-between",
         padding: `${w * 0.1}px`,
       }}
     >
-      <div
-        style={{
-          position: "absolute",
-          inset: 0,
-          opacity: 0.36,
-          background: RAFFIA_WEAVE(0.22),
-          backgroundSize: "28px 28px, 28px 28px",
-          pointerEvents: "none",
-        }}
-      />
+      <div style={RAFFIA_WEAVE_STYLE} />
       <Corner rank={card.rank} suit={card.suit} size={w} color={suitColor} />
       <div
         style={{
@@ -141,7 +174,7 @@ export const PlayCard = memo(function PlayCard({
       >
         {card.suit}
       </div>
-      <div style={{ transform: "rotate(180deg)" }}>
+      <div style={ROTATED_CORNER_STYLE}>
         <Corner rank={card.rank} suit={card.suit} size={w} color={suitColor} />
       </div>
     </div>
@@ -152,16 +185,8 @@ function Corner({ rank, suit, size, color }: { rank: string; suit: string; size:
   return (
     <div
       style={{
-        position: "relative",
-        zIndex: 1,
-        display: "inline-flex",
-        flexDirection: "column",
-        alignItems: "flex-start",
-        gap: 1,
-        fontFamily: "var(--font-display), Georgia, serif",
-        fontWeight: 900,
+        ...CORNER_BASE_STYLE,
         color,
-        lineHeight: 0.85,
       }}
     >
       <span style={{ fontSize: size * 0.28 }}>{rank}</span>

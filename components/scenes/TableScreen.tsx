@@ -38,6 +38,7 @@ import { markPerformance, recordBoardRender } from "@/lib/performanceMetrics";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
 import { LocalGameSync } from "@/sync/LocalGameSync";
 import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
+import { stabilizeGameState } from "@/sync/stateIdentity";
 import type {
   BotDifficulty,
   Card,
@@ -533,6 +534,7 @@ export function TableScreen({
   const expectedPlayerCount = n || (gameMode === "bot" || gameMode === "event" ? initialBotCount + 1 : roomPlayers?.length ?? 0);
   const displayedPot = roundIntro ? mise * Math.max(expectedPlayerCount, 1) : pot;
   const you = players[0];
+  const yourHand = you?.hand;
   const authoritativePowers = you?.equippedPowers?.length
     ? you.equippedPowers
     : (serverInventory.equippedCards ?? []) as PowerCardId[];
@@ -543,8 +545,8 @@ export function TableScreen({
   const ledInfo: Suit | undefined = ledSuit ? cfg.suits.find((s) => s.s === ledSuit) : undefined;
   const isYourTurn = phase === "turns" && turnIdx === 0;
   const yourLegal = useMemo(
-    () => you && isYourTurn ? legalCards(you.hand, ledSuit) : null,
-    [isYourTurn, ledSuit, you],
+    () => yourHand && isYourTurn ? legalCards(yourHand, ledSuit) : null,
+    [isYourTurn, ledSuit, yourHand],
   );
 
   /* Quitter : confirmation quand une partie est EN COURS ; sinon retour direct.
@@ -863,7 +865,7 @@ export function TableScreen({
     const pending = pendingPowerStateRef.current;
     if (!pending) return;
     pendingPowerStateRef.current = null;
-    setGameState(pending);
+    setGameState((prev) => stabilizeGameState(prev, pending));
   }, []);
 
   const endStateTransition = useCallback(() => {
@@ -1027,7 +1029,7 @@ export function TableScreen({
     // Écouter les événements du sync. (La détection de swap par diff a disparu :
     // l'orchestrateur anime depuis activation.resolved, source de vérité moteur.)
     const applyIncomingState = (state: GameState) => {
-      setGameState(state);
+      setGameState((prev) => stabilizeGameState(prev, state));
       if (roundRestartPendingRef.current && (state.phase === "dealing" || state.phase === "turns")) {
         roundRestartPendingRef.current = false;
         onRoundRestart();
@@ -1671,7 +1673,7 @@ export function TableScreen({
         return (
           <div
             key={"fan" + p.name}
-            className={motionEnabled && !liteMotion && roundIntro ? "nj-round-hand-reveal" : undefined}
+            className={`nj-hand-seat${motionEnabled && !liteMotion && roundIntro ? " nj-round-hand-reveal" : ""}`}
             style={{
               position: "absolute",
               left: a.left,
@@ -1690,7 +1692,7 @@ export function TableScreen({
               dealing={motionEnabled && phase === "dealing"}
               legal={p.isYou ? yourLegal : null}
               onCardClick={handleCardClick}
-              motionOn={motionEnabled && !activeTableFx}
+              motionOn={p.isYou ? motionEnabled && !activeTableFx : motionEnabled}
               getDropRect={p.isYou ? getYourDropRect : undefined}
             />
           </div>

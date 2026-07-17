@@ -13,17 +13,46 @@ export interface SoundApi {
   stopMusic: () => void;
 }
 
+let sharedCtx: AudioContext | null = null;
+let resumeArmed = false;
+
+function acquireContext(): AudioContext {
+  if (sharedCtx) return sharedCtx;
+  const AC: typeof AudioContext =
+    window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+  sharedCtx = new AC();
+  return sharedCtx;
+}
+
+/**
+ * Crée le contexte audio hors du chemin critique de la table, puis le reprend
+ * au prochain geste utilisateur si la politique autoplay du navigateur l'a
+ * laissé suspendu.
+ */
+export function warmAudio(): void {
+  try {
+    const ctx = acquireContext();
+    if (ctx.state !== "suspended" || resumeArmed) return;
+    resumeArmed = true;
+    window.addEventListener(
+      "pointerdown",
+      () => {
+        resumeArmed = false;
+        if (sharedCtx?.state === "suspended") void sharedCtx.resume().catch(() => undefined);
+      },
+      { once: true, passive: true, capture: true },
+    );
+  } catch {
+    /* audio indisponible */
+  }
+}
+
 export function createSound(): SoundApi {
-  let ctx: AudioContext | null = null;
   let musicTimer: ReturnType<typeof setInterval> | null = null;
 
   const ensure = (): AudioContext => {
-    if (!ctx) {
-      const AC: typeof AudioContext =
-        window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
-      ctx = new AC();
-    }
-    if (ctx.state === "suspended") void ctx.resume();
+    const ctx = acquireContext();
+    if (ctx.state === "suspended") void ctx.resume().catch(() => undefined);
     return ctx;
   };
 

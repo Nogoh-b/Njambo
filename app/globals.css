@@ -2014,6 +2014,16 @@ button[data-nj-skin="icon"],
   border: 2px solid var(--night-1);
 }
 
+.nj-playcard {
+  contain: layout style paint;
+  box-shadow: 0 9px 18px rgba(0, 0, 0, 0.42);
+}
+
+.nj-playcard-glow {
+  outline: 3px solid var(--gold);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.48);
+}
+
 .playcard-clickable {
   transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, filter 0.15s ease;
   animation: playableCardPulse 2.4s ease-in-out infinite;
@@ -2021,7 +2031,8 @@ button[data-nj-skin="icon"],
 
 .playcard-clickable:hover {
   transform: rotate(var(--card-rot, 0deg)) translateY(calc(var(--card-lift, 0px) - 10px)) !important;
-  box-shadow: 0 0 0 3px var(--gold), 0 18px 34px rgba(0, 0, 0, 0.5) !important;
+  outline: 3px solid var(--gold);
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.5) !important;
   filter: brightness(1.05);
 }
 
@@ -2440,7 +2451,12 @@ button[data-nj-skin="icon"],
   font-weight: 850;
 }
 
+.nj-hand-seat {
+  contain: layout style;
+}
+
 .nj-avatar-seat {
+  contain: layout style;
   isolation: isolate;
 }
 
@@ -2473,6 +2489,7 @@ button[data-nj-skin="icon"],
 }
 
 .nj-deposit-seat {
+  contain: layout style;
   isolation: isolate;
 }
 

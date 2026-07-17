@@ -9,6 +9,7 @@ import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
 import { markPerformance } from "@/lib/performanceMetrics";
+import { schedulePostSplashPreload } from "@/lib/idlePreload";
 import { EconomyProvider } from "@/contexts/EconomyContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -77,6 +78,10 @@ function SceneRouter() {
 
   useEffect(() => {
     markPerformance(`navigation:${scene}`);
+  }, [scene]);
+
+  useEffect(() => {
+    if (scene !== "splashscreen") schedulePostSplashPreload();
   }, [scene]);
 
   useEffect(() => {
