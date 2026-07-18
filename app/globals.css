@@ -2951,8 +2951,11 @@ button[data-nj-skin="icon"],
   to { transform: rotate(360deg) translateX(36px) rotate(-360deg); }
 }
 
+/* Lueur de pouvoir via box-shadow (peint une fois dans le bitmap de la couche
+   compositée) — plus de filter:drop-shadow qui forçait une re-rasterisation GPU
+   à chaque frame du transform Framer Motion. */
 .nj-flying-card-fx {
-  filter: drop-shadow(0 0 11px color-mix(in srgb, var(--flight-fx-color, var(--gold)) 52%, transparent));
+  box-shadow: 0 0 18px color-mix(in srgb, var(--flight-fx-color, var(--gold)) 52%, transparent);
 }
 
 .nj-flying-card-trail i {
@@ -4222,6 +4225,12 @@ button[data-nj-skin="icon"],
   box-shadow: none !important;
 }
 
+/* backdrop-filter: blur() est coûteux sur mobile (resample de la scène
+   en dessous à chaque frame d'animation). Désactivé dès le mode balanced
+   (téléphones milieu de gamme 2–4 cœurs) et évidemment en lite. */
+.nj-motion-level-balanced .nj-glass,
+.nj-motion-level-balanced .nj-modal,
+.nj-motion-level-balanced .nj-power-choice-confirm,
 .nj-motion-level-lite .nj-glass,
 .nj-motion-level-lite .nj-modal,
 .nj-motion-level-lite .nj-power-choice-confirm,
@@ -4231,8 +4240,9 @@ button[data-nj-skin="icon"],
   -webkit-backdrop-filter: none !important;
 }
 
+/* nj-flying-card-fx n'a plus de filter (remplacé par box-shadow) →
+   seul nj-card-burst garde cette règle pour son drop-shadow. */
 .nj-motion-level-balanced .nj-flying-card,
-.nj-motion-level-balanced .nj-flying-card-fx,
 .nj-motion-level-balanced .nj-card-burst {
   filter: none !important;
   backdrop-filter: none !important;
@@ -4284,7 +4294,11 @@ button[data-nj-skin="icon"],
   cursor: default;
 }
 
-.nj-motion-level-lite .nj-flying-card-fx,
+/* nj-flying-card-fx : plus de filter (box-shadow uniquement), box-shadow: none suffit. */
+.nj-motion-level-lite .nj-flying-card-fx {
+  box-shadow: none !important;
+}
+
 .nj-motion-level-lite .nj-power-burst-halo,
 .nj-motion-level-lite .nj-power-burst-ring,
 .nj-motion-level-lite .nj-avatar-aura-field {

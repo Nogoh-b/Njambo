@@ -17,9 +17,11 @@ import type { Flight } from "@/types/game";
 interface FlyingCardProps {
   f: Flight;
   effects?: boolean;
+  /** Mode balanced: reduit les particules a 3. */
+  balanced?: boolean;
 }
 
-export const FlyingCard = memo(function FlyingCard({ f, effects = true }: FlyingCardProps) {
+export const FlyingCard = memo(function FlyingCard({ f, effects = true, balanced = false }: FlyingCardProps) {
   const dur = GAME_CONFIG.anim.dropFlight;
   const w = f.w;
   const h = w * 1.45;
@@ -60,7 +62,7 @@ export const FlyingCard = memo(function FlyingCard({ f, effects = true }: Flying
 
   return (
     <motion.div
-      className={f.fxPreset ? `nj-flying-card-fx nj-flight-fx-${f.fxPreset}` : undefined}
+      className={f.fxPreset ? `nj-flight-fx-${f.fxPreset}` : undefined}
       initial={initial}
       animate={animate}
       transition={{
@@ -83,7 +85,7 @@ export const FlyingCard = memo(function FlyingCard({ f, effects = true }: Flying
     >
       {(effects || f.fxPreset) && (
         <span className="nj-flying-card-trail" aria-hidden="true">
-          {f.fxPreset && Array.from({ length: effects ? 7 : 3 }, (_, index) => (
+          {f.fxPreset && Array.from({ length: effects ? (balanced ? 3 : 7) : 3 }, (_, index) => (
             <i
               key={index}
               style={{
@@ -96,7 +98,11 @@ export const FlyingCard = memo(function FlyingCard({ f, effects = true }: Flying
           ))}
         </span>
       )}
-      <div style={effects ? { filter: "drop-shadow(0 16px 20px rgba(0,0,0,.55))" } : undefined}>
+      {/* box-shadow peint une fois dans le bitmap composited -- pas de repaint GPU par frame. */}
+      <div
+        className={f.fxPreset ? "nj-flying-card-fx" : undefined}
+        style={effects ? { borderRadius: Math.max(8, w * 0.14), boxShadow: "0 16px 20px rgba(0,0,0,.55)" } : undefined}
+      >
         {/* Les bots montrent le dos pendant le vol, le joueur montre la face */}
         <PlayCard card={f.card} w={w} hidden={!(f.faceUp ?? f.isYou)} />
       </div>

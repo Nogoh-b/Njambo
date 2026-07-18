@@ -216,11 +216,13 @@ const TransientAnimationLayer = memo(function TransientAnimationLayer({
   store,
   motionEnabled,
   liteMotion,
+  balancedMotion,
   reactionPosition,
 }: {
   store: TransientAnimationStore;
   motionEnabled: boolean;
   liteMotion: boolean;
+  balancedMotion: boolean;
   reactionPosition: (uiIdx: number) => { left: string; top: string };
 }) {
   const { flights, cardBursts, reactionBubbles } = useSyncExternalStore(
@@ -232,7 +234,7 @@ const TransientAnimationLayer = memo(function TransientAnimationLayer({
   return (
     <>
       {flights.map((flight) => (
-        <FlyingCard key={flight.key} f={flight} effects={motionEnabled && !liteMotion} />
+        <FlyingCard key={flight.key} f={flight} effects={motionEnabled && !liteMotion} balanced={balancedMotion} />
       ))}
       {motionEnabled && !liteMotion && cardBursts.map((burst) => (
         <div
@@ -683,8 +685,10 @@ export function TableScreen({
     };
   }, [motionEnabled]);
 
-  /* Secousse d'impact GSAP sur toute la table (fin de pli, victoire). */
-  const impactShake = useCallback((intensity = 8) => {
+  /* Secousse d'impact GSAP sur toute la table (fin de pli, victoire).
+     PERF: repeat reduit a 5/6 pour limiter la concurrence avec la
+     timeline GSAP de l'overlay (duree ~330/385ms au lieu de 770ms). */
+  const impactShake = useCallback((intensity = 8, repeat = 5) => {
     const g = gsapRef.current;
     const el = tableRootRef.current;
     if (!g || !el || !animationsOnRef.current) return;
@@ -695,7 +699,7 @@ export function TableScreen({
         x: `random(${-intensity}, ${intensity})`,
         y: `random(${-intensity * 0.6}, ${intensity * 0.6})`,
         duration: 0.055,
-        repeat: 7,
+        repeat,
         yoyo: true,
         ease: "power1.inOut",
         onComplete: () => g.set(el, { x: 0, y: 0 }),
@@ -764,9 +768,13 @@ export function TableScreen({
       durationMs: next.duration,
     });
 
-    /* Secousse d'impact sur les moments forts (pli dominé, ngata gagné). */
-    if (next.moment.type === "dominance") impactShake(7);
-    else if (next.moment.type === "win" || next.moment.type === "doubleWin") impactShake(12);
+    /* Secousse d'impact sur les moments forts (pli dominé, ngata gagné).
+       Differee de 120ms pour eviter la concurrence GSAP avec l'overlay. */
+    if (next.moment.type === "dominance") {
+      setTimeout(() => impactShake(7, 5), 120);
+    } else if (next.moment.type === "win" || next.moment.type === "doubleWin") {
+      setTimeout(() => impactShake(12, 6), 120);
+    }
 
     if (momentOverlayTimerRef.current) clearTimeout(momentOverlayTimerRef.current);
     momentOverlayTimerRef.current = setTimeout(() => {
@@ -1851,6 +1859,7 @@ export function TableScreen({
         store={transientStore}
         motionEnabled={motionEnabled}
         liteMotion={liteMotion}
+        balancedMotion={balancedMotion}
         reactionPosition={(uiIdx) => depositPos(seatEdge(uiIdx))}
       />
 

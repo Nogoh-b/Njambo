@@ -31,19 +31,29 @@ export const MotionCard = forwardRef<HTMLDivElement, MotionCardProps>(function M
   { card, hidden, w, rot, lift, dim, glow, onClick, dealDelay, anim, className, style },
   ref,
 ) {
+  const playCard = (
+    <PlayCard
+      card={card}
+      hidden={hidden}
+      w={w}
+      rot={rot}
+      lift={lift}
+      dim={dim}
+      glow={glow}
+      onClick={onClick}
+      dealDelay={dealDelay}
+    />
+  );
+
+  // div natif si pas d'anim: evite l'overhead Framer Motion sur les
+  // cartes adverses statiques (3 adversaires x 5 cartes = 15 motion.div).
+  if (!anim) {
+    return <div ref={ref} className={className} style={style}>{playCard}</div>;
+  }
+
   return (
     <motion.div ref={ref} className={className} style={style} {...anim}>
-      <PlayCard
-        card={card}
-        hidden={hidden}
-        w={w}
-        rot={rot}
-        lift={lift}
-        dim={dim}
-        glow={glow}
-        onClick={onClick}
-        dealDelay={dealDelay}
-      />
+      {playCard}
     </motion.div>
   );
 });

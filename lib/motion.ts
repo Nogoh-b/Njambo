@@ -81,6 +81,11 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
     return preferenceMotionLevel(motionQuality, env);
   }, [env, motionQuality]);
 
+  // Ref miroir: le sampler FPS lit selectedLevel sans en etre une dep
+  // de useEffect. Un resize ne relance plus le sampler 3s en pleine partie.
+  const selectedLevelRef = useRef<MotionLevel>(selectedLevel);
+  selectedLevelRef.current = selectedLevel;
+
   useEffect(() => {
     if (motionQuality !== "auto") {
       setRuntimeLevel(null);
@@ -99,7 +104,7 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
       total += 1;
       if (now - startedAt >= 3_000) {
         if (shouldDegradeMotion(total, slow)) {
-          setRuntimeLevel((current) => lowerMotionLevel(current ?? selectedLevel));
+          setRuntimeLevel((current) => lowerMotionLevel(current ?? selectedLevelRef.current));
         }
         return;
       }
@@ -107,7 +112,10 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
     };
     animationFrame = requestAnimationFrame(sample);
     return () => cancelAnimationFrame(animationFrame);
-  }, [animationsOn, motionQuality, mounted, selectedLevel]);
+  // selectedLevel absent des deps: le sampler tourne une seule fois par
+  // session, pas a chaque resize. Valeur courante lue via selectedLevelRef.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animationsOn, motionQuality, mounted]);
 
   const prefersReduced = mounted ? prefersReducedRaw : false;
 
