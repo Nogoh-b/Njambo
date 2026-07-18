@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { GameModeCard, StatusBanner } from "@/components/ui/GamePrimitives";
 import { AvatarIllustration, NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
@@ -10,8 +10,15 @@ import { useEconomy } from "@/contexts/EconomyContext";
 import { DEFAULT_EVENTS, doualaDayKey, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveOpsContent } from "@/hooks/useLiveOpsContent";
+import {
+  HOME_MOTION_FEATURES,
+  getHomeResourceChange,
+  resolveHomeMotionMode,
+  type HomeMotionMode,
+  type HomeResourceKind,
+} from "@/lib/homeArcadeMotion";
 import { t } from "@/lib/i18n";
-import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
+import { useGsapTimeline, useMotionProfile, usePageActive } from "@/lib/motion";
 import { getPlayerLevel } from "@/lib/playerLevel";
 import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
 import type { PlayerStats, PublicPlayerProfile, SceneName } from "@/types/game";
@@ -92,15 +99,80 @@ const QUICK_LINKS: Array<{ scene: SceneName; icon: NjamboIconName; label: string
 ];
 
 const SPARKS = [
-  { left: "15%", top: "12%", delay: "0s" },
-  { left: "83%", top: "22%", delay: ".9s" },
-  { left: "68%", top: "77%", delay: "1.6s" },
-  { left: "31%", top: "84%", delay: "2.2s" },
+  { left: "15%", top: "12%", delay: "0s", duration: "3.8s", size: "4px" },
+  { left: "83%", top: "22%", delay: ".9s", duration: "4.4s", size: "3px" },
+  { left: "68%", top: "77%", delay: "1.6s", duration: "4.1s", size: "4px" },
+  { left: "31%", top: "84%", delay: "2.2s", duration: "4.8s", size: "3px" },
+  { left: "92%", top: "58%", delay: "2.8s", duration: "5.2s", size: "2px" },
+  { left: "8%", top: "64%", delay: "1.3s", duration: "4.6s", size: "2px" },
 ];
+
+const compactNumber = new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 });
+
+function formatRibbonAmount(value: number): string {
+  return value >= 1_000_000 ? compactNumber.format(value) : value.toLocaleString("fr-FR");
+}
+
+function formatInteger(value: number): string {
+  return Math.round(value).toLocaleString("fr-FR");
+}
 
 const CountBadge = memo(function CountBadge({ count }: { count: number }) {
   if (count <= 0) return null;
-  return <span className={styles.countBadge}>{count > 99 ? "99+" : count}</span>;
+  return <span key={count} className={styles.countBadge}>{count > 99 ? "99+" : count}</span>;
+});
+
+const AnimatedResourceValue = memo(function AnimatedResourceValue({
+  value,
+  fallback,
+  format,
+  enabled,
+}: {
+  value?: number;
+  fallback: string;
+  format: (value: number) => string;
+  enabled: boolean;
+}) {
+  const valueRef = useRef<HTMLElement>(null);
+  const previousRef = useRef<number | null>(null);
+  const frameRef = useRef(0);
+
+  useLayoutEffect(() => {
+    cancelAnimationFrame(frameRef.current);
+    const element = valueRef.current;
+    if (!element || value === undefined) {
+      if (element) element.textContent = fallback;
+      previousRef.current = null;
+      return;
+    }
+
+    const previous = previousRef.current;
+    previousRef.current = value;
+    if (!enabled) {
+      element.textContent = format(value);
+      return;
+    }
+
+    const initialOffset = Math.max(1, Math.round(Math.abs(value) * 0.08));
+    const from = previous ?? Math.max(0, value - initialOffset);
+    if (from === value) {
+      element.textContent = format(value);
+      return;
+    }
+
+    const duration = previous === null ? 460 : 580;
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const progress = Math.min(1, (now - startedAt) / duration);
+      const eased = 1 - Math.pow(1 - progress, 3);
+      element.textContent = format(Math.round(from + (value - from) * eased));
+      if (progress < 1) frameRef.current = requestAnimationFrame(tick);
+    };
+    frameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frameRef.current);
+  }, [enabled, fallback, format, value]);
+
+  return <strong ref={valueRef} className={styles.resourceValue}>{value === undefined ? fallback : format(value)}</strong>;
 });
 
 function rewardLabel(reward: Reward | undefined) {
@@ -116,26 +188,107 @@ function rewardLabel(reward: Reward | undefined) {
 }
 
 function ResourceButton({
+  kind,
   asset,
   label,
   value,
+  numericValue,
+  formatValue = formatInteger,
   fullValue,
   tone,
   onClick,
   progress,
+  motionMode,
 }: {
+  kind: HomeResourceKind;
   asset: string;
   label: string;
   value: string;
+  numericValue?: number;
+  formatValue?: (value: number) => string;
   fullValue?: string;
   tone: "gold" | "teal" | "pink";
   onClick: () => void;
   progress?: number;
+  motionMode: HomeMotionMode;
 }) {
+  const motionFeatures = HOME_MOTION_FEATURES[motionMode];
+  const previousRef = useRef<number | null>(null);
+  const feedbackTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const progressRef = useRef<HTMLSpanElement>(null);
+  const previousProgressRef = useRef<number | null>(null);
+  const progressFrameRef = useRef(0);
+  const [feedback, setFeedback] = useState<{ direction: "gain" | "spend"; delta: number; key: number } | null>(null);
+
+  useEffect(() => {
+    if (numericValue === undefined) {
+      previousRef.current = null;
+      return;
+    }
+    const previous = previousRef.current;
+    previousRef.current = numericValue;
+    const change = getHomeResourceChange(kind, previous, numericValue, motionMode);
+    if (!change) return;
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    setFeedback({
+      direction: change.direction,
+      delta: change.delta,
+      key: Date.now(),
+    });
+    feedbackTimerRef.current = setTimeout(() => {
+      setFeedback(null);
+      feedbackTimerRef.current = null;
+    }, 850);
+  }, [kind, motionMode, numericValue]);
+
+  useEffect(() => {
+    if (motionFeatures.reactions) return;
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+    feedbackTimerRef.current = null;
+    setFeedback(null);
+  }, [motionFeatures.reactions]);
+
+  useEffect(() => () => {
+    if (feedbackTimerRef.current) clearTimeout(feedbackTimerRef.current);
+  }, []);
+
+  useLayoutEffect(() => {
+    cancelAnimationFrame(progressFrameRef.current);
+    const element = progressRef.current;
+    if (!element || progress === undefined) {
+      previousProgressRef.current = null;
+      return;
+    }
+    const target = Math.max(0, Math.min(100, progress)) / 100;
+    const from = previousProgressRef.current ?? 0;
+    previousProgressRef.current = target;
+    if (!motionFeatures.reactions || from === target) {
+      element.style.transform = `scaleX(${target})`;
+      return;
+    }
+    const startedAt = performance.now();
+    const tick = (now: number) => {
+      const ratio = Math.min(1, (now - startedAt) / 540);
+      const eased = 1 - Math.pow(1 - ratio, 3);
+      element.style.transform = `scaleX(${from + (target - from) * eased})`;
+      if (ratio < 1) progressFrameRef.current = requestAnimationFrame(tick);
+    };
+    progressFrameRef.current = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(progressFrameRef.current);
+  }, [motionFeatures.reactions, progress]);
+
+  const feedbackClass = feedback?.direction === "gain"
+    ? styles.resourceGain
+    : feedback?.direction === "spend"
+      ? styles.resourceSpend
+      : "";
+
   return (
     <button data-nj-skin="none"
       type="button"
-      className={`${styles.resource} ${styles[`tone${tone}`]}`}
+      className={`${styles.resource} ${styles[`tone${tone}`]}${feedbackClass ? ` ${feedbackClass}` : ""}`}
+      data-resource={kind}
+      data-motion-level={motionMode}
       onClick={onClick}
       aria-label={`${label} : ${fullValue ?? value}. Ouvrir le portefeuille`}
       title={fullValue && fullValue !== value ? fullValue : undefined}
@@ -145,7 +298,14 @@ function ResourceButton({
       </span>
       <span className={styles.resourceCopy}>
         <span className={styles.resourceLabel}>{label}</span>
-        <strong>{value}</strong>
+        <span className={styles.resourceValueRow}>
+          <AnimatedResourceValue value={numericValue} fallback={value} format={formatValue} enabled={motionFeatures.reactions} />
+          {feedback && (
+            <span key={feedback.key} className={styles.resourceDelta} aria-hidden="true">
+              {feedback.delta > 0 ? "+" : "−"}{formatValue(Math.abs(feedback.delta))}
+            </span>
+          )}
+        </span>
         {typeof progress === "number" && (
           <span
             className={styles.energyTrack}
@@ -155,7 +315,7 @@ function ResourceButton({
             aria-valuemax={100}
             aria-valuenow={Math.round(progress)}
           >
-            <span style={{ width: `${Math.max(0, Math.min(100, progress))}%` }} />
+            <span ref={progressRef} style={{ transform: `scaleX(${Math.max(0, Math.min(100, progress)) / 100})` }} />
           </span>
         )}
       </span>
@@ -229,15 +389,18 @@ function ModeCard({
 export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenProps) {
   const { profile, navigateTo } = useGame();
   const motion = useMotionProfile();
+  const pageActive = usePageActive();
+  const motionMode = resolveHomeMotionMode(motion.enabled, motion.level);
+  const motionFeatures = HOME_MOTION_FEATURES[motionMode];
   const { user } = useAuth();
   const { economy, inventory, rank, loading, error: economyError, refresh, command } = useEconomy();
   const { events } = useLiveOpsContent();
   const [socialCounts, setSocialCounts] = useState<SocialCounts>({ notifications: 0, messages: 0, requests: 0 });
   const [onlineProfile, setOnlineProfile] = useState<PublicPlayerProfile | null>(null);
   const [claiming, setClaiming] = useState(false);
-  const [decorIdle, setDecorIdle] = useState(false);
+  const [bonusBurst, setBonusBurst] = useState(false);
   const stageRef = useRef<HTMLDivElement>(null);
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const bonusBurstTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     if (!user?.uid) {
@@ -275,9 +438,6 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
   const energyProgress = economy?.energy.unlimited ? 100 : economy?.energy.available ?? 100;
   const economyPending = Boolean(user && !user.isAnonymous && loading && !economy);
   const isGuest = !user || user.isAnonymous;
-  const formatRibbonAmount = (value: number) => value >= 1_000_000
-    ? new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 }).format(value)
-    : value.toLocaleString("fr-FR");
   const rankAssetId = rank.badge.id.replaceAll("_", "-");
 
   const openLink = useCallback((scene: SceneName) => navigateTo(scene), [navigateTo]);
@@ -287,6 +447,14 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
     setClaiming(true);
     try {
       await command("claimDailyReward");
+      if (motionFeatures.reactions) {
+        if (bonusBurstTimerRef.current) clearTimeout(bonusBurstTimerRef.current);
+        setBonusBurst(true);
+        bonusBurstTimerRef.current = setTimeout(() => {
+          setBonusBurst(false);
+          bonusBurstTimerRef.current = null;
+        }, 900);
+      }
     } finally {
       setClaiming(false);
     }
@@ -300,41 +468,11 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
     void handleClaimBonus();
   };
 
-  useEffect(() => {
-    if (!motion.allowDecorativeLoop) {
-      setDecorIdle(false);
-      return;
-    }
+  useEffect(() => () => {
+    if (bonusBurstTimerRef.current) clearTimeout(bonusBurstTimerRef.current);
+  }, []);
 
-    const clearTimer = () => {
-      if (idleTimerRef.current) clearTimeout(idleTimerRef.current);
-    };
-    const scheduleIdle = () => {
-      clearTimer();
-      idleTimerRef.current = setTimeout(() => setDecorIdle(true), 6500);
-    };
-    const wakeDecor = () => {
-      setDecorIdle(false);
-      scheduleIdle();
-    };
-
-    scheduleIdle();
-    const element = stageRef.current;
-    element?.addEventListener("pointermove", wakeDecor, { passive: true });
-    element?.addEventListener("pointerdown", wakeDecor, { passive: true });
-    window.addEventListener("keydown", wakeDecor);
-    window.addEventListener("focus", wakeDecor);
-
-    return () => {
-      clearTimer();
-      element?.removeEventListener("pointermove", wakeDecor);
-      element?.removeEventListener("pointerdown", wakeDecor);
-      window.removeEventListener("keydown", wakeDecor);
-      window.removeEventListener("focus", wakeDecor);
-    };
-  }, [motion.allowDecorativeLoop]);
-
-  useGsapTimeline(motion.enabled, stageRef, (gsap) => {
+  useGsapTimeline(motionFeatures.entrances && pageActive, stageRef, (gsap) => {
     const timeline = gsap.timeline({ defaults: { ease: "power3.out" } });
     timeline
       .fromTo("[data-home-enter]", { opacity: 0, y: -10 }, { opacity: 1, y: 0, duration: 0.38, stagger: 0.06 }, 0)
@@ -346,17 +484,34 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
         stagger: motion.allowLongCascade ? 0.08 : 0.04,
       }, 0.12)
       .fromTo("[data-home-activity]", { opacity: 0, x: 14 }, { opacity: 1, x: 0, duration: 0.4, stagger: 0.06 }, 0.24);
-  }, [motion.allowFilterFx, motion.allowLongCascade]);
+  }, [motion.allowFilterFx, motion.allowLongCascade, motionFeatures.entrances, pageActive]);
+
+  const motionClass = {
+    full: styles.motionFull,
+    balanced: styles.motionBalanced,
+    lite: styles.motionLite,
+    off: styles.motionOff,
+  }[motionMode];
 
   return (
     <BottomNavScene
       active="menu"
-      className={`${styles.homeScene}${decorIdle ? ` ${styles.decorIdle}` : ""}`}
+      className={`${styles.homeScene} ${motionClass}${motion.enabled ? ` ${styles.motionOn}` : ""}${pageActive ? "" : ` ${styles.pagePaused}`}`}
       contentClassName={styles.scrollArea}
     >
       <div className={styles.ambient} aria-hidden="true">
-        {motion.allowDecorativeLoop && SPARKS.map((spark, index) => (
-          <span key={index} style={{ left: spark.left, top: spark.top, animationDelay: spark.delay }} />
+        {SPARKS.slice(0, motionFeatures.ambientSparkCount).map((spark, index) => (
+          <span
+            key={index}
+            style={{
+              left: spark.left,
+              top: spark.top,
+              width: spark.size,
+              height: spark.size,
+              animationDelay: spark.delay,
+              animationDuration: spark.duration,
+            } as CSSProperties}
+          />
         ))}
       </div>
 
@@ -395,27 +550,38 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
 
         <section className={styles.resourceRibbon} aria-label="Ressources" data-home-enter>
           <ResourceButton
+            kind="energy"
             asset="/assets/njambo/economy/energy-flask-64.webp"
             label={t("economy.energy")}
             value={economyPending || isGuest ? "—" : energyValue}
+            numericValue={economyPending || isGuest || economy?.energy.unlimited ? undefined : economy?.energy.available}
             tone="teal"
             progress={economyPending || isGuest ? undefined : energyProgress}
+            motionMode={motionMode}
             onClick={() => openLink("wallet")}
           />
           <ResourceButton
+            kind="nkap"
             asset="/assets/njambo/economy/nkap-64.webp"
             label={t("economy.nkap")}
             value={economyPending || isGuest ? "—" : formatRibbonAmount(displayProfile.balance)}
+            numericValue={economyPending || isGuest ? undefined : displayProfile.balance}
+            formatValue={formatRibbonAmount}
             fullValue={economyPending || isGuest ? undefined : displayProfile.balance.toLocaleString("fr-FR")}
             tone="gold"
+            motionMode={motionMode}
             onClick={() => openLink("wallet")}
           />
           <ResourceButton
+            kind="cauris"
             asset="/assets/njambo/economy/cauri-64.webp"
             label={t("economy.cauris")}
             value={economyPending || isGuest ? "—" : formatRibbonAmount(displayProfile.cauris)}
+            numericValue={economyPending || isGuest ? undefined : displayProfile.cauris}
+            formatValue={formatRibbonAmount}
             fullValue={economyPending || isGuest ? undefined : displayProfile.cauris.toLocaleString("fr-FR")}
             tone="pink"
+            motionMode={motionMode}
             onClick={() => openLink("wallet")}
           />
         </section>
@@ -487,7 +653,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
               <button data-nj-skin="pink" type="button" className={styles.terAction} onClick={() => openLink("events")}>Voir le défi <span aria-hidden="true">→</span></button>
             </article>
 
-            <article className={`${styles.dailyCard} ${bonusReady ? styles.dailyReady : ""}`} data-home-activity>
+            <article className={`${styles.dailyCard} ${bonusReady ? styles.dailyReady : ""}${bonusBurst ? ` ${styles.bonusBurst}` : ""}`} data-home-activity>
               <div className={styles.dailyHead}>
                 <span className={styles.dailyIcon}><Image src="/assets/njambo/economy/loyalty-wheel-64.webp" alt="" width={38} height={38} /></span>
                 <span><small>Rituel quotidien</small><h2>Le cadeau du quartier</h2></span>

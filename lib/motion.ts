@@ -1,6 +1,6 @@
 "use client";
 
-import { createContext, createElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { createContext, createElement, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type ReactNode } from "react";
 import { useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
 import { useSettings } from "@/contexts/SettingsContext";
@@ -147,6 +147,26 @@ export function useMotionProfile(): MotionProfile {
 
 export function useMotionEnabled(): boolean {
   return useMotionProfile().enabled;
+}
+
+function subscribePageActivity(onStoreChange: () => void): () => void {
+  document.addEventListener("visibilitychange", onStoreChange);
+  window.addEventListener("focus", onStoreChange);
+  window.addEventListener("blur", onStoreChange);
+  return () => {
+    document.removeEventListener("visibilitychange", onStoreChange);
+    window.removeEventListener("focus", onStoreChange);
+    window.removeEventListener("blur", onStoreChange);
+  };
+}
+
+function getPageActivitySnapshot(): boolean {
+  return document.visibilityState === "visible" && document.hasFocus();
+}
+
+/** Suspend les boucles décoratives quand l'onglet est masqué ou la fenêtre inactive. */
+export function usePageActive(): boolean {
+  return useSyncExternalStore(subscribePageActivity, getPageActivitySnapshot, () => true);
 }
 
 interface EntranceAnimationOptions {

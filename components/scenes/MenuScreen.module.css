@@ -52,17 +52,28 @@
   width: 4px;
   height: 4px;
   border-radius: 50%;
-  background: var(--home-gold);
-  box-shadow: 0 0 15px 5px rgba(242, 187, 69, 0.2);
-  animation: homeSpark 3.6s ease-in-out infinite;
+  background: color-mix(in srgb, var(--home-gold) 78%, #fff4df);
+  box-shadow: 0 0 8px 2px rgba(242, 187, 69, 0.16);
+  --arcade-pulse-scale: 1.16;
+  --arcade-pulse-low: 0.16;
+  --mboa-breath-y: -5px;
+  animation: none;
+  will-change: transform, opacity;
 }
 
-.decorIdle .ambient span {
-  animation-play-state: paused;
-  opacity: 0.2;
+.motionFull:not(.pagePaused) .ambient span,
+.motionBalanced:not(.pagePaused) .ambient span {
+  animation: mboaBreath 4.8s cubic-bezier(.45, 0, .25, 1) infinite;
+}
+
+.motionBalanced .ambient span {
+  --arcade-pulse-scale: 1.08;
+  --arcade-pulse-low: 0.12;
+  box-shadow: 0 0 8px 2px rgba(242, 187, 69, 0.14);
 }
 
 .identityBar {
+  position: relative;
   min-height: 68px;
   display: flex;
   align-items: center;
@@ -75,6 +86,22 @@
     linear-gradient(100deg, rgba(74, 42, 19, 0.84), rgba(13, 12, 27, 0.86) 58%),
     var(--wood-grain);
   box-shadow: var(--home-shadow), inset 0 1px 0 rgba(255, 239, 207, 0.12);
+  overflow: hidden;
+}
+
+.identityBar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(105deg, transparent 24%, rgba(255, 241, 205, 0.12) 48%, transparent 72%);
+  transform: translateX(-115%);
+  opacity: 0;
+}
+
+.motionFull:not(.pagePaused) .identityBar::after,
+.motionBalanced:not(.pagePaused) .identityBar::after {
+  animation: identityBarSweep 720ms 280ms ease-out both;
 }
 
 .playerIdentity,
@@ -114,6 +141,7 @@
   border-radius: 18px;
   overflow: visible;
   box-shadow: inset 0 0 0 2px rgba(242, 187, 69, 0.36), 0 8px 18px rgba(0, 0, 0, 0.3);
+  transition: transform 220ms ease;
 }
 
 .avatarWrap > svg {
@@ -228,13 +256,60 @@
   font-variant-numeric: tabular-nums;
 }
 
+.motionOn .countBadge {
+  animation: badgeArrive 360ms cubic-bezier(.2, .9, .25, 1.25) both;
+}
+
 .resourceRibbon {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(0, 1.2fr) repeat(2, minmax(0, 1fr));
   gap: 8px;
+  border-radius: 19px;
+  isolation: isolate;
+}
+
+.resourceRibbon::before,
+.resourceRibbon::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 3;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+.resourceRibbon::before {
+  border: 1px solid rgba(208, 163, 93, 0.2);
+  background:
+    linear-gradient(90deg, transparent, rgba(234, 211, 162, 0.2) 48%, transparent) top / 100% 1px no-repeat,
+    repeating-linear-gradient(90deg, transparent 0 19px, rgba(208, 163, 93, 0.14) 19px 21px, transparent 21px 39px) bottom / 100% 1px no-repeat;
+}
+
+.resourceRibbon::after {
+  --arcade-rail-start: -120%;
+  --arcade-rail-end: 690%;
+  --arcade-rail-opacity: 0.76;
+  right: auto;
+  width: 18%;
+  background:
+    radial-gradient(ellipse at center, rgba(255, 244, 223, 0.92), rgba(242, 187, 69, 0.54) 20%, rgba(16, 183, 166, 0.18) 48%, transparent 72%) top / 100% 3px no-repeat,
+    radial-gradient(ellipse at center, rgba(255, 244, 223, 0.72), rgba(216, 60, 104, 0.3) 24%, transparent 70%) bottom / 100% 2px no-repeat;
+  opacity: 0;
+  transform: translateX(var(--arcade-rail-start));
+}
+
+.motionFull:not(.pagePaused) .resourceRibbon::after {
+  animation: mboaEmberTrail 6.8s ease-in-out infinite;
+}
+
+.motionBalanced:not(.pagePaused) .resourceRibbon::after {
+  --arcade-rail-opacity: 0.5;
+  animation: mboaEmberTrail 12.4s ease-in-out infinite;
 }
 
 .resource {
+  position: relative;
   min-width: 0;
   min-height: 58px;
   display: flex;
@@ -244,9 +319,75 @@
   text-align: left;
   border: 1px solid color-mix(in srgb, var(--resource-tone) 16%, rgba(208, 163, 93, 0.2));
   border-radius: 17px;
-  background: linear-gradient(145deg, color-mix(in srgb, var(--resource-tone) 6%, rgba(24, 18, 20, 0.92)), rgba(7, 8, 14, 0.92));
+  background:
+    repeating-linear-gradient(96deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 8px),
+    linear-gradient(145deg, color-mix(in srgb, var(--resource-tone) 7%, rgba(35, 23, 18, 0.94)), rgba(7, 8, 14, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  isolation: isolate;
   transition: transform 180ms ease, border-color 180ms ease;
+}
+
+.resource::before {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  width: 34%;
+  pointer-events: none;
+  border-radius: 16px;
+  opacity: 0;
+  transform: translateX(-125%);
+}
+
+.resource[data-resource="energy"]::before {
+  background: radial-gradient(ellipse at center, rgba(73, 244, 220, 0.32), rgba(16, 183, 166, 0.16) 42%, transparent 72%);
+}
+
+.resource[data-resource="nkap"]::before {
+  background: radial-gradient(ellipse at center, rgba(255, 236, 159, 0.44), rgba(242, 187, 69, 0.12) 42%, transparent 72%);
+}
+
+.resource[data-resource="cauris"]::before {
+  background: radial-gradient(ellipse at center, rgba(255, 244, 239, 0.38), rgba(240, 138, 170, 0.2) 44%, rgba(147, 178, 255, 0.08) 58%, transparent 74%);
+}
+
+.motionFull:not(.pagePaused) .resource::before,
+.motionBalanced:not(.pagePaused) .resource::before {
+  --arcade-rail-start: -125%;
+  --arcade-rail-end: 430%;
+  --arcade-rail-opacity: 0.46;
+  animation: mboaEmberTrail 7.4s ease-in-out infinite;
+}
+
+.motionFull .resource[data-resource="nkap"]::before,
+.motionBalanced .resource[data-resource="nkap"]::before {
+  animation-delay: -1.8s;
+}
+
+.motionFull .resource[data-resource="cauris"]::before,
+.motionBalanced .resource[data-resource="cauris"]::before {
+  animation-delay: -3.6s;
+}
+
+.motionBalanced:not(.pagePaused) .resource::before {
+  --arcade-rail-opacity: 0.24;
+  animation-duration: 13.2s;
+}
+
+.resource::after {
+  content: "";
+  position: absolute;
+  inset: 1px;
+  z-index: 0;
+  pointer-events: none;
+  border-radius: 16px;
+  background: radial-gradient(circle at 24% 50%, color-mix(in srgb, var(--resource-tone) 28%, transparent), transparent 62%);
+  opacity: 0;
+}
+
+.resource > * {
+  position: relative;
+  z-index: 1;
 }
 
 .resource:hover,
@@ -260,6 +401,7 @@
 .tonepink { --resource-tone: var(--home-pink); }
 
 .resourceIcon {
+  position: relative;
   flex: 0 0 auto;
   width: 34px;
   height: 34px;
@@ -269,10 +411,66 @@
   background: color-mix(in srgb, var(--resource-tone) 13%, transparent);
 }
 
+.resource[data-motion-level="full"] .resourceIcon,
+.resource[data-motion-level="balanced"] .resourceIcon {
+  animation: resourceIconSettle 480ms cubic-bezier(.2, .9, .25, 1.15) both;
+}
+
 .resourceIcon img {
+  position: relative;
+  z-index: 1;
   display: block;
   object-fit: contain;
   filter: drop-shadow(0 4px 5px rgba(0, 0, 0, 0.4));
+  will-change: auto;
+}
+
+.resourceIcon::before,
+.resourceIcon::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 4px;
+  height: 4px;
+  pointer-events: none;
+  border-radius: 50%;
+  background: color-mix(in srgb, var(--resource-tone) 82%, white);
+  opacity: 0;
+}
+
+.motionFull:not(.pagePaused) .resourceIcon img,
+.motionBalanced:not(.pagePaused) .resourceIcon img {
+  --arcade-pulse-low: 0.9;
+  --arcade-pulse-scale: 1.025;
+  --mboa-breath-y: -2px;
+  animation: mboaBreath 5.8s cubic-bezier(.45, 0, .25, 1) infinite;
+  will-change: transform, opacity;
+}
+
+.motionFull .resource[data-resource="energy"] .resourceIcon img,
+.motionBalanced .resource[data-resource="energy"] .resourceIcon img {
+  --mboa-breath-rotate: -1.5deg;
+}
+
+.motionFull .resource[data-resource="nkap"] .resourceIcon img,
+.motionBalanced .resource[data-resource="nkap"] .resourceIcon img {
+  --mboa-breath-rotate: 3deg;
+  --mboa-breath-y: -1px;
+  animation-delay: -1.5s;
+}
+
+.motionFull .resource[data-resource="cauris"] .resourceIcon img,
+.motionBalanced .resource[data-resource="cauris"] .resourceIcon img {
+  --mboa-breath-rotate: -2.5deg;
+  --mboa-breath-y: -1.5px;
+  animation-delay: -3s;
+}
+
+.motionBalanced:not(.pagePaused) .resourceIcon img {
+  --arcade-pulse-scale: 1.022;
+  animation-duration: 8.6s;
 }
 
 .resourceCopy {
@@ -290,13 +488,71 @@
   text-transform: uppercase;
 }
 
-.resourceCopy strong {
+.resourceCopy strong,
+.resourceValue {
   color: var(--home-cream);
   font-size: clamp(14px, 3vw, 18px);
   font-weight: 850;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
   white-space: nowrap;
+}
+
+.resourceValueRow {
+  position: relative;
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+}
+
+.resourceValue {
+  display: block;
+  min-width: 2ch;
+}
+
+.resourceDelta {
+  position: absolute;
+  right: 0;
+  top: -16px;
+  z-index: 3;
+  color: color-mix(in srgb, var(--resource-tone) 72%, white);
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  pointer-events: none;
+  animation: resourceDeltaRise 820ms cubic-bezier(.2, .85, .25, 1) both;
+}
+
+.resourceSpend .resourceDelta {
+  color: #ff97ac;
+}
+
+.resource:not([data-motion-level="off"]).resourceGain::after {
+  animation: resourceSurfaceFlash 700ms ease-out both;
+}
+
+.resource:not([data-motion-level="off"]).resourceGain .resourceIcon {
+  animation: resourceIconGain 620ms cubic-bezier(.2, .9, .25, 1.2) both;
+}
+
+.resource:not([data-motion-level="off"]).resourceSpend .resourceIcon {
+  animation: resourceIconSpend 420ms ease-out both;
+}
+
+.resource:not([data-motion-level="off"]).resourceGain .resourceIcon::before {
+  box-shadow:
+    8px -2px 0 -1px color-mix(in srgb, var(--resource-tone) 72%, white),
+    -8px 3px 0 -1px color-mix(in srgb, var(--resource-tone) 60%, white);
+  animation: resourceSparkBurst 660ms ease-out both;
+}
+
+.resource:not([data-motion-level="off"]).resourceGain .resourceIcon::after {
+  width: 3px;
+  height: 3px;
+  box-shadow:
+    10px 5px 0 -1px color-mix(in srgb, var(--resource-tone) 58%, white),
+    -5px -9px 0 -1px color-mix(in srgb, var(--resource-tone) 76%, white);
+  animation: resourceSparkBurst 720ms 70ms ease-out both;
 }
 
 .energyTrack {
@@ -309,10 +565,13 @@
 
 .energyTrack span {
   display: block;
+  width: 100%;
   height: 100%;
   border-radius: inherit;
   background: linear-gradient(90deg, #0d766f, var(--home-teal));
   box-shadow: 0 0 7px rgba(16, 183, 166, 0.42);
+  transform-origin: left center;
+  will-change: transform;
 }
 
 .dashboard {
@@ -387,6 +646,7 @@
 
 .modeCard {
   --mode-tone: var(--home-teal);
+  --button-fx-tone: var(--mode-tone);
   position: relative;
   min-width: 0;
   overflow: hidden;
@@ -395,6 +655,18 @@
   background: #090b13;
   box-shadow: var(--home-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.08);
   isolation: isolate;
+}
+
+.modeCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -22%;
+  width: 24%;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, color-mix(in srgb, var(--mode-tone) 22%, white), color-mix(in srgb, var(--mode-tone) 8%, transparent) 42%, transparent 72%);
+  transform: translateX(-120%);
+  opacity: 0;
 }
 
 .modeteal { --mode-tone: var(--home-teal); }
@@ -559,15 +831,37 @@
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--mode-tone) 30%, #9a744a);
   border-radius: 50%;
-  background: linear-gradient(145deg, rgba(55, 38, 25, 0.88), rgba(8, 10, 15, 0.94));
-  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.34), 0 0 18px color-mix(in srgb, var(--mode-tone) 12%, transparent);
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--mode-tone) 12%, transparent) 0 35%, transparent 36%),
+    linear-gradient(145deg, rgba(64, 42, 25, 0.9), rgba(8, 10, 15, 0.96));
+  box-shadow: 0 7px 22px rgba(0, 0, 0, 0.34), inset 0 0 0 4px rgba(7, 7, 15, 0.36);
   transition: transform 220ms ease;
+}
+
+.motionFull:not(.pagePaused) .modePrimary .playDisc,
+.motionBalanced:not(.pagePaused) .modePrimary .playDisc {
+  --arcade-pulse-scale: 1.035;
+  --arcade-pulse-low: 0.9;
+  --mboa-breath-y: -1px;
+  animation: mboaBreath 3.8s cubic-bezier(.45, 0, .25, 1) infinite;
+}
+
+.motionBalanced:not(.pagePaused) .modePrimary .playDisc {
+  --arcade-pulse-scale: 1.018;
+  animation-duration: 6.8s;
+}
+
+.motionFull .modePrimary:hover .playDisc,
+.motionFull .modePrimary:focus-within .playDisc,
+.motionBalanced .modePrimary:hover .playDisc,
+.motionBalanced .modePrimary:focus-within .playDisc {
+  animation: none;
 }
 
 .modeCard:hover .modeImage,
 .modeCard:focus-within .modeImage {
-  transform: scale(1.055);
-  filter: saturate(1.08) brightness(1.05);
+  transform: scale(1.042);
+  filter: saturate(1.04) brightness(1.025);
 }
 
 .modeOpen:hover .playDisc,
@@ -603,6 +897,8 @@
 }
 
 .liveDot {
+  --arcade-pulse-scale: 1.08;
+  --arcade-pulse-low: 0.75;
   width: 7px;
   height: 7px;
   display: inline-block;
@@ -610,7 +906,16 @@
   border-radius: 50%;
   background: #70f2b0;
   box-shadow: 0 0 0 4px rgba(112, 242, 176, 0.12), 0 0 10px rgba(112, 242, 176, 0.7);
-  animation: homePulse 2.2s ease-in-out infinite;
+  animation: none;
+}
+
+.motionFull:not(.pagePaused) .liveDot {
+  animation: mboaBreath 2.8s ease-in-out infinite;
+}
+
+.motionBalanced:not(.pagePaused) .liveDot {
+  --arcade-pulse-scale: 1.04;
+  animation: mboaBreath 4.8s ease-in-out infinite;
 }
 
 .secondaryModes {
@@ -629,6 +934,7 @@
 }
 
 .terCard {
+  --button-fx-tone: var(--home-pink);
   display: grid;
   gap: 12px;
   padding: clamp(17px, 3vw, 22px);
@@ -636,6 +942,33 @@
   background:
     radial-gradient(circle at 90% 12%, rgba(216, 60, 104, 0.22), transparent 32%),
     linear-gradient(145deg, rgba(41, 15, 34, 0.97), rgba(9, 9, 21, 0.96));
+}
+
+.terCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 -24%;
+  width: 26%;
+  z-index: 1;
+  pointer-events: none;
+  background: radial-gradient(ellipse at center, rgba(255, 214, 225, 0.14), rgba(49, 84, 212, 0.08) 42%, transparent 72%);
+  transform: translateX(-120%);
+  opacity: 0;
+}
+
+.terCard::before {
+  --arcade-rail-start: -120%;
+  --arcade-rail-end: 480%;
+  --arcade-rail-rotate: 0deg;
+}
+
+.motionFull:not(.pagePaused) .terCard::before {
+  --arcade-rail-opacity: 0.46;
+  animation: mboaEmberTrail 9.8s ease-in-out infinite;
+}
+
+.motionBalanced:not(.pagePaused) .terCard::before {
+  animation: none;
 }
 
 .terTexture {
@@ -792,6 +1125,7 @@
 }
 
 .dailyCard {
+  --button-fx-tone: var(--home-gold);
   display: grid;
   gap: 11px;
   padding: clamp(16px, 3vw, 20px);
@@ -804,6 +1138,20 @@
 .dailyReady {
   border-color: rgba(242, 187, 69, 0.52);
   box-shadow: var(--home-shadow), 0 0 28px rgba(242, 187, 69, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+}
+
+.motionFull:not(.pagePaused) .dailyReady .dailyIcon,
+.motionBalanced:not(.pagePaused) .dailyReady .dailyIcon {
+  --arcade-pulse-scale: 1.028;
+  --arcade-pulse-low: 0.9;
+  --mboa-breath-y: -1.5px;
+  --mboa-breath-rotate: -1.5deg;
+  animation: mboaBreath 5.2s 1.2s cubic-bezier(.45, 0, .25, 1) infinite;
+}
+
+.motionBalanced:not(.pagePaused) .dailyReady .dailyIcon {
+  --arcade-pulse-scale: 1.014;
+  animation-duration: 8.8s;
 }
 
 .dailyHead {
@@ -900,6 +1248,7 @@
   height: 27px;
   display: grid;
   place-items: center;
+  transition: transform 180ms ease;
 }
 
 .quickLinks button:hover,
@@ -907,6 +1256,283 @@
   transform: translateY(-2px);
   border-color: rgba(242, 187, 69, 0.45);
   background: rgba(242, 187, 69, 0.08);
+}
+
+.quickLinks button:hover span,
+.quickLinks button:focus-visible span {
+  transform: translateY(-2px) rotate(-2deg) scale(1.035);
+}
+
+.quickLinks button:active span {
+  transform: translateY(0) scale(0.94);
+}
+
+/* Une même matière interactive : empreinte chaude, jeton pressé et focus sculpté. */
+.playerIdentity { --button-fx-tone: var(--home-gold); }
+.headerActions .iconButton:first-child { --button-fx-tone: var(--home-pink); }
+.headerActions .iconButton:last-child { --button-fx-tone: var(--home-gold); }
+.sectionHeading { --button-fx-tone: var(--home-teal); }
+.quickLinks { --button-fx-tone: var(--home-gold); }
+
+.playerIdentity,
+.iconButton,
+.sectionHeading button,
+.modeOpen,
+.resumeRibbon,
+.terAction,
+.bonusAction,
+.quickLinks button,
+.homeScene :global(.nj-choice) {
+  position: relative;
+  isolation: isolate;
+  touch-action: manipulation;
+}
+
+.iconButton,
+.sectionHeading button,
+.resumeRibbon,
+.terAction,
+.bonusAction,
+.quickLinks button,
+.homeScene :global(.nj-choice) {
+  overflow: hidden;
+}
+
+.motionOn .playerIdentity::before,
+.motionOn .iconButton::before,
+.motionOn .sectionHeading button::before,
+.motionOn .modeOpen::before,
+.motionOn .resumeRibbon::before,
+.motionOn .terAction::before,
+.motionOn .bonusAction::before,
+.motionOn .quickLinks button::before,
+.motionOn :global(.nj-choice)::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 0;
+  width: 92%;
+  aspect-ratio: 1;
+  pointer-events: none;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle, color-mix(in srgb, var(--button-fx-tone, var(--home-gold)) 22%, transparent), transparent 54%),
+    repeating-radial-gradient(circle, transparent 0 8px, color-mix(in srgb, var(--button-fx-tone, var(--home-gold)) 7%, transparent) 9px 10px, transparent 11px 17px);
+  opacity: 0;
+  transform: translate(-50%, -50%) scale(0.3);
+  transition: transform 320ms cubic-bezier(.2, .8, .2, 1), opacity 220ms ease;
+}
+
+.motionFull .iconButton:hover::before,
+.motionFull .iconButton:focus-visible::before,
+.motionFull .sectionHeading button:hover::before,
+.motionFull .sectionHeading button:focus-visible::before,
+.motionFull .quickLinks button:hover::before,
+.motionFull .quickLinks button:focus-visible::before,
+.motionBalanced .iconButton:hover::before,
+.motionBalanced .iconButton:focus-visible::before,
+.motionBalanced .sectionHeading button:hover::before,
+.motionBalanced .sectionHeading button:focus-visible::before,
+.motionBalanced .quickLinks button:hover::before,
+.motionBalanced .quickLinks button:focus-visible::before {
+  opacity: 0.2;
+  transform: translate(-50%, -50%) scale(0.72);
+}
+
+.motionOn .playerIdentity:active::before,
+.motionOn .iconButton:active::before,
+.motionOn .sectionHeading button:active::before,
+.motionOn .modeOpen:active::before,
+.motionOn .resumeRibbon:active::before,
+.motionOn .terAction:active::before,
+.motionOn .bonusAction:active:not(:disabled)::before,
+.motionOn .quickLinks button:active::before,
+.motionOn :global(.nj-choice):active::before {
+  opacity: 0.46;
+  transform: translate(-50%, -50%) scale(1.08);
+  transition-duration: 120ms;
+}
+
+.motionOn .resource:active,
+.motionOn .iconButton:active,
+.motionOn .sectionHeading button:active,
+.motionOn .modeOpen:active,
+.motionOn .resumeRibbon:active,
+.motionOn .terAction:active,
+.motionOn .bonusAction:active:not(:disabled),
+.motionOn .quickLinks button:active,
+.motionOn :global(.nj-choice):active {
+  transform: translateY(1px) scale(0.985);
+  transition-duration: 90ms;
+}
+
+.playerIdentity:focus-visible,
+.iconButton:focus-visible,
+.resource:focus-visible,
+.sectionHeading button:focus-visible,
+.modeOpen:focus-visible,
+.resumeRibbon:focus-visible,
+.terAction:focus-visible,
+.bonusAction:focus-visible,
+.quickLinks button:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--button-fx-tone, var(--home-gold)) 62%, #ead3a2);
+  outline-offset: 2px;
+}
+
+.iconButton > svg,
+.sectionHeading button span,
+.terAction span {
+  transition: transform 180ms ease;
+}
+
+.motionFull .iconButton:hover > svg,
+.motionFull .iconButton:focus-visible > svg,
+.motionBalanced .iconButton:hover > svg,
+.motionBalanced .iconButton:focus-visible > svg {
+  transform: translateY(-2px) rotate(-2.5deg);
+}
+
+.motionFull .sectionHeading button:hover span,
+.motionFull .sectionHeading button:focus-visible span,
+.motionBalanced .sectionHeading button:hover span,
+.motionBalanced .sectionHeading button:focus-visible span,
+.motionFull .terAction:hover span,
+.motionFull .terAction:focus-visible span,
+.motionBalanced .terAction:hover span,
+.motionBalanced .terAction:focus-visible span {
+  transform: translateX(3px);
+}
+
+.motionFull:not(.pagePaused) .modePrimary::before {
+  --arcade-rail-start: -120%;
+  --arcade-rail-end: 510%;
+  --arcade-rail-rotate: 0deg;
+  --arcade-rail-opacity: 0.38;
+  animation: mboaEmberTrail 8.4s ease-in-out infinite;
+}
+
+.motionBalanced:not(.pagePaused) .modePrimary::before {
+  --arcade-rail-start: -120%;
+  --arcade-rail-end: 510%;
+  --arcade-rail-rotate: 0deg;
+  --arcade-rail-opacity: 0.2;
+  animation: mboaEmberTrail 14.8s ease-in-out infinite;
+}
+
+.dailyCard::after {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  z-index: 0;
+  pointer-events: none;
+  border: 1px solid rgba(255, 226, 133, 0.26);
+  border-radius: calc(var(--home-radius-lg) - 8px);
+  background: radial-gradient(circle at 50% 100%, rgba(242, 187, 69, 0.16), transparent 56%);
+  opacity: 0;
+}
+
+.dailyCard > * {
+  position: relative;
+  z-index: 1;
+}
+
+.motionFull:not(.pagePaused) .dailyReady::after {
+  --arcade-pulse-scale: 1.006;
+  --arcade-pulse-low: 0.12;
+  animation: mboaBreath 5.6s ease-in-out infinite;
+}
+
+.bonusAction::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 2;
+  width: 7px;
+  height: 4px;
+  pointer-events: none;
+  border: 1px solid rgba(255, 240, 166, 0.82);
+  border-radius: 55% 45% 52% 48%;
+  background: #c9822e;
+  opacity: 0;
+}
+
+.bonusBurst .bonusAction::after {
+  box-shadow:
+    18px -5px 0 -1px #f2bb45,
+    -17px -7px 0 -1px #ffe594,
+    12px 10px 0 -1px #cf7b27,
+    -13px 11px 0 -1px #fff0a6,
+    2px -15px 0 -1px #f7ce61;
+  animation: cauriRewardBurst 760ms ease-out both;
+}
+
+.bonusAction:disabled::before,
+.bonusAction:disabled::after {
+  display: none;
+}
+
+/* Lite conserve les réactions tactiles et de valeur, sans hover décoratif. */
+.motionLite .resource:hover,
+.motionLite .resource:focus-visible,
+.motionOff .resource:hover,
+.motionOff .resource:focus-visible,
+.motionLite .iconButton:hover,
+.motionLite .iconButton:focus-visible,
+.motionOff .iconButton:hover,
+.motionOff .iconButton:focus-visible,
+.motionLite .quickLinks button:hover,
+.motionLite .quickLinks button:focus-visible,
+.motionOff .quickLinks button:hover,
+.motionOff .quickLinks button:focus-visible,
+.motionLite .terAction:hover,
+.motionLite .bonusAction:hover:not(:disabled),
+.motionOff .terAction:hover,
+.motionOff .bonusAction:hover:not(:disabled) {
+  transform: none;
+}
+
+.motionLite .modeCard:hover .modeImage,
+.motionLite .modeCard:focus-within .modeImage,
+.motionOff .modeCard:hover .modeImage,
+.motionOff .modeCard:focus-within .modeImage {
+  transform: scale(1.025);
+  filter: none;
+}
+
+.motionLite .modeOpen:hover .playDisc,
+.motionLite .modeOpen:focus-visible .playDisc,
+.motionOff .modeOpen:hover .playDisc,
+.motionOff .modeOpen:focus-visible .playDisc,
+.motionLite .quickLinks button:hover span,
+.motionLite .quickLinks button:focus-visible span,
+.motionOff .quickLinks button:hover span,
+.motionOff .quickLinks button:focus-visible span {
+  transform: none;
+}
+
+.motionOff *,
+.motionOff *::before,
+.motionOff *::after {
+  animation: none !important;
+  transition-duration: 0s !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .motionFull .playerIdentity:hover .avatarWrap,
+  .motionFull .playerIdentity:focus-visible .avatarWrap,
+  .motionBalanced .playerIdentity:hover .avatarWrap,
+  .motionBalanced .playerIdentity:focus-visible .avatarWrap {
+    transform: translateY(-2px) rotate(-1.5deg) scale(1.025);
+  }
+
+  .motionFull .modeCard:hover::before,
+  .motionFull .modeCard:focus-within::before,
+  .motionBalanced .modeCard:hover::before,
+  .motionBalanced .modeCard:focus-within::before {
+    animation: tableGlintSweep 720ms ease-out both;
+  }
 }
 
 @media (min-width: 480px) and (max-width: 899px) {
@@ -1006,6 +1632,10 @@
   .resourceCopy {
     width: 100%;
     gap: 1px;
+  }
+
+  .resourceValueRow {
+    justify-content: center;
   }
 
   .resourceLabel {
@@ -1194,12 +1824,86 @@
   }
 }
 
-@keyframes homeSpark {
-  0%, 100% { opacity: 0.18; transform: translateY(0) scale(0.7); }
-  50% { opacity: 0.72; transform: translateY(-8px) scale(1); }
+@keyframes mboaBreath {
+  0%, 100% {
+    opacity: var(--arcade-pulse-low, 0.72);
+    transform: translate3d(0, 0, 0) rotate(0deg) scale(1);
+  }
+  52% {
+    opacity: 1;
+    transform: translate3d(0, var(--mboa-breath-y, 0), 0) rotate(var(--mboa-breath-rotate, 0deg)) scale(var(--arcade-pulse-scale, 1.04));
+  }
 }
 
-@keyframes homePulse {
-  0%, 100% { opacity: 0.75; transform: scale(0.9); }
-  50% { opacity: 1; transform: scale(1.08); }
+@keyframes mboaEmberTrail {
+  0%, 12% {
+    opacity: 0;
+    transform: translateX(var(--arcade-rail-start, -145%)) rotate(var(--arcade-rail-rotate, 0deg));
+  }
+  24%, 72% { opacity: var(--arcade-rail-opacity, 0.72); }
+  88%, 100% {
+    opacity: 0;
+    transform: translateX(var(--arcade-rail-end, 145%)) rotate(var(--arcade-rail-rotate, 0deg));
+  }
+}
+
+@keyframes identityBarSweep {
+  0% { opacity: 0; transform: translateX(-115%); }
+  28% { opacity: 1; }
+  100% { opacity: 0; transform: translateX(115%); }
+}
+
+@keyframes badgeArrive {
+  0% { opacity: 0; transform: translateY(4px) scale(0.65); }
+  70% { opacity: 1; transform: translateY(-1px) scale(1.08); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes resourceIconSettle {
+  0% { opacity: 0; transform: translateY(5px) scale(0.82); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes resourceSurfaceFlash {
+  0% { opacity: 0; transform: scaleX(0.45); }
+  35% { opacity: 1; }
+  100% { opacity: 0; transform: scaleX(1); }
+}
+
+@keyframes resourceIconGain {
+  0% { transform: scale(1); }
+  42% { transform: translateY(-3px) scale(1.13); }
+  72% { transform: translateY(0) scale(0.97); }
+  100% { transform: scale(1); }
+}
+
+@keyframes resourceIconSpend {
+  0% { transform: translateY(0) scale(1); }
+  44% { transform: translateY(2px) scale(0.92); }
+  100% { transform: translateY(0) scale(1); }
+}
+
+@keyframes resourceSparkBurst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.4); }
+  24% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -72%) scale(1.25); }
+}
+
+@keyframes resourceDeltaRise {
+  0% { opacity: 0; transform: translateY(5px) scale(0.9); }
+  24% { opacity: 1; transform: translateY(0) scale(1); }
+  72% { opacity: 1; }
+  100% { opacity: 0; transform: translateY(-7px); }
+}
+
+@keyframes tableGlintSweep {
+  0% { opacity: 0; transform: translateX(-120%); }
+  38% { opacity: 0.42; }
+  100% { opacity: 0; transform: translateX(510%); }
+}
+
+@keyframes cauriRewardBurst {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
+  24% { opacity: 1; }
+  100% { opacity: 0; transform: translate(-50%, -50%) scale(1.55); }
 }
