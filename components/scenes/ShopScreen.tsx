@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { type OfferDefinition, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
@@ -11,10 +11,32 @@ import { t } from "@/lib/i18n";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
 import { EmptyState, GameCard, GameTabs, ResourcePill, RewardPreview, StatusBanner } from "@/components/ui/GamePrimitives";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
+import { PowerCardView } from "@/components/power/PowerCardView";
+import { POWER_CARDS_BY_ID } from "@/config/powerCards";
+import { useMotionProfile } from "@/lib/motion";
+import type { PowerCardId } from "@/types/game";
 import styles from "./GameHubs.module.css";
 
 type ShopTab = "offers" | "boosters" | "grid" | "wheel";
 type OfferCategory = "featured" | OfferDefinition["type"];
+type CardReveal = {
+  source: "booster" | "daily-grid";
+  cardId: string;
+  rarity: string;
+  duplicateCompensation: number;
+};
+
+type DailyGridResult = {
+  reward: Reward;
+  duplicateCompensation: number;
+};
+
+const REVEAL_TONES: Record<string, string> = {
+  village: "#35dbc4",
+  notable: "#5d8cff",
+  chef: "#ec5b83",
+  ancetre: "#f3c969",
+};
 
 const SHOP_TABS = [
   { id: "offers", label: t("shop.offers") },
@@ -71,17 +93,137 @@ function priceLabel(price: OfferDefinition["prices"][number]) {
   return `${price.amount.toLocaleString("fr-FR")} ${price.currency === "xaf" ? "XAF" : "cauris"}`;
 }
 
+function PowerCardReveal({ reveal, onContinue }: { reveal: CardReveal; onContinue: () => void }) {
+  const motion = useMotionProfile();
+  const titleRef = useRef<HTMLHeadingElement>(null);
+  const closeTimerRef = useRef<number | null>(null);
+  const [closing, setClosing] = useState(false);
+  const card = POWER_CARDS_BY_ID[reveal.cardId as PowerCardId];
+  const duplicate = reveal.duplicateCompensation > 0;
+  const fromGrid = reveal.source === "daily-grid";
+  const tone = REVEAL_TONES[reveal.rarity] ?? REVEAL_TONES.notable;
+  const particleCount = reveal.rarity === "ancetre" ? 28 : reveal.rarity === "chef" ? 20 : reveal.rarity === "notable" ? 14 : 8;
+
+  useEffect(() => {
+    titleRef.current?.focus({ preventScroll: true });
+    return () => {
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
+  const handleContinue = () => {
+    if (!motion.enabled) {
+      onContinue();
+      return;
+    }
+    setClosing(true);
+    closeTimerRef.current = window.setTimeout(onContinue, 260);
+  };
+
+  return (
+    <GameCard
+      variant="default"
+      className={[
+        styles.openingPanel,
+        styles.revealPanel,
+        styles.shopTabPanel,
+        fromGrid && styles.gridRevealPanel,
+        closing && styles.revealClosing,
+        !motion.enabled && styles.motionOff,
+        motion.enabled && motion.level === "lite" && styles.motionLite,
+      ].filter(Boolean).join(" ")}
+    >
+      <div className={styles.openingHeading}>
+        <span><NjamboIcon name={duplicate ? "history" : fromGrid ? "sparkle" : "cards"} tone="gold" size={28} /></span>
+        <div>
+          <h2 ref={titleRef} tabIndex={-1} className={styles.revealTitle}>{duplicate ? "Carte déjà possédée" : fromGrid ? "Trésor de la grille !" : "Nouvelle carte Pouvoir !"}</h2>
+          <p>{duplicate ? "Ton doublon est remplacé par des cauris." : fromGrid ? "La case révèle une carte Pouvoir permanente." : "Elle rejoint définitivement ta collection."}</p>
+        </div>
+      </div>
+
+      <div
+        className={`${styles.revealStage} ${styles[`revealTier_${reveal.rarity}`] ?? ""}`}
+        aria-live="polite"
+        style={{ "--reveal-tone": tone } as CSSProperties}
+      >
+        <span className={styles.revealAura} aria-hidden="true" />
+        {motion.allowParticles && (
+          <div className={styles.revealParticles} aria-hidden="true">
+            {Array.from({ length: particleCount }, (_, index) => (
+              <i
+                key={index}
+                style={{
+                  "--particle-angle": `${index * (360 / particleCount)}deg`,
+                  "--particle-delay": `${320 + index * 12}ms`,
+                } as CSSProperties}
+              />
+            ))}
+          </div>
+        )}
+        <div className={styles.revealCard}>
+          <div className={styles.revealCardInner}>
+            <div className={`${styles.revealFace} ${styles.revealBack}`} aria-hidden="true">
+              <Image src="/assets/njambo/books/card-back-256.webp" alt="" width={180} height={250} priority />
+            </div>
+            <div className={`${styles.revealFace} ${styles.revealFront}`}>
+              {card ? (
+                <div className={styles.revealPowerHero}>
+                  <span className={styles.revealPowerBadge}><NjamboIcon name="spark" tone="gold" size={13} /> Carte Pouvoir</span>
+                  <PowerCardView card={card} selected showMeta={false} className={styles.revealPowerCardView} />
+                </div>
+              ) : (
+                <div className={styles.revealFallback}>
+                  <NjamboIcon name="cards" tone="gold" size={36} />
+                  <strong>{reveal.cardId}</strong>
+                  <span>{RARITY_LABELS[reveal.rarity] ?? reveal.rarity}</span>
+                </div>
+              )}
+            </div>
+          </div>
+          {duplicate && (
+            <span className={styles.duplicateFloat} aria-hidden="true">
+              <NjamboIcon name="sparkle" tone="gold" size={15} /> +{reveal.duplicateCompensation} cauris
+            </span>
+          )}
+        </div>
+
+        <div className={`${styles.revealResult} ${duplicate ? styles.duplicateResult : styles.newCardResult}`}>
+          <span className={styles.revealEyebrow}>{RARITY_LABELS[reveal.rarity] ?? reveal.rarity}</span>
+          <strong>{card?.name ?? reveal.cardId}</strong>
+          {duplicate ? (
+            <p>Tu possèdes déjà cette carte. Elle est automatiquement échangée contre <b>+{reveal.duplicateCompensation} cauris</b>.</p>
+          ) : (
+            <p>Carte débloquée et disponible dans ta collection de Pouvoirs.</p>
+          )}
+          <button data-nj-skin="gold" type="button" className={styles.revealContinue} disabled={closing} onClick={handleContinue}>
+            {duplicate ? `Continuer avec +${reveal.duplicateCompensation} cauris` : "Ajouter à ma collection"}
+          </button>
+        </div>
+      </div>
+    </GameCard>
+  );
+}
+
 export function ShopScreen() {
+  const motion = useMotionProfile();
   const { navigateTo } = useGame();
   const { user } = useAuth();
   const { economy, inventory, loading: economyLoading, command, pendingBoosterOpening } = useEconomy();
   const { offers: publishedOffers, boosters, loading: contentLoading, error: contentError } = useLiveOpsContent();
-  const { purchased: gridRewards, loading: gridLoading } = useDailyGrid(user && !user.isAnonymous ? user.uid : undefined);
+  const {
+    day: gridDay,
+    purchased: gridRewards,
+    duplicateCompensations: gridDuplicateCompensations,
+    loading: gridLoading,
+  } = useDailyGrid(user && !user.isAnonymous ? user.uid : undefined);
   const [tab, setTab] = useState<ShopTab>("offers");
   const [offerCategory, setOfferCategory] = useState<OfferCategory>("featured");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ severity: "success" | "warning" | "error"; text: string } | null>(null);
   const [opening, setOpening] = useState<{ openingId: string; positions: number[] } | null>(null);
+  const [cardReveal, setCardReveal] = useState<CardReveal | null>(null);
+  const [gridSelectingPosition, setGridSelectingPosition] = useState<number | null>(null);
+  const [gridPayment, setGridPayment] = useState<"cauris" | "xaf">("cauris");
   const guestBlocked = !user || user.isAnonymous;
   const blocked = guestBlocked || economyLoading || Boolean(economy?.spendingBlocked);
 
@@ -136,12 +278,94 @@ export function ShopScreen() {
     return `Paiement simulé confirmé : ${offer.title}.`;
   };
 
-  const buyGridWithXaf = async (position: number) => {
+  const buyGridWithXaf = async (position: number): Promise<DailyGridResult> => {
     const intent = await command<{ orderId: string }>("createPaymentIntent", { offerId: "daily_grid_slot_xaf", provider: "simulated" });
     await command("verifyStorePurchase", { orderId: intent.orderId, simulationOutcome: "success" });
-    const result = await command<{ reward: Reward }>("buyDailyGridSlot", { position, orderId: intent.orderId });
-    return `${rewardLabel(result.reward)} rejoint ta collection.`;
+    return command<DailyGridResult>("buyDailyGridSlot", { position, orderId: intent.orderId });
   };
+
+  const revealBoosterCard = async (position: number) => {
+    if (!opening) return;
+    setBusy(`slot-${position}`);
+    setMessage(null);
+    try {
+      const result = await command<{ reward: { cardId: string; rarity: string }; duplicateCompensation: number }>("chooseBoosterCard", {
+        openingId: opening.openingId,
+        position,
+      });
+      setCardReveal({
+        source: "booster",
+        cardId: result.reward.cardId,
+        rarity: result.reward.rarity,
+        duplicateCompensation: result.duplicateCompensation,
+      });
+      setOpening(null);
+    } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : "";
+      setMessage({ severity: "error", text: reason || "Impossible de révéler cette carte. Réessaie dans un instant." });
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const purchaseDailyGridCard = async (position: number, payment: "cauris" | "xaf") => {
+    const key = payment === "xaf" ? `grid-xaf-${position}` : `grid-${position}`;
+    setBusy(key);
+    setGridSelectingPosition(position);
+    setMessage(null);
+    try {
+      const result = payment === "xaf"
+        ? await buyGridWithXaf(position)
+        : await command<DailyGridResult>("buyDailyGridSlot", { position });
+      if (result.reward.type !== "card") throw new Error("INVALID_DAILY_GRID_REWARD");
+      setCardReveal({
+        source: "daily-grid",
+        cardId: result.reward.cardId,
+        rarity: result.reward.rarity,
+        duplicateCompensation: Number(result.duplicateCompensation ?? 0),
+      });
+    } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : "";
+      const insufficient = /insufficient|solde|balance/i.test(reason);
+      const adultConfirmation = /CHECKOUT_REQUIRES_ADULT_CONFIRMATION/i.test(reason);
+      setMessage({
+        severity: insufficient || adultConfirmation ? "warning" : "error",
+        text: insufficient
+          ? "Tu n’as pas assez de cauris pour révéler cette case."
+          : adultConfirmation
+            ? "Confirme d’abord que tu as 18 ans ou plus dans ton profil pour payer en XAF."
+            : "La carte n’a pas pu être révélée. Aucun nouvel achat ne sera rejoué automatiquement.",
+      });
+    } finally {
+      setBusy(null);
+      setGridSelectingPosition(null);
+    }
+  };
+
+  const closeCardReveal = () => {
+    if (!cardReveal) return;
+    const card = POWER_CARDS_BY_ID[cardReveal.cardId as PowerCardId];
+    setMessage({
+      severity: "success",
+      text: cardReveal.duplicateCompensation > 0
+        ? `Doublon converti : +${cardReveal.duplicateCompensation} cauris crédités.`
+        : `${card?.name ?? cardReveal.cardId} rejoint ta collection.`,
+    });
+    setCardReveal(null);
+    window.requestAnimationFrame(() => {
+      const activeShopTab = document.querySelector<HTMLElement>(
+        '[role="tablist"][aria-label="Rayons de la boutique"] [role="tab"][aria-selected="true"]',
+      );
+      activeShopTab?.focus();
+    });
+  };
+
+  const gridRevealedCount = Object.keys(gridRewards).length;
+  const shopPanelClass = [
+    styles.shopTabPanel,
+    !motion.enabled && styles.motionOff,
+    motion.enabled && motion.level === "lite" && styles.motionLite,
+  ].filter(Boolean).join(" ");
 
   return (
     <GameHubLayout
@@ -163,6 +387,7 @@ export function ShopScreen() {
           activeId={tab}
           onChange={(next) => setTab(next as ShopTab)}
           ariaLabel="Rayons de la boutique"
+          className={styles.shopTabs}
         />
       </div>
 
@@ -175,7 +400,7 @@ export function ShopScreen() {
       {message && <StatusBanner severity={message.severity}>{message.text}</StatusBanner>}
 
       {tab === "offers" && (
-        <section aria-labelledby="shop-offers-title">
+        <section className={shopPanelClass} aria-labelledby="shop-offers-title">
           <div className={styles.offerCategoryHeader}>
             <div>
               <span className={styles.eyebrow}>Rayons du quartier</span>
@@ -204,7 +429,7 @@ export function ShopScreen() {
               description="Les nouvelles offres apparaîtront ici dès leur publication par le Ter."
             />
           ) : (
-            <div className={styles.offerGrid} aria-live="polite">
+            <div key={offerCategory} className={`${styles.offerGrid} ${styles.offerGridMotion}`} aria-live="polite">
               {visibleOffers.map((offer) => {
                 const xaf = offer.prices.some((price) => price.currency === "xaf");
                 return (
@@ -248,7 +473,7 @@ export function ShopScreen() {
                     <span className={`${styles.priceTag} ${xaf ? styles.priceXaf : styles.priceCauris}`}>
                       {offer.prices.map(priceLabel).join(" / ")}
                     </span>
-                    <button data-nj-skin="gold" type="button" className={styles.buyButton} disabled={blocked || busy === offer.id} onClick={() => void run(offer.id, () => purchase(offer.id))}>
+                    <button data-nj-skin="gold" type="button" className={styles.buyButton} disabled={blocked || busy !== null} onClick={() => void run(offer.id, () => purchase(offer.id))}>
                       {busy === offer.id ? "Validation…" : xaf ? "Simuler l’achat" : "Acheter"}
                     </button>
                   </div>
@@ -262,8 +487,10 @@ export function ShopScreen() {
       )}
 
       {tab === "boosters" && (
-        <section aria-label="Livres de boosters">
-          {!opening ? (
+        <section className={shopPanelClass} aria-label="Livres de boosters">
+          {cardReveal?.source === "booster" ? (
+            <PowerCardReveal reveal={cardReveal} onContinue={closeCardReveal} />
+          ) : !opening ? (
             <div className={styles.bookGrid}>
               {boosters.map((booster) => {
                 const ownedBooks = Number(inventory.boosterBooks?.[booster.id] ?? 0);
@@ -289,7 +516,7 @@ export function ShopScreen() {
                       <span className={`${styles.priceTag} ${styles.priceCauris}`}>
                         {ownedBooks > 0 ? `${ownedBooks} livre${ownedBooks > 1 ? "s" : ""} possédé${ownedBooks > 1 ? "s" : ""}` : caurisPrice ? priceLabel(caurisPrice) : "Indisponible"}
                       </span>
-                      <button data-nj-skin="gold" type="button" className={styles.buyButton} disabled={blocked || busy === booster.id} onClick={() => void run(booster.id, async () => {
+                      <button data-nj-skin="gold" type="button" className={styles.buyButton} disabled={blocked || busy !== null} onClick={() => void run(booster.id, async () => {
                         const result = await command<{ openingId: string; positions: number[] }>("openBoosterBook", { boosterId: booster.id });
                         setOpening({ openingId: result.openingId, positions: result.positions ?? Array.from({ length: 9 }, (_, i) => i) });
                         return `${booster.title} prêt : choisis une carte.`;
@@ -308,13 +535,9 @@ export function ShopScreen() {
               </div>
               <div className={styles.cardGrid} aria-label="Neuf cartes cachées">
                 {opening.positions.map((position) => (
-                  <button data-nj-skin="gold" key={position} type="button" disabled={busy !== null} onClick={() => void run(`slot-${position}`, async () => {
-                    const result = await command<{ reward: { cardId: string; rarity: string }; duplicateCompensation: number }>("chooseBoosterCard", { openingId: opening.openingId, position });
-                    setOpening(null);
-                    return `${result.reward.cardId} · ${RARITY_LABELS[result.reward.rarity] ?? result.reward.rarity}${result.duplicateCompensation ? ` · +${result.duplicateCompensation} cauris pour le doublon` : ""}`;
-                  })}>
+                  <button data-nj-skin="gold" key={position} type="button" disabled={busy !== null} onClick={() => void revealBoosterCard(position)}>
                     <Image src="/assets/njambo/books/card-back-256.webp" alt="Carte cachée" width={180} height={250} />
-                    <span>Choisir</span>
+                    <span>{busy === `slot-${position}` ? "Révélation…" : "Choisir"}</span>
                   </button>
                 ))}
               </div>
@@ -324,53 +547,143 @@ export function ShopScreen() {
       )}
 
       {tab === "grid" && (
-        <section className={styles.dailyGridSection} aria-labelledby="daily-grid-title">
-          <div className={styles.sectionIntro}>
-            <div><span className={styles.eyebrow}>Rotation de Douala</span><h2 id="daily-grid-title">Neuf cartes, neuf chances</h2><p>Chaque position ne peut être achetée qu’une fois aujourd’hui.</p></div>
-            <details className={styles.oddsDetails}>
-              <summary>Détails du tirage</summary>
-              <ul>
-                <li><span>Village</span><strong>55 %</strong></li>
-                <li><span>Notable</span><strong>32 %</strong></li>
-                <li><span>Chef</span><strong>11 %</strong></li>
-                <li><span>Ancêtre</span><strong>2 %</strong></li>
-              </ul>
-            </details>
-          </div>
-          <div className={styles.dailyGrid}>
-            {Array.from({ length: 9 }, (_, position) => {
-              const reward = gridRewards[String(position)];
-              return (
-                <div className={`${styles.dailySlot}${reward ? ` ${styles.dailySlotRevealed}` : ""}`} key={position}>
-                  <span className={styles.slotNumber}>{position + 1}</span>
-                  {reward ? (
-                    <div className={styles.slotReveal} role="status">
-                      <Image src="/assets/njambo/ranks/rank-notable-128.webp" alt="" width={84} height={84} />
-                      <strong>{rewardLabel(reward)}</strong>
-                      <small>Déjà obtenue aujourd’hui</small>
-                    </div>
-                  ) : (
-                    <Image src="/assets/njambo/books/card-back-256.webp" alt="Carte quotidienne cachée" width={180} height={250} />
-                  )}
-                  {!reward && (
-                    <>
-                      <button data-nj-skin="gold" type="button" disabled={blocked || busy !== null} onClick={() => void run(`grid-${position}`, async () => {
-                        const result = await command<{ reward: Reward }>("buyDailyGridSlot", { position });
-                        return `${rewardLabel(result.reward)} rejoint ta collection.`;
-                      })}>15 cauris</button>
-                      <button data-nj-skin="teal" type="button" className={styles.xafButton} disabled={blocked || busy !== null} onClick={() => void run(`grid-xaf-${position}`, () => buyGridWithXaf(position))}>150 XAF <small>simulé</small></button>
-                    </>
-                  )}
+        cardReveal?.source === "daily-grid" ? (
+          <PowerCardReveal reveal={cardReveal} onContinue={closeCardReveal} />
+        ) : (
+          <section className={`${styles.dailyGridSection} ${shopPanelClass}`} aria-labelledby="daily-grid-title">
+            <div className={styles.dailyGridGlow} aria-hidden="true" />
+            <div className={styles.sectionIntro}>
+              <div>
+                <span className={styles.eyebrow}>Rotation de Douala · {gridDay}</span>
+                <h2 id="daily-grid-title">La Grille des Pouvoirs</h2>
+                <p>Neuf cases secrètes. Chaque case cache une véritable carte Pouvoir à conserver.</p>
+                <div className={styles.dailyProgress} aria-label={`${gridRevealedCount} cartes révélées sur 9`}>
+                  <span><b>{gridRevealedCount}</b>/9 révélées</span>
+                  <i><span style={{ width: `${(gridRevealedCount / 9) * 100}%` }} /></i>
                 </div>
-              );
-            })}
-          </div>
-        </section>
+              </div>
+              <details className={styles.oddsDetails}>
+                <summary>Chances par case</summary>
+                <ul>
+                  <li><span>Village</span><strong>55 %</strong></li>
+                  <li><span>Notable</span><strong>32 %</strong></li>
+                  <li><span>Chef</span><strong>11 %</strong></li>
+                  <li><span>Ancêtre</span><strong>2 %</strong></li>
+                </ul>
+                <p className={styles.guarantee}>Une position ne peut être révélée qu’une fois par jour.</p>
+              </details>
+            </div>
+
+            <div className={styles.dailyGridToolbar}>
+              <span><NjamboIcon name="cards" tone="cobalt" size={18} /> Touche une carte pour la révéler</span>
+              <div className={styles.dailyPaymentSelector} role="group" aria-label="Moyen de paiement de la grille">
+                <button
+                  data-nj-skin="none"
+                  type="button"
+                  disabled={gridLoading || busy !== null}
+                  aria-pressed={gridPayment === "cauris"}
+                  className={gridPayment === "cauris" ? styles.dailyPaymentActive : undefined}
+                  onClick={() => setGridPayment("cauris")}
+                >
+                  <NjamboIcon name="sparkle" tone="gold" size={14} />15 cauris
+                </button>
+                <button
+                  data-nj-skin="none"
+                  type="button"
+                  disabled={gridLoading || busy !== null}
+                  aria-pressed={gridPayment === "xaf"}
+                  className={gridPayment === "xaf" ? styles.dailyPaymentActive : undefined}
+                  onClick={() => setGridPayment("xaf")}
+                >
+                  150 XAF <small>simulé</small>
+                </button>
+              </div>
+            </div>
+
+            <div className={styles.dailyGrid} aria-busy={gridLoading || gridSelectingPosition !== null}>
+              {Array.from({ length: 9 }, (_, position) => {
+                const reward = gridRewards[String(position)];
+                const cardReward = reward?.type === "card" ? reward : null;
+                const powerCard = cardReward ? POWER_CARDS_BY_ID[cardReward.cardId as PowerCardId] : undefined;
+                const duplicateCompensation = Number(gridDuplicateCompensations[String(position)] ?? 0);
+                const selecting = gridSelectingPosition === position;
+                const slotTone = cardReward ? REVEAL_TONES[cardReward.rarity] ?? REVEAL_TONES.notable : REVEAL_TONES.notable;
+                const slotClassName = [
+                  styles.dailySlot,
+                  reward && styles.dailySlotRevealed,
+                  selecting && styles.dailySlotSelecting,
+                ].filter(Boolean).join(" ");
+
+                return (
+                  <article
+                    className={slotClassName}
+                    key={position}
+                    style={{
+                      "--slot-delay": `${position * 45}ms`,
+                      "--slot-sheen-delay": `${360 + position * 45}ms`,
+                      "--slot-tone": slotTone,
+                    } as CSSProperties}
+                  >
+                    <span className={styles.slotNumber}>{position + 1}</span>
+
+                    {selecting ? (
+                      <div className={styles.dailySelectingCard} role="status" aria-label={`Révélation de la carte ${position + 1} en cours`}>
+                        <Image src="/assets/njambo/books/card-back-256.webp" alt="" width={180} height={250} />
+                        <span className={styles.dailyScan} aria-hidden="true" />
+                        <strong>Révélation…</strong>
+                      </div>
+                    ) : cardReward ? (
+                      <div className={styles.dailyCollectedCard} aria-label={`Carte ${powerCard?.name ?? cardReward.cardId}, rareté ${RARITY_LABELS[cardReward.rarity] ?? cardReward.rarity}`}>
+                        <div className={styles.dailyCollectedArt}>
+                          {powerCard ? (
+                            <Image src={powerCard.art} alt="" fill sizes="(max-width: 479px) 28vw, 150px" />
+                          ) : (
+                            <NjamboIcon name="cards" tone="gold" size={36} />
+                          )}
+                          <span aria-hidden="true" />
+                        </div>
+                        <span className={styles.dailyRarity}>{RARITY_LABELS[cardReward.rarity] ?? cardReward.rarity}</span>
+                        <strong>{powerCard?.name ?? cardReward.cardId}</strong>
+                        <small className={duplicateCompensation > 0 ? styles.dailyDuplicate : undefined}>
+                          {duplicateCompensation > 0 ? `Doublon · +${duplicateCompensation} cauris` : "Carte Pouvoir obtenue"}
+                        </small>
+                      </div>
+                    ) : reward ? (
+                      <div className={styles.dailyCollectedCard}>
+                        <NjamboIcon name="sparkle" tone="gold" size={36} />
+                        <strong>{rewardLabel(reward)}</strong>
+                        <small>Récompense obtenue</small>
+                      </div>
+                    ) : (
+                      <button
+                        data-nj-skin="none"
+                        type="button"
+                        className={styles.dailyCardAction}
+                        disabled={blocked || gridLoading || busy !== null}
+                        aria-label={`Révéler la carte ${position + 1} pour ${gridPayment === "cauris" ? "15 cauris" : "150 XAF, paiement simulé"}`}
+                        onClick={() => void purchaseDailyGridCard(position, gridPayment)}
+                      >
+                        <span className={styles.dailyHiddenCard} aria-hidden="true">
+                          <Image src="/assets/njambo/books/card-back-256.webp" alt="" width={180} height={250} priority={position < 3} />
+                          <span className={styles.dailyCardSheen} />
+                          <b>?</b>
+                          <span className={styles.dailyCardPrice}>
+                            {gridPayment === "cauris" ? "15 cauris" : "150 XAF"}
+                          </span>
+                        </span>
+                      </button>
+                    )}
+                  </article>
+                );
+              })}
+            </div>
+          </section>
+        )
       )}
 
       {tab === "wheel" && (
-        <GameCard variant="default" className={styles.wheelCard}>
-          <div className={styles.wheelVisual} role="img" aria-label="Roulette de fidélité">
+        <GameCard variant="default" className={`${styles.wheelCard} ${shopPanelClass}`}>
+          <div className={`${styles.wheelVisual}${busy === "wheel" ? ` ${styles.wheelSpinning}` : ""}`} role="img" aria-label="Roulette de fidélité">
             <span className={styles.wheelHalo} />
             <span className={styles.wheelImage} />
             <span className={styles.wheelPoints}>{economy?.daily.loyaltyPoints ?? 0}<small>/ 7</small></span>

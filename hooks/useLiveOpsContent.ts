@@ -155,6 +155,7 @@ export function usePlayerEventRuns(uid?: string) {
 export function useDailyGrid(uid?: string) {
   const [day, setDay] = useState(() => doualaDayKey());
   const [purchased, setPurchased] = useState<Record<string, Reward>>({});
+  const [duplicateCompensations, setDuplicateCompensations] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(Boolean(uid));
 
   useEffect(() => {
@@ -168,6 +169,7 @@ export function useDailyGrid(uid?: string) {
   useEffect(() => {
     if (!uid) {
       setPurchased({});
+      setDuplicateCompensations({});
       setLoading(false);
       return;
     }
@@ -177,6 +179,7 @@ export function useDailyGrid(uid?: string) {
       doc(db, "daily_rotations", day, "players", uid),
       (snapshot) => {
         setPurchased((snapshot.get("purchased") ?? {}) as Record<string, Reward>);
+        setDuplicateCompensations((snapshot.get("duplicateCompensations") ?? {}) as Record<string, number>);
         setLoading(false);
       },
       () => setLoading(false),
@@ -187,5 +190,5 @@ export function useDailyGrid(uid?: string) {
     };
   }, [day, uid]);
 
-  return { day, purchased, loading };
+  return { day, purchased, duplicateCompensations, loading };
 }

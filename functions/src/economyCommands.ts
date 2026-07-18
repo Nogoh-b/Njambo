@@ -313,19 +313,36 @@ export async function buyDailyGridSlotHandler(request: CallableRequest<unknown>)
       economyAndInventory(transaction, uid, now), transaction.get(rotationRef), orderRef ? transaction.get(orderRef) : Promise.resolve(null),
     ]);
     const purchased = (rotationSnap.get("purchased") ?? {}) as Record<string, unknown>;
-    if (purchased[position]) return purchased[position];
+    const duplicateCompensations = (rotationSnap.get("duplicateCompensations") ?? {}) as Record<string, number>;
+    if (purchased[position]) {
+      return {
+        day,
+        position,
+        reward: purchased[position],
+        duplicateCompensation: Number(duplicateCompensations[position] ?? 0),
+        economy: publicEconomy(state.economy, now),
+      };
+    }
     const paidWithXaf = Boolean(orderRef && orderSnap?.exists && orderSnap.get("uid") === uid && orderSnap.get("offerId") === "daily_grid_slot_xaf" && orderSnap.get("status") === "paid" && !orderSnap.get("consumedAt"));
     if (!paidWithXaf && (state.economy.spendingBlocked || state.economy.cauris < 15)) throw new HttpsError("resource-exhausted", "INSUFFICIENT_CAURIS");
     const rarity = deterministicGridRarity(uid, day, position);
     const reward = { type: "card" as const, cardId: deterministicGridCard(uid, day, position, rarity), rarity };
+    const alreadyOwned = Boolean(state.inventory.cards?.[reward.cardId]);
     const charged = { ...state.economy, cauris: state.economy.cauris - (paidWithXaf ? 0 : 15) };
     const applied = applyReward(charged, state.inventory, reward, now);
+    const duplicateCompensation = alreadyOwned ? applied.economy.cauris - charged.cauris : 0;
     transaction.set(state.economyRef, applied.economy, { merge: false });
     transaction.set(state.inventoryRef, { ...applied.inventory, updatedAt: now }, { merge: false });
-    transaction.set(rotationRef, { uid, day, purchased: { ...purchased, [position]: reward }, updatedAt: now }, { merge: true });
+    transaction.set(rotationRef, {
+      uid,
+      day,
+      purchased: { ...purchased, [position]: reward },
+      duplicateCompensations: { ...duplicateCompensations, [position]: duplicateCompensation },
+      updatedAt: now,
+    }, { merge: true });
     if (paidWithXaf && orderRef) transaction.update(orderRef, { consumedAt: now, consumedFor: `daily_grid:${day}:${position}`, updatedAt: now });
-    ledger(transaction, uid, stableId(uid, "daily-grid", day, String(position)), "buyDailyGridSlot", { cauris: applied.economy.cauris - state.economy.cauris }, applied.economy, now, { day, position, reward });
-    return { day, position, reward, economy: publicEconomy(applied.economy, now) };
+    ledger(transaction, uid, stableId(uid, "daily-grid", day, String(position)), "buyDailyGridSlot", { cauris: applied.economy.cauris - state.economy.cauris }, applied.economy, now, { day, position, reward, duplicateCompensation });
+    return { day, position, reward, duplicateCompensation, economy: publicEconomy(applied.economy, now) };
   });
 }
 

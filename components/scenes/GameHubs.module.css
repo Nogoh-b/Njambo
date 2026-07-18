@@ -546,6 +546,57 @@
 
 /* ── Boutique ──────────────────────────────────────────────────────────── */
 
+.shopTabPanel {
+  animation: shopPanelEnter 260ms cubic-bezier(0.2, 0.72, 0.2, 1) backwards;
+  min-width: 0;
+  transform-origin: 50% 0;
+}
+
+.shopTabs [role="tab"]::after {
+  background: linear-gradient(90deg, transparent, var(--nj-gold, #f3c969), transparent);
+  border-radius: 999px;
+  bottom: 4px;
+  content: "";
+  height: 2px;
+  left: 18%;
+  opacity: 0;
+  position: absolute;
+  right: 18%;
+  transform: scaleX(0.35);
+  transition: opacity 180ms ease, transform 220ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.shopTabs [role="tab"][aria-selected="true"]::after {
+  opacity: 1;
+  transform: scaleX(1);
+}
+
+.offerGridMotion .offerCard,
+.bookGrid .bookCard {
+  animation: shopProductEnter 360ms cubic-bezier(0.2, 0.72, 0.2, 1) backwards;
+}
+
+.offerGridMotion > :nth-child(2),
+.bookGrid > :nth-child(2) { animation-delay: 45ms; }
+.offerGridMotion > :nth-child(3),
+.bookGrid > :nth-child(3) { animation-delay: 90ms; }
+.offerGridMotion > :nth-child(4),
+.bookGrid > :nth-child(4) { animation-delay: 135ms; }
+.offerGridMotion > :nth-child(5),
+.bookGrid > :nth-child(5) { animation-delay: 180ms; }
+.offerGridMotion > :nth-child(n + 6),
+.bookGrid > :nth-child(n + 6) { animation-delay: 225ms; }
+
+@keyframes shopPanelEnter {
+  from { opacity: 0; transform: translateY(7px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes shopProductEnter {
+  from { opacity: 0; transform: translateY(12px) scale(0.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .stickyTabs {
   backdrop-filter: blur(15px);
   background: linear-gradient(180deg, rgba(6, 8, 22, 0.98), rgba(6, 8, 22, 0.83));
@@ -562,12 +613,16 @@
   gap: 14px;
   justify-content: space-between;
   margin: 5px 1px 12px;
+  min-width: 0;
 }
+
+.offerCategoryHeader > div { min-width: 0; }
 
 .offerCategoryHeader h2 {
   font-size: clamp(1.25rem, 5vw, 1.75rem);
   line-height: 1.06;
   margin-top: 4px;
+  overflow-wrap: anywhere;
 }
 
 .offerCategoryHeader > span {
@@ -583,12 +638,15 @@
   display: flex;
   gap: 7px;
   margin: 0 -2px 14px;
+  max-width: calc(100% + 4px);
   overflow-x: auto;
   overscroll-behavior-inline: contain;
   padding: 2px 2px 8px;
+  scroll-padding-inline: 2px;
   scrollbar-color: rgba(208, 163, 93, 0.28) transparent;
   scrollbar-width: thin;
   scroll-snap-type: inline proximity;
+  -webkit-overflow-scrolling: touch;
 }
 
 .offerCategories button {
@@ -618,15 +676,29 @@
   box-shadow: inset 0 0 0 1px rgba(208, 163, 93, 0.08), 0 8px 22px rgba(0, 0, 0, 0.18);
 }
 
-.offerGrid,
-.bookGrid {
-  grid-template-columns: minmax(0, 1fr);
-}
+.offerGrid { grid-template-columns: minmax(0, 1fr); }
+.bookGrid { grid-template-columns: minmax(0, 1fr); }
 
 .offerCard,
 .bookCard {
+  min-width: 0;
   overflow: hidden;
   padding: 0 !important;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .offerCard,
+  .bookCard { transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease; }
+
+  .offerCard:hover,
+  .bookCard:hover {
+    border-color: rgba(243, 201, 105, 0.28);
+    box-shadow: 0 18px 38px rgba(0, 0, 0, 0.3), 0 0 24px rgba(243, 201, 105, 0.055);
+    transform: translateY(-3px);
+  }
+
+  .offerCard:hover .productArt,
+  .bookCard:hover .bookArt { transform: scale(1.018); }
 }
 
 .productArt {
@@ -639,8 +711,20 @@
   display: flex;
   justify-content: flex-end;
   min-height: 172px;
+  overflow: hidden;
   padding: 12px;
   position: relative;
+  transition: transform 260ms cubic-bezier(0.2, 0.72, 0.2, 1);
+}
+
+.productArt::after {
+  animation: productArtSheen 720ms ease-out 220ms both;
+  background: linear-gradient(105deg, transparent 34%, rgba(255, 248, 232, 0.18) 50%, transparent 66%);
+  content: "";
+  inset: -35% -80%;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-48%);
 }
 
 .offer_cauris_pack .productArt { --product-tint: var(--nj-cobalt, #5d8cff); }
@@ -659,7 +743,12 @@
   font-weight: 850;
   letter-spacing: 0.06em;
   padding: 6px 9px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  position: relative;
+  text-align: center;
   text-transform: uppercase;
+  z-index: 2;
 }
 
 .productBody,
@@ -669,6 +758,9 @@
   min-width: 0;
   padding: 17px;
 }
+
+.productBody > *,
+.bookBody > * { max-width: 100%; }
 
 .productBody h2,
 .bookBody h2 {
@@ -688,6 +780,7 @@
 }
 
 .productBody .rewardRow { margin-bottom: 12px; }
+.productBody .rewardRow > * { flex: 1 1 100%; }
 
 .productFooter {
   align-items: stretch;
@@ -707,6 +800,8 @@
   font-weight: 850;
   justify-content: center;
   min-height: 36px;
+  min-width: 0;
+  overflow-wrap: anywhere;
   padding: 6px 10px;
   text-align: center;
 }
@@ -727,6 +822,7 @@
   --mode-accent: var(--nj-cobalt, #687c99);
   background: linear-gradient(155deg, rgba(67, 43, 27, 0.97), rgba(18, 14, 13, 0.99));
   color: var(--nj-cream, #fff4df);
+  min-width: 0;
   padding: 0 16px;
   width: 100%;
 }
@@ -795,6 +891,7 @@
     linear-gradient(160deg, rgba(13, 17, 37, 0.58), rgba(5, 7, 16, 0.96));
   min-height: 240px;
   position: relative;
+  transition: transform 260ms cubic-bezier(0.2, 0.72, 0.2, 1);
 }
 
 .bookArt::after {
@@ -870,40 +967,569 @@
 
 .cardGrid span { padding-top: 5px; }
 
+.cardGrid button { animation: hiddenCardEnter 340ms cubic-bezier(0.2, 0.72, 0.2, 1) backwards; }
+.cardGrid button:nth-child(2) { animation-delay: 35ms; }
+.cardGrid button:nth-child(3) { animation-delay: 70ms; }
+.cardGrid button:nth-child(4) { animation-delay: 105ms; }
+.cardGrid button:nth-child(5) { animation-delay: 140ms; }
+.cardGrid button:nth-child(6) { animation-delay: 175ms; }
+.cardGrid button:nth-child(7) { animation-delay: 210ms; }
+.cardGrid button:nth-child(8) { animation-delay: 245ms; }
+.cardGrid button:nth-child(9) { animation-delay: 280ms; }
+
+@keyframes hiddenCardEnter {
+  from { opacity: 0; transform: translateY(9px) rotateY(-7deg); }
+  to { opacity: 1; transform: translateY(0) rotateY(0); }
+}
+
+@keyframes productArtSheen {
+  from { opacity: 0; transform: translateX(-48%); }
+  28% { opacity: 1; }
+  to { opacity: 0; transform: translateX(48%); }
+}
+
+.revealPanel {
+  background:
+    radial-gradient(circle at 50% 42%, rgba(243, 201, 105, 0.16), transparent 42%),
+    rgba(7, 9, 21, 0.94) !important;
+  overflow: hidden;
+}
+
+.revealStage {
+  align-items: center;
+  display: grid;
+  gap: 18px;
+  isolation: isolate;
+  justify-items: center;
+  min-width: 0;
+  padding: 4px 0 2px;
+  position: relative;
+}
+
+.revealTitle:focus { outline: none; }
+
+.gridRevealPanel {
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--nj-cobalt, #5d8cff) 20%, transparent), transparent 38%),
+    linear-gradient(155deg, rgba(10, 14, 34, 0.98), rgba(6, 8, 20, 0.98)) !important;
+}
+
+.revealClosing {
+  animation: revealPanelExit 260ms cubic-bezier(0.4, 0, 0.8, 0.35) both;
+  pointer-events: none;
+}
+
+.revealAura {
+  animation: revealAuraBloom 1.15s ease-out both;
+  background: radial-gradient(circle, color-mix(in srgb, var(--reveal-tone) 34%, transparent), transparent 67%);
+  border-radius: 50%;
+  height: min(72vw, 390px);
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  top: 42%;
+  transform: translate(-50%, -50%);
+  width: min(92vw, 560px);
+  z-index: -1;
+}
+
+.revealTier_ancetre .revealAura::after {
+  animation: ancestorRevealRing 920ms ease-out 360ms both;
+  border: 2px solid color-mix(in srgb, var(--reveal-tone) 68%, white 12%);
+  border-radius: 50%;
+  content: "";
+  inset: 16%;
+  opacity: 0;
+  position: absolute;
+}
+
+.revealTier_chef .revealAura {
+  background: radial-gradient(circle, color-mix(in srgb, var(--reveal-tone) 42%, transparent), transparent 66%);
+}
+
+.revealParticles {
+  height: min(64vw, 320px);
+  left: 50%;
+  pointer-events: none;
+  position: absolute;
+  top: 38%;
+  transform: translate(-50%, -50%);
+  width: min(88vw, 520px);
+  z-index: 2;
+}
+
+.revealParticles i {
+  animation: revealParticleBurst 760ms ease-out var(--particle-delay) both;
+  background: var(--reveal-tone);
+  border-radius: 999px;
+  box-shadow: 0 0 10px color-mix(in srgb, var(--reveal-tone) 70%, transparent);
+  height: 5px;
+  left: 50%;
+  opacity: 0;
+  position: absolute;
+  top: 50%;
+  transform: rotate(var(--particle-angle)) translateY(-24px) scale(0);
+  width: 5px;
+}
+
+.revealParticles i:nth-child(3n) { height: 7px; width: 3px; }
+.revealParticles i:nth-child(4n) { height: 3px; width: 7px; }
+
+.revealCard {
+  height: clamp(240px, 55vw, 310px);
+  max-width: 560px;
+  perspective: 1100px;
+  position: relative;
+  width: 100%;
+}
+
+.duplicateFloat {
+  align-items: center;
+  animation: duplicateCaurisPop 460ms cubic-bezier(0.18, 0.9, 0.28, 1.35) 900ms both;
+  backdrop-filter: blur(10px);
+  background: rgba(34, 24, 9, 0.92);
+  border: 1px solid rgba(243, 201, 105, 0.58);
+  border-radius: 999px;
+  bottom: -9px;
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.4), 0 0 22px rgba(243, 201, 105, 0.17);
+  color: var(--nj-gold, #f3c969);
+  display: inline-flex;
+  font-size: 0.72rem;
+  font-weight: 950;
+  gap: 5px;
+  padding: 7px 11px;
+  position: absolute;
+  right: 10px;
+  z-index: 8;
+}
+
+.revealCardInner {
+  animation: revealCardFlip 950ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  will-change: transform, opacity;
+  width: 100%;
+}
+
+.revealFace {
+  align-items: center;
+  backface-visibility: hidden;
+  border-radius: 16px;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  overflow: hidden;
+  position: absolute;
+  -webkit-backface-visibility: hidden;
+}
+
+.revealBack {
+  background:
+    radial-gradient(circle, rgba(243, 201, 105, 0.18), transparent 58%),
+    rgba(8, 10, 24, 0.96);
+  border: 1px solid color-mix(in srgb, var(--reveal-tone) 46%, rgba(255, 255, 255, 0.08));
+  box-shadow: 0 18px 45px rgba(0, 0, 0, 0.42), 0 0 28px color-mix(in srgb, var(--reveal-tone) 18%, transparent);
+}
+
+.revealBack img {
+  border-radius: 12px;
+  height: 88%;
+  object-fit: cover;
+  width: auto;
+}
+
+.revealFront {
+  padding: 8px;
+  transform: rotateY(180deg);
+}
+
+.revealFront > :global(.nj-power-card-view) {
+  min-height: 142px;
+  width: 100%;
+}
+
+.revealPowerHero {
+  height: 100%;
+  position: relative;
+  width: 100%;
+}
+
+.revealPowerBadge {
+  align-items: center;
+  backdrop-filter: blur(9px);
+  background: rgba(5, 7, 17, 0.88);
+  border: 1px solid color-mix(in srgb, var(--reveal-tone) 50%, rgba(255, 255, 255, 0.1));
+  border-radius: 999px;
+  color: var(--nj-gold, #f3c969);
+  display: inline-flex;
+  font-size: 0.62rem;
+  font-weight: 950;
+  gap: 5px;
+  left: 18px;
+  letter-spacing: 0.08em;
+  padding: 6px 9px;
+  position: absolute;
+  text-transform: uppercase;
+  top: 15px;
+  z-index: 4;
+}
+
+.revealPowerCardView {
+  grid-template-columns: minmax(130px, 42%) minmax(0, 1fr) !important;
+  height: 100%;
+  min-height: 0 !important;
+  width: 100%;
+}
+
+.revealPowerCardView :global(.nj-power-card-art) {
+  align-self: stretch;
+  aspect-ratio: auto;
+  min-height: 0;
+}
+
+.revealPowerCardView :global(.nj-power-card-body) {
+  align-content: center;
+  gap: 9px;
+  padding-right: clamp(12px, 3vw, 22px);
+}
+
+.revealPowerCardView :global(.nj-power-card-body > strong) {
+  font-size: clamp(1.05rem, 3.6vw, 1.55rem);
+  line-height: 1.04;
+}
+
+.revealPowerCardView :global(.nj-power-card-body > p) {
+  font-size: clamp(0.72rem, 2vw, 0.9rem);
+  line-height: 1.4;
+}
+
+.revealPowerCardView :global(.nj-power-card-sheen) {
+  animation: revealHeroSheen 900ms ease-out 620ms both;
+}
+
+.revealFallback {
+  align-items: center;
+  background: rgba(10, 13, 28, 0.96);
+  border: 1px solid rgba(243, 201, 105, 0.38);
+  border-radius: 14px;
+  color: var(--nj-cream, #fff4df);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.revealFallback span { color: var(--nj-gold, #f3c969); }
+
+.revealResult {
+  animation: revealResultIn 420ms ease-out 720ms both;
+  border: 1px solid color-mix(in srgb, var(--reveal-tone) 30%, rgba(255, 248, 232, 0.08));
+  border-radius: 16px;
+  max-width: 560px;
+  padding: 15px;
+  text-align: center;
+  width: 100%;
+}
+
+.newCardResult { background: rgba(53, 219, 196, 0.08); }
+.duplicateResult { background: rgba(243, 201, 105, 0.09); }
+
+.revealEyebrow {
+  color: var(--nj-gold, #f3c969);
+  display: block;
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  margin-bottom: 3px;
+  text-transform: uppercase;
+}
+
+.revealResult > strong {
+  color: var(--nj-cream, #fff4df);
+  display: block;
+  font-family: var(--font-display), sans-serif;
+  font-size: 1.25rem;
+}
+
+.revealResult p {
+  color: rgba(255, 244, 223, 0.7);
+  font-size: 0.78rem;
+  line-height: 1.45;
+  margin: 7px auto 13px;
+}
+
+.revealResult p b { color: var(--nj-gold, #f3c969); }
+
+.revealContinue {
+  min-height: 42px;
+  width: 100%;
+}
+
+@keyframes revealCardFlip {
+  0% { opacity: 0; transform: translateY(18px) rotateY(0deg) scale(0.86); }
+  18% { opacity: 1; transform: translateY(0) rotateY(0deg) scale(1); }
+  48% { transform: translateY(-5px) rotateY(0deg) scale(1.03); }
+  100% { opacity: 1; transform: translateY(0) rotateY(180deg) scale(1); }
+}
+
+@keyframes revealResultIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes revealPanelExit {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: translateY(-8px) scale(0.965); }
+}
+
+@keyframes revealHeroSheen {
+  0% { opacity: 0; transform: translateX(-58%) rotate(8deg); }
+  24% { opacity: 0.72; }
+  100% { opacity: 0; transform: translateX(58%) rotate(8deg); }
+}
+
+@keyframes revealAuraBloom {
+  0% { opacity: 0; transform: translate(-50%, -50%) scale(0.35); }
+  45% { opacity: 1; transform: translate(-50%, -50%) scale(1.08); }
+  100% { opacity: 0.72; transform: translate(-50%, -50%) scale(1); }
+}
+
+@keyframes revealParticleBurst {
+  0% { opacity: 0; transform: rotate(var(--particle-angle)) translateY(-18px) scale(0); }
+  20% { opacity: 1; }
+  100% { opacity: 0; transform: rotate(var(--particle-angle)) translateY(-138px) scale(1); }
+}
+
+@keyframes ancestorRevealRing {
+  from { opacity: 0.9; transform: scale(0.32); }
+  to { opacity: 0; transform: scale(1.5); }
+}
+
+@keyframes duplicateCaurisPop {
+  from { opacity: 0; transform: translateY(10px) scale(0.72); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
 .dailyGridSection {
   background:
-    radial-gradient(circle at 50% 18%, rgba(93, 140, 255, 0.12), transparent 35%),
-    rgba(6, 8, 20, 0.55);
-  border: 1px solid rgba(93, 140, 255, 0.18);
+    linear-gradient(155deg, rgba(12, 17, 40, 0.96), rgba(5, 7, 18, 0.96));
+  border: 1px solid rgba(93, 140, 255, 0.24);
   border-radius: var(--nj-radius-lg, 22px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), 0 24px 55px rgba(0, 0, 0, 0.26);
+  isolation: isolate;
+  overflow: hidden;
   padding: clamp(14px, 4vw, 24px);
+  position: relative;
+}
+
+.dailyGridGlow {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(93, 140, 255, 0.2), transparent 36%),
+    radial-gradient(circle at 86% 18%, rgba(236, 91, 131, 0.11), transparent 30%),
+    linear-gradient(120deg, transparent 34%, rgba(243, 201, 105, 0.025) 50%, transparent 66%);
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+  z-index: -1;
 }
 
 .sectionIntro {
   display: grid;
   gap: 10px;
   margin-bottom: 18px;
+  position: relative;
+  z-index: 1;
 }
 
 .sectionIntro h2 { font-size: clamp(1.35rem, 5vw, 1.8rem); margin-top: 5px; }
 
-.dailySlot {
+.dailyProgress {
   align-items: center;
-  background: rgba(6, 8, 20, 0.72);
-  border: 1px solid rgba(93, 140, 255, 0.2);
-  border-radius: 12px;
+  display: flex;
+  gap: 10px;
+  margin-top: 13px;
+  max-width: 310px;
+}
+
+.dailyProgress > span {
+  color: rgba(255, 244, 223, 0.68);
+  font-size: 0.7rem;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dailyProgress > span b { color: var(--nj-gold, #f3c969); font-size: 0.9rem; }
+
+.dailyProgress > i {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  display: block;
+  flex: 1;
+  height: 6px;
+  overflow: hidden;
+}
+
+.dailyProgress > i > span {
+  background: linear-gradient(90deg, var(--nj-cobalt, #5d8cff), var(--nj-gold, #f3c969));
+  border-radius: inherit;
+  display: block;
+  height: 100%;
+  transition: width 420ms ease;
+}
+
+.dailyGridToolbar {
+  align-items: center;
+  background: rgba(7, 10, 25, 0.72);
+  border: 1px solid rgba(93, 140, 255, 0.18);
+  border-radius: 14px;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+  padding: 8px 9px 8px 12px;
+  position: relative;
+  z-index: 2;
+}
+
+.dailyGridToolbar > span {
+  align-items: center;
+  color: rgba(255, 244, 223, 0.72);
+  display: inline-flex;
+  font-size: 0.7rem;
+  font-weight: 800;
+  gap: 7px;
+}
+
+.dailyPaymentSelector {
+  background: rgba(3, 5, 14, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 10px;
+  display: flex;
+  flex: 0 0 auto;
+  gap: 3px;
+  padding: 3px;
+}
+
+.dailyPaymentSelector button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: rgba(255, 244, 223, 0.56);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.66rem;
+  font-weight: 850;
+  gap: 4px;
+  min-height: 36px;
+  padding: 5px 9px;
+  white-space: nowrap;
+}
+
+.dailyPaymentSelector button small {
+  font-size: 0.5rem;
+  opacity: 0.62;
+  text-transform: uppercase;
+}
+
+.dailyPaymentSelector button:disabled { cursor: not-allowed; opacity: 0.48; }
+
+.dailyPaymentSelector .dailyPaymentActive {
+  background: linear-gradient(145deg, rgba(93, 140, 255, 0.2), rgba(243, 201, 105, 0.1));
+  border-color: rgba(243, 201, 105, 0.34);
+  color: var(--nj-cream, #fff4df);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, 0.2);
+}
+
+.dailyGrid {
+  position: relative;
+  z-index: 1;
+}
+
+.dailySlot {
+  --slot-tone: var(--nj-cobalt, #5d8cff);
+  align-items: center;
+  animation: dailySlotEnter 420ms cubic-bezier(0.2, 0.72, 0.2, 1) var(--slot-delay) backwards;
+  background: linear-gradient(165deg, rgba(15, 20, 45, 0.92), rgba(6, 8, 20, 0.94));
+  border: 1px solid rgba(93, 140, 255, 0.24);
+  border-radius: 14px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.035), 0 10px 24px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   min-width: 0;
   padding: 6px;
   position: relative;
+  transition: border-color 180ms ease, box-shadow 180ms ease, opacity 180ms ease, transform 180ms ease;
 }
 
-.dailySlot img {
+.dailyGrid[aria-busy="true"] .dailySlot:not(.dailySlotSelecting) {
+  opacity: 0.46;
+  transform: scale(0.985);
+}
+
+.dailyHiddenCard {
   aspect-ratio: 0.73;
-  border-radius: 8px;
+  border-radius: 10px;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.38);
+  display: block;
+  overflow: hidden;
+  position: relative;
+  transform: translateZ(0);
+  width: 100%;
+}
+
+.dailyHiddenCard img,
+.dailySelectingCard img {
+  height: 100%;
   object-fit: cover;
   width: 100%;
+}
+
+.dailyHiddenCard > b {
+  align-items: center;
+  background: rgba(7, 9, 22, 0.74);
+  border: 1px solid rgba(243, 201, 105, 0.46);
+  border-radius: 50%;
+  color: var(--nj-gold, #f3c969);
+  display: flex;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(1rem, 5vw, 1.55rem);
+  height: clamp(30px, 8vw, 42px);
+  justify-content: center;
+  left: 50%;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: clamp(30px, 8vw, 42px);
+}
+
+.dailyCardSheen {
+  animation: dailyCardSheen 820ms ease-out var(--slot-sheen-delay) both;
+  background: linear-gradient(105deg, transparent 30%, rgba(255, 244, 223, 0.2) 50%, transparent 70%);
+  inset: -25% -70%;
+  pointer-events: none;
+  position: absolute;
+  transform: translateX(-48%);
+}
+
+.dailyCardPrice {
+  backdrop-filter: blur(8px);
+  background: rgba(4, 6, 17, 0.84);
+  border: 1px solid rgba(243, 201, 105, 0.34);
+  border-radius: 999px;
+  bottom: 8px;
+  color: var(--nj-gold, #f3c969);
+  font-size: clamp(0.55rem, 1.9vw, 0.69rem);
+  font-weight: 900;
+  left: 50%;
+  padding: 5px 8px;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 3;
 }
 
 .slotNumber {
@@ -921,68 +1547,191 @@
   position: absolute;
   top: 9px;
   width: 24px;
-  z-index: 1;
+  z-index: 4;
 }
 
 .dailySlot button {
-  background: rgba(93, 140, 255, 0.16);
-  border: 1px solid rgba(93, 140, 255, 0.32);
+  align-items: center;
+  background: rgba(93, 140, 255, 0.14);
+  border: 1px solid rgba(93, 140, 255, 0.28);
   border-radius: 9px;
   color: #c8d6ff;
   cursor: pointer;
+  display: flex;
   font-size: 0.66rem;
   font-weight: 850;
-  margin-top: 6px;
-  min-height: 44px;
-  padding: 5px 2px;
+  gap: 3px;
+  justify-content: center;
+  min-height: 40px;
+  padding: 5px 3px;
+  transition: background 160ms ease, border-color 160ms ease, transform 100ms ease;
   width: 100%;
 }
 
-.dailySlot .xafButton {
-  background: rgba(255, 244, 223, 0.05);
-  border-color: rgba(255, 244, 223, 0.15);
-  color: var(--nj-cream, #fff4df);
-  display: flex;
-  flex-direction: column;
+.dailySlot button:active { transform: scale(0.96); }
+
+.dailySlot .dailyCardAction {
+  background: transparent;
+  border: 0;
+  border-radius: 10px;
+  display: block;
+  min-height: 0;
+  padding: 0;
+  position: relative;
+  width: 100%;
 }
 
-.xafButton small { color: rgba(255, 244, 223, 0.5); font-size: 0.625rem; text-transform: uppercase; }
+.dailySlot .dailyCardAction:focus-visible {
+  box-shadow: 0 0 0 3px rgba(243, 201, 105, 0.4);
+  outline: none;
+}
+
+.dailySlot .dailyCardAction:disabled { cursor: not-allowed; }
 
 .dailySlotRevealed {
-  min-height: 220px;
-  justify-content: center;
-  border-color: rgba(53, 219, 196, 0.28);
-  background: linear-gradient(150deg, rgba(53, 219, 196, 0.11), rgba(6, 8, 20, 0.78));
+  background: linear-gradient(155deg, color-mix(in srgb, var(--slot-tone) 14%, rgba(13, 18, 39, 0.94)), rgba(6, 8, 20, 0.96));
+  border-color: color-mix(in srgb, var(--slot-tone) 44%, transparent);
+  box-shadow: inset 0 1px 0 color-mix(in srgb, var(--slot-tone) 18%, transparent), 0 12px 25px rgba(0, 0, 0, 0.24);
 }
 
-.slotReveal {
-  min-width: 0;
+.dailyCollectedCard {
+  align-content: start;
   display: grid;
+  gap: 5px;
+  height: 100%;
   justify-items: center;
-  gap: 8px;
-  padding: 20px 4px 8px;
+  min-width: 0;
+  padding: 0 1px 7px;
   text-align: center;
+  width: 100%;
 }
 
-.slotReveal img {
-  width: min(84px, 78%);
-  height: auto;
-  aspect-ratio: 1;
-  object-fit: contain;
-  filter: drop-shadow(0 8px 10px rgba(0, 0, 0, 0.42));
+.dailyCollectedArt {
+  aspect-ratio: 1.02;
+  background: rgba(4, 6, 15, 0.72);
+  border: 1px solid color-mix(in srgb, var(--slot-tone) 32%, transparent);
+  border-radius: 9px;
+  box-shadow: 0 9px 18px rgba(0, 0, 0, 0.34), 0 0 20px color-mix(in srgb, var(--slot-tone) 12%, transparent);
+  display: grid;
+  overflow: hidden;
+  place-items: center;
+  position: relative;
+  width: 100%;
 }
 
-.slotReveal strong {
+.dailyCollectedArt img { object-fit: cover; }
+
+.dailyCollectedArt > span {
+  background: linear-gradient(120deg, transparent 26%, color-mix(in srgb, var(--slot-tone) 18%, transparent) 50%, transparent 74%);
+  inset: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+.dailyRarity {
+  background: color-mix(in srgb, var(--slot-tone) 13%, rgba(5, 8, 19, 0.9));
+  border: 1px solid color-mix(in srgb, var(--slot-tone) 38%, transparent);
+  border-radius: 999px;
+  color: color-mix(in srgb, var(--slot-tone) 82%, white 18%);
+  font-size: 0.55rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  margin-top: -13px;
+  padding: 3px 7px;
+  position: relative;
+  text-transform: uppercase;
+  z-index: 2;
+}
+
+.dailyCollectedCard > strong {
   color: var(--nj-cream, #fff4df);
-  font-size: 0.75rem;
-  line-height: 1.25;
+  font-size: clamp(0.62rem, 2.4vw, 0.78rem);
+  line-height: 1.15;
   overflow-wrap: anywhere;
 }
 
-.slotReveal small {
-  color: var(--nj-teal, #35dbc4);
-  font-size: 0.7rem;
-  line-height: 1.25;
+.dailyCollectedCard > small {
+  color: color-mix(in srgb, var(--slot-tone) 76%, white 10%);
+  font-size: 0.58rem;
+  line-height: 1.15;
+}
+
+.dailyCollectedCard > .dailyDuplicate {
+  color: var(--nj-gold, #f3c969);
+  font-weight: 850;
+}
+
+.dailySlotSelecting {
+  border-color: var(--nj-gold, #f3c969);
+  box-shadow: 0 0 0 1px rgba(243, 201, 105, 0.18), 0 18px 34px rgba(0, 0, 0, 0.36), 0 0 30px rgba(243, 201, 105, 0.16);
+  z-index: 3;
+}
+
+.dailySelectingCard {
+  animation: dailyCardSelected 760ms cubic-bezier(0.2, 0.72, 0.2, 1) infinite alternate;
+  aspect-ratio: 0.73;
+  border-radius: 10px;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+  will-change: transform;
+}
+
+.dailySelectingCard strong {
+  background: rgba(5, 7, 18, 0.86);
+  bottom: 8px;
+  color: var(--nj-gold, #f3c969);
+  font-size: 0.64rem;
+  left: 50%;
+  padding: 5px 8px;
+  position: absolute;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  z-index: 2;
+}
+
+.dailyScan {
+  animation: dailyScan 920ms ease-in-out infinite;
+  background: linear-gradient(180deg, transparent, rgba(243, 201, 105, 0.62), transparent);
+  height: 32%;
+  left: 0;
+  position: absolute;
+  right: 0;
+  top: -32%;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .dailySlot:not(.dailySlotRevealed):not(.dailySlotSelecting):hover {
+    border-color: rgba(243, 201, 105, 0.44);
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 16px 30px rgba(0, 0, 0, 0.3), 0 0 22px rgba(243, 201, 105, 0.08);
+    transform: translateY(-3px);
+  }
+
+  .dailySlot button:hover:not(:disabled) {
+    background: rgba(93, 140, 255, 0.23);
+    border-color: rgba(243, 201, 105, 0.4);
+  }
+}
+
+@keyframes dailySlotEnter {
+  from { opacity: 0; transform: translateY(10px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+@keyframes dailyCardSheen {
+  from { opacity: 0; transform: translateX(-48%); }
+  30% { opacity: 1; }
+  to { opacity: 0; transform: translateX(48%); }
+}
+
+@keyframes dailyCardSelected {
+  from { transform: translateY(0) scale(0.98); }
+  to { transform: translateY(-5px) scale(1.015); }
+}
+
+@keyframes dailyScan {
+  from { transform: translateY(0); }
+  to { transform: translateY(410%); }
 }
 
 .wheelCard {
@@ -1018,6 +1767,14 @@
   position: absolute;
 }
 
+.wheelSpinning .wheelImage {
+  animation: loyaltyWheelSpin 1.25s cubic-bezier(0.16, 0.76, 0.18, 1) infinite;
+  will-change: transform;
+}
+
+.wheelSpinning .wheelHalo { animation: loyaltyHaloPulse 620ms ease-in-out infinite alternate; }
+.wheelSpinning .wheelPoints { animation: loyaltyPointsPulse 420ms ease-in-out infinite alternate; }
+
 .wheelPoints {
   align-items: baseline;
   background: #141021;
@@ -1038,6 +1795,21 @@
 }
 
 .wheelPoints small { font-size: 0.72rem; }
+
+@keyframes loyaltyWheelSpin {
+  from { transform: rotate(0); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes loyaltyHaloPulse {
+  from { opacity: 0.45; transform: scale(0.94); }
+  to { opacity: 1; transform: scale(1.04); }
+}
+
+@keyframes loyaltyPointsPulse {
+  from { transform: translate(-50%, -50%) scale(0.96); }
+  to { transform: translate(-50%, -50%) scale(1.04); }
+}
 .wheelBody { min-width: 0; }
 .wheelBody h2 { font-size: clamp(1.55rem, 6vw, 2.35rem); line-height: 1.02; margin-top: 6px; }
 
@@ -1248,9 +2020,9 @@
   .bookCard:last-child:nth-child(odd) { grid-column: 1 / -1; }
   .sectionIntro { align-items: start; grid-template-columns: minmax(0, 1fr) minmax(190px, 0.55fr); }
   .sectionIntro .oddsDetails { margin: 0; }
-  .productFooter { align-items: center; flex-direction: row; }
-  .productFooter .priceTag { flex: 1 1 auto; }
-  .productFooter .buyButton { flex: 0 0 auto; width: auto; }
+  .productFooter { align-items: center; flex-flow: row wrap; }
+  .productFooter .priceTag { flex: 1 1 120px; }
+  .productFooter .buyButton { flex: 1 1 110px; width: auto; }
   .stagePath li { grid-template-columns: 30px minmax(0, 1fr) auto; }
   .stageReward { grid-column: auto; }
   .ledgerHeading { align-items: end; grid-template-columns: minmax(0, 1fr) auto; }
@@ -1260,7 +2032,6 @@
   .eventGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .eventHero { min-height: 310px; padding: 22px; }
   .eventBody { padding: 22px; }
-  .offerGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .bookGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .bookCard:last-child:nth-child(odd) { grid-column: auto; }
   .resourceGrid,
@@ -1281,12 +2052,15 @@
   .modeSecondary .modeTitleRow strong { font-size: 1.55rem; }
   .modeSecondary .modeBody p { font-size: 0.8rem; margin: 8px 0 10px; }
   .modeSecondary .modeCta { margin-top: 12px; }
-  .offerGrid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .offerGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (max-width: 479px) {
   .ticketWallet { justify-content: flex-start; width: 100%; }
   .shopWallet { justify-content: flex-start; }
+  .offerCategoryHeader { align-items: flex-start; flex-direction: column; gap: 5px; }
+  .offerCategoryHeader > span { align-self: flex-start; padding-bottom: 0; }
+  .offerCategories { margin-right: -10px; padding-right: 10px; }
   .modeBody { padding: 18px; }
   .modePrimary { min-height: 400px; }
   .modeSecondary { min-height: 330px; }
@@ -1297,6 +2071,9 @@
   .eventHeroTop { align-items: stretch; flex-direction: column; }
   .eventHeroTop > :last-child { align-self: flex-start; }
   .stageDetails summary { align-items: flex-start; flex-direction: column; gap: 3px; }
+  .dailyGridToolbar { align-items: stretch; flex-direction: column; gap: 7px; }
+  .dailyPaymentSelector { width: 100%; }
+  .dailyPaymentSelector button { flex: 1 1 0; justify-content: center; min-width: 0; padding-inline: 5px; }
   .dailyGrid { gap: 5px; }
   .dailySlot { padding: 4px; }
   .dailySlot button { font-size: 0.6rem; }
@@ -1319,15 +2096,72 @@
   .modeSecondary .modeCta { margin-top: 10px; }
 }
 
+.motionLite .revealAura,
+.motionLite .revealParticles,
+.motionLite .dailyCardSheen,
+.motionLite .productArt::after { display: none; }
+
+.motionLite .revealCardInner { animation-duration: 420ms; }
+.motionLite .revealResult { animation-delay: 280ms; }
+.motionLite .dailySlot { animation-duration: 220ms; }
+.shopTabPanel.motionLite { animation-duration: 160ms; }
+
+.motionOff .revealAura,
+.motionOff .revealParticles,
+.motionOff .dailyCardSheen,
+.motionOff .dailyScan,
+.motionOff .productArt::after { display: none; }
+
+.motionOff .revealCardInner {
+  animation: none;
+  transform: rotateY(180deg);
+  will-change: auto;
+}
+
+.motionOff .revealResult,
+.motionOff .dailySlot,
+.motionOff .dailySelectingCard,
+.motionOff .offerCard,
+.motionOff .bookCard,
+.motionOff .cardGrid button,
+.motionOff .duplicateFloat,
+.motionOff .wheelImage,
+.motionOff .wheelHalo,
+.motionOff .wheelPoints,
+.shopTabPanel.motionOff { animation: none; }
+.motionOff .revealPowerCardView :global(.nj-power-card-sheen) { animation: none; }
+.motionOff .dailyProgress > i > span { transition: none; }
+
 @media (prefers-reduced-motion: reduce) {
   .modeArt,
   .modeCta,
   .eventCta,
   .buyButton,
   .wheelButton,
-  .energyTrack span {
+  .energyTrack span,
+  .revealCardInner {
     transition: none;
   }
+
+  .revealCardInner { animation-duration: 1ms; }
+  .revealResult { animation-delay: 0ms; animation-duration: 1ms; }
+  .revealAura,
+  .revealParticles,
+  .dailyCardSheen,
+  .dailyScan,
+  .productArt::after { display: none; }
+  .dailySlot,
+  .dailySelectingCard,
+  .offerCard,
+  .bookCard,
+  .cardGrid button,
+  .duplicateFloat,
+  .shopTabPanel,
+  .wheelImage,
+  .wheelHalo,
+  .wheelPoints { animation: none; }
+  .revealPowerCardView :global(.nj-power-card-sheen) { animation: none; }
+  .dailyProgress > i > span { transition: none; }
 
   .modeCard:hover .modeArt { transform: none; }
 }

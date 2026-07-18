@@ -2452,7 +2452,7 @@ button[data-nj-skin="icon"],
 }
 
 .nj-hand-seat {
-  contain: layout style;
+  contain: layout style paint;
 }
 
 .nj-avatar-seat {
@@ -2489,7 +2489,7 @@ button[data-nj-skin="icon"],
 }
 
 .nj-deposit-seat {
-  contain: layout style;
+  contain: layout style paint;
   isolation: isolate;
 }
 
@@ -4240,6 +4240,19 @@ button[data-nj-skin="icon"],
   -webkit-backdrop-filter: none !important;
 }
 
+/* Aura orbits : 3 particules par joueur = 12 animations compositor continues.
+   En mode balanced, on garde 1 seule particule par joueur (les 2 autres en display:none).
+   Reduit de 12 a 4 les couches compositor actives en permanence. */
+.nj-motion-level-balanced .nj-avatar-aura-field i:nth-child(2),
+.nj-motion-level-balanced .nj-avatar-aura-field i:nth-child(3) {
+  display: none;
+}
+
+/* Ralentir le halo actif en balanced : moins de frames GPU par seconde. */
+.nj-motion-level-balanced .nj-avatar-seat-active::before {
+  animation-duration: 5s;
+}
+
 /* nj-flying-card-fx n'a plus de filter (remplacé par box-shadow) →
    seul nj-card-burst garde cette règle pour son drop-shadow. */
 .nj-motion-level-balanced .nj-flying-card,
@@ -5039,17 +5052,4 @@ button[data-nj-skin="icon"],
   font-family: var(--font-sans), sans-serif;
 }
 .nj-admin > header { display: flex; justify-content: space-between; gap: 20px; align-items: start; margin-bottom: 22px; }
-.nj-admin h1 { margin: 2px 0; color: #f2bb45; font: 900 clamp(34px, 6vw, 58px)/1 var(--font-display), serif; }
-.nj-admin header span { font-size: 11px; letter-spacing: .18em; opacity: .58; }
-.nj-admin header p { margin: 7px 0 0; opacity: .72; }
-.nj-admin a { color: #f2bb45; }
-.nj-admin-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, .8fr); gap: 18px; margin-top: 18px; }
-.nj-admin form, .nj-admin aside { padding: 20px; border: 1px solid rgba(242,187,69,.2); border-radius: 18px; background: rgba(24,17,14,.9); }
-.nj-admin form { display: grid; gap: 13px; }
-.nj-admin label { display: grid; gap: 6px; font-size: 12px; font-weight: 800; color: #e8c98e; }
-.nj-admin input, .nj-admin select, .nj-admin textarea { width: 100%; padding: 10px 11px; border: 1px solid rgba(255,255,255,.14); border-radius: 10px; background: #090808; color: #fff6df; font: inherit; }
-.nj-admin textarea, .nj-admin pre { font-family: ui-monospace, SFMono-Regular, Consolas, monospace; }
-.nj-admin pre { max-height: 560px; overflow: auto; padding: 12px; border-radius: 12px; background: #080707; color: #bce7cf; white-space: pre-wrap; }
-.nj-admin-actions { display: flex; flex-wrap: wrap; gap: 8px; }
-.nj-admin button { padding: 10px 13px; border: 1px solid #b77c27; border-radius: 10px; background: #684019; color: #fff6df; cursor: pointer; font-weight: 800; }
-@media (max-width: 760px) { .nj-admin-grid { grid-template-columns: 1fr; } }
+.nj-admin h1 { margin: 2px 0; color: #f2bb45; font: 900 clamp(34px, 6vw, 58px)/1 var(--

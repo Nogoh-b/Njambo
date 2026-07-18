@@ -405,7 +405,8 @@ export function TableScreen({
     markPerformance("table:mount");
     return () => markPerformance("table:unmount");
   }, []);
-  useEffect(() => recordBoardRender());
+  // Metriques de rendu : couteux en prod (dispatchEvent par render). Dev only.
+  useEffect(() => { if (process.env.NODE_ENV !== 'production') recordBoardRender(); });
   const { profile, cfg, sfx } = useGame();
   const motion = useMotionProfile();
   const { user: authUser } = useAuth();
@@ -692,6 +693,9 @@ export function TableScreen({
     const g = gsapRef.current;
     const el = tableRootRef.current;
     if (!g || !el || !animationsOnRef.current) return;
+    // Promotion temporaire sur une couche GPU : le shake tourne 100% sur le
+    // compositeur sans rasterisation par frame. Retire will-change apres (~385ms max).
+    el.style.willChange = "transform";
     g.fromTo(
       el,
       { x: 0, y: 0 },
@@ -702,7 +706,10 @@ export function TableScreen({
         repeat,
         yoyo: true,
         ease: "power1.inOut",
-        onComplete: () => g.set(el, { x: 0, y: 0 }),
+        onComplete: () => {
+          g.set(el, { x: 0, y: 0 });
+          el.style.willChange = "";
+        },
       },
     );
   }, []);
