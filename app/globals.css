@@ -5041,9 +5041,12 @@ button[data-nj-skin="icon"],
 }
 
 /* Placé après les variantes responsive afin que leurs paddings raccourcis ne
-   puissent jamais supprimer l'espace réservé au dock fixe. */
+   puissent jamais supprimer l'espace réservé au dock fixe.
+   padding-top : couvre l'encoche / Dynamic Island (safe-area-inset-top).
+   padding-bottom : exactement la hauteur du dock, sans marge supplémentaire. */
 .nj-safe:has(.nj-home-bottom-nav) {
-  padding-bottom: calc(76px + env(safe-area-inset-bottom));
+  padding-top: max(clamp(14px, 3vw, 28px), env(safe-area-inset-top));
+  padding-bottom: calc(64px + env(safe-area-inset-bottom));
 }
 
 .nj-admin {
