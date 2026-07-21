@@ -25,7 +25,7 @@ export const GAME_CONFIG: GameConfig = {
   winnerPlaysLastNextRound: true,
   firstLeaderIndex: 0,
   anim: {
-    navigation: 160,
+    navigation: 250,
     roundIntro: 1200,
     dealPerCard: 80,
     dealFlight: 420,

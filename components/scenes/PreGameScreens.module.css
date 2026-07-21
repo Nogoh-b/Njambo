@@ -1,0 +1,448 @@
+.stack,
+.railStack,
+.controlGrid,
+.onlineLists {
+  min-width: 0;
+  display: grid;
+  gap: var(--nj-layout-gap);
+  align-content: start;
+}
+
+.panel.panel {
+  min-width: 0;
+  overflow: visible;
+}
+
+.authPanel.authPanel {
+  width: min(100%, 520px);
+  margin-inline: auto;
+}
+
+.noticeStack {
+  min-width: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.listPanel.listPanel {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: visible;
+}
+
+.panelHeader {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.panelHeading {
+  min-width: 0;
+}
+
+.panelHeading h2,
+.sectionTitle {
+  margin: 0;
+  color: var(--nj-text, var(--text, #fff4df));
+  font-size: 0.96rem;
+  font-weight: 900;
+  line-height: 1.25;
+}
+
+.panelHeading p,
+.sectionHint {
+  margin: 3px 0 0;
+  color: var(--nj-text-muted, rgba(255, 244, 223, 0.66));
+  font-size: 0.78rem;
+  line-height: 1.45;
+}
+
+.choiceSet {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.choiceSet + .choiceSet {
+  margin-top: 14px;
+}
+
+.choiceLegend {
+  width: 100%;
+  margin-bottom: 9px;
+  padding: 0;
+  color: var(--nj-text-muted, rgba(255, 244, 223, 0.7));
+  font-size: 0.76rem;
+  font-weight: 800;
+  line-height: 1.35;
+}
+
+.legendRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.choiceGrid {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.choiceButton.choiceButton {
+  min-width: 0;
+  width: 100%;
+  min-height: var(--nj-touch-target);
+  padding-inline: 7px;
+  font-size: 0.79rem;
+}
+
+.botChoice {
+  position: relative;
+  min-width: 0;
+  width: 100%;
+  min-height: 62px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  padding: 6px;
+  overflow: hidden;
+  color: var(--nj-text, var(--text, #fff4df));
+  border: 1px solid rgba(255, 244, 223, 0.14);
+  border-radius: var(--nj-radius-md, 16px);
+  background: rgba(8, 8, 15, 0.62);
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 900;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition:
+    transform var(--nj-motion-press) ease,
+    border-color var(--nj-motion-interaction) ease,
+    filter var(--nj-motion-interaction) ease;
+}
+
+.botAvatars {
+  min-width: 0;
+  display: flex;
+}
+
+.botAvatars > span + span {
+  margin-left: -12px;
+}
+
+.notice,
+.error,
+.status {
+  padding: 10px 12px;
+  border-radius: var(--nj-radius-md, 16px);
+  font-size: 0.8rem;
+  font-weight: 650;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.notice {
+  color: #ffe9ac;
+  border: 1px solid rgba(242, 187, 69, 0.3);
+  background: rgba(89, 52, 21, 0.48);
+}
+
+.error {
+  color: var(--bad, #ff8f98);
+  border: 1px solid color-mix(in srgb, var(--bad, #ff8f98) 34%, transparent);
+  background: color-mix(in srgb, var(--bad, #ff8f98) 10%, transparent);
+}
+
+.status {
+  color: var(--nj-text-muted, rgba(255, 244, 223, 0.72));
+  border: 1px solid rgba(255, 244, 223, 0.12);
+  background: rgba(5, 6, 12, 0.44);
+}
+
+.listBody {
+  min-width: 0;
+  max-height: min(42svh, 430px);
+  display: grid;
+  gap: 9px;
+  align-content: start;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 3px;
+  scrollbar-gutter: stable;
+}
+
+.listReveal {
+  min-width: 0;
+}
+
+.listReveal > * {
+  width: 100%;
+}
+
+.playerCard,
+.roomCard {
+  min-height: var(--nj-touch-target);
+}
+
+.playerCard {
+  flex-wrap: wrap;
+}
+
+.playerIdentity {
+  min-width: 92px;
+  display: grid;
+  flex: 1 1 92px;
+}
+
+.playerName {
+  overflow: hidden;
+  color: var(--nj-text, var(--text, #fff4df));
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.playerState {
+  color: var(--nj-text-muted, rgba(255, 244, 223, 0.66));
+  font-size: 0.76rem;
+}
+
+.socialActions {
+  min-width: 0;
+  margin-left: auto;
+}
+
+.searchField,
+.joinField {
+  min-width: 0;
+  display: grid;
+  gap: 7px;
+}
+
+.fieldLabel {
+  color: var(--nj-text-muted, rgba(255, 244, 223, 0.7));
+  font-size: 0.76rem;
+  font-weight: 800;
+}
+
+.searchField {
+  margin-bottom: 10px;
+}
+
+.joinForm {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.joinInput {
+  min-width: 0;
+  min-height: var(--nj-touch-target);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.summaryRow,
+.potRow,
+.roomCodeRow {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.summaryLabel {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.summaryLabel strong {
+  color: var(--nj-text, var(--text, #fff4df));
+  font-size: 0.88rem;
+}
+
+.summaryLabel span {
+  color: var(--nj-text-muted, rgba(255, 244, 223, 0.66));
+  font-size: 0.74rem;
+  line-height: 1.35;
+}
+
+.potValue {
+  flex: 0 0 auto;
+  color: var(--nj-gold, var(--gold, #d0a35d));
+  font-family: var(--font-display), serif;
+  font-size: clamp(1.15rem, 4vw, 1.55rem);
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.actions {
+  min-width: 0;
+  width: 100%;
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.actions > * {
+  min-width: 0;
+  flex: 1 1 0;
+}
+
+.readyDot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.25);
+}
+
+.readyDotActive {
+  background: var(--nj-teal, var(--teal, #559b91));
+  box-shadow: 0 0 10px rgba(85, 155, 145, 0.62);
+}
+
+.hostBadge {
+  margin-left: 8px;
+  color: var(--nj-gold, var(--gold, #d0a35d));
+  font-size: 0.67rem;
+  font-weight: 800;
+}
+
+.selectMark {
+  width: 28px;
+  height: 28px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 2px solid rgba(255, 248, 232, 0.22);
+  border-radius: 9px;
+  background: transparent;
+}
+
+.selectMarkActive {
+  border-color: var(--nj-pink, var(--pink, #ad6972));
+  background: var(--nj-pink, var(--pink, #ad6972));
+}
+
+.roomCode {
+  min-width: 0;
+  padding: 9px 13px;
+  overflow: hidden;
+  color: var(--nj-gold, var(--gold, #d0a35d));
+  border: 1px solid rgba(255, 244, 223, 0.14);
+  border-radius: var(--nj-radius-md, 16px);
+  background: rgba(6, 7, 13, 0.58);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: clamp(1rem, 4vw, 1.35rem);
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.roomCard {
+  justify-content: space-between;
+}
+
+.roomMeta {
+  min-width: 0;
+  display: flex;
+  align-items: baseline;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.roomCodeSmall {
+  color: var(--nj-gold, var(--gold, #d0a35d));
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.92rem;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+}
+
+.roomDetails {
+  color: var(--nj-text-muted, rgba(255, 244, 223, 0.66));
+  font-size: 0.78rem;
+}
+
+.emptyState {
+  padding: 14px;
+  color: var(--nj-text-muted, rgba(255, 244, 223, 0.66));
+  font-size: 0.82rem;
+  line-height: 1.45;
+  text-align: center;
+}
+
+@media (max-width: 599px) {
+  .listBody {
+    max-height: min(38svh, 340px);
+    scrollbar-gutter: auto;
+  }
+
+  .roomCodeRow {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .roomCodeRow > :last-child {
+    width: 100%;
+  }
+
+  .actions {
+    flex-wrap: wrap;
+  }
+
+  .actions > * {
+    flex: 1 1 124px;
+  }
+}
+
+@media (min-width: 600px) {
+  .controlGrid,
+  .onlineLists {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .widePanel {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 960px) {
+  .listBody {
+    max-height: min(54svh, 520px);
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .listBody {
+    max-height: 240px;
+  }
+
+  .botChoice {
+    min-height: 54px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .botChoice {
+    transition: none;
+  }
+}

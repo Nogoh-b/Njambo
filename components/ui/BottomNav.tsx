@@ -35,14 +35,15 @@ const NAV_ITEMS: NavItem[] = [
   { key: "play", scene: "play", icon: "play", tone: "teal", labelKey: "nav.play" },
   { key: "events", scene: "events", icon: "trophy", tone: "pink", labelKey: "nav.events" },
   { key: "shop", scene: "shop", icon: "coin", tone: "cobalt", labelKey: "nav.shop" },
-  { key: "social", scene: "friends", icon: "friends", tone: "gold", labelKey: "nav.social", badge: "requests" },
+  { key: "social", scene: "friends", icon: "friends", tone: "palm", labelKey: "nav.social", badge: "requests" },
 ];
 
 const NAV_TONE_CSS: Record<BottomNavTone, string> = {
-  gold: "var(--nj-gold, var(--gold, #d0a35d))",
-  teal: "var(--nj-teal, var(--teal, #10b7a6))",
-  pink: "var(--nj-pink, var(--pink, #d83c68))",
-  cobalt: "var(--nj-cobalt, var(--cobalt, #3154d4))",
+  gold: "var(--nj-nav-gold, #f2bb45)",
+  teal: "var(--nj-nav-teal, #10b7a6)",
+  pink: "var(--nj-nav-pink, #d83c68)",
+  cobalt: "var(--nj-nav-cobalt, #4d6fff)",
+  palm: "var(--nj-nav-palm, #64c778)",
 };
 
 function CountBadge({ count }: { count: number }) {
@@ -83,7 +84,7 @@ export function BottomNav({ active }: BottomNavProps) {
       data-motion-level={motionMode}
       data-page-active={pageActive}
       style={navStyle}
-      aria-label="Menu principal"
+      aria-label={t("nav.primary")}
     >
       {NAV_ITEMS.map((item) => {
         const isActive = item.key === navVisual?.key;
@@ -91,6 +92,7 @@ export function BottomNav({ active }: BottomNavProps) {
         return (
           <button
             data-nj-skin="none"
+            data-tone={item.tone}
             type="button"
             key={item.key}
             className={`${styles.item}${isActive ? ` ${styles.active}` : ""}`}

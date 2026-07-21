@@ -72,6 +72,9 @@ button:disabled {
   height: 100svh;
   min-height: 100svh;
   max-height: 100svh;
+  height: 100dvh;
+  min-height: 100dvh;
+  max-height: 100dvh;
   overflow: hidden;
   color: var(--text);
   background:
@@ -492,7 +495,7 @@ button.nj-list-card {
 }
 
 .btn {
-  min-height: 44px;
+  min-height: var(--nj-touch-target);
   border-radius: 14px;
   border: 1px solid transparent;
   padding: 11px 16px;
@@ -505,7 +508,11 @@ button.nj-list-card {
   letter-spacing: 0;
   line-height: 1;
   cursor: pointer;
-  transition: transform 0.16s ease, filter 0.16s ease, box-shadow 0.16s ease, opacity 0.16s ease;
+  transition:
+    transform var(--nj-motion-press) ease,
+    filter var(--nj-motion-interaction) ease,
+    box-shadow var(--nj-motion-interaction) ease,
+    opacity var(--nj-motion-interaction) ease;
   user-select: none;
 }
 
@@ -524,7 +531,7 @@ button.nj-list-card {
 }
 
 .btn-icon-only {
-  width: 44px;
+  width: var(--nj-touch-target);
   padding: 0;
   border-radius: 50%;
 }
@@ -810,6 +817,13 @@ button[data-nj-skin="icon"],
 .friend-row,
 .leader-row {
   transition: transform 0.18s ease, border-color 0.18s ease, background 0.18s ease, box-shadow 0.18s ease;
+}
+
+.nj-choice {
+  min-height: var(--nj-touch-target);
+  padding: 10px 12px;
+  font: inherit;
+  font-weight: 800;
 }
 
 .mode-card:hover,
@@ -1838,7 +1852,10 @@ button[data-nj-skin="icon"],
 
 .nj-phone > .nj-home-bottom-nav,
 .nj-bottom-nav-scene--narrow > .nj-home-bottom-nav {
-  width: min(calc(100vw - 28px), 500px);
+  width: min(
+    calc(100vw - max(var(--nj-layout-gutter), env(safe-area-inset-left)) - max(var(--nj-layout-gutter), env(safe-area-inset-right))),
+    var(--nj-layout-compact-max)
+  );
 }
 
 .nj-bottom-nav-scene {
@@ -2016,6 +2033,9 @@ button[data-nj-skin="icon"],
 
 .nj-playcard {
   contain: layout style paint;
+  appearance: none;
+  font: inherit;
+  text-align: left;
   box-shadow: 0 9px 18px rgba(0, 0, 0, 0.42);
 }
 
@@ -2025,8 +2045,19 @@ button[data-nj-skin="icon"],
 }
 
 .playcard-clickable {
-  transition: transform 0.2s ease, opacity 0.2s ease, box-shadow 0.2s ease, filter 0.15s ease;
+  transition:
+    transform var(--nj-motion-interaction) ease,
+    opacity var(--nj-motion-interaction) ease,
+    box-shadow var(--nj-motion-interaction) ease,
+    filter var(--nj-motion-interaction) ease;
   animation: playableCardPulse 2.4s ease-in-out infinite;
+}
+
+.playcard-clickable:focus-visible {
+  z-index: 160;
+  outline: 3px solid var(--teal);
+  outline-offset: 4px;
+  box-shadow: 0 18px 34px rgba(0, 0, 0, 0.5), 0 0 0 7px rgba(16, 183, 166, 0.2) !important;
 }
 
 .playcard-clickable:hover {
@@ -2104,11 +2135,37 @@ button[data-nj-skin="icon"],
   overflow: hidden;
   color: var(--text);
   background:
-    radial-gradient(ellipse at 50% 48%, color-mix(in srgb, var(--moment-tone) 24%, transparent), transparent 34%),
-    radial-gradient(ellipse at 50% 56%, rgba(233, 49, 137, 0.09), transparent 48%),
-    linear-gradient(180deg, rgba(5, 5, 12, 0.56), rgba(5, 5, 12, 0.18) 46%, rgba(5, 5, 12, 0.56));
+    radial-gradient(ellipse at 50% 48%, color-mix(in srgb, var(--moment-tone) 20%, transparent), transparent 34%),
+    radial-gradient(ellipse at 50% 56%, rgba(233, 49, 137, 0.07), transparent 48%);
   /* Cycle de vie (entrée → maintien → sortie) piloté par GSAP (GameMomentOverlay). */
   opacity: 0;
+}
+
+/* Lite conserve la causalité du message, sous forme de fondu statique : pas
+   de rotation, de balayage, de particules ni de timeline scénarisée. */
+.nj-moment-motion-lite {
+  opacity: 1;
+  background: radial-gradient(ellipse at 50% 48%, color-mix(in srgb, var(--moment-tone) 14%, transparent), transparent 30%);
+}
+
+.nj-moment-motion-lite .nj-moment-halo,
+.nj-moment-motion-lite .nj-moment-card-sweep,
+.nj-moment-motion-lite .nj-moment-particles {
+  display: none;
+}
+
+.nj-moment-motion-lite .nj-moment-asset {
+  opacity: 1;
+  transform: translateX(-50%);
+}
+
+.nj-moment-motion-lite .nj-moment-copy strong,
+.nj-moment-motion-lite .nj-moment-copy span {
+  opacity: 1;
+}
+
+.nj-moment-motion-lite .nj-moment-copy strong::after {
+  display: none;
 }
 
 .nj-moment-gold {
@@ -2452,7 +2509,9 @@ button[data-nj-skin="icon"],
 }
 
 .nj-hand-seat {
-  contain: layout style paint;
+  contain: layout style;
+  overflow: visible;
+  isolation: isolate;
 }
 
 .nj-avatar-seat {
@@ -4159,6 +4218,15 @@ button[data-nj-skin="icon"],
   transition: none !important;
 }
 
+.nj-motion-reduced,
+.nj-motion-reduced *,
+.nj-motion-reduced *::before,
+.nj-motion-reduced *::after {
+  animation: none !important;
+  transition: none !important;
+  scroll-behavior: auto !important;
+}
+
 .nj-motion-level-balanced .nj-menu-hero::before,
 .nj-motion-level-balanced .nj-menu-mark::before,
 .nj-motion-level-balanced .nj-home-table-art,
@@ -4216,6 +4284,15 @@ button[data-nj-skin="icon"],
   animation: none !important;
   transition: none !important;
   filter: none !important;
+}
+
+.nj-motion-level-balanced .playcard-clickable {
+  animation-duration: 4.8s;
+}
+
+.nj-motion-level-lite .playcard-clickable {
+  animation: none !important;
+  transition: none !important;
 }
 
 .nj-motion-level-lite .nj-recommended-card,
@@ -4336,6 +4413,14 @@ button[data-nj-skin="icon"],
 .nj-table-active-fx .nj-avatar-seat-urgent::after {
   animation: none !important;
   filter: none !important;
+}
+
+@media (orientation: portrait) and (max-width: 959px) {
+  :root {
+    --nj-bg-app: url("/assets/njambo/bg-app-portrait.webp") center / cover no-repeat;
+    --nj-bg-splash: url("/assets/njambo/bg-splash-portrait.webp") center / cover no-repeat;
+    --nj-table-image: url("/assets/njambo/table-portrait.webp") center / cover no-repeat;
+  }
 }
 
 @media (max-width: 520px) {
@@ -4522,12 +4607,12 @@ button[data-nj-skin="icon"],
   }
 
   .nj-list-card .btn {
-    min-height: 34px;
+    min-height: var(--nj-touch-target);
     padding: 7px 9px;
   }
 
   .nj-list-card .btn-icon-only {
-    width: 34px;
+    width: var(--nj-touch-target);
   }
 }
 
@@ -4875,63 +4960,6 @@ button[data-nj-skin="icon"],
   contain: content;
 }
 
-.nj-bootstrap-splash {
-  min-height: 100svh;
-  display: grid;
-  place-content: center;
-  justify-items: center;
-  padding: 24px;
-  text-align: center;
-}
-
-.nj-bootstrap-mark {
-  display: block;
-  width: clamp(132px, 34vw, 178px);
-  aspect-ratio: 1;
-  margin-bottom: 18px;
-  background: url("/assets/njambo/ui/brand/njambo-mark-256.webp") center / contain no-repeat;
-  filter: drop-shadow(0 18px 38px rgba(0, 0, 0, 0.42));
-}
-
-.nj-bootstrap-splash h1 {
-  margin: 6px 0 0;
-  color: #fff4df;
-  font-family: var(--font-display), serif;
-  font-size: clamp(54px, 16vw, 92px);
-  font-weight: 900;
-  line-height: 0.88;
-}
-
-.nj-bootstrap-splash p {
-  margin: 12px 0 0;
-  color: rgba(255, 244, 223, 0.72);
-  font-weight: 800;
-}
-
-.nj-bootstrap-bar,
-.nj-bootstrap-strip {
-  background: linear-gradient(90deg, #f3c969, #29b7a4 36%, #df4f82 68%, #3154d4);
-}
-
-.nj-bootstrap-bar {
-  width: min(260px, 70vw);
-  height: 7px;
-  margin-top: 22px;
-  border-radius: 999px;
-}
-
-.nj-bootstrap-strip {
-  position: fixed;
-  left: 0;
-  right: 0;
-  z-index: 2;
-  height: 10px;
-  opacity: 0.8;
-}
-
-.nj-bootstrap-strip-top { top: 0; }
-.nj-bootstrap-strip-bottom { bottom: 0; }
-
 /* ── Économie, Boutique et Ter ─────────────────────────────────────────── */
 .nj-liveops-page {
   height: 100svh;
@@ -5045,8 +5073,8 @@ button[data-nj-skin="icon"],
    padding-top : couvre l'encoche / Dynamic Island (safe-area-inset-top).
    padding-bottom : exactement la hauteur du dock, sans marge supplémentaire. */
 .nj-safe:has(.nj-home-bottom-nav) {
-  padding-top: max(clamp(14px, 3vw, 28px), env(safe-area-inset-top));
-  padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  padding-top: max(var(--nj-layout-gutter), env(safe-area-inset-top));
+  padding-bottom: calc(var(--nj-dock-content-height) + env(safe-area-inset-bottom));
 }
 
 .nj-admin {

@@ -1,131 +1,92 @@
 "use client";
 
-import { useEffect, useRef } from "react";
-import { CEREMONIAL_STRIP, T } from "@/config/theme";
-import { useGame } from "@/contexts/GameContext";
-import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
-import { displayFont, Shell } from "@/components/ui/Shell";
-import { NjamboMark } from "@/components/ui/Art";
+import { useEffect, useRef, useState } from "react";
+import { gsap } from "gsap";
+import type { MotionLevel } from "@/lib/motion";
+import { deriveMotionLevel, preferenceMotionLevel } from "@/lib/motionPolicy";
+import { normalizeStoredSettings } from "@/lib/settingsStorage";
+import styles from "./SplashScreen.module.css";
 
-export function SplashScreen() {
-  const { navigateTo } = useGame();
-  const motion = useMotionProfile();
-  const rootRef = useRef<HTMLDivElement>(null);
+type SplashMotionMode = MotionLevel | "reduced" | "off";
+
+function readSplashMotionMode(): SplashMotionMode {
+  try {
+    const settings = normalizeStoredSettings(JSON.parse(localStorage.getItem("njambo-settings-v1") ?? "{}"));
+    if (!settings.animationsOn) return "off";
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) return "reduced";
+    const navigatorWithMemory = navigator as Navigator & { deviceMemory?: number };
+    return preferenceMotionLevel(settings.motionQuality, {
+      width: window.innerWidth,
+      height: window.innerHeight,
+      hardwareConcurrency: navigator.hardwareConcurrency || 8,
+      deviceMemory: navigatorWithMemory.deviceMemory ?? null,
+    });
+  } catch {
+    return deriveMotionLevel({
+      width: window.innerWidth,
+      height: window.innerHeight,
+      hardwareConcurrency: navigator.hardwareConcurrency || 8,
+      deviceMemory: null,
+    });
+  }
+}
+
+export function SplashScreen({ onComplete }: { onComplete: () => void }) {
+  const rootRef = useRef<HTMLElement>(null);
+  const completedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  const [motionMode] = useState<SplashMotionMode>(readSplashMotionMode);
+  onCompleteRef.current = onComplete;
 
   useEffect(() => {
-    const seen = sessionStorage.getItem("njambo-splash-seen") === "1";
-    sessionStorage.setItem("njambo-splash-seen", "1");
-    const timer = setTimeout(() => navigateTo("menu"), seen ? 0 : 700);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    const complete = () => {
+      if (completedRef.current) return;
+      completedRef.current = true;
+      onCompleteRef.current();
+    };
 
-  /* Timeline d'intro cinématique (GSAP) — gated par le toggle animations. */
-  useGsapTimeline(motion.enabled, rootRef, (gsap) => {
-    const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
-    tl.from(".nj-splash-logo", { scale: 0.72, opacity: 0, duration: 0.56 })
-      .from(".nj-splash-kicker", { y: 16, opacity: 0, duration: 0.4 }, "-=0.25")
-      .from(".nj-splash-title", { y: 22, opacity: 0, scale: 0.94, duration: 0.48 }, "-=0.18")
-      .from(".nj-splash-tagline", { y: 12, opacity: 0, duration: 0.4 }, "-=0.3")
-      .from(".nj-splash-bar", { scaleX: 0, opacity: 0, transformOrigin: "50% 50%", duration: 0.5 }, "-=0.2")
-      .from(".nj-splash-dots > *", { scale: 0, opacity: 0, stagger: 0.08, duration: 0.35 }, "-=0.25");
-  });
+    if (motionMode === "off" || motionMode === "reduced" || motionMode === "lite") {
+      const duration = motionMode === "lite" ? 220 : 140;
+      const timer = window.setTimeout(complete, duration);
+      return () => window.clearTimeout(timer);
+    }
+
+    if (!rootRef.current) return;
+    const context = gsap.context(() => {
+      gsap.timeline({ defaults: { ease: "power3.out" }, onComplete: complete })
+        .from(`.${styles.mark}`, { scale: 0.78, opacity: 0, duration: 0.32 })
+        .from(`.${styles.kicker}`, { y: 10, opacity: 0, duration: 0.22 }, "-=0.08")
+        .from(`.${styles.title}`, { y: 16, opacity: 0, scale: 0.96, duration: 0.26 }, "-=0.06")
+        .from(`.${styles.tagline}`, { y: 8, opacity: 0, duration: 0.2 }, "-=0.08")
+        .from(`.${styles.bar}`, { scaleX: 0, opacity: 0, transformOrigin: "50% 50%", duration: 0.24 }, "-=0.06")
+        .from(`.${styles.dots} > *`, { scale: 0, opacity: 0, stagger: 0.03, duration: 0.16 }, "-=0.08");
+    }, rootRef);
+
+    return () => {
+      context.revert();
+    };
+  }, [motionMode]);
 
   return (
-    <Shell className="nj-shell-splash">
-      <div
-        style={{
-          position: "fixed",
-          top: 0,
-          left: 0,
-          right: 0,
-          height: 10,
-          background: CEREMONIAL_STRIP,
-          opacity: 0.8,
-          zIndex: 2,
-        }}
-      />
-      <div
-        ref={rootRef}
-        className="nj-safe"
-        style={{
-          display: "grid",
-          placeItems: "center",
-          textAlign: "center",
-        }}
-      >
-        <div>
-          <div
-            className="nj-splash-logo"
-            style={{
-              width: "clamp(132px, 34vw, 178px)",
-              height: "clamp(132px, 34vw, 178px)",
-              display: "grid",
-              placeItems: "center",
-              margin: "0 auto 18px",
-              borderRadius: "50%",
-              background: `radial-gradient(circle, ${T.gold}1f, transparent 65%)`,
-              animation: motion.allowDecorativeLoop ? "glowPulse 2.4s ease-in-out infinite" : "none",
-            }}
-          >
-            <NjamboMark size={150} />
-          </div>
-          <div className="nj-kicker nj-splash-kicker" style={{ color: T.gold }}>
-            LE JEU DU QUARTIER
-          </div>
-          <h1
-            className="nj-splash-title"
-            style={{
-              ...displayFont,
-              marginTop: 6,
-              fontSize: "clamp(54px, 16vw, 92px)",
-              fontWeight: 900,
-              lineHeight: 0.88,
-            }}
-          >
-            NJAMBO
-          </h1>
-          <div className="nj-splash-tagline" style={{ marginTop: 12, color: "rgba(255,244,223,.72)", fontWeight: 800 }}>
-            Kamer table - cartes, bluff et mboko
-          </div>
-          <div
-            className="nj-splash-bar"
-            style={{
-              height: 7,
-              width: "min(260px, 70vw)",
-              margin: "22px auto 0",
-              borderRadius: 999,
-              background: CEREMONIAL_STRIP,
-            }}
-          />
-          <div className="nj-splash-dots" style={{ marginTop: 38, display: "flex", justifyContent: "center", gap: 10 }}>
-            {[T.gold, T.teal, T.pink, T.cobalt].map((color, i) => (
-              <span
-                key={color}
-                style={{
-                  width: 10,
-                  height: 10,
-                  borderRadius: "50%",
-                  background: color,
-                  animation: motion.allowDecorativeLoop ? `loaderDot 1s ${i * 0.14}s ease-in-out infinite` : "none",
-                }}
-              />
-            ))}
-          </div>
+    <main
+      ref={rootRef}
+      className={`nj-shell nj-shell-splash ${styles.splash}`}
+      data-motion-profile={motionMode}
+      aria-label="Ouverture de Njambo"
+      aria-live="polite"
+    >
+      <div className={`${styles.strip} ${styles.stripTop}`} aria-hidden="true" />
+      <div className={styles.content}>
+        <span className={styles.mark} aria-hidden="true" />
+        <div className={styles.kicker}>LE JEU DU QUARTIER</div>
+        <h1 className={styles.title}>NJAMBO</h1>
+        <p className={styles.tagline}>Kamer table — cartes, bluff et mboko</p>
+        <div className={styles.bar} aria-hidden="true" />
+        <div className={styles.dots} aria-hidden="true">
+          <span /><span /><span /><span />
         </div>
       </div>
-      <div
-        style={{
-          position: "fixed",
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: 10,
-          background: CEREMONIAL_STRIP,
-          opacity: 0.8,
-          zIndex: 2,
-        }}
-      />
-    </Shell>
+      <div className={`${styles.strip} ${styles.stripBottom}`} aria-hidden="true" />
+    </main>
   );
 }

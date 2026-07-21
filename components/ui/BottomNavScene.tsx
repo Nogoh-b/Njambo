@@ -3,6 +3,8 @@
 import type { ReactNode } from "react";
 import { BottomNav, type BottomNavKey } from "@/components/ui/BottomNav";
 import { Shell } from "@/components/ui/Shell";
+import { useGame } from "@/contexts/GameContext";
+import { resolveSceneBottomNav } from "@/lib/homeArcadeMotion";
 import styles from "./BottomNavScene.module.css";
 
 interface BottomNavSceneProps {
@@ -26,13 +28,16 @@ export function BottomNavScene({
   className,
   contentClassName,
 }: BottomNavSceneProps) {
+  const { scene } = useGame();
+  const resolvedActive = active ?? resolveSceneBottomNav(scene);
+
   return (
     <Shell>
       <div className={`nj-safe nj-bottom-nav-scene ${styles.scene}${narrow ? ` nj-bottom-nav-scene--narrow ${styles.narrow}` : ""}${className ? ` ${className}` : ""}`}>
         <div className={`nj-bottom-nav-scene-scroll ${styles.scroll}${contentClassName ? ` ${contentClassName}` : ""}`}>
           {children}
         </div>
-        <BottomNav active={active} />
+        <BottomNav active={resolvedActive} />
       </div>
     </Shell>
   );

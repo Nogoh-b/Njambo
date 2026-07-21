@@ -48,12 +48,12 @@ export interface TrickPlay {
 
 export type Screen = "menu" | "setup" | "table";
 export type SceneName =
-  | "splashscreen" | "menu" | "setup" | "table" | "result"
+  | "menu" | "setup" | "table" | "result"
   | "bot_setup" | "online_setup" | "friends_invite" | "lobby"
   | "profile" | "leaderboard" | "friends" | "options" | "history"
   | "players" | "friend_requests" | "notifications" | "messages" | "chat" | "public_profile"
   | "power_shop" | "power_collection"
-  | "play" | "events" | "shop" | "wallet" | "admin"
+  | "play" | "events" | "event_detail" | "shop" | "wallet" | "admin"
   | "rules";
 export type Phase = "idle" | "dealing" | "turns" | "trickEnd" | "result";
 export type BotDifficulty = "easy" | "normal" | "hard";

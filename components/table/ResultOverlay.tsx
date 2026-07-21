@@ -1,16 +1,8 @@
 "use client";
 
-import { ResultScreen } from "@/components/scenes/ResultScreen";
-import type { Result } from "@/types/game";
+import { ResultScreen, type ResultScreenProps } from "@/components/scenes/ResultScreen";
 
-interface ResultOverlayProps {
-  result: Result;
-  mise: number;
-  onNext: () => void;
-  onMenu: () => void;
-  canNext: boolean;
-}
-
-export function ResultOverlay(props: ResultOverlayProps) {
+/** Alias de compatibilité pour les intégrations qui montent le résultat depuis la table. */
+export function ResultOverlay(props: ResultScreenProps) {
   return <ResultScreen {...props} />;
 }

@@ -1,37 +1,32 @@
 "use client";
 
-import React, { useCallback, useEffect } from "react";
-import { T } from "@/config/theme";
+import { useCallback, useEffect, useState } from "react";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
-import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { NKAP } from "@/data/mock";
 import { NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
+import { HubReveal } from "@/components/ui/HubReveal";
+import {
+  PreGameFooter,
+  PreGameLayout,
+  PreGameWorkspace,
+} from "@/components/ui/PreGameLayout";
+import { Surface } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
-
-/* ═══════════════ LobbyScreen — salle d&apos;attente ═══════════════
-   Affichée entre le setup et le début de la partie.
-   Les joueurs rejoignent, se mettent "Prêt", et l&apos;hôte lance.
-   Tout l&apos;état vient du LobbyContext (currentRoom partagé). */
+import styles from "./PreGameScreens.module.css";
 
 interface LobbyScreenProps {
   onGameStart: () => void;
   onBack: () => void;
 }
 
-export function LobbyScreen({
-  onGameStart,
-  onBack,
-}: LobbyScreenProps) {
+export function LobbyScreen({ onGameStart, onBack }: LobbyScreenProps) {
   const { user } = useAuth();
-  const motion = useMotionProfile();
   const { currentRoom, roomError, leaveRoom, setReady, startGame, clearError } = useLobby();
-  const [copied, setCopied] = React.useState(false);
+  const [copied, setCopied] = useState(false);
 
-  /* Détecter quand la partie démarre (status passe à "playing") */
   useEffect(() => {
     if (currentRoom?.status === "playing") {
       onGameStart();
@@ -54,7 +49,7 @@ export function LobbyScreen({
   }, [leaveRoom, clearError, onBack]);
 
   const handleToggleReady = useCallback(async () => {
-    const myReady = currentRoom?.players.find((p) => p.uid === user?.uid)?.ready;
+    const myReady = currentRoom?.players.find((player) => player.uid === user?.uid)?.ready;
     await setReady(!myReady);
   }, [currentRoom, user, setReady]);
 
@@ -63,153 +58,132 @@ export function LobbyScreen({
   }, [startGame]);
 
   const players = currentRoom?.players ?? [];
-  const guestPlayers = players.filter((p) => p.uid !== currentRoom?.hostId);
-  const readyGuestCount = guestPlayers.filter((p) => p.ready).length;
+  const guestPlayers = players.filter((player) => player.uid !== currentRoom?.hostId);
+  const readyGuestCount = guestPlayers.filter((player) => player.ready).length;
   const guestsReady = guestPlayers.length > 0 && readyGuestCount === guestPlayers.length;
   const canStart = players.length >= 2 && guestsReady;
+  const myReady = players.find((player) => player.uid === user?.uid)?.ready ?? false;
   const hostWaitLabel = guestPlayers.length === 0
     ? "En attente d'un joueur"
     : `En attente (${readyGuestCount}/${guestPlayers.length} prêts)`;
 
-  return (
-    <Shell>
-      <div className="nj-safe">
-        <div className="nj-phone">
-          <ScreenHeader
-            title="Salle d&apos;attente"
-            kicker="Préparez-vous"
-            icon="online"
-            tone="teal"
-            onBack={handleLeave}
-          />
-
-          <div className="nj-stack">
-            {/* Code de la salle */}
-            <Surface
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 12,
-                flexWrap: "wrap",
-              }}
-            >
-              <div>
-                <div style={{ fontWeight: 900 }}>Code de la salle</div>
-                <div className="nj-subtle">Partage ce code avec tes amis</div>
-              </div>
-              <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                <div
-                  className="nj-input"
-                  style={{
-                    fontFamily: "monospace",
-                    fontWeight: 900,
-                    fontSize: 22,
-                    letterSpacing: ".16em",
-                    color: T.gold,
-                    padding: "8px 16px",
-                    flexShrink: 0,
-                  }}
-                >
-                  {currentRoom?.code ?? "------"}
-                </div>
-                <Btn variant="ghost" onClick={handleCopyCode} ariaLabel="Copier le code" icon={<NjamboIcon name="copy" tone="gold" size={20} />}>
-                  {copied ? "Copié" : "Copier"}
-                </Btn>
-              </div>
-            </Surface>
-
-            {/* Mise + Pot */}
-            <Surface
-              style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                gap: 12,
-              }}
-            >
-              <span>
-                <span className="nj-subtle">Mise par manche</span>
-                <span style={{ ...displayFont, display: "block", color: T.gold, fontWeight: 900, fontSize: "clamp(18px, 5vw, 22px)" }}>
-                  {NKAP(currentRoom?.stake ?? 0)}
-                </span>
-              </span>
-              <Chip strong>
-                {currentRoom?.players.length ?? 0} joueur{((currentRoom?.players.length ?? 0) > 1) ? "s" : ""} / {currentRoom?.maxPlayers ?? 4}
-              </Chip>
-            </Surface>
-
-            {/* Liste des joueurs */}
-            <Surface style={{ overflow: "visible" }}>
-              <div style={{ fontWeight: 900, marginBottom: 12 }}>Joueurs</div>
-              <div className="nj-stack" style={{ gap: 9 }}>
-                {players.map((p, i) => {
-                  const isRoomHost = p.uid === currentRoom?.hostId;
-                  const isReady = isRoomHost || p.ready;
-                  return (
-                    <div
-                      key={p.uid}
-                      className={`nj-list-card${isReady ? " nj-list-card--teal is-active" : ""}`}
-                      style={getEntranceAnimationStyle(motion, i, { step: 0.05 })}
-                    >
-                      <span style={{ fontSize: 28 }}>{p.emoji}</span>
-                      <span style={{ flex: 1, minWidth: 0 }}>
-                        <span style={{ display: "block", fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {p.name}
-                          {p.uid === currentRoom?.hostId && (
-                            <span style={{ marginLeft: 8, fontSize: 11, color: T.gold, fontWeight: 700 }}>HÔTE</span>
-                          )}
-                        </span>
-                        <span className="nj-subtle">
-                          {isRoomHost ? "Hôte" : isReady ? "Prêt" : "En attente…"}
-                        </span>
-                      </span>
-                      <span
-                        style={{
-                          width: 10,
-                          height: 10,
-                          borderRadius: "50%",
-                          background: isReady ? T.teal : "rgba(255,255,255,.25)",
-                        }}
-                      />
-                      {p.uid !== user?.uid && <span style={{ flex: "0 0 auto" }}><SocialActions player={p} compact /></span>}
-                    </div>
-                  );
-                })}
-              </div>
-            </Surface>
-
-          </div>
-
-          <div className="nj-screen-footer" style={{ flexDirection: "column", gap: 8 }}>
-            {roomError && (
-              <div style={{ color: T.bad, fontSize: 13, textAlign: "center" }}>
-                {roomError}
-              </div>
-            )}
-            {isHost ? (
-              <Btn
-                variant="pink"
-                onClick={handleStart}
-                disabled={!canStart}
-                style={{ width: "100%" }}
-                icon={<NjamboIcon name="play" tone="light" size={20} />}
-              >
-                {canStart ? "Lancer la partie" : hostWaitLabel}
-              </Btn>
-            ) : (
-              <Btn
-                variant="pink"
-                onClick={handleToggleReady}
-                style={{ width: "100%" }}
-                icon={<NjamboIcon name={currentRoom?.players.find((p) => p.uid === user?.uid && p.ready) ? "check" : "play"} tone="light" size={20} />}
-              >
-                {currentRoom?.players.find((p) => p.uid === user?.uid && p.ready) ? "Prêt ✓" : "Je suis prêt"}
-              </Btn>
-            )}
-          </div>
+  const roomSummary = (
+    <div className={styles.railStack}>
+      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+        <div className={styles.panelHeading}>
+          <h2>Code de la salle</h2>
+          <p>Partage ce code avec tes amis.</p>
         </div>
-      </div>
-    </Shell>
+        <div className={styles.roomCodeRow} style={{ marginTop: 12 }}>
+          <code className={styles.roomCode}>{currentRoom?.code ?? "------"}</code>
+          <Btn
+            variant="ghost"
+            onClick={handleCopyCode}
+            ariaLabel="Copier le code de la salle"
+            icon={<NjamboIcon name="copy" tone="gold" size={20} />}
+          >
+            <span aria-live="polite">{copied ? "Copié" : "Copier"}</span>
+          </Btn>
+        </div>
+      </Surface>
+
+      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+        <div className={styles.summaryRow}>
+          <span className={styles.summaryLabel}>
+            <strong>Mise par manche</strong>
+            <span>La mise est verrouillée pour cette salle.</span>
+          </span>
+          <span className={styles.potValue}>{NKAP(currentRoom?.stake ?? 0)}</span>
+        </div>
+        <div style={{ marginTop: 12 }}>
+          <Chip strong>
+            {players.length} joueur{players.length > 1 ? "s" : ""} / {currentRoom?.maxPlayers ?? 4}
+          </Chip>
+        </div>
+      </Surface>
+    </div>
+  );
+
+  return (
+    <PreGameLayout
+      title="Salle d'attente"
+      kicker="Préparez-vous"
+      subtitle="Partage le code, vérifie les présences puis lance la partie quand tout le monde est prêt."
+      icon="online"
+      tone="teal"
+      onBack={() => { void handleLeave(); }}
+      backLabel="Quitter"
+      backAriaLabel="Quitter la salle"
+    >
+      <PreGameWorkspace
+        rail={roomSummary}
+        railLabel="Informations de la salle"
+      >
+        <Surface className={`nj-panel-pad-sm ${styles.listPanel}`}>
+          <div className={styles.panelHeader}>
+            <div className={styles.panelHeading}>
+              <h2>Joueurs</h2>
+              <p>{isHost ? "Les invités doivent confirmer leur présence." : "Signale à l'hôte quand tu es prêt."}</p>
+            </div>
+            <Chip tone="teal">{readyGuestCount}/{guestPlayers.length} prêts</Chip>
+          </div>
+
+          <div className={styles.listBody} aria-live="polite">
+            {players.map((player, index) => {
+              const isRoomHost = player.uid === currentRoom?.hostId;
+              const isReady = isRoomHost || player.ready;
+              return (
+                <HubReveal key={player.uid} className={styles.listReveal} order={index}>
+                  <div className={`nj-list-card${isReady ? " nj-list-card--teal is-active" : ""} ${styles.playerCard}`}>
+                    <span style={{ fontSize: 28 }} aria-hidden="true">{player.emoji}</span>
+                    <span className={styles.playerIdentity}>
+                      <span className={styles.playerName}>
+                        {player.name}
+                        {isRoomHost && <span className={styles.hostBadge}>HÔTE</span>}
+                      </span>
+                      <span className={styles.playerState}>{isRoomHost ? "Hôte" : isReady ? "Prêt" : "En attente…"}</span>
+                    </span>
+                    <span
+                      className={`${styles.readyDot}${isReady ? ` ${styles.readyDotActive}` : ""}`}
+                      aria-label={isReady ? "Prêt" : "En attente"}
+                      role="img"
+                    />
+                    {player.uid !== user?.uid && (
+                      <span className={styles.socialActions}>
+                        <SocialActions player={player} compact />
+                      </span>
+                    )}
+                  </div>
+                </HubReveal>
+              );
+            })}
+          </div>
+        </Surface>
+      </PreGameWorkspace>
+
+      <PreGameFooter status={roomError ? <div className={styles.error} role="alert">{roomError}</div> : undefined}>
+        <div className={styles.actions}>
+          {isHost ? (
+            <Btn
+              variant="pink"
+              onClick={() => { void handleStart(); }}
+              disabled={!canStart}
+              icon={<NjamboIcon name="play" tone="light" size={20} />}
+            >
+              {canStart ? "Lancer la partie" : hostWaitLabel}
+            </Btn>
+          ) : (
+            <Btn
+              variant="pink"
+              onClick={() => { void handleToggleReady(); }}
+              icon={<NjamboIcon name={myReady ? "check" : "play"} tone="light" size={20} />}
+              ariaPressed={myReady}
+            >
+              {myReady ? "Prêt ✓" : "Je suis prêt"}
+            </Btn>
+          )}
+        </div>
+      </PreGameFooter>
+    </PreGameLayout>
   );
 }

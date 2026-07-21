@@ -1,14 +1,14 @@
 "use client";
 
 import { useEffect, useState, type CSSProperties } from "react";
-import { type EventVersion, type Reward } from "@/domain";
+import { type EventVersion } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useGame } from "@/contexts/GameContext";
 import { useLiveOpsContent, usePlayerEventRuns } from "@/hooks/useLiveOpsContent";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
-import { GameCard, RewardPreview, StatusBanner, TicketBadge } from "@/components/ui/GamePrimitives";
-import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
+import { GameCard, StatusBanner, TicketBadge } from "@/components/ui/GamePrimitives";
+import { NjamboIcon } from "@/components/ui/Art";
 import { t } from "@/lib/i18n";
 import styles from "./GameHubs.module.css";
 
@@ -41,30 +41,12 @@ function eventDates(event: EventVersion) {
   return `${start} — ${format.format(event.endsAt)}`;
 }
 
-function rewardText(reward: Reward) {
-  if (reward.type === "nkap") return `${reward.amount.toLocaleString("fr-FR")} Nkap`;
-  if (reward.type === "cauris") return `${reward.amount} cauris`;
-  if (reward.type === "ticket") return `${reward.amount} ticket ${reward.tier}`;
-  if (reward.type === "energy_pass") return `Énergie illimitée ${reward.durationMinutes / 60} h`;
-  if (reward.type === "booster_book") return `${reward.amount} livre ${reward.boosterId}`;
-  return `Carte ${reward.rarity}`;
-}
-
-function rewardIcon(reward: Reward): NjamboIconName {
-  if (reward.type === "nkap") return "coin";
-  if (reward.type === "cauris") return "sparkle";
-  if (reward.type === "ticket" || reward.type === "booster_book" || reward.type === "card") return "cards";
-  return "hourglass";
-}
-
-export function EventsScreen({ onStart }: { onStart?: (runId: string) => void }) {
-  const { navigateTo } = useGame();
+export function EventsScreen() {
+  const { navigateTo, setEventDetailId } = useGame();
   const { user } = useAuth();
-  const { inventory, loading: economyLoading, command } = useEconomy();
+  const { inventory, loading: economyLoading } = useEconomy();
   const { events, loading: contentLoading, error: contentError } = useLiveOpsContent();
   const { runs, loading: runsLoading, error: runsError } = usePlayerEventRuns(user && !user.isAnonymous ? user.uid : undefined);
-  const [busy, setBusy] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ severity: "success" | "warning" | "error"; text: string } | null>(null);
   const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) };
   const [now, setNow] = useState(() => Date.now());
 
@@ -73,23 +55,9 @@ export function EventsScreen({ onStart }: { onStart?: (runId: string) => void })
     return () => window.clearInterval(timer);
   }, []);
 
-  const enter = async (eventId: string) => {
-    setBusy(eventId);
-    setMessage(null);
-    try {
-      const result = await command<{ runId: string }>("joinEvent", { eventId });
-      setMessage({ severity: "success", text: `Ta place est réservée — participation ${result.runId.slice(0, 8)}…` });
-      onStart?.(result.runId);
-    } catch (cause) {
-      const reason = cause instanceof Error ? cause.message : "";
-      const missingTicket = /ticket|insufficient/i.test(reason);
-      setMessage({
-        severity: missingTicket ? "warning" : "error",
-        text: missingTicket ? "Il te manque le ticket demandé pour entrer dans ce Ter." : /unavailable|not-found/i.test(reason) ? "Ce rendez-vous du Ter n’est plus disponible." : "L’entrée dans le Ter a été refusée. Réessaie dans un instant.",
-      });
-    } finally {
-      setBusy(null);
-    }
+  const openDetail = (eventId: string) => {
+    setEventDetailId(eventId);
+    navigateTo("event_detail");
   };
 
   return (
@@ -112,7 +80,6 @@ export function EventsScreen({ onStart }: { onStart?: (runId: string) => void })
           <strong>Le Ter garde ta progression.</strong> Crée un compte permanent avant de prendre un ticket.
         </StatusBanner>
       )}
-      {message && <StatusBanner severity={message.severity}>{message.text}</StatusBanner>}
       {(contentError || runsError) && <StatusBanner severity="warning">{runsError ?? contentError}</StatusBanner>}
       {(contentLoading || runsLoading || economyLoading) && <StatusBanner severity="info">Mise à jour des affiches et de ta progression…</StatusBanner>}
 
@@ -123,13 +90,15 @@ export function EventsScreen({ onStart }: { onStart?: (runId: string) => void })
           const state: EventState = run?.status === "eliminated" ? "eliminated" : availability;
           const status = EVENT_STATES[state];
           const ticketCount = tickets[event.ticketTier] ?? 0;
-          const blocked = !user || user.isAnonymous || availability !== "active" || economyLoading;
           const art = EVENT_ART[event.eventId] ?? "/assets/njambo/events/event-fallback.webp";
           return (
             <GameCard
               key={event.eventId}
               variant={index === 0 ? "featured" : "raised"}
               className={`${styles.eventPoster} ${styles[`eventState_${state}`]}`}
+              interactive
+              onClick={() => openDetail(event.eventId)}
+              ariaLabel={`Ouvrir le détail : ${event.title}`}
             >
               <div
                 className={styles.eventHero}
@@ -172,50 +141,9 @@ export function EventsScreen({ onStart }: { onStart?: (runId: string) => void })
                   </div>
                 )}
 
-                <div className={styles.rewardSection}>
-                  <span className={styles.sectionLabel}>Récompense finale</span>
-                  <div className={styles.rewardRow}>
-                    {event.finalReward.map((reward, rewardIndex) => (
-                      <RewardPreview
-                        key={`${event.eventId}-reward-${rewardIndex}`}
-                        icon={rewardIcon(reward)}
-                        label={rewardText(reward)}
-                      />
-                    ))}
-                  </div>
-                </div>
-
-                <details className={styles.stageDetails}>
-                  <summary>
-                    <span>Voir le parcours</span>
-                    <small>{event.stages.length} tables à franchir</small>
-                  </summary>
-                  <ol className={styles.stagePath}>
-                    {event.stages.map((stage) => (
-                      <li key={stage.id}>
-                        <span className={styles.stageNumber}>{stage.order}</span>
-                        <span className={styles.stageCopy}>
-                          <strong>{stage.title}</strong>
-                          <small>{stage.difficulty} · {stage.playerCount} joueurs{stage.crownsEnabled ? " · couronnes actives" : ""}</small>
-                        </span>
-                        <span className={styles.stageReward}>{stage.reward.map(rewardText).join(" + ")}</span>
-                      </li>
-                    ))}
-                  </ol>
-                </details>
-
-                <button data-nj-skin="pink"
-                  className={styles.eventCta}
-                  type="button"
-                  disabled={blocked || busy === event.eventId}
-                  onClick={() => {
-                    if (run && run.status !== "eliminated") onStart?.(run.id);
-                    else void enter(event.eventId);
-                  }}
-                >
-                  <span>{busy === event.eventId ? "Réservation…" : run?.status === "eliminated" ? "Recommencer avec un ticket" : run ? "Continuer ma participation" : event.mode === "pvp" ? "Rejoindre la file" : "Entrer dans le défi"}</span>
-                  <NjamboIcon name={busy === event.eventId ? "hourglass" : "play"} tone="pink" size={20} />
-                </button>
+                <span className={styles.eventOpenHint}>
+                  Voir le défi <NjamboIcon name="play" tone="pink" size={18} />
+                </span>
               </div>
             </GameCard>
           );

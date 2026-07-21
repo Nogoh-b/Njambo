@@ -1,0 +1,40 @@
+:root {
+  /* Fondation responsive LOT 1 : mobile par défaut (320–599 px). */
+  --nj-breakpoint-tablet: 600px;
+  --nj-breakpoint-desktop: 960px;
+  --nj-layout-max: 1120px;
+  --nj-layout-compact-max: 500px;
+  --nj-layout-gutter: 16px;
+  --nj-layout-gap: 16px;
+  --nj-layout-section-gap: 18px;
+  --nj-layout-columns: minmax(0, 1fr);
+  --nj-layout-rail-width: 0px;
+  --nj-dock-content-height: 64px;
+  --nj-touch-target: 44px;
+
+  /* Les mêmes budgets sont exportés en TypeScript par lib/motion.ts. */
+  --nj-motion-press: 105ms;
+  --nj-motion-interaction: 180ms;
+  --nj-motion-navigation: 250ms;
+  --nj-motion-panel: 320ms;
+  --nj-motion-flip: 620ms;
+}
+
+@media (min-width: 600px) {
+  :root {
+    --nj-layout-gutter: 24px;
+    --nj-layout-gap: 20px;
+    --nj-layout-section-gap: 24px;
+  }
+}
+
+@media (min-width: 960px) {
+  :root {
+    --nj-layout-gutter: 28px;
+    --nj-layout-gap: 24px;
+    --nj-layout-section-gap: 28px;
+    --nj-layout-columns: minmax(0, 1fr) minmax(260px, 320px);
+    --nj-layout-rail-width: 320px;
+  }
+}
+

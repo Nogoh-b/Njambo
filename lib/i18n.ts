@@ -1,6 +1,7 @@
 export type TranslationKey = keyof typeof fr;
 
 const fr = {
+  "nav.primary": "Navigation principale",
   "nav.home": "Accueil",
   "nav.play": "Jouer",
   "nav.events": "Événements",

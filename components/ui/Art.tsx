@@ -12,7 +12,7 @@ export const NJAMBO_ICON_NAMES = [
 ] as const;
 
 export type NjamboIconName = (typeof NJAMBO_ICON_NAMES)[number];
-export type NjamboIconTone = "gold" | "teal" | "pink" | "cobalt" | "light";
+export type NjamboIconTone = "gold" | "teal" | "pink" | "cobalt" | "palm" | "light";
 
 const ICON_ASSETS: Record<NjamboIconName, string> = {
   bot: "bot",
@@ -54,6 +54,7 @@ const TONE_GLOW: Record<NjamboIconTone, string> = {
   teal: "rgba(16, 183, 166, .38)",
   pink: "rgba(216, 60, 104, .36)",
   cobalt: "rgba(49, 84, 212, .38)",
+  palm: "rgba(100, 199, 120, .38)",
   light: "rgba(255, 244, 223, .26)",
 };
 

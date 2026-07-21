@@ -64,20 +64,24 @@ export function SocialActions({ player, compact = false, showProfile = true, sho
   const pad = compact ? { paddingInline: 9, fontSize: 11 } : undefined;
 
   return (
-    <div style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}>
+    <div
+      role="group"
+      aria-label={`Actions pour ${player.name}`}
+      style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}
+    >
       {showProfile && (
-        <Btn variant="ghost" onClick={openProfile} style={pad} icon={<NjamboIcon name="profile" tone="gold" size={compact ? 16 : 18} />}>
+        <Btn ariaLabel={`Voir le profil de ${player.name}`} variant="ghost" onClick={openProfile} style={pad} icon={<NjamboIcon name="profile" tone="gold" size={compact ? 16 : 18} />}>
           {compact ? "" : "Profil"}
         </Btn>
       )}
-      <Btn variant="gold" onClick={addFriend} disabled={isSelf || busy === "friend"} style={pad} icon={<NjamboIcon name="plus" tone="gold" size={compact ? 16 : 18} />}>
+      <Btn ariaLabel={`Ajouter ${player.name} aux amis`} variant="gold" onClick={addFriend} disabled={isSelf || busy === "friend"} style={pad} icon={<NjamboIcon name="plus" tone="gold" size={compact ? 16 : 18} />}>
         {compact ? "" : busy === "friend" ? "..." : "Ajouter"}
       </Btn>
-      <Btn variant="dark" onClick={openChat} disabled={isSelf} style={pad} icon={<NjamboIcon name="message" tone="light" size={compact ? 16 : 18} />}>
+      <Btn ariaLabel={`Écrire à ${player.name}`} variant="dark" onClick={openChat} disabled={isSelf} style={pad} icon={<NjamboIcon name="message" tone="light" size={compact ? 16 : 18} />}>
         {compact ? "" : "Message"}
       </Btn>
       {showInvite && (
-        <Btn variant="pink" onClick={invite} disabled={isSelf || busy === "invite"} style={pad} icon={<NjamboIcon name="online" tone="pink" size={compact ? 16 : 18} />}>
+        <Btn ariaLabel={`Inviter ${player.name} à une table`} variant="pink" onClick={invite} disabled={isSelf || busy === "invite"} style={pad} icon={<NjamboIcon name="online" tone="pink" size={compact ? 16 : 18} />}>
           {compact ? "" : busy === "invite" ? "..." : "Inviter"}
         </Btn>
       )}

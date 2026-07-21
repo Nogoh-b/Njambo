@@ -1,0 +1,133 @@
+.markStage {
+  display: grid;
+  place-items: center;
+  margin-bottom: 8px;
+}
+
+.mark {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: fit-content;
+  margin-inline: auto;
+}
+
+.markBadge {
+  position: absolute;
+  right: -12px;
+  bottom: -8px;
+  width: 48px;
+  height: 48px;
+}
+
+.title {
+  margin: 0;
+  color: var(--gold, #f2bb45);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(28px, 8vw, 42px);
+  font-weight: 950;
+  line-height: 1;
+  text-wrap: balance;
+}
+
+.reasons {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px;
+  margin: 14px 0;
+}
+
+.hand {
+  display: flex;
+  justify-content: center;
+  min-width: 0;
+  margin: 12px 0 8px;
+  padding-inline: 22px;
+}
+
+.handCard {
+  flex: 0 0 auto;
+}
+
+.gain {
+  margin-top: 10px;
+  color: var(--text, #fff4df);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(26px, 7vw, 36px);
+  font-weight: 950;
+}
+
+.gainOwner,
+.gainDetail {
+  color: rgba(255, 244, 223, 0.68);
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.refund {
+  width: fit-content;
+  margin: 10px auto 0;
+  padding: 6px 10px;
+  color: var(--teal, #10b7a6);
+  border: 1px solid rgba(16, 183, 166, 0.34);
+  border-radius: 999px;
+  background: rgba(16, 183, 166, 0.09);
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.railTitle {
+  margin: 0 0 2px;
+  color: var(--gold, #f2bb45);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 18px;
+  line-height: 1.1;
+}
+
+.socialList {
+  display: grid;
+  gap: 8px;
+}
+
+.socialPlayer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 10px;
+  border: 1px solid var(--wood-edge, rgba(242, 187, 69, 0.22));
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(60, 37, 20, 0.5), rgba(10, 8, 6, 0.82));
+}
+
+.socialName {
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 359px), (orientation: landscape) and (max-height: 620px) {
+  .markStage :global(.njambo-mark-asset) {
+    width: 78px !important;
+    height: 78px !important;
+  }
+
+  .markBadge {
+    right: -8px;
+    bottom: -4px;
+    width: 42px;
+    height: 42px;
+  }
+
+  .title {
+    font-size: clamp(26px, 7vw, 34px);
+  }
+
+  .reasons {
+    margin-block: 10px;
+  }
+}

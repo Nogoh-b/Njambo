@@ -8,7 +8,8 @@ import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { NjamboIcon } from "@/components/ui/Art";
 import { PowerCardView } from "@/components/power/PowerCardView";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { PowerCardId } from "@/types/game";
 
 /* ═══════════════ PowerCollectionScreen — inventaire & équipement ═══════════════
@@ -43,8 +44,7 @@ export function PowerCollectionScreen() {
   };
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene active="shop" narrow>
         <div className="nj-phone">
           <ScreenHeader
             title="Cartes Pouvoir"
@@ -106,7 +106,6 @@ export function PowerCollectionScreen() {
             </Surface>
           </div>
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

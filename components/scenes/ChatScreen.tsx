@@ -7,7 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { listenMessages, markConversationRead, sendMessage } from "@/lib/socialData";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
+import { BottomNavScene } from "@/components/ui/BottomNavScene";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { ChatMessage } from "@/types/game";
 
 export function ChatScreen() {
@@ -52,8 +53,7 @@ export function ChatScreen() {
   };
 
   return (
-    <Shell>
-      <div className="nj-safe">
+    <BottomNavScene active="social" narrow>
         <div className="nj-phone">
           <ScreenHeader title={peer.name} kicker="Message prive" icon="message" tone="teal" onBack={() => navigateTo("messages")} backLabel="Messages" />
           <Surface style={{ minHeight: "60svh", display: "flex", flexDirection: "column", gap: 12 }}>
@@ -106,7 +106,6 @@ export function ChatScreen() {
             </div>
           </Surface>
         </div>
-      </div>
-    </Shell>
+    </BottomNavScene>
   );
 }

@@ -47,9 +47,10 @@ function authError(code?: string): string {
 
 interface AuthGateProps {
   children: ReactNode;
+  gateClassName?: string;
 }
 
-export function AuthGate({ children }: AuthGateProps) {
+export function AuthGate({ children, gateClassName }: AuthGateProps) {
   const {
     user, loading, loginWithEmail, registerWithEmail, loginWithGoogle,
     requestPhoneCode, confirmPhoneCode, logout,
@@ -71,9 +72,9 @@ export function AuthGate({ children }: AuthGateProps) {
   /* ── Chargement ── */
   if (loading) {
     return (
-      <Surface style={{ textAlign: "center" }}>
+      <Surface className={gateClassName} style={{ textAlign: "center" }}>
         <NjamboIcon name="profile" tone="gold" size={40} />
-        <div style={{ fontWeight: 900, marginTop: 12 }}>Chargement…</div>
+        <div role="status" style={{ fontWeight: 900, marginTop: 12 }}>Chargement…</div>
       </Surface>
     );
   }
@@ -119,7 +120,8 @@ export function AuthGate({ children }: AuthGateProps) {
               border: "none",
               cursor: "pointer",
               whiteSpace: "nowrap",
-              padding: "4px 8px",
+              minHeight: 44,
+              padding: "8px 10px",
             }}
           >
             Déconnexion
@@ -193,14 +195,14 @@ export function AuthGate({ children }: AuthGateProps) {
   };
 
   return (
-    <Surface>
+    <Surface className={gateClassName}>
       <form onSubmit={handleSubmit}>
         {/* Titre */}
         <div style={{ textAlign: "center", marginBottom: 16 }}>
           <NjamboIcon name="profile" tone="gold" size={40} />
-          <div style={{ fontWeight: 900, marginTop: 10, fontSize: 18 }}>
+          <h2 style={{ fontWeight: 900, margin: "10px 0 0", fontSize: 18 }}>
             {user?.isAnonymous ? "Sauvegarder mon compte" : isRegister ? "Créer un compte" : "Connexion"}
-          </div>
+          </h2>
           <div className="nj-subtle" style={{ marginTop: 4 }}>
             {user?.isAnonymous
               ? "Passe en compte permanent sans perdre ta progression."
@@ -212,7 +214,7 @@ export function AuthGate({ children }: AuthGateProps) {
 
         {/* Erreur */}
         {error && (
-          <div style={{
+          <div role="alert" style={{
             color: T.bad,
             fontSize: 13,
             textAlign: "center",
@@ -227,17 +229,17 @@ export function AuthGate({ children }: AuthGateProps) {
 
         {/* Champs */}
         <div className="nj-stack" style={{ gap: 10 }}>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <button data-nj-skin="dark" className={`nj-choice${authMethod === "phone" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("phone"); setError(""); }}>Téléphone</button>
-            <button data-nj-skin="dark" className={`nj-choice${authMethod === "email" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("email"); setError(""); }}>E-mail</button>
+          <div role="group" aria-label="Méthode de connexion" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
+            <button data-nj-skin="dark" aria-pressed={authMethod === "phone"} className={`nj-choice${authMethod === "phone" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("phone"); setError(""); }}>Téléphone</button>
+            <button data-nj-skin="dark" aria-pressed={authMethod === "email"} className={`nj-choice${authMethod === "email" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("email"); setError(""); }}>E-mail</button>
           </div>
 
           {authMethod === "phone" && (
             <>
               {!codeSent ? (
-                <input className="nj-input" type="tel" inputMode="tel" placeholder="+237 6XX XX XX XX" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} autoComplete="tel" disabled={busy} />
+                <input aria-label="Numéro de téléphone" className="nj-input" type="tel" inputMode="tel" placeholder="+237 6XX XX XX XX" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} autoComplete="tel" disabled={busy} />
               ) : (
-                <input className="nj-input" type="text" inputMode="numeric" maxLength={6} placeholder="Code SMS à 6 chiffres" value={smsCode} onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ""))} autoComplete="one-time-code" disabled={busy} />
+                <input aria-label="Code SMS à 6 chiffres" className="nj-input" type="text" inputMode="numeric" maxLength={6} placeholder="Code SMS à 6 chiffres" value={smsCode} onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ""))} autoComplete="one-time-code" disabled={busy} />
               )}
               <div id="nj-phone-recaptcha" />
             </>
@@ -249,6 +251,7 @@ export function AuthGate({ children }: AuthGateProps) {
             <input
               className="nj-input"
               type="text"
+              aria-label="Pseudo"
               placeholder="Pseudo"
               maxLength={22}
               value={name}
@@ -262,6 +265,7 @@ export function AuthGate({ children }: AuthGateProps) {
           <input
             className="nj-input"
             type="email"
+            aria-label="Adresse e-mail"
             placeholder="E-mail"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -273,6 +277,7 @@ export function AuthGate({ children }: AuthGateProps) {
           <input
             className="nj-input"
             type="password"
+            aria-label="Mot de passe"
             placeholder="Mot de passe (min. 6)"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -283,12 +288,14 @@ export function AuthGate({ children }: AuthGateProps) {
           {/* Sélecteur emoji (inscription seulement) */}
           {isRegister && (
             <div style={{ marginTop: 4 }}>
-              <div className="nj-subtle" style={{ marginBottom: 8, fontSize: 12 }}>Choisis ton avatar</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
+              <div id="auth-avatar-label" className="nj-subtle" style={{ marginBottom: 8, fontSize: 12 }}>Choisis ton avatar</div>
+              <div role="group" aria-labelledby="auth-avatar-label" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                 {AVATARS.map((a) => (
                   <button data-nj-skin="dark"
                     key={a}
                     type="button"
+                    aria-label={`Choisir l'avatar ${a}`}
+                    aria-pressed={emoji === a}
                     onClick={() => setEmoji(a)}
                     className="nj-choice"
                     style={{
@@ -313,6 +320,7 @@ export function AuthGate({ children }: AuthGateProps) {
           <button data-nj-skin="dark"
             type="submit"
             disabled={busy}
+            aria-busy={busy}
             style={{
               width: "100%",
               minHeight: 44,
@@ -353,7 +361,8 @@ export function AuthGate({ children }: AuthGateProps) {
               border: "none",
               cursor: "pointer",
               textAlign: "center",
-              padding: "6px 0 0",
+              minHeight: 44,
+              padding: "8px 0",
             }}
           >
             {isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? Créer un compte"}

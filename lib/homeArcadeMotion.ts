@@ -1,8 +1,9 @@
 import type { MotionLevel } from "@/lib/motionPolicy";
+import type { SceneName } from "@/types/game";
 
 export type HomeMotionMode = MotionLevel | "off";
 export type HomeResourceKind = "energy" | "nkap" | "cauris";
-export type BottomNavTone = "gold" | "teal" | "pink" | "cobalt";
+export type BottomNavTone = "gold" | "teal" | "pink" | "cobalt" | "palm";
 export type BottomNavKey = "menu" | "play" | "events" | "shop" | "social" | "players" | "notifications" | "messages" | "friends";
 export type MainBottomNavKey = "menu" | "play" | "events" | "shop" | "social";
 
@@ -55,10 +56,36 @@ const MAIN_NAV: ReadonlyArray<{ key: MainBottomNavKey; tone: BottomNavTone }> = 
   { key: "play", tone: "teal" },
   { key: "events", tone: "pink" },
   { key: "shop", tone: "cobalt" },
-  { key: "social", tone: "gold" },
+  { key: "social", tone: "palm" },
 ];
 
 const SOCIAL_NAV_KEYS = new Set<BottomNavKey>(["social", "players", "notifications", "messages", "friends"]);
+
+const SCENE_NAV_SECTION: Partial<Record<SceneName, MainBottomNavKey>> = {
+  menu: "menu",
+  profile: "menu",
+  leaderboard: "menu",
+  options: "menu",
+  history: "menu",
+  rules: "menu",
+  play: "play",
+  bot_setup: "play",
+  online_setup: "play",
+  friends_invite: "play",
+  lobby: "play",
+  events: "events",
+  shop: "shop",
+  power_shop: "shop",
+  power_collection: "shop",
+  wallet: "shop",
+  friends: "social",
+  players: "social",
+  friend_requests: "social",
+  notifications: "social",
+  messages: "social",
+  chat: "social",
+  public_profile: "social",
+};
 
 export function resolveHomeMotionMode(enabled: boolean, level: MotionLevel): HomeMotionMode {
   return enabled ? level : "off";
@@ -67,6 +94,10 @@ export function resolveHomeMotionMode(enabled: boolean, level: MotionLevel): Hom
 export function normalizeBottomNavActive(active?: BottomNavKey): MainBottomNavKey | undefined {
   if (!active) return undefined;
   return SOCIAL_NAV_KEYS.has(active) ? "social" : active as MainBottomNavKey;
+}
+
+export function resolveSceneBottomNav(scene: SceneName): MainBottomNavKey | undefined {
+  return SCENE_NAV_SECTION[scene];
 }
 
 export function getBottomNavVisual(active?: BottomNavKey): { key: MainBottomNavKey; index: number; tone: BottomNavTone } | null {

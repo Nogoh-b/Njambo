@@ -57,10 +57,11 @@
   --nj-radius-lg: 22px;
   --nj-radius-xl: 28px;
   --nj-dock-height: 64px;
-  --nj-motion-fast: 160ms;
-  --nj-motion-base: 240ms;
-  --nj-motion-normal: 280ms;
-  --nj-motion-slow: 360ms;
+  /* Alias de compatibilité : toute nouvelle animation utilise les budgets LOT 1. */
+  --nj-motion-fast: var(--nj-motion-interaction, 180ms);
+  --nj-motion-base: var(--nj-motion-navigation, 250ms);
+  --nj-motion-normal: var(--nj-motion-navigation, 250ms);
+  --nj-motion-slow: var(--nj-motion-panel, 320ms);
 }
 
 body {

@@ -57,6 +57,13 @@ const RAFFIA_WEAVE_STYLE: CSSProperties = {
 
 const ROTATED_CORNER_STYLE: CSSProperties = { transform: "rotate(180deg)" };
 
+const SUIT_LABELS: Record<string, string> = {
+  "♠": "pique",
+  "♥": "cœur",
+  "♦": "carreau",
+  "♣": "trèfle",
+};
+
 const CORNER_BASE_STYLE: CSSProperties = {
   position: "relative",
   zIndex: 1,
@@ -141,18 +148,8 @@ export const PlayCard = memo(function PlayCard({
 
   const red = card.color === "#c1292e";
   const suitColor = red ? T.pink : T.ink;
-
-  return (
-    <div
-      onClick={onClick}
-      className={className}
-      style={{
-        ...base,
-        ...CARD_FACE_STYLE,
-        color: suitColor,
-        padding: `${w * 0.1}px`,
-      }}
-    >
+  const face = (
+    <>
       <div style={RAFFIA_WEAVE_STYLE} />
       <Corner rank={card.rank} suit={card.suit} size={w} color={suitColor} />
       <div
@@ -177,6 +174,37 @@ export const PlayCard = memo(function PlayCard({
       <div style={ROTATED_CORNER_STYLE}>
         <Corner rank={card.rank} suit={card.suit} size={w} color={suitColor} />
       </div>
+    </>
+  );
+
+  const faceStyle: CSSProperties = {
+    ...base,
+    ...CARD_FACE_STYLE,
+    color: suitColor,
+    padding: `${w * 0.1}px`,
+  };
+
+  if (onClick) {
+    return (
+      <button
+        data-nj-skin="none"
+        type="button"
+        onClick={onClick}
+        className={className}
+        style={faceStyle}
+        aria-label={`Jouer ${card.rank} de ${SUIT_LABELS[card.suit] ?? card.suit}`}
+      >
+        {face}
+      </button>
+    );
+  }
+
+  return (
+    <div
+      className={className}
+      style={faceStyle}
+    >
+      {face}
     </div>
   );
 });

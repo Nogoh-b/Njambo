@@ -15,14 +15,14 @@ describe("navigation arcade de l'accueil", () => {
     expect(getBottomNavVisual("play")).toMatchObject({ index: 1, tone: "teal" });
     expect(getBottomNavVisual("events")).toMatchObject({ index: 2, tone: "pink" });
     expect(getBottomNavVisual("shop")).toMatchObject({ index: 3, tone: "cobalt" });
-    expect(getBottomNavVisual("social")).toMatchObject({ index: 4, tone: "gold" });
+    expect(getBottomNavVisual("social")).toMatchObject({ index: 4, tone: "palm" });
   });
 
   it("normalise toutes les scènes sociales vers le même indicateur", () => {
     const socialScenes: BottomNavKey[] = ["players", "notifications", "messages", "friends"];
     for (const scene of socialScenes) {
       expect(normalizeBottomNavActive(scene)).toBe("social");
-      expect(getBottomNavVisual(scene)).toMatchObject({ key: "social", index: 4, tone: "gold" });
+      expect(getBottomNavVisual(scene)).toMatchObject({ key: "social", index: 4, tone: "palm" });
     }
     expect(getBottomNavVisual()).toBeNull();
   });

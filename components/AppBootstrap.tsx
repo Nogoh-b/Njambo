@@ -1,39 +1,58 @@
 "use client";
 
-import { useEffect, useState, type ComponentType } from "react";
+import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
+import { SplashScreen } from "@/components/scenes/SplashScreen";
 
 const SPLASH_SESSION_KEY = "njambo-splash-seen";
 
-function BootstrapSplash() {
-  return (
-    <main className="nj-shell nj-shell-splash" aria-label="Chargement de Njambo">
-      <div className="nj-bootstrap-strip nj-bootstrap-strip-top" />
-      <div className="nj-bootstrap-splash">
-        <span className="nj-bootstrap-mark" aria-hidden="true" />
-        <div className="nj-kicker" style={{ color: "#f3c969" }}>LE JEU DU QUARTIER</div>
-        <h1>NJAMBO</h1>
-        <p>Kamer table - cartes, bluff et mboko</p>
-        <div className="nj-bootstrap-bar" />
-      </div>
-      <div className="nj-bootstrap-strip nj-bootstrap-strip-bottom" />
-    </main>
-  );
-}
-
 export default function AppBootstrap() {
   const [Runtime, setRuntime] = useState<ComponentType | null>(null);
+  const [phase, setPhase] = useState<"checking" | "splash" | "app">("checking");
+  const cancelledRef = useRef(false);
+  const showSplashRef = useRef<boolean | null>(null);
+  const runtimePromiseRef = useRef<Promise<typeof import("@/components/NjamboApp")> | null>(null);
 
   useEffect(() => {
-    const seen = sessionStorage.getItem(SPLASH_SESSION_KEY) === "1";
-    sessionStorage.setItem(SPLASH_SESSION_KEY, "1");
-    const minimumSplash = new Promise<void>((resolve) => setTimeout(resolve, seen ? 0 : 700));
+    cancelledRef.current = false;
+    if (showSplashRef.current === null) {
+      showSplashRef.current = sessionStorage.getItem(SPLASH_SESSION_KEY) !== "1";
+      if (showSplashRef.current) sessionStorage.setItem(SPLASH_SESSION_KEY, "1");
+    }
+
+    const showSplash = showSplashRef.current;
     const runtime = import("@/components/NjamboApp");
-    let cancelled = false;
-    void Promise.all([runtime, minimumSplash]).then(([module]) => {
-      if (!cancelled) setRuntime(() => module.default);
-    });
-    return () => { cancelled = true; };
+    runtimePromiseRef.current = runtime;
+
+    if (!showSplash) {
+      void runtime.then((module) => {
+        if (cancelledRef.current) return;
+        setRuntime(() => module.default);
+        setPhase("app");
+      });
+    } else {
+      setPhase("splash");
+      void runtime.then((module) => {
+        if (!cancelledRef.current) setRuntime(() => module.default);
+      });
+    }
+
+    return () => {
+      cancelledRef.current = true;
+    };
   }, []);
 
-  return Runtime ? <Runtime /> : <BootstrapSplash />;
+  const finishSplash = useCallback(() => {
+    const runtime = runtimePromiseRef.current;
+    if (!runtime) return;
+    void runtime.then((module) => {
+      if (cancelledRef.current) return;
+      setRuntime(() => module.default);
+      setPhase("app");
+    });
+  }, []);
+
+  if (phase === "splash") return <SplashScreen onComplete={finishSplash} />;
+  if (phase === "app" && Runtime) return <Runtime />;
+
+  return <main className="nj-shell nj-shell-splash" aria-busy="true" aria-label="Chargement de Njambo" />;
 }

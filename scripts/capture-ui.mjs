@@ -17,6 +17,8 @@ const width = Number(options.width ?? 390);
 const height = Number(options.height ?? 844);
 const outDir = path.resolve(options["out-dir"] ?? "tmp/qa");
 const homeOnly = options["home-only"] === "true";
+const captureResult = options.result === "true";
+const reducedMotion = options["reduced-motion"] === "true";
 const port = 9300 + Math.floor(Math.random() * 300);
 const profile = path.resolve(`tmp/chrome-cdp-${port}`);
 
@@ -108,6 +110,11 @@ try {
   await send("Page.enable");
   await send("Runtime.enable");
   await send("Network.enable");
+  if (reducedMotion) {
+    await send("Emulation.setEmulatedMedia", {
+      features: [{ name: "prefers-reduced-motion", value: "reduce" }],
+    });
+  }
   await send("Emulation.setDeviceMetricsOverride", {
     width,
     height,
@@ -133,10 +140,21 @@ try {
     const screenshot = await send("Page.captureScreenshot", { format: "png", fromSurface: true, captureBeyondViewport: false });
     await fs.writeFile(path.join(outDir, `${name}-${width}x${height}.png`), Buffer.from(screenshot.data, "base64"));
     const metrics = await evaluate(`(() => {
-      const dock = document.querySelector('nav[aria-label="Menu principal"]');
+      const dock = document.querySelector('nav.nj-home-bottom-nav');
       const scroll = document.querySelector('.nj-bottom-nav-scene-scroll');
+      const dialog = document.querySelector('[role="dialog"][aria-modal="true"]');
+      const dialogRect = dialog?.getBoundingClientRect();
+      const primaryPlay = [...document.querySelectorAll('button')]
+        .find((node) => /^(Jouer, choisir une table|Reprendre la partie en cours)$/.test(node.getAttribute('aria-label') ?? ''));
+      const quickModes = document.querySelector('nav[aria-label="Accès rapides aux modes de jeu"]');
+      const eventAction = [...document.querySelectorAll('button')]
+        .find((node) => node.textContent?.replace(/\s+/g, ' ').trim().startsWith('Voir le défi'));
       const active = dock?.querySelector('[aria-current="page"]')?.getAttribute('aria-label') ?? null;
       const rect = dock?.getBoundingClientRect();
+      const compactRect = (node) => {
+        const box = node?.getBoundingClientRect();
+        return box ? { top: Math.round(box.top), bottom: Math.round(box.bottom), height: Math.round(box.height) } : null;
+      };
       const visible = (node) => {
         const box = node.getBoundingClientRect();
         const style = getComputedStyle(node);
@@ -168,6 +186,30 @@ try {
         viewport: { width: innerWidth, height: innerHeight },
         dock: rect ? { top: Math.round(rect.top), bottom: Math.round(rect.bottom), height: Math.round(rect.height), position: getComputedStyle(dock).position } : null,
         scroll: scroll ? { clientHeight: scroll.clientHeight, scrollHeight: scroll.scrollHeight, overflowY: getComputedStyle(scroll).overflowY } : null,
+        homeHierarchy: {
+          primaryPlay: compactRect(primaryPlay),
+          quickModes: compactRect(quickModes),
+          eventAction: compactRect(eventAction),
+          primaryAboveDock: primaryPlay && rect ? primaryPlay.getBoundingClientRect().bottom <= rect.top : null,
+          quickModesAboveDock: quickModes && rect ? quickModes.getBoundingClientRect().bottom <= rect.top : null,
+        },
+        result: dialogRect ? {
+          left: Math.round(dialogRect.left),
+          top: Math.round(dialogRect.top),
+          right: Math.round(dialogRect.right),
+          bottom: Math.round(dialogRect.bottom),
+          width: Math.round(dialogRect.width),
+          height: Math.round(dialogRect.height),
+          clientHeight: dialog.clientHeight,
+          scrollHeight: dialog.scrollHeight,
+          labelledBy: dialog.getAttribute('aria-labelledby'),
+          describedBy: dialog.getAttribute('aria-describedby'),
+          focused: dialog === document.activeElement,
+        } : null,
+        documentOverflowX: document.documentElement.scrollWidth > innerWidth,
+        documentOverflowY: document.documentElement.scrollHeight > innerHeight,
+        bodyOverflow: getComputedStyle(document.body).overflow,
+        runningAnimations: document.getAnimations().filter((animation) => animation.playState === 'running').length,
         smallTargets,
       };
     })()`);
@@ -176,59 +218,85 @@ try {
 
   const clickDock = async (label) => {
     const clicked = await evaluate(`(() => {
-      const button = [...document.querySelectorAll('nav[aria-label="Menu principal"] button')].find((item) => item.getAttribute('aria-label') === ${JSON.stringify(label)});
+      const button = [...document.querySelectorAll('nav.nj-home-bottom-nav button')].find((item) => item.getAttribute('aria-label') === ${JSON.stringify(label)});
       button?.click();
       return Boolean(button);
     })()`);
     if (!clicked) throw new Error(`Onglet introuvable : ${label}`);
-    await delay(900);
+    for (let attempt = 0; attempt < 24; attempt += 1) {
+      const active = await evaluate(`document.querySelector('nav.nj-home-bottom-nav [aria-current="page"]')?.getAttribute('aria-label') ?? null`);
+      if (active === label) return;
+      await delay(250);
+    }
+    throw new Error(`L'onglet ${label} n'est pas devenu actif après la navigation`);
   };
 
   const clickButton = async ({ ariaLabel, ariaPrefix, text }) => {
-    const clicked = await evaluate(`(() => {
-      const buttons = [...document.querySelectorAll('button')];
-      const button = buttons.find((item) => {
-        const label = item.getAttribute('aria-label') ?? '';
-        const copy = item.textContent?.trim().replace(/\\s+/g, ' ') ?? '';
-        return ${JSON.stringify(ariaLabel ?? null)} ? label === ${JSON.stringify(ariaLabel ?? "")} :
-          ${JSON.stringify(ariaPrefix ?? null)} ? label.startsWith(${JSON.stringify(ariaPrefix ?? "")}) :
-          copy.includes(${JSON.stringify(text ?? "")});
-      });
-      button?.click();
-      return Boolean(button);
-    })()`);
+    let clicked = false;
+    for (let attempt = 0; attempt < 20 && !clicked; attempt += 1) {
+      clicked = await evaluate(`(() => {
+        const buttons = [...document.querySelectorAll('button')];
+        const button = buttons.find((item) => {
+          const label = item.getAttribute('aria-label') ?? '';
+          const copy = item.textContent?.trim().replace(/\\s+/g, ' ') ?? '';
+          return ${JSON.stringify(ariaLabel ?? null)} ? label === ${JSON.stringify(ariaLabel ?? "")} :
+            ${JSON.stringify(ariaPrefix ?? null)} ? label.startsWith(${JSON.stringify(ariaPrefix ?? "")}) :
+            copy.includes(${JSON.stringify(text ?? "")});
+        });
+        button?.click();
+        return Boolean(button);
+      })()`);
+      if (!clicked) await delay(250);
+    }
     if (!clicked) throw new Error(`Bouton introuvable : ${ariaLabel ?? ariaPrefix ?? text}`);
     await delay(900);
   };
 
   await capture("home");
   if (!homeOnly) {
-    await clickDock("Jouer");
-    await capture("play");
-    await clickDock("Événements");
-    await capture("events");
-    await clickDock("Boutique");
-    await capture("shop");
-    await clickDock("Social");
-    await capture("social");
-    await clickDock("Accueil");
-    await clickButton({ ariaLabel: "Réglages" });
-    await capture("options");
-    await clickButton({ ariaLabel: "Retour" });
-    const walletOpened = await evaluate(`(() => {
-      const button = [...document.querySelectorAll('button')].find((item) => item.getAttribute('aria-label')?.startsWith('Nkap :'));
-      button?.click();
-      return Boolean(button);
-    })()`);
-    if (!walletOpened) throw new Error("Raccourci Portefeuille introuvable");
-    await capture("wallet");
-    await clickButton({ ariaLabel: "Retour" });
-    await clickDock("Jouer");
+    if (!captureResult) {
+      await clickDock("Jouer");
+      await capture("play");
+      await clickDock("Événements");
+      await capture("events");
+      await clickDock("Boutique");
+      await capture("shop");
+      await clickDock("Social");
+      await capture("social");
+      await clickDock("Accueil");
+      await clickButton({ ariaLabel: "Réglages" });
+      await capture("options");
+      await clickButton({ text: "Retour" });
+      const walletOpened = await evaluate(`(() => {
+        const button = [...document.querySelectorAll('button')].find((item) => item.getAttribute('aria-label')?.startsWith('Nkap :'));
+        button?.click();
+        return Boolean(button);
+      })()`);
+      if (!walletOpened) throw new Error("Raccourci Portefeuille introuvable");
+      await capture("wallet");
+      await clickButton({ text: "Retour" });
+    }
     await clickButton({ ariaPrefix: "Jouer à Contre l’IA" });
     await capture("bot-setup");
     await clickButton({ text: "À la table" });
     await delay(1_500);
     await capture("table");
+    if (captureResult) {
+      let resultVisible = false;
+      for (let attempt = 0; attempt < 120; attempt += 1) {
+        resultVisible = await evaluate(`(() => {
+          if (document.querySelector('[role="dialog"][aria-modal="true"]')) return true;
+          const playable = [...document.querySelectorAll('button.playcard-clickable')]
+            .find((button) => !button.disabled && button.getClientRects().length > 0);
+          playable?.click();
+          return false;
+        })()`);
+        if (resultVisible) break;
+        await delay(350);
+      }
+      if (!resultVisible) throw new Error("Le résultat n'est pas apparu après une manche locale complète");
+      await capture("result");
+    }
   }
 } finally {
   socket?.close();

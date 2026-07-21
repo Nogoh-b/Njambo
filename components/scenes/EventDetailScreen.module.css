@@ -1,0 +1,343 @@
+/* ═══════════════ Détail d'un événement (vue campagne) ═══════════════
+   Héros thématique + chemin illustré des tables (nœuds reliés),
+   récap de progression du joueur et CTA unique de jeu.
+   S'appuie sur les variables --nj-* partagées (tons + cream). */
+
+.backBtn {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(255, 244, 223, 0.08), rgba(5, 8, 18, 0.6));
+  border: 1px solid rgba(255, 244, 223, 0.16);
+  border-radius: 12px;
+  color: var(--nj-cream, #fff4df);
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.8rem;
+  font-weight: 800;
+  gap: 8px;
+  margin-bottom: 14px;
+  padding: 9px 13px;
+}
+
+.backBtn:hover {
+  border-color: var(--event-accent, var(--nj-pink, #ad6972));
+}
+
+.ticketWallet {
+  align-items: center;
+  display: flex;
+  gap: 7px;
+}
+
+/* ───── Héros ───── */
+
+.heroCard {
+  margin-bottom: 18px;
+  overflow: hidden;
+  padding: 0 !important;
+}
+
+.hero {
+  background:
+    var(--event-art) center / cover no-repeat,
+    radial-gradient(circle at 70% 30%, color-mix(in srgb, var(--event-accent, #ad6972) 32%, transparent), transparent 45%),
+    linear-gradient(135deg, #2a1818, #090a18);
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 230px;
+  padding: 18px;
+  position: relative;
+}
+
+.heroShade {
+  background: linear-gradient(0deg, rgba(4, 5, 14, 0.94) 4%, rgba(4, 5, 14, 0.22) 72%);
+  inset: 0;
+  position: absolute;
+}
+
+.heroTop {
+  align-items: flex-start;
+  display: flex;
+  justify-content: space-between;
+  position: relative;
+  z-index: 1;
+}
+
+.modeBadge {
+  align-items: center;
+  background: rgba(5, 8, 18, 0.6);
+  border: 1px solid rgba(255, 244, 223, 0.18);
+  border-radius: 999px;
+  color: var(--nj-cream, #fff4df);
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 800;
+  gap: 7px;
+  padding: 7px 12px;
+}
+
+.heroFacts {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  position: relative;
+  z-index: 1;
+}
+
+.heroFacts > span {
+  align-items: center;
+  color: rgba(255, 244, 223, 0.78);
+  display: inline-flex;
+  font-size: 0.74rem;
+  font-weight: 750;
+  gap: 6px;
+}
+
+/* ───── Récap joueur ───── */
+
+.recap {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--event-accent, #ad6972) 14%, transparent), rgba(5, 8, 18, 0.72));
+  border: 1px solid color-mix(in srgb, var(--event-accent, #ad6972) 30%, transparent);
+  border-radius: 16px;
+  display: grid;
+  gap: 9px;
+  margin-bottom: 18px;
+  padding: 15px 16px;
+}
+
+.recapHead {
+  display: grid;
+  gap: 2px;
+}
+
+.recapKicker {
+  color: rgba(255, 244, 223, 0.62);
+  font-size: 0.72rem;
+  font-weight: 750;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.recapTitle {
+  color: var(--nj-cream, #fff4df);
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.recapMeta {
+  color: rgba(255, 244, 223, 0.68);
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.recapTrack {
+  display: block;
+  height: 6px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.recapTrack > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--event-accent-soft, #ffd6e5), var(--event-accent, #ad6972));
+  box-shadow: 0 0 10px color-mix(in srgb, var(--event-accent, #ad6972) 45%, transparent);
+}
+
+/* ───── Parcours (chemin illustré) ───── */
+
+.pathSection {
+  margin-bottom: 18px;
+}
+
+.pathTitle {
+  color: var(--nj-cream, #fff4df);
+  font-size: 1.05rem;
+  font-weight: 900;
+  margin: 0 0 14px;
+}
+
+.path {
+  /* Le trait vertical qui relie les nœuds. */
+  --rail-color: color-mix(in srgb, var(--event-accent, #ad6972) 38%, transparent);
+  display: grid;
+  gap: 4px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  position: relative;
+}
+
+.pathNode {
+  align-items: flex-start;
+  display: grid;
+  gap: 14px;
+  grid-template-columns: 46px minmax(0, 1fr);
+  padding: 12px 0;
+  position: relative;
+}
+
+/* Connecteur vertical entre nœuds. */
+.pathNode:not(:last-child)::before {
+  background: var(--rail-color);
+  content: "";
+  grid-column: 1;
+  height: calc(100% - 12px);
+  justify-self: center;
+  left: 50%;
+  margin-top: 38px;
+  position: absolute;
+  top: 0;
+  transform: translateX(-50%);
+  width: 3px;
+}
+
+.pathMarker {
+  align-items: center;
+  background: rgba(5, 8, 18, 0.8);
+  border: 3px solid var(--rail-color);
+  border-radius: 50%;
+  color: rgba(255, 244, 223, 0.5);
+  display: flex;
+  flex-shrink: 0;
+  font-size: 0.95rem;
+  font-weight: 900;
+  height: 46px;
+  justify-content: center;
+  position: relative;
+  width: 46px;
+  z-index: 1;
+}
+
+.pathOrder {
+  line-height: 1;
+}
+
+.pathCopy {
+  align-items: flex-start;
+  background: linear-gradient(135deg, rgba(5, 8, 18, 0.6), rgba(5, 8, 18, 0.3));
+  border: 1px solid rgba(255, 244, 223, 0.1);
+  border-radius: 14px;
+  display: grid;
+  gap: 4px;
+  padding: 12px 14px;
+}
+
+.pathCopy strong {
+  color: var(--nj-cream, #fff4df);
+  font-size: 0.95rem;
+}
+
+.pathCopy small {
+  color: rgba(255, 244, 223, 0.62);
+  font-size: 0.74rem;
+  font-weight: 700;
+}
+
+.pathReward {
+  align-items: center;
+  color: rgba(255, 244, 223, 0.82);
+  display: inline-flex;
+  font-size: 0.78rem;
+  font-weight: 750;
+  gap: 6px;
+  margin-top: 2px;
+}
+
+/* États des nœuds */
+.node_completed .pathMarker {
+  background: var(--event-accent, #ad6972);
+  border-color: var(--event-accent, #ad6972);
+  color: var(--nj-cream, #fff4df);
+}
+
+.node_current .pathMarker {
+  background: color-mix(in srgb, var(--event-accent, #ad6972) 22%, rgba(5, 8, 18, 0.8));
+  border-color: var(--event-accent, #ad6972);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--event-accent, #ad6972) 22%, transparent);
+  color: var(--nj-cream, #fff4df);
+  animation: nodePulse 2.4s ease-in-out infinite;
+}
+
+.node_current .pathCopy {
+  border-color: color-mix(in srgb, var(--event-accent, #ad6972) 45%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--event-accent, #ad6972) 14%, transparent), rgba(5, 8, 18, 0.4));
+}
+
+.node_locked .pathMarker {
+  opacity: 0.55;
+}
+
+.node_locked .pathCopy {
+  opacity: 0.7;
+}
+
+@keyframes nodePulse {
+  0%, 100% { box-shadow: 0 0 0 4px color-mix(in srgb, var(--event-accent, #ad6972) 22%, transparent); }
+  50% { box-shadow: 0 0 0 9px color-mix(in srgb, var(--event-accent, #ad6972) 10%, transparent); }
+}
+
+/* ───── Récompense finale ───── */
+
+.finalReward {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 22px;
+}
+
+.finalLabel {
+  color: rgba(255, 244, 223, 0.72);
+  font-size: 0.78rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.finalRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* ───── CTA ───── */
+
+.cta {
+  align-items: center;
+  background: linear-gradient(155deg, color-mix(in srgb, var(--event-accent, #ad6972) 85%, #2a1418), color-mix(in srgb, var(--event-accent, #ad6972) 55%, #090a18));
+  border: 1px solid color-mix(in srgb, var(--event-accent, #ad6972) 60%, transparent);
+  border-radius: 16px;
+  color: var(--nj-cream, #fff4df);
+  cursor: pointer;
+  display: flex;
+  font-size: 1rem;
+  font-weight: 900;
+  gap: 12px;
+  justify-content: center;
+  margin-bottom: 28px;
+  padding: 16px 18px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  width: 100%;
+}
+
+.cta:hover:not(:disabled) {
+  filter: brightness(1.08);
+}
+
+.cta:disabled {
+  cursor: not-allowed;
+  filter: grayscale(0.4);
+  opacity: 0.55;
+}
+
+/* ───── Responsive ───── */
+
+@media (max-width: 560px) {
+  .hero { min-height: 200px; }
+  .pathNode { grid-template-columns: 42px minmax(0, 1fr); gap: 12px; }
+  .pathMarker { height: 42px; width: 42px; }
+  .pathNode:not(:last-child)::before { margin-top: 34px; }
+}

@@ -37,6 +37,7 @@ export interface GameCardProps {
 export interface GameModeCardProps {
   image: string;
   children: ReactNode;
+  tone?: GameTone;
   className?: string;
   imageClassName?: string;
   shadeClassName?: string;
@@ -53,6 +54,7 @@ export interface GameModeCardProps {
 export function GameModeCard({
   image,
   children,
+  tone = "gold",
   className,
   imageClassName,
   shadeClassName,
@@ -75,6 +77,7 @@ export function GameModeCard({
   if (surface) {
     return (
       <GameCard
+        tone={tone}
         variant={variant === "primary" ? "featured" : "raised"}
         className={className}
       >

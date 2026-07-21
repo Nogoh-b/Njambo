@@ -1,16 +1,21 @@
 "use client";
 
 import { useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { NKAP, BOTS } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
-import { ScreenHeader, Shell, Surface, displayFont } from "@/components/ui/Shell";
+import {
+  PreGameFooter,
+  PreGameLayout,
+  PreGameWorkspace,
+} from "@/components/ui/PreGameLayout";
+import { Surface } from "@/components/ui/Shell";
 import { EquippedPowersBar } from "@/components/power/EquippedPowersBar";
 import type { BotDifficulty } from "@/types/game";
+import styles from "./PreGameScreens.module.css";
 
 interface BotSetupScreenProps {
   onStart: (botCount: number, mise: number, difficulty: BotDifficulty) => void;
@@ -34,139 +39,141 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
   const enoughEnergy = training || economy?.energy.unlimited || (economy?.energy.available ?? 0) >= 5;
   const enoughNkap = training || (economy?.nkap ?? 0) >= mise;
 
-  return (
-    <Shell>
-      <div className="nj-safe">
-        <div className="nj-phone">
-          <ScreenHeader
-            title="Contre l'IA"
-            kicker="Solo rapide"
-            icon="bot"
-            tone="gold"
-            onBack={() => navigateTo("menu")}
-          />
+  const summary = (
+    <div className={styles.railStack}>
+      {training && (
+        <div className={styles.notice} role="status">
+          Entraînement invité : aucune énergie, aucune mise et aucun gain.
+        </div>
+      )}
 
-          <div className="nj-stack" style={{ alignContent: "center", gap: 12 }}>
-            <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
-              <div className="nj-subtle" style={{ fontSize: 12, marginBottom: 8 }}>Nombre d&apos;adversaires</div>
-              <div style={{ display: "flex", justifyContent: "center", gap: 10 }}>
-                {[1, 2, 3].map((n) => (
-                  <button data-nj-skin={botCount === n ? "gold" : "ghost"}
+      {!training && (
+        <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+          <h2 className={styles.sectionTitle}>Pouvoirs équipés</h2>
+          <div className={styles.sectionHint}>Ta sélection sera disponible à la table.</div>
+          <div style={{ marginTop: 12 }}>
+            <EquippedPowersBar />
+          </div>
+        </Surface>
+      )}
+
+      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+        <div className={styles.potRow}>
+          <span className={styles.summaryLabel}>
+            <strong>Pot par manche</strong>
+            <span>La caisse que tout le monde vise</span>
+          </span>
+          <span className={styles.potValue}>
+            {training ? "Entraînement" : NKAP(pot)}
+          </span>
+        </div>
+      </Surface>
+    </div>
+  );
+
+  const footerStatus = (!enoughNkap || !enoughEnergy) ? (
+    <div className={styles.stack} aria-live="polite">
+      {!enoughNkap && <div className={styles.error}>Nkap insuffisants pour cette mise.</div>}
+      {!enoughEnergy && <div className={styles.error}>Il faut 5 énergie pour cette manche.</div>}
+    </div>
+  ) : undefined;
+
+  return (
+    <PreGameLayout
+      title="Contre l'IA"
+      kicker="Solo rapide"
+      subtitle="Règle la table puis lance une partie immédiate contre les adversaires du Mboa."
+      icon="bot"
+      tone="gold"
+      onBack={() => navigateTo("menu")}
+    >
+      <PreGameWorkspace rail={summary} railLabel="Résumé de la partie">
+        <div className={styles.controlGrid}>
+          <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.widePanel}`}>
+            <fieldset className={styles.choiceSet}>
+              <legend className={styles.choiceLegend}>Nombre d&apos;adversaires</legend>
+              <div className={styles.choiceGrid}>
+                {[1, 2, 3].map((count) => (
+                  <button
+                    data-nj-skin={botCount === count ? "gold" : "ghost"}
                     type="button"
-                    key={n}
-                    className="nj-player-count-choice"
-                    aria-label={`${n} adversaire${n > 1 ? "s" : ""}`}
-                    aria-pressed={botCount === n}
-                    onClick={() => setBotCount(n)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: 8,
-                      height: 56,
-                      width: 92,
-                      padding: "0 10px",
-                      borderRadius: 16,
-                      color: T.text,
-                      fontWeight: 900,
-                      fontSize: 16,
-                      cursor: "pointer",
-                      overflow: "hidden",
-                    }}
+                    key={count}
+                    className={styles.botChoice}
+                    aria-label={`${count} adversaire${count > 1 ? "s" : ""}`}
+                    aria-pressed={botCount === count}
+                    onClick={() => setBotCount(count)}
                   >
-                    <span style={{ display: "flex" }}>
-                      {Array.from({ length: n }, (_, i) => (
-                        <span key={i} style={{ marginLeft: i === 0 ? 0 : -12 }}>
-                          <AvatarIllustration seed={BOTS[i]?.emoji ?? `bot-${i}`} size={32} />
+                    <span className={styles.botAvatars} aria-hidden="true">
+                      {Array.from({ length: count }, (_, index) => (
+                        <span key={index}>
+                          <AvatarIllustration seed={BOTS[index]?.emoji ?? `bot-${index}`} size={32} />
                         </span>
                       ))}
                     </span>
-                    <span className="nj-player-count-value" aria-hidden="true">{n}</span>
+                    <span className="nj-player-count-value" aria-hidden="true">{count}</span>
                   </button>
                 ))}
               </div>
-            </Surface>
+            </fieldset>
+          </Surface>
 
-            {training && <div className="nj-liveops-notice">Entraînement invité : aucune énergie, aucune mise et aucun gain.</div>}
-
-            <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
-              <div style={{ fontWeight: 900, marginBottom: 12 }}>Difficulté</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-                {DIFFICULTIES.map((d) => (
+          <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+            <fieldset className={styles.choiceSet}>
+              <legend className={styles.choiceLegend}>Difficulté</legend>
+              <div className={styles.choiceGrid}>
+                {DIFFICULTIES.map((entry) => (
                   <Btn
-                    key={d.key}
-                    variant={difficulty === d.key ? "gold" : "ghost"}
-                    ariaPressed={difficulty === d.key}
-                    onClick={() => setDifficulty(d.key)}
-                    style={{ width: "100%", paddingInline: 6, fontSize: 13 }}
+                    key={entry.key}
+                    variant={difficulty === entry.key ? "gold" : "ghost"}
+                    ariaPressed={difficulty === entry.key}
+                    onClick={() => setDifficulty(entry.key)}
+                    className={styles.choiceButton}
                   >
-                    {d.label}
+                    {entry.label}
                   </Btn>
                 ))}
               </div>
+            </fieldset>
+          </Surface>
+
+          {!training && (
+            <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+              <fieldset className={styles.choiceSet}>
+                <legend className={styles.choiceLegend}>Mise par manche</legend>
+                <div className={styles.choiceGrid}>
+                  {cfg.stakes.map((stake) => (
+                    <Btn
+                      key={stake}
+                      variant={mise === stake ? "gold" : "ghost"}
+                      ariaPressed={mise === stake}
+                      onClick={() => setMise(stake)}
+                      className={styles.choiceButton}
+                    >
+                      {NKAP(stake)}
+                    </Btn>
+                  ))}
+                </div>
+              </fieldset>
             </Surface>
-
-            {!training && <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
-              <div style={{ fontWeight: 900, marginBottom: 12 }}>Mise par manche</div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 10 }}>
-                {cfg.stakes.map((m) => (
-                  <Btn key={m} variant={mise === m ? "gold" : "ghost"} ariaPressed={mise === m} onClick={() => setMise(m)} style={{ width: "100%" }}>
-                    {NKAP(m)}
-                  </Btn>
-                ))}
-              </div>
-            </Surface>}
-
-            {!training && <Surface className="nj-panel-pad-sm" style={{ overflow: "visible" }}>
-              <EquippedPowersBar />
-            </Surface>}
-
-            <Surface
-              className="nj-panel-pad-sm"
-              style={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                gap: 14,
-                overflow: "visible",
-              }}
-            >
-              <span style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                <span className="nj-title-icon" style={{ width: 40, height: 40, borderRadius: 12 }}>
-                  <NjamboIcon name="coin" tone="gold" size={22} />
-                </span>
-                <span>
-                  <span style={{ display: "block", fontWeight: 900, fontSize: 14 }}>Pot par manche</span>
-                  <span className="nj-subtle" style={{ fontSize: 12 }}>La caisse que tout le monde vise</span>
-                </span>
-              </span>
-              <span style={{ ...displayFont, color: T.gold, fontWeight: 900, fontSize: "clamp(18px, 5vw, 24px)", whiteSpace: "nowrap" }}>
-                {training ? "Entraînement" : NKAP(pot)}
-              </span>
-            </Surface>
-
-          </div>
-
-          <div className="nj-screen-footer" style={{ flexDirection: "column", gap: 8 }}>
-            {!enoughNkap && <div style={{ color: T.bad, textAlign: "center", fontSize: 13 }}>Nkap insuffisants pour cette mise.</div>}
-            {!enoughEnergy && <div style={{ color: T.bad, textAlign: "center", fontSize: 13 }}>Il faut 5 énergie pour cette manche.</div>}
-            <div className="nj-action-row">
-              <Btn variant="ghost" onClick={() => navigateTo("menu")}>
-                ← Menu
-              </Btn>
-              <Btn
-                variant="pink"
-                onClick={() => onStart(botCount, training ? 0 : mise, difficulty)}
-                disabled={!enoughNkap || !enoughEnergy}
-                style={{ flex: 1 }}
-                icon={<NjamboIcon name="play" tone="light" size={20} />}
-              >
-                À la table
-              </Btn>
-            </div>
-          </div>
+          )}
         </div>
-      </div>
-    </Shell>
+      </PreGameWorkspace>
+
+      <PreGameFooter status={footerStatus}>
+        <div className={styles.actions}>
+          <Btn variant="ghost" onClick={() => navigateTo("menu")}>
+            ← Menu
+          </Btn>
+          <Btn
+            variant="pink"
+            onClick={() => onStart(botCount, training ? 0 : mise, difficulty)}
+            disabled={!enoughNkap || !enoughEnergy}
+            icon={<NjamboIcon name="play" tone="light" size={20} />}
+          >
+            À la table
+          </Btn>
+        </div>
+      </PreGameFooter>
+    </PreGameLayout>
   );
 }

@@ -1,30 +1,32 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
-import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenDiscoverPlayers } from "@/lib/socialData";
 import { NKAP } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
-import { ScreenHeader, Shell, Surface } from "@/components/ui/Shell";
 import { AuthGate } from "@/components/ui/AuthGate";
+import { HubReveal } from "@/components/ui/HubReveal";
+import {
+  PreGameFooter,
+  PreGameLayout,
+  PreGameWorkspace,
+} from "@/components/ui/PreGameLayout";
+import { Surface } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
 import { EquippedPowersBar } from "@/components/power/EquippedPowersBar";
 import type { PublicPlayerProfile } from "@/types/game";
-
-/* ═══════════════ OnlineSetupScreen — matchmaking en ligne ═══════════════ */
+import styles from "./PreGameScreens.module.css";
 
 export function OnlineSetupScreen() {
   const { navigateTo, cfg } = useGame();
   const { user } = useAuth();
   const { economy } = useEconomy();
-  const motion = useMotionProfile();
   const { createRoom, joinRoomById, findAvailableRoom, publicRooms, searchRooms, roomError, clearError } = useLobby();
   const [playerSearch, setPlayerSearch] = useState("");
   const [players, setPlayers] = useState<PublicPlayerProfile[]>([]);
@@ -42,11 +44,9 @@ export function OnlineSetupScreen() {
     return unsub;
   }, [playerSearch, user?.uid]);
 
-  /* ---- Navigation helpers ---- */
   const goBack = () => navigateTo("menu");
   const goToLobby = () => navigateTo("lobby");
 
-  /* ---- Créer une salle ---- */
   const handleCreate = async () => {
     try {
       setBusy(true);
@@ -60,7 +60,6 @@ export function OnlineSetupScreen() {
     }
   };
 
-  /* ---- Rejoindre une salle publique ---- */
   const handleJoinRoom = async (roomId: string) => {
     setBusy(true);
     try {
@@ -74,12 +73,10 @@ export function OnlineSetupScreen() {
     }
   };
 
-  /* ---- Auto-match ---- */
   const handleAutoMatch = async () => {
     try {
       setBusy(true);
       clearError();
-
       const available = await findAvailableRoom({ stake: selectedStake });
       if (available) {
         const joined = await joinRoomById(available.id);
@@ -92,156 +89,182 @@ export function OnlineSetupScreen() {
     }
   };
 
+  const configuration = (
+    <div className={styles.railStack}>
+      <div className={styles.noticeStack} role="status" aria-live="polite" aria-atomic="true">
+        {!canPayEnergy && <div className={styles.notice}>Il faut 10 énergie pour une manche classée.</div>}
+        {!canPayStake && <div className={styles.notice}>Nkap insuffisants pour cette mise.</div>}
+      </div>
+
+      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+        <fieldset className={styles.choiceSet}>
+          <legend className={styles.choiceLegend}>
+            <span className={styles.legendRow}>
+              <span>Mise par manche</span>
+              <span>Pot {NKAP(selectedStake * maxPlayers)}</span>
+            </span>
+          </legend>
+          <div className={styles.choiceGrid}>
+            {cfg.stakes.map((stake) => (
+              <Btn
+                key={stake}
+                variant={selectedStake === stake ? "gold" : "ghost"}
+                ariaPressed={selectedStake === stake}
+                onClick={() => setSelectedStake(stake)}
+                className={styles.choiceButton}
+              >
+                {NKAP(stake)}
+              </Btn>
+            ))}
+          </div>
+        </fieldset>
+
+        <fieldset className={styles.choiceSet}>
+          <legend className={styles.choiceLegend}>Nombre de joueurs</legend>
+          <div className={styles.choiceGrid}>
+            {[2, 3, 4].map((count) => (
+              <Btn
+                key={count}
+                variant={maxPlayers === count ? "gold" : "ghost"}
+                ariaPressed={maxPlayers === count}
+                onClick={() => setMaxPlayers(count)}
+                className={styles.choiceButton}
+              >
+                {count}
+              </Btn>
+            ))}
+          </div>
+        </fieldset>
+      </Surface>
+
+      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+        <h2 className={styles.sectionTitle}>Pouvoirs équipés</h2>
+        <div className={styles.sectionHint}>Prépare ton jeu avant de chercher une table.</div>
+        <div style={{ marginTop: 12 }}>
+          <EquippedPowersBar />
+        </div>
+      </Surface>
+    </div>
+  );
+
+  const footerStatus = roomError ? (
+    <div className={styles.error} role="alert">{roomError}</div>
+  ) : undefined;
+
   return (
-    <Shell>
-      <div className="nj-safe">
-        <div className="nj-phone">
-          <ScreenHeader
-            title="En ligne"
-            kicker="Quartiers connectés"
-            icon="online"
-            tone="teal"
-            onBack={goBack}
-          />
+    <PreGameLayout
+      title="En ligne"
+      kicker="Quartiers connectés"
+      subtitle="Configure ta mise, retrouve les joueurs disponibles ou rejoins une salle publique."
+      icon="online"
+      tone="teal"
+      onBack={goBack}
+    >
+      <AuthGate gateClassName={styles.authPanel}>
+        <PreGameWorkspace
+          rail={configuration}
+          railLabel="Configuration de la table en ligne"
+        >
+          <div className={styles.onlineLists}>
+            <Surface className={`nj-panel-pad-sm ${styles.listPanel}${publicRooms.length === 0 ? ` ${styles.widePanel}` : ""}`}>
+              <div className={styles.panelHeader}>
+                <div className={styles.panelHeading}>
+                  <h2>Joueurs</h2>
+                  <p>Ajoute, invite ou envoie un message.</p>
+                </div>
+                <Chip tone="teal">{players.length}</Chip>
+              </div>
 
-          <AuthGate>
-            <div className="nj-stack">
-              {/* Barre fixe : config + actions */}
-              <Surface style={{ flex: "0 0 auto", padding: "clamp(14px, 4vw, 18px)" }}>
-                {!canPayEnergy && <div className="nj-liveops-notice" style={{ marginBottom: 8 }}>Il faut 10 énergie pour une manche classée.</div>}
-                {!canPayStake && <div className="nj-liveops-notice" style={{ marginBottom: 8 }}>Nkap insuffisants pour cette mise.</div>}
-                <div className="nj-subtle" style={{ fontSize: 12, marginBottom: 8 }}>Mise par manche</div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 14 }}>
-                  {cfg.stakes.map((m) => (
-                    <Btn
-                      key={m}
-                      variant={selectedStake === m ? "gold" : "ghost"}
-                      onClick={() => setSelectedStake(m)}
-                      style={{ width: "100%", minHeight: 34, fontSize: 13 }}
-                    >
-                      {NKAP(m)}
-                    </Btn>
-                  ))}
-                </div>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 8 }}>
-                  <span className="nj-subtle" style={{ fontSize: 12 }}>Nombre de joueurs</span>
-                  <span className="nj-subtle" style={{ fontSize: 12 }}>Pot {NKAP(selectedStake * maxPlayers)}</span>
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, marginBottom: 14 }}>
-                  {[2, 3, 4].map((n) => (
-                    <Btn
-                      key={`n${n}`}
-                      variant={maxPlayers === n ? "gold" : "ghost"}
-                      onClick={() => setMaxPlayers(n)}
-                      style={{ width: "100%", minHeight: 34, fontSize: 13 }}
-                    >
-                      {n}
-                    </Btn>
-                  ))}
-                </div>
-                <div style={{ marginBottom: 12 }}>
-                  <EquippedPowersBar />
-                </div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
-                  <Btn
-                    variant="gold"
-                    onClick={handleCreate}
-                    disabled={busy || !canStart}
-                    style={{ width: "100%" }}
-                    icon={<NjamboIcon name="home" tone="gold" size={18} />}
-                  >
-                    {busy ? "…" : "Créer"}
-                  </Btn>
-                  <Btn
-                    variant="ghost"
-                    disabled={busy || !canStart}
-                    style={{ width: "100%" }}
-                    icon={<NjamboIcon name="play" tone="gold" size={18} />}
-                    onClick={handleAutoMatch}
-                  >
-                    {busy ? "…" : "Trouver"}
-                  </Btn>
-                </div>
-              </Surface>
-
-              {/* Joueurs en ligne — scrollable */}
-              <Surface className="nj-panel-pad-sm" style={{ flex: "1 1 200px", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                  <div>
-                    <div style={{ fontWeight: 900 }}>Joueurs</div>
-                    <div className="nj-subtle">Ajoute, invite ou envoie un message.</div>
-                  </div>
-                  <Chip tone="teal">{players.length}</Chip>
-                </div>
+              <div className={styles.searchField}>
+                <label className={styles.fieldLabel} htmlFor="online-player-search">Rechercher un joueur</label>
                 <input
+                  id="online-player-search"
+                  type="search"
                   value={playerSearch}
-                  onChange={(e) => setPlayerSearch(e.target.value)}
-                  placeholder="Rechercher un joueur"
+                  onChange={(event) => setPlayerSearch(event.target.value)}
+                  placeholder="Nom ou quartier"
+                  autoComplete="off"
                   className="nj-input"
-                  style={{ width: "100%", marginBottom: 10, flex: "0 0 auto" }}
                 />
-                <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "grid", gap: 8, alignContent: "start", paddingRight: 2 }}>
-                  {players.map((player, i) => (
-                    <div
-                      key={player.uid}
-                      className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""}`}
-                      style={getEntranceAnimationStyle(motion, i)}
-                    >
-                      <AvatarIllustration seed={player.emoji} size={42} online={player.online} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{player.name}</div>
-                        <div className="nj-subtle">{player.online ? "En ligne" : "Hors ligne"}</div>
-                      </div>
-                      <SocialActions player={player} compact />
-                    </div>
-                  ))}
-                </div>
-              </Surface>
+              </div>
 
-              {/* Salles publiques — scrollable séparément */}
-              {publicRooms.length > 0 && (
-                <Surface className="nj-panel-pad-sm" style={{ flex: "1 1 160px", minHeight: 0, overflow: "hidden", display: "flex", flexDirection: "column" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12, flex: "0 0 auto" }}>
-                    <div style={{ fontWeight: 900 }}>Salles disponibles</div>
-                    <Chip>{publicRooms.length} salle{publicRooms.length > 1 ? "s" : ""}</Chip>
+              <div className={styles.listBody} aria-live="polite">
+                {players.length === 0 && (
+                  <div className={styles.emptyState}>Aucun joueur ne correspond à cette recherche.</div>
+                )}
+                {players.map((player, index) => (
+                  <HubReveal key={player.uid} className={styles.listReveal} order={index}>
+                    <div className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""} ${styles.playerCard}`}>
+                      <AvatarIllustration seed={player.emoji} size={42} online={player.online} />
+                      <div className={styles.playerIdentity}>
+                        <span className={styles.playerName}>{player.name}</span>
+                        <span className={styles.playerState}>{player.online ? "En ligne" : "Hors ligne"}</span>
+                      </div>
+                      <div className={styles.socialActions}>
+                        <SocialActions player={player} compact />
+                      </div>
+                    </div>
+                  </HubReveal>
+                ))}
+              </div>
+            </Surface>
+
+            {publicRooms.length > 0 && (
+              <Surface className={`nj-panel-pad-sm ${styles.listPanel}`}>
+                <div className={styles.panelHeader}>
+                  <div className={styles.panelHeading}>
+                    <h2>Salles disponibles</h2>
+                    <p>Rejoins une table déjà ouverte.</p>
                   </div>
-                  <div style={{ flex: 1, minHeight: 0, overflowY: "auto", display: "grid", gap: 9, alignContent: "start", paddingRight: 2 }}>
-                    {publicRooms.map((room) => (
-                      <button data-nj-skin="dark"
-                        key={room.id}
+                  <Chip>{publicRooms.length} salle{publicRooms.length > 1 ? "s" : ""}</Chip>
+                </div>
+
+                <div className={styles.listBody}>
+                  {publicRooms.map((room, index) => (
+                    <HubReveal key={room.id} className={styles.listReveal} order={index}>
+                      <button
+                        data-nj-skin="dark"
                         type="button"
                         disabled={busy || !canStart || room.stake > (economy?.nkap ?? 0)}
                         onClick={() => handleJoinRoom(room.id)}
-                        className="nj-list-card nj-list-card--teal"
-                        style={{
-                          justifyContent: "space-between",
-                          cursor: busy ? "not-allowed" : "pointer",
-                          opacity: busy ? 0.5 : 1,
-                        }}
+                        className={`nj-list-card nj-list-card--teal ${styles.roomCard}`}
+                        aria-label={`Rejoindre la salle ${room.code}, mise ${NKAP(room.stake)}, ${room.players.length} joueurs sur ${room.maxPlayers}`}
                       >
-                        <span>
-                          <span style={{ fontFamily: "monospace", fontWeight: 900, color: T.gold, letterSpacing: ".1em", fontSize: 15 }}>
-                            {room.code}
-                          </span>
-                          <span className="nj-subtle" style={{ marginLeft: 10, fontSize: 13 }}>
-                            {NKAP(room.stake)} · {room.players.length}/{room.maxPlayers}
-                          </span>
+                        <span className={styles.roomMeta}>
+                          <span className={styles.roomCodeSmall}>{room.code}</span>
+                          <span className={styles.roomDetails}>{NKAP(room.stake)} · {room.players.length}/{room.maxPlayers}</span>
                         </span>
                         <NjamboIcon name="play" tone="teal" size={20} />
                       </button>
-                    ))}
-                  </div>
-                </Surface>
-              )}
+                    </HubReveal>
+                  ))}
+                </div>
+              </Surface>
+            )}
+          </div>
+        </PreGameWorkspace>
 
-              {/* Erreur */}
-              {roomError && (
-                <div style={{ color: T.bad, fontSize: 13, textAlign: "center" }}>{roomError}</div>
-              )}
-            </div>
-          </AuthGate>
-        </div>
-      </div>
-    </Shell>
+        <PreGameFooter status={footerStatus}>
+          <div className={styles.actions} aria-busy={busy}>
+            <Btn
+              variant="gold"
+              onClick={handleCreate}
+              disabled={busy || !canStart}
+              icon={<NjamboIcon name="home" tone="gold" size={18} />}
+            >
+              {busy ? "…" : "Créer"}
+            </Btn>
+            <Btn
+              variant="ghost"
+              disabled={busy || !canStart}
+              icon={<NjamboIcon name="play" tone="gold" size={18} />}
+              onClick={handleAutoMatch}
+            >
+              {busy ? "…" : "Trouver"}
+            </Btn>
+          </div>
+        </PreGameFooter>
+      </AuthGate>
+    </PreGameLayout>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import type { BottomNavKey } from "@/components/ui/BottomNav";
-import { BottomNavScene } from "@/components/ui/BottomNavScene";
+import { GameShell } from "@/components/ui/GameShell";
 import type { GameTone } from "@/components/ui/GamePrimitives";
 import styles from "./GameHubLayout.module.css";
 
@@ -15,6 +15,7 @@ export interface GameHubLayoutProps {
   subtitle?: ReactNode;
   active?: BottomNavKey;
   headerAction?: ReactNode;
+  secondaryRail?: ReactNode;
   children: ReactNode;
   className?: string;
   contentClassName?: string;
@@ -48,6 +49,7 @@ export function GameHubLayout({
   subtitle,
   active,
   headerAction,
+  secondaryRail,
   children,
   className,
   contentClassName,
@@ -55,7 +57,7 @@ export function GameHubLayout({
   const titleId = `game-hub-${useId().replaceAll(":", "")}`;
 
   return (
-    <BottomNavScene
+    <GameShell
       active={active}
       className={cx(styles.scene, TONE_CLASS[tone], className)}
       contentClassName={cx(styles.scroll, contentClassName)}
@@ -73,9 +75,12 @@ export function GameHubLayout({
         </div>
         {headerAction !== undefined && <div className={styles.headerAction}>{headerAction}</div>}
       </header>
-      <div className={styles.content} role="region" aria-labelledby={titleId}>
-        {children}
+      <div className={cx(styles.body, secondaryRail !== undefined && styles.hasSecondary)}>
+        <div className={styles.content} role="region" aria-labelledby={titleId}>
+          {children}
+        </div>
+        {secondaryRail !== undefined && <aside className={styles.secondaryRail}>{secondaryRail}</aside>}
       </div>
-    </BottomNavScene>
+    </GameShell>
   );
 }

@@ -112,7 +112,13 @@ export const Fan = memo(function Fan({
 
   const c = (cards.length - 1) / 2;
   return (
-    <div ref={rootRef} style={{ display: "flex", pointerEvents: faceUp ? "auto" : "none" }}>
+    <div
+      ref={rootRef}
+      role={faceUp ? "group" : undefined}
+      aria-label={faceUp ? `Votre main, ${cards.length} cartes` : undefined}
+      aria-hidden={faceUp ? undefined : true}
+      style={{ display: "flex", pointerEvents: faceUp ? "auto" : "none" }}
+    >
       {cards.map((card, ci) => {
         // Mode sélection (pouvoir en attente d'un choix de carte) : le clic
         // désigne la carte au lieu de la jouer ; les autres sont grisées.

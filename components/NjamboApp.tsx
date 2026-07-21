@@ -3,17 +3,15 @@
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { MotionProfileProvider, sceneVariants, useMotionProfile } from "@/lib/motion";
+import { MOTION_DURATION_MS, MotionProfileProvider, reducedSceneVariants, sceneVariants, useMotionProfile } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
-import { GAME_CONFIG } from "@/config/gameConfig";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
 import { markPerformance } from "@/lib/performanceMetrics";
 import { schedulePostSplashPreload } from "@/lib/idlePreload";
 import { EconomyProvider } from "@/contexts/EconomyContext";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
-import { SplashScreen } from "@/components/scenes/SplashScreen";
 import { MenuScreen } from "@/components/scenes/MenuScreen";
 import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/types/game";
 
@@ -40,9 +38,11 @@ const PowerCollectionScreen = dynamic(() => import("@/components/scenes/PowerCol
 const PlayHubScreen = dynamic(() => import("@/components/scenes/PlayHubScreen").then((module) => module.PlayHubScreen), { loading });
 const ShopScreen = dynamic(() => import("@/components/scenes/ShopScreen").then((module) => module.ShopScreen), { loading });
 const EventsScreen = dynamic(() => import("@/components/scenes/EventsScreen").then((module) => module.EventsScreen), { loading });
+const EventDetailScreen = dynamic(() => import("@/components/scenes/EventDetailScreen").then((module) => module.EventDetailScreen), { loading });
+const EventMatchmakingOverlay = dynamic(() => import("@/components/scenes/EventMatchmakingOverlay").then((module) => module.EventMatchmakingOverlay), { loading });
 const WalletScreen = dynamic(() => import("@/components/scenes/WalletScreen").then((module) => module.WalletScreen), { loading });
 
-const SCENE_TRANSITION_MS = GAME_CONFIG.anim.navigation;
+const SCENE_TRANSITION_MS = MOTION_DURATION_MS.navigation;
 
 /* ═══════════════ SceneRouter ═══════════════
    Orchestrateur de scènes : gère la navigation
@@ -64,6 +64,13 @@ function SceneRouter() {
   const [gameDifficulty, setGameDifficulty] = useState<BotDifficulty>("normal");
   const [gameMode, setGameMode] = useState<GameMode>("bot");
   const [eventRunId, setEventRunId] = useState<string | null>(null);
+  /** eventId de l'événement en cours (pour le thème de l'overlay de file). */
+  const [eventId, setEventId] = useState<string | null>(null);
+  /** True tant qu'un événement PvP cherche des adversaires (overlay de file). */
+  const [eventMatchmaking, setEventMatchmaking] = useState(false);
+  /** Infos de l'étape courante pour l'overlay de file. */
+  const [eventStageLabel, setEventStageLabel] = useState<string>("");
+  const [eventRequiredPlayers, setEventRequiredPlayers] = useState<number>(4);
   /* True quand une session de jeu est active (table montée) */
   const [gameActive, setGameActive] = useState(false);
   /* Ref vers nextRound de TableScreen pour le bouton "manche suivante" */
@@ -81,7 +88,7 @@ function SceneRouter() {
   }, [scene]);
 
   useEffect(() => {
-    if (scene !== "splashscreen") schedulePostSplashPreload();
+    schedulePostSplashPreload();
   }, [scene]);
 
   useEffect(() => {
@@ -94,7 +101,7 @@ function SceneRouter() {
   }, [setProfile, user]);
 
   useEffect(() => {
-    if (["play", "bot_setup", "online_setup", "friends_invite", "lobby", "events"].includes(scene)) {
+    if (["play", "bot_setup", "online_setup", "friends_invite", "lobby", "events", "event_detail"].includes(scene)) {
       void import("@/components/scenes/TableScreen");
       void import("@/components/scenes/ResultScreen");
     }
@@ -110,8 +117,8 @@ function SceneRouter() {
     tableEntryTimerRef.current = setTimeout(() => {
       tableEntryTimerRef.current = null;
       setGameActive(true);
-    }, animationsOn ? SCENE_TRANSITION_MS : 0);
-  }, [animationsOn, navigateTo]);
+    }, motionProfile.enabled ? SCENE_TRANSITION_MS : motionProfile.reduced ? 120 : 0);
+  }, [motionProfile.enabled, motionProfile.reduced, navigateTo]);
 
   /* --- Bot setup --- */
   const handleBotStart = useCallback((botCount: number, mise: number, difficulty: BotDifficulty = "normal") => {
@@ -136,12 +143,18 @@ function SceneRouter() {
     startOnlineGame(currentRoom);
   }, [currentRoom, startOnlineGame]);
 
-  const handleEventStart = useCallback((runId: string) => {
+  const handleEventStart = useCallback((runId: string, mode: "pve" | "pvp" = "pve", evtId: string = "", stage0?: { title: string; playerCount: number }) => {
     setGameMode("event");
     setEventRunId(runId);
+    setEventId(evtId || null);
     setGameMise(0);
     setGameBotCount(3);
     setGameResult(null);
+    setEventStageLabel(stage0?.title ?? "");
+    setEventRequiredPlayers(stage0?.playerCount ?? 4);
+    // PvP : on intercale l'écran de file d'attente tant que le serveur n'a
+    // pas formé le groupe (currentMatchId absent du run). PvE : table directe.
+    setEventMatchmaking(mode === "pvp");
     enterTable();
   }, [enterTable]);
 
@@ -180,6 +193,7 @@ function SceneRouter() {
   const handleMenu = useCallback(() => {
     setGameResult(null);
     setGameActive(false);
+    setEventMatchmaking(false);
     nextRoundRef.current = null;
     // Quitter la table = quitter la salle. Sans ça, currentRoom résiduel
     // contaminait la partie suivante (roomId injecté dans une table bot) et
@@ -191,7 +205,6 @@ function SceneRouter() {
   /* Rendu de la scène courante (hors table/result, gérés séparément en overlay). */
   const renderScene = (): ReactNode => {
     switch (scene) {
-      case "splashscreen": return <SplashScreen />;
       case "menu": return <MenuScreen resumeRoomType={resumeRoomType} onResumeGame={handleResumeGame} />;
       case "profile": return <ProfileScreen />;
       case "leaderboard": return <LeaderboardScreen />;
@@ -209,7 +222,8 @@ function SceneRouter() {
       case "power_collection": return <PowerCollectionScreen />;
       case "play": return <PlayHubScreen />;
       case "shop": return <ShopScreen />;
-      case "events": return <EventsScreen onStart={handleEventStart} />;
+      case "events": return <EventsScreen />;
+      case "event_detail": return <EventDetailScreen onStart={handleEventStart} />;
       case "wallet": return <WalletScreen />;
       case "bot_setup": return <BotSetupScreen onStart={handleBotStart} />;
       case "online_setup": return <OnlineSetupScreen />;
@@ -223,17 +237,17 @@ function SceneRouter() {
     <MotionConfig reducedMotion={motionProfile.enabled ? "user" : "always"}>
       <div
         className={[
-          motionProfile.enabled ? "nj-motion-on" : "nj-motion-off",
-          `nj-motion-level-${motionProfile.level}`,
+          motionProfile.enabled ? "nj-motion-on" : motionProfile.reduced ? "nj-motion-reduced" : "nj-motion-off",
+          `nj-motion-level-${motionProfile.mode}`,
           animationsOn ? "nj-animations-enabled" : "nj-animations-disabled",
         ].join(" ")}
         style={{ minHeight: "100vh", position: "relative" }}
       >
-        {motionProfile.enabled ? (
+        {motionProfile.allowNavigationMotion ? (
           <AnimatePresence initial={false} onExitComplete={endTransition}>
             <motion.div
               key={scene}
-              variants={sceneVariants}
+              variants={motionProfile.reduced ? reducedSceneVariants : sceneVariants}
               initial="out"
               animate="in"
               exit="exit"
@@ -267,6 +281,22 @@ function SceneRouter() {
           onMenu={handleMenu}
           onNextRoundRef={nextRoundRef}
           paused={Boolean(gameResult)}
+        />
+      )}
+
+      {/* Écran de file d'attente — au-dessus de la table tant qu'un événement
+          PvP n'a pas de groupe (currentMatchId absent du run). Le TableScreen
+          du dessous tourne déjà et pousse le startMatch ; cet overlay observe
+          le run et disparaît dès que le serveur forme le match. */}
+      {gameActive && eventMatchmaking && eventRunId && eventId && (
+        <EventMatchmakingOverlay
+          key={`mm-${eventRunId}`}
+          runId={eventRunId}
+          eventId={eventId}
+          stageTitle={eventStageLabel}
+          requiredPlayers={eventRequiredPlayers}
+          onMatchStart={() => setEventMatchmaking(false)}
+          onAbort={() => setEventMatchmaking(false)}
         />
       )}
 

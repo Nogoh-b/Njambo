@@ -80,7 +80,7 @@ export function PerformanceHud() {
       <span>p95 {metrics.p95} ms</span>
       <span>longues {metrics.longTasks}</span>
       <span>plateau {metrics.boardRenders}</span>
-      <span>profil {motion.level}</span>
+      <span>profil {motion.mode}</span>
     </aside>
   );
 }

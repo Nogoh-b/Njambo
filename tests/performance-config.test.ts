@@ -8,6 +8,7 @@ import {
   shouldDegradeMotion,
 } from "../lib/motionPolicy";
 import { normalizeStoredSettings } from "../lib/settingsStorage";
+import { MOTION_DURATION_MS } from "../lib/motionTokens";
 
 const capable = { width: 1440, height: 900, hardwareConcurrency: 8, deviceMemory: 8 };
 
@@ -35,9 +36,22 @@ describe("profil d'animation", () => {
 });
 
 describe("budgets d'animation partagés", () => {
+  it("respecte les cinq budgets d'interaction du shell", () => {
+    expect(MOTION_DURATION_MS.press).toBeGreaterThanOrEqual(90);
+    expect(MOTION_DURATION_MS.press).toBeLessThanOrEqual(120);
+    expect(MOTION_DURATION_MS.interaction).toBeGreaterThanOrEqual(160);
+    expect(MOTION_DURATION_MS.interaction).toBeLessThanOrEqual(200);
+    expect(MOTION_DURATION_MS.navigation).toBeGreaterThanOrEqual(220);
+    expect(MOTION_DURATION_MS.navigation).toBeLessThanOrEqual(280);
+    expect(MOTION_DURATION_MS.panel).toBeGreaterThanOrEqual(280);
+    expect(MOTION_DURATION_MS.panel).toBeLessThanOrEqual(360);
+    expect(MOTION_DURATION_MS.flip).toBeGreaterThanOrEqual(520);
+    expect(MOTION_DURATION_MS.flip).toBeLessThanOrEqual(700);
+  });
+
   it("conserve les durées synchronisées prévues", () => {
     expect(GAME_CONFIG.anim).toMatchObject({
-      navigation: 160,
+      navigation: 250,
       roundIntro: 1200,
       dealPerCard: 80,
       dealFlight: 420,

@@ -7,6 +7,7 @@ export type BtnVariant = "gold" | "teal" | "pink" | "ghost" | "dark";
 interface BtnProps {
   children?: ReactNode;
   onClick?: () => void;
+  type?: "button" | "submit";
   variant?: BtnVariant;
   disabled?: boolean;
   style?: CSSProperties;
@@ -19,6 +20,7 @@ interface BtnProps {
 export function Btn({
   children,
   onClick,
+  type = "button",
   variant = "gold",
   disabled,
   style,
@@ -31,7 +33,7 @@ export function Btn({
 
   return (
     <button
-      type="button"
+      type={type}
       data-nj-skin={iconOnly ? "icon" : variant}
       onClick={onClick}
       disabled={disabled}

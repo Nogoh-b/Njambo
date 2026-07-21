@@ -1,5 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import localFont from "next/font/local";
+import "./layout-tokens.css";
 import "./globals.css";
 import "./ter-nocturne.css";
 import { PwaRegistration } from "@/components/PwaRegistration";

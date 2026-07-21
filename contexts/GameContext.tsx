@@ -30,6 +30,9 @@ interface GameContextValue {
   endTransition: () => void;
   socialTarget: SocialTarget;
   setSocialTarget: (target: SocialTarget | ((prev: SocialTarget) => SocialTarget)) => void;
+  /** eventId porté pour la scène event_detail (null = liste des événements). */
+  eventDetailId: string | null;
+  setEventDetailId: (id: string | null) => void;
 
   /* Profil joueur */
   profile: Profile;
@@ -97,13 +100,11 @@ function storeProfile(p: Profile) {
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const cfg = GAME_CONFIG;
-  const [scene, setScene] = useState<SceneName>(() => {
-    if (typeof window !== "undefined" && sessionStorage.getItem("njambo-splash-seen") === "1") return "menu";
-    return "splashscreen";
-  });
+  const [scene, setScene] = useState<SceneName>("menu");
   const [transitioning, setTransitioning] = useState(false);
   const [profile, setProfileRaw] = useState<Profile>(() => applyDevProfile(loadStoredProfile()));
   const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>({});
+  const [eventDetailId, setEventDetailIdRaw] = useState<string | null>(null);
   const [musicOn, setMusicOn] = useState(false);
   const [sfxOn, setSfxOn] = useState(true);
 
@@ -135,10 +136,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   /* Navigation — la sortie/entrée est désormais gérée par <AnimatePresence>
      dans SceneRouter (Framer Motion). On change la scène immédiatement ;
-     le flag `transitioning` reste exposé pour compat (piloté par onExitComplete). */
+     le flag `transitioning` reste exposé pour compat (piloté par onExitComplete).
+     Un retour vers la liste des événements nettoie le détail en cours. */
   const navigateTo = useCallback((target: SceneName) => {
     setTransitioning(true);
     setScene(target);
+    if (target === "events") setEventDetailIdRaw(null);
+  }, []);
+
+  const setEventDetailId = useCallback((id: string | null) => {
+    setEventDetailIdRaw(id);
   }, []);
 
   /** Appelé par AnimatePresence quand l'ancienne scène a fini de sortir. */
@@ -150,8 +157,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<GameContextValue>(() => ({
     scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget,
+    eventDetailId, setEventDetailId,
     profile, setProfile, musicOn, setMusicOn, sfxOn, setSfxOn, sfx, cfg,
-  }), [scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget, profile, setProfile, musicOn, sfxOn, sfx, cfg]);
+  }), [scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget, eventDetailId, setEventDetailId, profile, setProfile, musicOn, sfxOn, sfx, cfg]);
 
   return (
     <GameContext.Provider

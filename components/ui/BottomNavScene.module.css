@@ -1,13 +1,15 @@
 .scene.scene {
-  --nj-dock-content-height: 64px;
   position: relative;
   height: 100svh;
+  height: 100dvh;
   min-height: 0;
+  width: min(100%, var(--nj-layout-max));
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding-left: max(clamp(16px, 3vw, 28px), env(safe-area-inset-left));
-  padding-right: max(clamp(16px, 3vw, 28px), env(safe-area-inset-right));
+  padding-top: max(var(--nj-layout-gutter), env(safe-area-inset-top));
+  padding-left: max(var(--nj-layout-gutter), env(safe-area-inset-left));
+  padding-right: max(var(--nj-layout-gutter), env(safe-area-inset-right));
   padding-bottom: calc(var(--nj-dock-content-height) + env(safe-area-inset-bottom));
 }
 
@@ -31,10 +33,13 @@
 }
 
 .narrow.narrow > :global(.nj-home-bottom-nav) {
-  width: min(calc(100vw - 28px), 500px);
+  width: min(
+    calc(100vw - max(var(--nj-layout-gutter), env(safe-area-inset-left)) - max(var(--nj-layout-gutter), env(safe-area-inset-right))),
+    var(--nj-layout-compact-max)
+  );
 }
 
-@media (max-width: 420px) {
+@media (max-width: 599px) {
   .scroll {
     scrollbar-gutter: auto;
   }

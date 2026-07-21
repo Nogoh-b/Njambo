@@ -4,7 +4,7 @@ import { createContext, createElement, useContext, useEffect, useLayoutEffect, u
 import { useReducedMotion } from "motion/react";
 import type { Variants } from "motion/react";
 import { useSettings } from "@/contexts/SettingsContext";
-import { GAME_CONFIG } from "@/config/gameConfig";
+import { MOTION_DURATION_MS } from "@/lib/motionTokens";
 import {
   lowerMotionLevel,
   lowestMotionLevel,
@@ -22,9 +22,16 @@ import {
 /** Vrai si les animations doivent jouer : toggle app activé ET pas de reduced-motion système. */
 export type { MotionLevel } from "@/lib/motionPolicy";
 
+export { MOTION_DURATION_MS } from "@/lib/motionTokens";
+
+export type MotionProfileMode = MotionLevel | "off";
+
 export interface MotionProfile {
   enabled: boolean;
   level: MotionLevel;
+  mode: MotionProfileMode;
+  reduced: boolean;
+  allowNavigationMotion: boolean;
   allowDecorativeLoop: boolean;
   allowParticles: boolean;
   allowFilterFx: boolean;
@@ -114,16 +121,33 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
     return () => cancelAnimationFrame(animationFrame);
   // selectedLevel absent des deps: le sampler tourne une seule fois par
   // session, pas a chaque resize. Valeur courante lue via selectedLevelRef.
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [animationsOn, motionQuality, mounted]);
 
   const prefersReduced = mounted ? prefersReducedRaw : false;
 
   const value = useMemo(() => {
-    if (!animationsOn || prefersReduced) {
+    if (!animationsOn) {
       return {
         enabled: false,
         level: "lite" as const,
+        mode: "off" as const,
+        reduced: false,
+        allowNavigationMotion: false,
+        allowDecorativeLoop: false,
+        allowParticles: false,
+        allowFilterFx: false,
+        allowEntranceCascade: false,
+        allowLongCascade: false,
+      };
+    }
+
+    if (prefersReduced) {
+      return {
+        enabled: false,
+        level: "lite" as const,
+        mode: "off" as const,
+        reduced: true,
+        allowNavigationMotion: true,
         allowDecorativeLoop: false,
         allowParticles: false,
         allowFilterFx: false,
@@ -136,6 +160,9 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
     return {
       enabled: true,
       level,
+      mode: level,
+      reduced: false,
+      allowNavigationMotion: true,
       allowDecorativeLoop: level !== "lite",
       allowParticles: level === "full",
       allowFilterFx: level === "full",
@@ -255,12 +282,19 @@ export const sceneVariants: Variants = {
   out: { opacity: 0 },
   in: {
     opacity: 1,
-    transition: { duration: GAME_CONFIG.anim.navigation / 1000, ease: [0.22, 0.85, 0.3, 1] },
+    transition: { duration: MOTION_DURATION_MS.navigation / 1000, ease: [0.22, 0.85, 0.3, 1] },
   },
   exit: {
     opacity: 0,
-    transition: { duration: GAME_CONFIG.anim.navigation / 1000, ease: [0.4, 0, 1, 1] },
+    transition: { duration: MOTION_DURATION_MS.navigation / 1000, ease: [0.4, 0, 1, 1] },
   },
+};
+
+/** Reduced motion conserve uniquement un fondu court, sans translation ni 3D. */
+export const reducedSceneVariants: Variants = {
+  out: { opacity: 0 },
+  in: { opacity: 1, transition: { duration: 0.12, ease: "linear" } },
+  exit: { opacity: 0, transition: { duration: 0.12, ease: "linear" } },
 };
 
 /** Feel du vol/atterrissage d'une carte (approxime cubic-bezier(.3,.75,.35,1) + overshoot). */

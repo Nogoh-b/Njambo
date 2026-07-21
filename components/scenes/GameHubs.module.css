@@ -527,6 +527,22 @@
   width: 100%;
 }
 
+.eventOpenHint {
+  align-items: center;
+  background: linear-gradient(135deg, rgba(236, 91, 131, 0.18), rgba(5, 8, 18, 0.55));
+  border: 1px solid rgba(236, 91, 131, 0.32);
+  border-radius: 12px;
+  color: var(--nj-cream, #fff4df);
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 800;
+  gap: 8px;
+  justify-content: center;
+  padding: 11px 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
 .eventCta:disabled,
 .buyButton:disabled,
 .wheelButton:disabled,
@@ -1104,7 +1120,7 @@
 }
 
 .revealCardInner {
-  animation: revealCardFlip 950ms cubic-bezier(0.2, 0.72, 0.2, 1) both;
+  animation: revealCardFlip var(--nj-motion-flip) cubic-bezier(0.2, 0.72, 0.2, 1) both;
   height: 100%;
   position: relative;
   transform-style: preserve-3d;
@@ -2008,7 +2024,7 @@
 
 /* ── Responsive ────────────────────────────────────────────────────────── */
 
-@media (min-width: 480px) {
+@media (min-width: 600px) {
   .modeGrid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -2028,7 +2044,7 @@
   .ledgerHeading { align-items: end; grid-template-columns: minmax(0, 1fr) auto; }
 }
 
-@media (min-width: 760px) {
+@media (min-width: 600px) {
   .eventGrid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .eventHero { min-height: 310px; padding: 22px; }
   .eventBody { padding: 22px; }
@@ -2040,7 +2056,7 @@
   .wheelButton { width: auto; }
 }
 
-@media (min-width: 980px) {
+@media (min-width: 960px) {
   .modeGrid {
     grid-template-columns: minmax(0, 1.75fr) minmax(280px, 0.8fr);
     grid-template-rows: repeat(2, minmax(250px, 1fr));
@@ -2055,7 +2071,7 @@
   .offerGrid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
-@media (max-width: 479px) {
+@media (max-width: 599px) {
   .ticketWallet { justify-content: flex-start; width: 100%; }
   .shopWallet { justify-content: flex-start; }
   .offerCategoryHeader { align-items: flex-start; flex-direction: column; gap: 5px; }
@@ -2086,7 +2102,7 @@
   .ledgerAmounts { grid-column: 2; flex-direction: row; flex-wrap: wrap; gap: 7px; text-align: left; }
 }
 
-@media (orientation: landscape) and (max-height: 620px) and (min-width: 620px) {
+@media (orientation: landscape) and (max-height: 620px) and (min-width: 600px) {
   .modeGrid { grid-template-columns: minmax(0, 1.5fr) minmax(250px, 0.8fr); grid-template-rows: repeat(2, minmax(250px, 1fr)); }
   .modePrimary { grid-column: 1; grid-row: 1 / 3; min-height: 516px; }
   .modeSecondary { grid-column: 2; min-height: 0; }
@@ -2101,7 +2117,7 @@
 .motionLite .dailyCardSheen,
 .motionLite .productArt::after { display: none; }
 
-.motionLite .revealCardInner { animation-duration: 420ms; }
+.motionLite .revealCardInner { animation-duration: var(--nj-motion-flip); }
 .motionLite .revealResult { animation-delay: 280ms; }
 .motionLite .dailySlot { animation-duration: 220ms; }
 .shopTabPanel.motionLite { animation-duration: 160ms; }

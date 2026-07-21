@@ -52,7 +52,7 @@ export const MotionCard = forwardRef<HTMLDivElement, MotionCardProps>(function M
   }
 
   return (
-    <motion.div ref={ref} className={className} style={style} {...anim}>
+    <motion.div ref={ref} className={className} style={style} tabIndex={-1} {...anim}>
       {playCard}
     </motion.div>
   );

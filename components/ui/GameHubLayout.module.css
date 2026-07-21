@@ -37,7 +37,7 @@
 
 .scroll {
   width: 100%;
-  gap: clamp(18px, 3vw, 28px);
+  gap: var(--nj-layout-section-gap);
   scrollbar-gutter: stable;
 }
 
@@ -108,11 +108,21 @@
 .content {
   min-width: 0;
   display: grid;
-  gap: clamp(14px, 2.5vw, 22px);
+  gap: var(--nj-layout-gap);
   padding-bottom: 4px;
 }
 
-@media (max-width: 520px) {
+.body {
+  min-width: 0;
+  display: grid;
+  gap: var(--nj-layout-gap);
+}
+
+.secondaryRail {
+  min-width: 0;
+}
+
+@media (max-width: 599px) {
   .header {
     align-items: flex-start;
     flex-wrap: wrap;
@@ -124,9 +134,15 @@
   }
 }
 
-@media (max-width: 360px) {
-  .headerAction {
-    max-width: 100%;
+@media (min-width: 960px) {
+  .hasSecondary {
+    grid-template-columns: var(--nj-layout-columns);
+    align-items: start;
+  }
+
+  .secondaryRail {
+    position: sticky;
+    top: 0;
   }
 }
 

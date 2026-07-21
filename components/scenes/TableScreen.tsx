@@ -15,6 +15,16 @@ import { RevealOverlay } from "@/components/table/zones/RevealOverlay";
 import { ZoneRegistry, ZoneRegistryProvider } from "@/components/table/zones/ZoneRegistry";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { Chip } from "@/components/ui/Chip";
+import {
+  TableLayout,
+  TableMenuButton,
+  TableLiveRegion,
+  TablePowerTray,
+  TableStatusBar,
+  TableStatusMessage,
+  TableSurface,
+  TableTurnStatus,
+} from "@/components/ui/TableLayout";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { DEV, devEquippedPowers } from "@/config/devConfig";
@@ -33,6 +43,7 @@ import type {
 } from "@/engine/power/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
+import { formatGameAnnouncement, getSyncStatusPresentation } from "@/lib/gamePresentation";
 import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
 import { markPerformance, recordBoardRender } from "@/lib/performanceMetrics";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
@@ -298,7 +309,7 @@ function GameMomentOverlay({ moment, motionLevel }: { moment: MomentOverlay; mot
   /* Séquence scriptée GSAP : fond, halo, cartes qui balayent, sceau, titre,
      sous-titre — entrée, MAINTIEN (étiré selon la durée d'affichage), sortie.
      Le reflet du titre (::after) et l'éclat de particules restent en CSS. */
-  useGsapTimeline(true, rootRef, (gsap) => {
+  useGsapTimeline(!lite, rootRef, (gsap) => {
     const durationSec = Math.max(0.72, (moment.durationMs ?? 1550) / 1000 * (lite ? 0.62 : balanced ? 0.8 : 1));
     // La sortie démarre ~0,34s avant l'unmount ; le maintien remplit le reste.
     const exitLead = lite ? 0.22 : balanced ? 0.28 : 0.34;
@@ -348,7 +359,7 @@ function GameMomentOverlay({ moment, motionLevel }: { moment: MomentOverlay; mot
   });
 
   return (
-    <div ref={rootRef} className={`nj-moment-overlay nj-moment-${moment.tone} nj-moment-${moment.type}`} aria-hidden="true">
+    <div ref={rootRef} className={`nj-moment-overlay nj-moment-${moment.tone} nj-moment-${moment.type} nj-moment-motion-${motionLevel}`} aria-hidden="true">
       <div className="nj-moment-halo" />
       {!lite && (
         <>
@@ -464,6 +475,7 @@ export function TableScreen({
   const [roundIntro, setRoundIntro] = useState(false);
   const [momentOverlay, setMomentOverlay] = useState<MomentOverlay | null>(null);
   const [tableReaction, setTableReaction] = useState<TableReaction | null>(null);
+  const [tableAnnouncement, setTableAnnouncement] = useState("");
   const [goldFlash, setGoldFlash] = useState(false);
   const [screenEffect] = useState<"win" | "lose" | null>(null);
   const [banner, setBanner] = useState("");
@@ -574,6 +586,7 @@ export function TableScreen({
   const balancedMotion = isBalancedMotion(motionLevel);
   const premiumFxAllowed = motionLevel === "full";
   const baseTableFx = roundIntro || phase === "dealing" || !!momentOverlay || !!tableReaction;
+  const connectionStatus = getSyncStatusPresentation(syncStatus);
   const getYourDropRect = useCallback(() => registryRef.current?.deposit(0)?.getRect() ?? null, []);
 
   useEffect(() => {
@@ -617,11 +630,15 @@ export function TableScreen({
   };
 
   const fanAnchor = (edge: "bottom" | "left" | "top" | "right") => {
-    const bleedY = fanHy * 0.35;
+    const bleedY = fanHy * 0.62;
     const bleedB = fanHb * 0.28;
     switch (edge) {
       case "bottom":
-        return { left: "50%", top: `calc(100% - ${bleedY}px)`, angle: 0 };
+        return {
+          left: "50%",
+          top: `calc(100% - ${bleedY}px - env(safe-area-inset-bottom))`,
+          angle: 0,
+        };
       case "top":
         return { left: "50%", top: `${bleedB}px`, angle: 180 };
       case "left":
@@ -649,7 +666,10 @@ export function TableScreen({
   const avatarPos = (edge: "bottom" | "left" | "top" | "right"): React.CSSProperties => {
     switch (edge) {
       case "bottom":
-        return { right: 10, bottom: 10 };
+        return {
+          right: "max(10px, env(safe-area-inset-right))",
+          bottom: "max(12px, env(safe-area-inset-bottom))",
+        };
       case "top": {
         // 2 joueurs = centré, 3+ joueurs = décalé gauche mais plafonné à 15% du viewport
         const rawOffset = n <= 2 ? 0 : botW * 3.2;
@@ -794,12 +814,14 @@ export function TableScreen({
     moment: Omit<MomentOverlay, "key">,
     duration = MOMENT_DEFAULT_MS,
   ) => {
+    setTableAnnouncement(formatGameAnnouncement(moment.title, moment.subtitle));
     if (!animationsOnRef.current) return;
     momentOverlayQueueRef.current.push({ moment, duration });
     if (!momentOverlayActiveRef.current) playNextMomentOverlay();
   }, [playNextMomentOverlay]);
 
   const showTableReaction = useCallback((label: string, tone: ReactionTone = "gold", detail?: string) => {
+    setTableAnnouncement(formatGameAnnouncement(label, detail));
     if (!animationsOnRef.current) return;
     if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
     setTableReaction({
@@ -955,12 +977,8 @@ export function TableScreen({
       }, 120);
     }
 
-    if (phase === "result") {
-      showTableReaction("Revanche ?", "teal", "La table reste chaude");
-    }
-
     prevPhaseRef.current = phase;
-  }, [motionEnabled, phase, showTableReaction]);
+  }, [motionEnabled, phase]);
 
   useEffect(() => {
     if (phase !== "turns") return;
@@ -981,11 +999,6 @@ export function TableScreen({
           tone: "teal",
           asset: "cards",
         }, MOMENT_DEFAULT_MS);
-        showTableReaction(
-          ledSuit ? `Suis ${ledSuit}` : "A toi de jouer",
-          "teal",
-          ledSuit ? "Pose la bonne couleur" : "Donne la tendance",
-        );
       } else if (motionEnabled && activePlayer) {
         showTableReaction("Tour en cours", "gold", activePlayer.name);
       }
@@ -1144,11 +1157,6 @@ export function TableScreen({
           tone: winnerIdx === 0 ? "teal" : "gold",
           asset: "crown",
         }, MOMENT_DEFAULT_MS + 200);
-        showTableReaction(
-          winnerIdx === 0 ? "Bien joué" : "Domine",
-          winnerIdx === 0 ? "teal" : "gold",
-          winnerIdx === 0 ? "Tu prends le tour" : winnerName,
-        );
         if (animationsOnRef.current) {
           setGoldFlash(false);
           const goldTimer = setTimeout(() => setGoldFlash(true), 200);
@@ -1475,6 +1483,7 @@ export function TableScreen({
         if (r.fromUid === myUid) return; // ma bulle est déjà affichée localement
         const serverIdx = uids.indexOf(r.fromUid);
         if (serverIdx < 0 || myIdx < 0) return;
+        setTableAnnouncement(formatGameAnnouncement(`${roomPlayers[serverIdx]?.name ?? "Un joueur"} réagit`, r.emoji));
         // même rotation que FirestoreGameSync.toUiIdx : mon siège = 0
         const uiIdx = (serverIdx - myIdx + count) % count;
         pushReactionBubble(uiIdx, r.emoji);
@@ -1493,41 +1502,17 @@ export function TableScreen({
 
   return (
     <ZoneRegistryProvider registry={zoneRegistry}>
-    <div
+    <TableLayout
       ref={tableRootRef}
-      className={[
-        activeTableFx ? "nj-table-active-fx" : "",
-        paused ? "nj-table-paused" : "",
-      ].filter(Boolean).join(" ") || undefined}
-      aria-hidden={paused}
-      style={{
-        position: "fixed",
-        inset: 0,
-        overflow: "hidden",
-        fontFamily: "var(--font-sans), sans-serif",
-        color: T.text,
-        background: `
-          linear-gradient(150deg, rgba(16, 20, 45, 0.12), rgba(5, 5, 12, 0.52)),
-          var(--nj-bg-app),
-          linear-gradient(150deg, ${T.night2}, ${T.night1} 58%, ${T.deep})`,
-        animation: motionEnabled
-          ? screenEffect === "lose"
-            ? "screenShake 0.4s ease both"
-            : screenEffect === "win"
-              ? "winPulse 0.35s ease both"
-              : "none"
-          : "none",
-      }}
+      activeFx={activeTableFx}
+      paused={paused}
+      motionMode={motion.mode}
+      screenEffect={motionEnabled ? screenEffect : null}
     >
       {/* Feutre : grande ellipse teal */}
-      <div
-        className={`nj-table-image${motionEnabled && premiumFxAllowed && roundIntro ? " nj-table-image-ceremony" : ""}`}
-        style={{
-          position: "absolute",
-          inset: tableInset,
-          borderRadius: "50%",
-          boxShadow: `0 26px 70px rgba(0,0,0,.62)`,
-        }}
+      <TableSurface
+        inset={tableInset}
+        ceremony={motionEnabled && premiumFxAllowed && roundIntro}
       >
         <div
           style={{
@@ -1558,62 +1543,33 @@ export function TableScreen({
             }}
           />
         )}
-      </div>
+      </TableSurface>
 
       {/* Chips d'état */}
-      <div
-        style={{
-          position: "absolute",
-          top: 8,
-          left: 10,
-          zIndex: 50,
-          display: "flex",
-          gap: 8,
-          alignItems: "center",
-        }}
-      >
+      <TableStatusBar>
         <Chip strong>
           Tour {Math.min(trickNo, cfg.cardsPerPlayer)}/{cfg.cardsPerPlayer}
         </Chip>
         <Chip>Mise {NKAP(mise)}</Chip>
-        {gameMode !== "bot" && syncStatus.state !== "live" && (
-          <Chip
-            strong
-            tone={syncStatus.state === "error" || syncStatus.state === "offline" ? "pink" : "gold"}
-            style={{ fontSize: 11, padding: "5px 9px" }}
-          >
-            {syncStatus.message
-              ?? (syncStatus.state === "connecting"
-                ? "Connexion…"
-                : syncStatus.state === "slow"
-                  ? "Connexion lente…"
-                  : syncStatus.state === "offline"
-                    ? "Hors ligne"
-                    : "Synchronisation impossible")}
-          </Chip>
+        {gameMode !== "bot" && connectionStatus && (
+          <TableStatusMessage urgent={connectionStatus.urgent}>
+            <Chip
+              strong
+              tone={connectionStatus.urgent ? "pink" : "gold"}
+              style={{ fontSize: 11, padding: "5px 9px" }}
+            >
+              {connectionStatus.label}
+            </Chip>
+          </TableStatusMessage>
         )}
-      </div>
-      <button data-nj-skin="icon"
+      </TableStatusBar>
+      <TableLiveRegion message={tableAnnouncement} />
+      <TableMenuButton
         onClick={handleMenuTap}
-        style={{
-          position: "absolute",
-          top: 8,
-          right: 10,
-          zIndex: 50,
-          width: 38,
-          height: 38,
-          borderRadius: "50%",
-          border: "1px solid rgba(255,255,255,.2)",
-          background: "rgba(10,6,26,.6)",
-          color: T.text,
-          cursor: "pointer",
-          display: "grid",
-          placeItems: "center",
-        }}
-        aria-label="Retour au menu"
+        label="Retour au menu"
       >
         <NjamboIcon name="home" tone="light" size={22} />
-      </button>
+      </TableMenuButton>
 
       {/* Centre : deck + pot + tendance (zone enregistrée : handles "deck" et "pot") */}
       <DeckZone
@@ -1630,6 +1586,9 @@ export function TableScreen({
       {/* Bannière discrète */}
       {banner && (
         <div
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
           style={{
             position: "absolute",
             top: "30%",
@@ -1689,6 +1648,8 @@ export function TableScreen({
           <div
             key={"fan" + p.name}
             className={`nj-hand-seat${motionEnabled && !liteMotion && roundIntro ? " nj-round-hand-reveal" : ""}`}
+            data-seat-edge={edge}
+            data-player-hand={p.isYou || undefined}
             style={{
               position: "absolute",
               left: a.left,
@@ -1747,18 +1708,8 @@ export function TableScreen({
 
       {/* Indication de tour */}
       {isYourTurn && (
-        <div
-          className={motionEnabled ? "nj-turn-prompt" : undefined}
-          style={{
-            position: "absolute",
-            bottom: fanHy * 0.78,
-            left: "50%",
-            transform: "translateX(-50%)",
-            zIndex: 45,
-            animation: motionEnabled ? "popIn .25s both" : "none",
-          }}
-        >
-          <Chip strong style={{ fontSize: 13, padding: "7px 16px" }}>
+        <TableTurnStatus bottomOffset={fanHy * 1.45} motionEnabled={motionEnabled}>
+          <Chip strong style={{ fontSize: 13 }}>
             {ledSuit ? (
               <>
                 À toi — suis{" "}
@@ -1768,7 +1719,7 @@ export function TableScreen({
               <>À toi — tu donnes la tendance</>
             )}
           </Chip>
-        </div>
+        </TableTurnStatus>
       )}
 
       {motionEnabled && momentOverlay && <GameMomentOverlay key={momentOverlay.key} moment={momentOverlay} motionLevel={motionLevel} />}
@@ -1884,24 +1835,7 @@ export function TableScreen({
 
       {/* ═══ Barre de cartes pouvoir ═══ */}
       {equippedPowers.length > 0 && players.length > 0 && !roundIntro && (
-        <div
-          style={{
-            position: "absolute",
-            left: 10,
-            bottom: portrait ? 96 : 84,
-            zIndex: 55,
-            display: "flex",
-            flexDirection: "column",
-            gap: 10,
-            // Scroll vertical quand beaucoup de cartes (mode dev : jusqu'à 18).
-            maxHeight: portrait ? "46vh" : "62vh",
-            overflowY: "auto",
-            overflowX: "visible",
-            paddingRight: 4,
-            scrollbarWidth: "thin",
-          }}
-          aria-label="Cartes pouvoir"
-        >
+        <TablePowerTray>
           {equippedPowers.map((cardId) => {
             const def = POWER_CARDS_BY_ID[cardId];
             if (!def) return null;
@@ -1920,20 +1854,16 @@ export function TableScreen({
                 aria-pressed={active}
                 title={`${def.name} — ${def.description}`}
                 style={{
-                  width: 62,
-                  minHeight: 82,
                   borderRadius: 12,
                   border: `2px solid ${active ? tint : `${tint}88`}`,
                   background: used
                     ? "rgba(10,6,26,.5)"
                     : `radial-gradient(circle at 40% 30%, ${tint}44, rgba(10,6,26,.85))`,
-                  display: "grid",
-                  placeItems: "center",
                   cursor: disabled ? "not-allowed" : "pointer",
                   opacity: used ? 0.4 : isYourTurn ? 1 : 0.6,
                   boxShadow: active ? `0 0 0 3px ${tint}55, 0 6px 18px rgba(0,0,0,.5)` : "0 6px 16px rgba(0,0,0,.4)",
                   position: "relative",
-                  transition: "opacity .2s, box-shadow .2s",
+                  transition: "opacity var(--nj-motion-interaction) ease, box-shadow var(--nj-motion-interaction) ease",
                 }}
               >
                 <PowerCardView card={def} compact showMeta={false} selected={active} disabled={used} />
@@ -1945,7 +1875,7 @@ export function TableScreen({
               </button>
             );
           })}
-        </div>
+        </TablePowerTray>
       )}
 
       {/* Sélection de cible pour une carte pouvoir (pilotée par TargetSpec) */}
@@ -1963,7 +1893,7 @@ export function TableScreen({
       {/* Zone de révélation de cartes (Œil du Sorcier & co) — pilotée par le
           handle "reveal" du registre de zones. */}
       <RevealOverlay />
-    </div>
+    </TableLayout>
     </ZoneRegistryProvider>
   );
 }
