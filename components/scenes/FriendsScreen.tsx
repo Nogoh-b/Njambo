@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import {
@@ -12,17 +11,16 @@ import {
   rejectFriendRequest,
 } from "@/lib/socialData";
 import { AvatarIllustration } from "@/components/ui/Art";
-import { BottomNavScene } from "@/components/ui/BottomNavScene";
+import { GameHubLayout } from "@/components/ui/GameHubLayout";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
 import type { FriendRequest, PublicPlayerProfile, SocialFriendEntry } from "@/types/game";
+import styles from "./FriendsScreen.module.css";
 
 type Tab = "friends" | "requests" | "players";
 
 export function FriendsScreen() {
-  const { navigateTo } = useGame();
   const { user } = useAuth();
   const motion = useMotionProfile();
   const [tab, setTab] = useState<Tab>("friends");
@@ -51,27 +49,34 @@ export function FriendsScreen() {
   const incomingCount = requests.filter((req) => req.toUid === user?.uid).length;
 
   return (
-    <BottomNavScene active="friends" narrow>
-        <div className="nj-phone">
-          <ScreenHeader title="Amis" kicker={`${friends.length} amis · ${incomingCount} demande${incomingCount > 1 ? "s" : ""}`} icon="friends" tone="teal" onBack={() => navigateTo("menu")} backLabel="Retour" />
-          <Surface scrollable>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, marginBottom: 12 }}>
-              <Btn variant={tab === "friends" ? "gold" : "ghost"} ariaPressed={tab === "friends"} onClick={() => setTab("friends")}>Amis</Btn>
-              <Btn variant={tab === "requests" ? "pink" : "ghost"} onClick={() => setTab("requests")}>Demandes</Btn>
-              <Btn variant={tab === "players" ? "gold" : "ghost"} ariaPressed={tab === "players"} onClick={() => setTab("players")}>Joueurs</Btn>
+    <GameHubLayout
+      tone="social"
+      kicker={`${friends.length} amis · ${incomingCount} demande${incomingCount > 1 ? "s" : ""}`}
+      title="Le village social"
+      subtitle="Retrouve tes proches, réponds aux invitations et rencontre de nouveaux joueurs."
+      active="friends"
+      className={styles.socialHub}
+    >
+      <section className={styles.panel} aria-label="Réseau social Njambo">
+            <div className={styles.tabs} role="tablist" aria-label="Sections sociales">
+              <button data-nj-skin="none" type="button" role="tab" aria-selected={tab === "friends"} onClick={() => setTab("friends")}>Amis</button>
+              <button data-nj-skin="none" type="button" role="tab" aria-selected={tab === "requests"} onClick={() => setTab("requests")}>
+                Demandes{incomingCount > 0 && <span>{incomingCount}</span>}
+              </button>
+              <button data-nj-skin="none" type="button" role="tab" aria-selected={tab === "players"} onClick={() => setTab("players")}>Joueurs</button>
             </div>
 
             {tab === "players" && (
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="nj-input"
+                className={`nj-input ${styles.search}`}
                 placeholder="Rechercher un pseudo"
-                style={{ width: "100%", marginBottom: 12 }}
+                aria-label="Rechercher un joueur par pseudo"
               />
             )}
 
-            <div className="nj-stack" style={{ gap: 10 }}>
+            <div className={`nj-stack ${styles.list}`}>
               {tab === "friends" && friends.length === 0 && (
                 <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Aucun ami pour le moment.</div>
               )}
@@ -136,8 +141,7 @@ export function FriendsScreen() {
                 </div>
               ))}
             </div>
-          </Surface>
-        </div>
-    </BottomNavScene>
+      </section>
+    </GameHubLayout>
   );
 }

@@ -1,6 +1,22 @@
 .scene {
-  --hub-accent: var(--nj-gold, var(--gold, #d0a35d));
-  --hub-accent-rgb: 208, 163, 93;
+  --hub-accent: var(--nj-solar-yellow, #f5c344);
+  --hub-accent-rgb: 245, 195, 68;
+  --nj-text: var(--nj-solar-ink, #24372f);
+  --nj-text-muted: var(--nj-solar-muted, #66756d);
+  --nj-surface: var(--nj-solar-surface, rgba(242, 226, 193, 0.96));
+  --nj-surface-soft: #e2cfa9;
+  --nj-surface-strong: var(--nj-solar-surface-strong, #f7ead0);
+  --nj-border-soft: rgba(118, 80, 51, 0.24);
+  --nj-shadow-card: 0 12px 26px rgba(35, 31, 18, 0.24);
+  --nj-tab-active-text: var(--nj-solar-ink, #24372f);
+  --nj-tab-active-background: linear-gradient(145deg, rgba(var(--hub-accent-rgb), 0.24), var(--nj-solar-surface-strong, #f7ead0));
+  --nj-gold: var(--nj-solar-yellow, #f5c344);
+  --nj-teal: var(--nj-solar-green, #199b68);
+  --nj-pink: var(--nj-solar-red, #e45145);
+  --nj-cobalt: #4d78c9;
+  --text: var(--nj-solar-ink, #24372f);
+  --brass: var(--hub-accent);
+  --wood-edge: color-mix(in srgb, var(--hub-accent) 24%, #d8c49e);
   isolation: isolate;
 }
 
@@ -11,28 +27,33 @@
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(circle at 88% 5%, rgba(var(--hub-accent-rgb), 0.14), transparent 29%),
-    linear-gradient(150deg, rgba(var(--hub-accent-rgb), 0.035), transparent 42%);
+    radial-gradient(circle at 88% 5%, rgba(var(--hub-accent-rgb), 0.12), transparent 29%),
+    linear-gradient(150deg, rgba(var(--hub-accent-rgb), 0.04), transparent 42%);
 }
 
 .toneGold {
-  --hub-accent: var(--nj-gold, var(--gold, #d0a35d));
-  --hub-accent-rgb: 208, 163, 93;
+  --hub-accent: var(--nj-solar-yellow, #f5c344);
+  --hub-accent-rgb: 245, 195, 68;
 }
 
 .toneTeal {
-  --hub-accent: var(--nj-teal, var(--teal, #559b91));
-  --hub-accent-rgb: 85, 155, 145;
+  --hub-accent: var(--nj-solar-green, #199b68);
+  --hub-accent-rgb: 25, 155, 104;
 }
 
 .tonePink {
-  --hub-accent: var(--nj-pink, var(--pink, #ad6972));
-  --hub-accent-rgb: 173, 105, 114;
+  --hub-accent: var(--nj-solar-red, #e45145);
+  --hub-accent-rgb: 228, 81, 69;
 }
 
 .toneCobalt {
-  --hub-accent: var(--nj-cobalt, var(--cobalt, #687c99));
-  --hub-accent-rgb: 104, 124, 153;
+  --hub-accent: #4d78c9;
+  --hub-accent-rgb: 77, 120, 201;
+}
+
+.tonePalm {
+  --hub-accent: var(--nj-nav-palm, #54a94f);
+  --hub-accent-rgb: 84, 169, 79;
 }
 
 .scroll {
@@ -49,13 +70,39 @@
   justify-content: space-between;
   gap: 16px;
   flex: 0 0 auto;
-  padding: 2px 2px 0;
+  padding: clamp(12px, 3vw, 18px);
+  border: 1px solid color-mix(in srgb, var(--hub-accent) 18%, var(--nj-solar-card-edge, #765033));
+  border-radius: 19px;
+  background:
+    radial-gradient(circle at 92% 12%, rgba(var(--hub-accent-rgb), 0.18), transparent 34%),
+    var(--nj-solar-surface, rgba(242, 226, 193, 0.96));
+  box-shadow: 0 10px 22px rgba(35, 31, 18, 0.22), inset 0 1px 0 rgba(255, 250, 232, 0.6);
+  backdrop-filter: blur(12px);
 }
 
 .heading {
   min-width: 0;
   display: grid;
   gap: 7px;
+}
+
+.headerMain {
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: clamp(10px, 2.5vw, 15px);
+}
+
+.headerMedallion {
+  width: 58px;
+  height: 58px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(var(--hub-accent-rgb), 0.38);
+  border-radius: 18px;
+  background: linear-gradient(145deg, rgba(var(--hub-accent-rgb), 0.32), var(--nj-solar-surface-strong, #f7ead0));
+  box-shadow: 0 8px 18px rgba(var(--hub-accent-rgb), 0.16), inset 0 1px 0 white;
 }
 
 .kicker {
@@ -81,7 +128,7 @@
 .header h1 {
   max-width: 20ch;
   margin: 0;
-  color: var(--nj-text, var(--text, #fff4df));
+  color: var(--nj-solar-ink, #24372f);
   font-family: var(--nj-font-display, var(--font-display)), sans-serif;
   font-size: clamp(28px, 7vw, 42px);
   font-weight: 800;
@@ -93,7 +140,7 @@
 .header p {
   max-width: 62ch;
   margin: 0;
-  color: var(--nj-text-muted, rgba(255, 244, 223, 0.68));
+  color: var(--nj-solar-muted, #66756d);
   font-size: clamp(13px, 2.5vw, 15px);
   font-weight: 550;
   line-height: 1.45;
@@ -131,6 +178,12 @@
   .headerAction {
     width: 100%;
     max-width: 100%;
+  }
+
+  .headerMedallion {
+    width: 52px;
+    height: 52px;
+    border-radius: 16px;
   }
 }
 

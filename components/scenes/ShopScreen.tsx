@@ -195,7 +195,7 @@ function PowerCardReveal({ reveal, onContinue }: { reveal: CardReveal; onContinu
           ) : (
             <p>Carte débloquée et disponible dans ta collection de Pouvoirs.</p>
           )}
-          <button data-nj-skin="gold" type="button" className={styles.revealContinue} disabled={closing} onClick={handleContinue}>
+          <button data-nj-skin="none" type="button" className={styles.revealContinue} disabled={closing} onClick={handleContinue}>
             {duplicate ? `Continuer avec +${reveal.duplicateCompensation} cauris` : "Ajouter à ma collection"}
           </button>
         </div>
@@ -391,7 +391,7 @@ export function ShopScreen() {
         />
       </div>
 
-      {guestBlocked && <StatusBanner severity="warning" action={<button data-nj-skin="gold" type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button>}>Crée un compte permanent pour acheter et conserver tes objets.</StatusBanner>}
+      {guestBlocked && <StatusBanner severity="warning" action={<button data-nj-skin="none" type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button>}>Crée un compte permanent pour acheter et conserver tes objets.</StatusBanner>}
       {(contentLoading || gridLoading || economyLoading) && <StatusBanner severity="info">La vitrine se synchronise avec le quartier…</StatusBanner>}
       {contentError && <StatusBanner severity="warning">{contentError}</StatusBanner>}
       {!guestBlocked && economy?.spendingBlocked && (
@@ -473,7 +473,7 @@ export function ShopScreen() {
                     <span className={`${styles.priceTag} ${xaf ? styles.priceXaf : styles.priceCauris}`}>
                       {offer.prices.map(priceLabel).join(" / ")}
                     </span>
-                    <button data-nj-skin="gold" type="button" className={styles.buyButton} disabled={blocked || busy !== null} onClick={() => void run(offer.id, () => purchase(offer.id))}>
+                    <button data-nj-skin="none" type="button" className={styles.buyButton} disabled={blocked || busy !== null} onClick={() => void run(offer.id, () => purchase(offer.id))}>
                       {busy === offer.id ? "Validation…" : xaf ? "Simuler l’achat" : "Acheter"}
                     </button>
                   </div>
@@ -516,7 +516,7 @@ export function ShopScreen() {
                       <span className={`${styles.priceTag} ${styles.priceCauris}`}>
                         {ownedBooks > 0 ? `${ownedBooks} livre${ownedBooks > 1 ? "s" : ""} possédé${ownedBooks > 1 ? "s" : ""}` : caurisPrice ? priceLabel(caurisPrice) : "Indisponible"}
                       </span>
-                      <button data-nj-skin="gold" type="button" className={styles.buyButton} disabled={blocked || busy !== null} onClick={() => void run(booster.id, async () => {
+                      <button data-nj-skin="none" type="button" className={styles.buyButton} disabled={blocked || busy !== null} onClick={() => void run(booster.id, async () => {
                         const result = await command<{ openingId: string; positions: number[] }>("openBoosterBook", { boosterId: booster.id });
                         setOpening({ openingId: result.openingId, positions: result.positions ?? Array.from({ length: 9 }, (_, i) => i) });
                         return `${booster.title} prêt : choisis une carte.`;
@@ -535,7 +535,7 @@ export function ShopScreen() {
               </div>
               <div className={styles.cardGrid} aria-label="Neuf cartes cachées">
                 {opening.positions.map((position) => (
-                  <button data-nj-skin="gold" key={position} type="button" disabled={busy !== null} onClick={() => void revealBoosterCard(position)}>
+                  <button data-nj-skin="none" key={position} type="button" disabled={busy !== null} onClick={() => void revealBoosterCard(position)}>
                     <Image src="/assets/njambo/books/card-back-256.webp" alt="Carte cachée" width={180} height={250} />
                     <span>{busy === `slot-${position}` ? "Révélation…" : "Choisir"}</span>
                   </button>
@@ -701,7 +701,7 @@ export function ShopScreen() {
               </ul>
             </details>
             <span className={styles.spinCount}>{economy?.daily.availableSpins ?? 0} rotation{(economy?.daily.availableSpins ?? 0) > 1 ? "s" : ""} disponible{(economy?.daily.availableSpins ?? 0) > 1 ? "s" : ""}</span>
-            <button data-nj-skin="gold" type="button" className={styles.wheelButton} disabled={blocked || !economy?.daily.availableSpins || busy !== null} onClick={() => void run("wheel", async () => {
+            <button data-nj-skin="none" type="button" className={styles.wheelButton} disabled={blocked || !economy?.daily.availableSpins || busy !== null} onClick={() => void run("wheel", async () => {
               const result = await command<{ reward: Reward }>("spinLoyaltyWheel");
               return `La roue t’offre ${rewardLabel(result.reward)}.`;
             })}>

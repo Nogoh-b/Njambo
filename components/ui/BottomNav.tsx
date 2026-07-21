@@ -12,7 +12,7 @@ import {
   type BottomNavTone,
 } from "@/lib/homeArcadeMotion";
 import { useMotionProfile, usePageActive } from "@/lib/motion";
-import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
+import { NjamboFriendlyIcon, type NjamboFriendlyIconName } from "@/components/ui/Art";
 import type { SceneName } from "@/types/game";
 import styles from "./BottomNav.module.css";
 
@@ -24,7 +24,7 @@ type BadgeKey = keyof SocialCounts;
 interface NavItem {
   key: BottomNavKey;
   scene: SceneName;
-  icon: NjamboIconName;
+  icon: NjamboFriendlyIconName;
   tone: BottomNavTone;
   labelKey: TranslationKey;
   badge?: BadgeKey;
@@ -33,9 +33,9 @@ interface NavItem {
 const NAV_ITEMS: NavItem[] = [
   { key: "menu", scene: "menu", icon: "home", tone: "gold", labelKey: "nav.home" },
   { key: "play", scene: "play", icon: "play", tone: "teal", labelKey: "nav.play" },
-  { key: "events", scene: "events", icon: "trophy", tone: "pink", labelKey: "nav.events" },
-  { key: "shop", scene: "shop", icon: "coin", tone: "cobalt", labelKey: "nav.shop" },
-  { key: "social", scene: "friends", icon: "friends", tone: "palm", labelKey: "nav.social", badge: "requests" },
+  { key: "events", scene: "events", icon: "events", tone: "pink", labelKey: "nav.events" },
+  { key: "shop", scene: "shop", icon: "shop", tone: "gold", labelKey: "nav.shop" },
+  { key: "social", scene: "friends", icon: "social", tone: "palm", labelKey: "nav.social", badge: "requests" },
 ];
 
 const NAV_TONE_CSS: Record<BottomNavTone, string> = {
@@ -101,7 +101,7 @@ export function BottomNav({ active }: BottomNavProps) {
             onClick={() => navigateTo(item.scene)}
           >
             <span className={styles.iconShell} aria-hidden="true">
-              <NjamboIcon name={item.icon} tone={item.tone} size={26} />
+              <NjamboFriendlyIcon name={item.icon} size={27} />
             </span>
             <span className={styles.label}>{label}</span>
             {item.badge && <CountBadge count={counts[item.badge]} />}

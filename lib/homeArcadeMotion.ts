@@ -55,7 +55,7 @@ const MAIN_NAV: ReadonlyArray<{ key: MainBottomNavKey; tone: BottomNavTone }> = 
   { key: "menu", tone: "gold" },
   { key: "play", tone: "teal" },
   { key: "events", tone: "pink" },
-  { key: "shop", tone: "cobalt" },
+  { key: "shop", tone: "gold" },
   { key: "social", tone: "palm" },
 ];
 

@@ -263,17 +263,28 @@
   --button-fx-tone: var(--home-pink);
 }
 
-.iconButton[data-tone="cobalt"] {
-  --header-icon-tone: var(--home-cobalt);
-  --button-fx-tone: var(--home-cobalt);
+.iconButton[data-tone="teal"] {
+  --header-icon-tone: var(--home-teal);
+  --button-fx-tone: var(--home-teal);
 }
 
-.iconButton :global(.njambo-asset-icon) {
+.iconButton :global(.njambo-asset-icon),
+.iconButton :global(.njambo-friendly-icon) {
+  position: relative;
+  display: inline-grid;
+  place-items: center;
   z-index: 1;
 }
 
 .iconButton :global(.njambo-asset-icon img) {
   filter: saturate(1.24) contrast(1.08) brightness(1.14);
+}
+
+.iconButton :global(.njambo-friendly-icon img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+  filter: drop-shadow(0 2px 2px rgba(255, 255, 255, 0.46));
 }
 
 .iconButton:hover,
@@ -1317,7 +1328,7 @@
 }
 
 .quickLinks button[data-tone="gold"] { --quick-tone: var(--home-gold); }
-.quickLinks button[data-tone="cobalt"] { --quick-tone: var(--home-cobalt); }
+.quickLinks button[data-tone="teal"] { --quick-tone: var(--home-teal); }
 .quickLinks button[data-tone="pink"] { --quick-tone: var(--home-pink); }
 
 .quickLinks button span {
@@ -1353,7 +1364,7 @@
 /* Une même matière interactive : empreinte chaude, jeton pressé et focus sculpté. */
 .playerIdentity { --button-fx-tone: var(--home-gold); }
 .headerActions .iconButton:first-child { --button-fx-tone: var(--home-pink); }
-.headerActions .iconButton:last-child { --button-fx-tone: var(--home-gold); }
+.headerActions .iconButton:last-child { --button-fx-tone: var(--home-teal); }
 .sectionHeading { --button-fx-tone: var(--home-teal); }
 .quickLinks { --button-fx-tone: var(--home-gold); }
 
@@ -1872,6 +1883,306 @@
 
   .quickLinks {
     grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Prototype Mboa Solaire — accueil clair, textile et chaleureux. */
+.homeScene.homeScene {
+  --home-gold: var(--nj-solar-yellow);
+  --home-teal: var(--nj-solar-green);
+  --home-pink: var(--nj-solar-red);
+  --home-muted: var(--nj-solar-muted);
+  color: var(--nj-solar-ink);
+  background: transparent;
+}
+
+.homeScene.homeScene::before {
+  background:
+    radial-gradient(circle at 13% 8%, rgba(245, 195, 68, 0.1), transparent 24%),
+    radial-gradient(circle at 88% 32%, rgba(25, 155, 104, 0.07), transparent 28%),
+    radial-gradient(circle at 16% 76%, rgba(228, 81, 69, 0.05), transparent 24%),
+    linear-gradient(180deg, rgba(232, 214, 174, 0.02), rgba(216, 195, 151, 0.04));
+}
+
+.homeScene .scrollArea {
+  scrollbar-color: rgba(25, 155, 104, 0.45) transparent;
+}
+
+.homeScene .ambient span {
+  background: var(--nj-solar-yellow);
+  box-shadow: 0 0 9px 2px rgba(245, 195, 68, 0.22);
+}
+
+.homeScene .ambient span:nth-child(3n + 2) {
+  background: var(--nj-solar-green);
+  box-shadow: 0 0 9px 2px rgba(25, 155, 104, 0.18);
+}
+
+.homeScene .ambient span:nth-child(3n) {
+  background: var(--nj-solar-red);
+  box-shadow: 0 0 9px 2px rgba(228, 81, 69, 0.16);
+}
+
+.homeScene .topHud {
+  border-color: color-mix(in srgb, var(--nj-solar-yellow) 30%, var(--nj-solar-card-edge));
+  background:
+    radial-gradient(circle at 5% 50%, rgba(245, 195, 68, 0.14), transparent 24%),
+    radial-gradient(circle at 67% 0%, rgba(25, 155, 104, 0.08), transparent 31%),
+    linear-gradient(108deg, rgba(247, 234, 208, 0.98), rgba(232, 216, 181, 0.98));
+  box-shadow: var(--nj-solar-shadow), inset 0 1px 0 rgba(255, 250, 232, 0.68);
+  backdrop-filter: blur(8px);
+}
+
+.homeScene .topHud::before {
+  background:
+    radial-gradient(circle at 8% 50%, rgba(245, 195, 68, 0.2), transparent 24%),
+    radial-gradient(circle at 64% 50%, rgba(25, 155, 104, 0.06), transparent 27%),
+    repeating-linear-gradient(125deg, transparent 0 28px, rgba(228, 81, 69, 0.035) 28px 30px, transparent 30px 58px);
+}
+
+.homeScene .topHud .playerName,
+.homeScene .topHud .resourceValue {
+  color: var(--nj-solar-ink);
+  text-shadow: none;
+}
+
+.homeScene .topHud .rankLine {
+  color: var(--nj-solar-muted);
+}
+
+.homeScene .topHud .rankLine strong {
+  border-color: rgba(245, 195, 68, 0.44);
+  color: var(--nj-solar-yellow-deep);
+  background: rgba(255, 255, 255, 0.66);
+}
+
+.homeScene .avatarWrap {
+  box-shadow: inset 0 0 0 2px rgba(245, 195, 68, 0.6), 0 8px 18px rgba(80, 58, 24, 0.18);
+}
+
+.homeScene .iconButton {
+  border-color: color-mix(in srgb, var(--header-icon-tone) 52%, var(--nj-solar-outline));
+  background:
+    radial-gradient(circle at 50% 35%, color-mix(in srgb, var(--header-icon-tone) 27%, white), transparent 62%),
+    color-mix(in srgb, var(--header-icon-tone) 14%, var(--nj-solar-surface-strong));
+  box-shadow: inset 0 1px 0 white, 0 6px 14px rgba(78, 56, 24, 0.14);
+}
+
+.homeScene .iconButton:hover,
+.homeScene .iconButton:focus-visible {
+  border-color: color-mix(in srgb, var(--header-icon-tone) 76%, var(--nj-solar-outline));
+  background: color-mix(in srgb, var(--header-icon-tone) 22%, white);
+  box-shadow: inset 0 1px 0 white, 0 8px 17px rgba(78, 56, 24, 0.16), 0 0 16px color-mix(in srgb, var(--header-icon-tone) 16%, transparent);
+}
+
+.homeScene .topHud .resource {
+  border-color: color-mix(in srgb, var(--resource-tone) 50%, var(--nj-solar-outline));
+  background:
+    radial-gradient(circle at 17% 50%, color-mix(in srgb, var(--resource-tone) 30%, transparent), transparent 43%),
+    color-mix(in srgb, var(--resource-tone) 10%, rgba(255, 253, 246, 0.96));
+  box-shadow: inset 0 1px 0 white, 0 6px 15px rgba(77, 57, 25, 0.12);
+}
+
+.homeScene .topHud .resourceIcon {
+  border-color: color-mix(in srgb, var(--resource-tone) 54%, var(--nj-solar-outline));
+  background: color-mix(in srgb, var(--resource-tone) 22%, white);
+  box-shadow: inset 0 0 12px rgba(255, 255, 255, 0.56), 0 5px 12px rgba(74, 54, 24, 0.14);
+}
+
+.homeScene .topHud .resourceIcon img {
+  filter: saturate(1.08) brightness(1.08) drop-shadow(0 4px 5px rgba(70, 46, 15, 0.18));
+}
+
+.homeScene .topHud .resourceCopy {
+  border-color: color-mix(in srgb, var(--resource-tone) 38%, var(--nj-solar-outline));
+  background: rgba(247, 234, 208, 0.92);
+  box-shadow: inset 0 1px 0 white;
+}
+
+.homeScene .topHud .resourceLabel {
+  color: color-mix(in srgb, var(--resource-tone) 72%, var(--nj-solar-ink));
+}
+
+.homeScene .resourceMeter {
+  border-color: color-mix(in srgb, var(--resource-tone) 28%, var(--nj-solar-outline));
+  background: rgba(118, 91, 42, 0.12);
+  box-shadow: inset 0 1px 2px rgba(83, 61, 25, 0.16);
+}
+
+.homeScene .homeHero {
+  border-color: color-mix(in srgb, var(--home-teal) 58%, var(--nj-solar-outline));
+  box-shadow: var(--nj-solar-shadow), inset 0 1px 0 rgba(255, 255, 255, 0.32);
+}
+
+.homeScene .illustratedHero::before {
+  background:
+    linear-gradient(0deg, rgba(13, 70, 52, 0.68) 0%, rgba(15, 69, 53, 0.28) 31%, rgba(15, 69, 53, 0.02) 72%, transparent 100%),
+    linear-gradient(90deg, rgba(20, 72, 56, 0.12), transparent 62%);
+}
+
+.homeScene .illustratedHero .homeHeroArt {
+  filter: saturate(1.12) contrast(1.05) brightness(1.05);
+}
+
+.homeScene .primaryPlay {
+  border-color: rgba(255, 255, 255, 0.62);
+  color: white;
+  background: linear-gradient(145deg, #32b77f, var(--nj-solar-green) 62%, var(--nj-solar-green-deep));
+  box-shadow: 0 12px 25px rgba(17, 99, 69, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+}
+
+.homeScene .primaryPlayIcon {
+  border-color: rgba(255, 255, 255, 0.42);
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.homeScene .allModesLink {
+  border-color: rgba(25, 155, 104, 0.36);
+  color: var(--nj-solar-ink);
+  background: rgba(242, 226, 193, 0.96);
+  box-shadow: 0 7px 16px rgba(55, 78, 58, 0.14);
+}
+
+.homeScene .illustratedHero .allModesText {
+  color: var(--nj-solar-ink);
+}
+
+.homeScene .quickMode {
+  border-color: color-mix(in srgb, var(--quick-mode-tone) 52%, var(--nj-solar-outline));
+  color: var(--nj-solar-ink);
+  background: var(--nj-solar-surface);
+  box-shadow: inset 0 1px 0 rgba(255, 250, 232, 0.64), 0 9px 20px rgba(35, 31, 18, 0.22);
+}
+
+.homeScene .quickModeArt {
+  opacity: 0.92;
+  filter: saturate(1.15) contrast(1.04) brightness(1.02);
+}
+
+.homeScene .quickModeShade {
+  background: linear-gradient(0deg, rgba(242, 226, 193, 0.38), rgba(242, 226, 193, 0.02));
+}
+
+.homeScene .quickModeIcon {
+  border-color: color-mix(in srgb, var(--quick-mode-tone) 48%, var(--nj-solar-outline));
+  background: color-mix(in srgb, var(--quick-mode-tone) 16%, white);
+}
+
+.homeScene .quickModeCopy small,
+.homeScene .quickModeArrow {
+  color: color-mix(in srgb, var(--quick-mode-tone) 76%, var(--nj-solar-ink));
+}
+
+.homeScene .quickModeCopy strong {
+  color: var(--nj-solar-ink);
+}
+
+.homeScene .quickModeLock {
+  border-color: color-mix(in srgb, var(--quick-mode-tone) 32%, var(--nj-solar-outline));
+  background: rgba(255, 253, 246, 0.9);
+}
+
+.homeScene .terCard {
+  border-color: rgba(228, 81, 69, 0.46);
+  color: var(--nj-solar-ink);
+  background:
+    radial-gradient(circle at 92% 8%, rgba(228, 81, 69, 0.2), transparent 36%),
+    linear-gradient(145deg, rgba(246, 229, 199, 0.96), rgba(238, 204, 181, 0.95));
+  box-shadow: var(--nj-solar-shadow), inset 0 1px 0 rgba(255, 250, 232, 0.62);
+}
+
+.homeScene .terCard .terArt {
+  opacity: 0.88;
+  filter: saturate(1.1) contrast(1.03) brightness(1.02);
+}
+
+.homeScene .terTexture {
+  opacity: 0.08;
+  mix-blend-mode: multiply;
+}
+
+.homeScene .cardEyebrow {
+  color: var(--nj-solar-green-deep);
+}
+
+.homeScene .ticketPill {
+  border-color: rgba(228, 81, 69, 0.34);
+  color: var(--nj-solar-red-deep);
+  background: rgba(255, 255, 255, 0.62);
+}
+
+.homeScene .terCopy h2,
+.homeScene .dailyHead h2 {
+  color: var(--nj-solar-ink);
+}
+
+.homeScene .rewardLine {
+  border-color: rgba(245, 195, 68, 0.42);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.homeScene .rewardLine small {
+  color: var(--nj-solar-muted);
+}
+
+.homeScene .rewardLine strong {
+  color: var(--nj-solar-yellow-deep);
+}
+
+.homeScene .terAction {
+  color: white;
+  background: linear-gradient(135deg, var(--nj-solar-red-deep), var(--nj-solar-red));
+  box-shadow: 0 8px 18px rgba(169, 47, 42, 0.2);
+}
+
+.homeScene .dailyCard {
+  border-color: rgba(245, 195, 68, 0.54);
+  color: var(--nj-solar-ink);
+  background:
+    radial-gradient(circle at 82% 0, rgba(245, 195, 68, 0.24), transparent 38%),
+    linear-gradient(145deg, rgba(247, 234, 208, 0.97), rgba(237, 215, 160, 0.96));
+  box-shadow: var(--nj-solar-shadow), inset 0 1px 0 rgba(255, 250, 232, 0.62);
+}
+
+.homeScene .dailyCard p {
+  color: var(--nj-solar-muted);
+}
+
+.homeScene .dailyIcon {
+  border-color: rgba(245, 195, 68, 0.54);
+  background: rgba(255, 255, 255, 0.68);
+}
+
+.homeScene .loyaltyRow span {
+  border-color: rgba(169, 104, 12, 0.18);
+  color: var(--nj-solar-muted);
+  background: rgba(255, 255, 255, 0.64);
+}
+
+.homeScene .bonusAction {
+  color: var(--nj-solar-ink);
+  background: linear-gradient(145deg, #ffe28d, var(--nj-solar-yellow));
+  box-shadow: 0 8px 18px rgba(169, 104, 12, 0.18);
+}
+
+.homeScene .quickLinks button {
+  color: var(--nj-solar-ink);
+  border-color: color-mix(in srgb, var(--quick-tone) 44%, var(--nj-solar-outline));
+  background:
+    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--quick-tone) 17%, transparent), transparent 58%),
+    rgba(255, 253, 246, 0.92);
+  box-shadow: inset 0 1px 0 white, 0 8px 18px rgba(76, 61, 34, 0.12);
+}
+
+.homeScene .quickLinks button span {
+  border-color: color-mix(in srgb, var(--quick-tone) 44%, var(--nj-solar-outline));
+  background: color-mix(in srgb, var(--quick-tone) 16%, white);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .homeScene .topHud,
+  .homeScene .allModesLink {
+    backdrop-filter: none;
   }
 }
 

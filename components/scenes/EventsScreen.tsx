@@ -76,7 +76,7 @@ export function EventsScreen() {
       }
     >
       {(!user || user.isAnonymous) && (
-        <StatusBanner severity="warning" action={<button data-nj-skin="gold" type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button>}>
+        <StatusBanner severity="warning" action={<button data-nj-skin="none" type="button" className={styles.bannerButton} onClick={() => navigateTo("profile")}>Créer mon compte</button>}>
           <strong>Le Ter garde ta progression.</strong> Crée un compte permanent avant de prendre un ticket.
         </StatusBanner>
       )}

@@ -368,3 +368,102 @@
     transition: none;
   }
 }
+
+/* Navigation Mboa Solaire — claire, colorée et sans plaque bois dominante. */
+.dock.dock {
+  --dock-ivory: var(--nj-solar-ivory, #fff8e8);
+  --dock-ink: var(--nj-solar-ink, #24372f);
+  border-color: color-mix(in srgb, var(--dock-gold) 42%, var(--nj-solar-outline, #e3cfa7));
+  background:
+    linear-gradient(90deg, transparent, rgba(25, 155, 104, 0.7) 18%, rgba(245, 195, 68, 0.74) 50%, rgba(228, 81, 69, 0.66) 82%, transparent) top / 100% 2px no-repeat,
+    radial-gradient(circle at 11% 120%, color-mix(in srgb, var(--dock-gold) 20%, transparent), transparent 29%),
+    radial-gradient(circle at 38% 120%, color-mix(in srgb, var(--dock-teal) 18%, transparent), transparent 26%),
+    radial-gradient(circle at 68% 120%, color-mix(in srgb, var(--dock-pink) 13%, transparent), transparent 27%),
+    radial-gradient(circle at 92% 120%, color-mix(in srgb, var(--dock-palm) 17%, transparent), transparent 29%),
+    rgba(226, 207, 169, 0.98);
+  box-shadow:
+    0 -8px 26px rgba(74, 58, 30, 0.14),
+    inset 0 1px 0 rgba(255, 255, 255, 0.96);
+  backdrop-filter: blur(12px);
+}
+
+.dock::before {
+  background: radial-gradient(ellipse at center, white, var(--dock-gold) 25%, var(--dock-teal) 52%, transparent 74%);
+}
+
+.item {
+  color: color-mix(in srgb, var(--item-tone) 42%, var(--dock-ink));
+}
+
+.item::before {
+  border-color: color-mix(in srgb, var(--item-tone) 42%, var(--nj-solar-outline, #e3cfa7));
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--item-tone) 19%, transparent), transparent 54%),
+    color-mix(in srgb, var(--item-tone) 9%, var(--nj-solar-surface-strong, #f7ead0));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 4px 10px rgba(77, 58, 27, 0.1);
+}
+
+.item::after {
+  opacity: 0.24;
+  background: linear-gradient(transparent, color-mix(in srgb, var(--item-tone) 40%, var(--nj-solar-outline, #e3cfa7)), transparent);
+}
+
+.iconShell {
+  border-color: color-mix(in srgb, var(--item-tone) 60%, var(--nj-solar-outline, #e3cfa7));
+  background:
+    radial-gradient(circle at 42% 28%, rgba(255, 255, 255, 0.88), transparent 42%),
+    color-mix(in srgb, var(--item-tone) 38%, white);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.8),
+    0 4px 10px color-mix(in srgb, var(--item-tone) 18%, rgba(70, 51, 24, 0.12));
+}
+
+.iconShell :global(.njambo-friendly-icon) {
+  display: inline-grid;
+  place-items: center;
+  filter: drop-shadow(0 2px 2px rgba(255, 255, 255, 0.45));
+}
+
+.iconShell :global(.njambo-friendly-icon img) {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.label {
+  text-shadow: none;
+}
+
+.active::before {
+  border-color: color-mix(in srgb, var(--item-tone) 62%, var(--nj-solar-outline, #e3cfa7));
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.88), transparent 42%),
+    color-mix(in srgb, var(--item-tone) 17%, var(--nj-solar-surface-strong, #f7ead0));
+  box-shadow:
+    inset 0 1px 0 white,
+    0 7px 16px rgba(77, 58, 27, 0.16),
+    0 0 13px color-mix(in srgb, var(--item-tone) 16%, transparent);
+}
+
+.active .iconShell {
+  background:
+    radial-gradient(circle at 45% 25%, rgba(255, 255, 255, 0.92), transparent 42%),
+    color-mix(in srgb, var(--item-tone) 64%, white);
+  border-color: color-mix(in srgb, var(--item-tone) 74%, white);
+  box-shadow:
+    inset 0 1px 0 white,
+    0 5px 12px color-mix(in srgb, var(--item-tone) 26%, rgba(70, 51, 24, 0.14));
+}
+
+.item:not(.active):hover::before {
+  border-color: color-mix(in srgb, var(--item-tone) 64%, var(--nj-solar-outline, #e3cfa7));
+  background: color-mix(in srgb, var(--item-tone) 15%, var(--nj-solar-surface-strong, #f7ead0));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dock.dock {
+    backdrop-filter: none;
+  }
+}

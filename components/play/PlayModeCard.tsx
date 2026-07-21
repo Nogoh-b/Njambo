@@ -64,7 +64,7 @@ export function PlayModeCard({ mode, guest, order }: PlayModeCardProps) {
             ))}
           </ul>
           <button
-            data-nj-skin={mode.tone}
+            data-nj-skin="none"
             className={styles.cta}
             type="button"
             onClick={() => navigateTo(resolveGameModeDestination(mode, guest))}

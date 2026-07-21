@@ -1,0 +1,55 @@
+:root {
+  --nj-solar-ivory: #ead8b3;
+  --nj-solar-sand: #d6b77d;
+  --nj-solar-surface: rgba(242, 226, 193, 0.96);
+  --nj-solar-surface-strong: #f7ead0;
+  --nj-solar-ink: #24372f;
+  --nj-solar-muted: #59675d;
+  --nj-solar-green: #199b68;
+  --nj-solar-green-deep: #116345;
+  --nj-solar-red: #e45145;
+  --nj-solar-red-deep: #a92f2a;
+  --nj-solar-yellow: #f5c344;
+  --nj-solar-yellow-deep: #a9680c;
+  --nj-solar-outline: #b88e54;
+  --nj-solar-card-edge: #765033;
+  --nj-solar-felt: #59603a;
+  --nj-solar-shadow: 0 14px 32px rgba(35, 31, 18, 0.26);
+  --nj-solar-app-bg: url("/assets/njambo/friendly/backgrounds/card-table-portrait-v2.webp");
+
+  /* Alias consommés par le dock partagé. */
+  --nj-nav-gold: var(--nj-solar-yellow);
+  --nj-nav-teal: var(--nj-solar-green);
+  --nj-nav-pink: var(--nj-solar-red);
+  --nj-nav-cobalt: var(--nj-solar-green);
+  --nj-nav-palm: #54a94f;
+}
+
+@media (min-width: 600px) {
+  :root {
+    --nj-solar-app-bg: url("/assets/njambo/friendly/backgrounds/card-table-desktop-v2.webp");
+  }
+}
+
+.nj-shell:has(.nj-mboa-solar-home),
+.nj-shell:has(.nj-mboa-solar-hub) {
+  color: var(--nj-solar-ink);
+  background:
+    linear-gradient(180deg, rgba(232, 214, 174, 0.1), rgba(216, 195, 151, 0.06)),
+    var(--nj-solar-app-bg) center / cover no-repeat,
+    var(--nj-solar-felt);
+}
+
+.nj-shell:has(.nj-mboa-solar-home)::before,
+.nj-shell:has(.nj-mboa-solar-hub)::before {
+  opacity: 0;
+  background-image:
+    repeating-linear-gradient(0deg, transparent 0 25px, rgba(228, 81, 69, 0.13) 25px 27px, transparent 27px 52px),
+    repeating-linear-gradient(90deg, transparent 0 31px, rgba(25, 155, 104, 0.12) 31px 33px, transparent 33px 64px);
+}
+
+.nj-shell:has(.nj-mboa-solar-home)::after,
+.nj-shell:has(.nj-mboa-solar-hub)::after {
+  background: repeating-linear-gradient(90deg, var(--nj-solar-green) 0 18px, var(--nj-solar-yellow) 18px 32px, var(--nj-solar-red) 32px 42px, var(--nj-solar-yellow) 42px 50px);
+  opacity: 0.68;
+}

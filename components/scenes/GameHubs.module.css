@@ -2181,3 +2181,200 @@
 
   .modeCard:hover .modeArt { transform: none; }
 }
+
+/* Mboa Solaire : surfaces claires et accents francs pour les hubs principaux. */
+.bannerButton,
+.buyButton,
+.wheelButton,
+.revealContinue {
+  color: #fffdf6;
+  border-color: color-mix(in srgb, var(--nj-solar-green, #199b68) 72%, transparent);
+  background: linear-gradient(145deg, #25aa76, var(--nj-solar-green-deep, #116345));
+  box-shadow: 0 9px 20px rgba(17, 99, 69, 0.2);
+}
+
+.eventPoster,
+.offerCard,
+.bookCard,
+.openingPanel,
+.wheelCard {
+  border-color: color-mix(in srgb, var(--nj-solar-yellow, #f5c344) 24%, var(--nj-solar-card-edge, #765033));
+  background: var(--nj-solar-surface, rgba(248, 239, 220, 0.96));
+  box-shadow: 0 14px 30px rgba(35, 31, 18, 0.24), inset 0 1px 0 rgba(255, 250, 232, 0.45);
+}
+
+.eventHeroShade {
+  background:
+    linear-gradient(0deg, rgba(17, 72, 50, 0.62) 4%, rgba(17, 72, 50, 0.04) 62%),
+    linear-gradient(90deg, rgba(228, 81, 69, 0.06), transparent);
+}
+
+.eventBody {
+  background: var(--nj-solar-surface-strong, #fbf4e6);
+}
+
+.eventFacts > span,
+.eventProgress > div span,
+.eventProgress > span:not(.eventProgressTrack),
+.offerCategoryHeader > span,
+.productBody > p,
+.bookBody > p,
+.wheelBody > p,
+.sectionIntro p,
+.dailyProgress > span,
+.dailyGridToolbar > span {
+  color: var(--nj-solar-muted, #66756d);
+}
+
+.eventProgress {
+  border-color: rgba(25, 155, 104, 0.28);
+  background: linear-gradient(135deg, rgba(25, 155, 104, 0.12), var(--nj-solar-surface-strong, #fbf4e6));
+}
+
+.eventProgress > div strong,
+.productBody h2,
+.bookBody h2,
+.wheelBody h2,
+.sectionIntro h2,
+.openingHeading h2,
+.stageDetails,
+.oddsDetails {
+  color: var(--nj-solar-ink, #24372f);
+}
+
+.eventProgressTrack,
+.dailyProgress > i {
+  background: rgba(36, 55, 47, 0.1);
+}
+
+.eventOpenHint {
+  color: var(--nj-solar-red-deep, #a92f2a);
+  border-color: rgba(228, 81, 69, 0.32);
+  background: linear-gradient(135deg, rgba(228, 81, 69, 0.14), var(--nj-solar-surface-strong, #fbf4e6));
+}
+
+.stageDetails,
+.oddsDetails {
+  border-color: rgba(169, 104, 12, 0.2);
+  background: rgba(245, 229, 197, 0.38);
+}
+
+.stageDetails summary small,
+.stageCopy small,
+.openingHeading p {
+  color: var(--nj-solar-muted, #66756d);
+}
+
+.stagePath li,
+.oddsGroup,
+.guarantee {
+  border-color: rgba(169, 104, 12, 0.14);
+}
+
+.stickyTabs {
+  backdrop-filter: blur(10px);
+  background: rgba(226, 207, 169, 0.97);
+  border: 1px solid rgba(118, 80, 51, 0.28);
+  border-radius: 16px;
+  box-shadow: 0 8px 18px rgba(35, 31, 18, 0.16), inset 0 1px 0 rgba(255, 250, 232, 0.48);
+  margin: 0 0 4px;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.offerCategories button {
+  color: var(--nj-solar-muted, #66756d);
+  border-color: rgba(169, 104, 12, 0.2);
+  background: var(--nj-solar-surface, rgba(248, 239, 220, 0.96));
+}
+
+.offerCategories button:hover,
+.offerCategories button:focus-visible {
+  color: var(--nj-solar-ink, #24372f);
+  border-color: rgba(25, 155, 104, 0.42);
+}
+
+.offerCategories .offerCategoryActive {
+  color: var(--nj-solar-ink, #24372f);
+  border-color: rgba(245, 195, 68, 0.72);
+  background: linear-gradient(145deg, rgba(245, 195, 68, 0.38), var(--nj-solar-surface-strong, #fbf4e6));
+  box-shadow: 0 7px 18px rgba(169, 104, 12, 0.12);
+}
+
+.productArt {
+  background:
+    var(--product-art) center / contain no-repeat,
+    radial-gradient(circle at 50% 42%, color-mix(in srgb, var(--product-tint) 24%, transparent), transparent 56%),
+    linear-gradient(145deg, #ead59f, var(--nj-solar-surface-strong, #fbf4e6));
+}
+
+.bookArt {
+  background:
+    var(--book-art) center / contain no-repeat,
+    radial-gradient(circle, color-mix(in srgb, var(--book-glow) 22%, transparent), transparent 62%),
+    linear-gradient(160deg, #d6ead7, var(--nj-solar-surface-strong, #fbf4e6));
+}
+
+.simulatedFlag {
+  color: #31517e;
+  border-color: rgba(77, 120, 201, 0.36);
+  background: rgba(239, 245, 255, 0.92);
+}
+
+.priceCauris,
+.priceXaf {
+  color: var(--nj-solar-ink, #24372f);
+  border-color: rgba(169, 104, 12, 0.2);
+  background: rgba(245, 195, 68, 0.16);
+}
+
+.oddsDetails summary,
+.oddsDetails li,
+.oddsDetails li strong {
+  color: var(--nj-solar-ink, #24372f);
+}
+
+.dailyGridSection {
+  border-color: rgba(25, 155, 104, 0.24);
+  background: linear-gradient(155deg, rgba(214, 234, 215, 0.98), var(--nj-solar-surface-strong, #fbf4e6));
+  box-shadow: 0 18px 40px rgba(66, 50, 28, 0.18), inset 0 1px 0 rgba(255, 255, 255, 0.62);
+}
+
+.dailyGridGlow {
+  background:
+    radial-gradient(circle at 18% 0%, rgba(25, 155, 104, 0.16), transparent 36%),
+    radial-gradient(circle at 86% 18%, rgba(228, 81, 69, 0.1), transparent 30%);
+}
+
+.dailyGridToolbar,
+.dailyPaymentSelector {
+  border-color: rgba(25, 155, 104, 0.18);
+  background: rgba(241, 228, 204, 0.9);
+}
+
+.dailyPaymentSelector button {
+  color: var(--nj-solar-muted, #66756d);
+}
+
+.dailyPaymentSelector .dailyPaymentActive {
+  color: var(--nj-solar-ink, #24372f);
+  border-color: rgba(245, 195, 68, 0.52);
+  background: linear-gradient(145deg, rgba(245, 195, 68, 0.3), rgba(25, 155, 104, 0.1));
+  box-shadow: 0 5px 12px rgba(79, 63, 35, 0.1);
+}
+
+.dailySlot {
+  border-color: rgba(25, 155, 104, 0.22);
+  background: linear-gradient(165deg, var(--nj-solar-surface-strong, #fbf4e6), rgba(214, 234, 215, 0.94));
+  box-shadow: 0 9px 20px rgba(79, 63, 35, 0.12), inset 0 1px 0 white;
+}
+
+.dailySlotRevealed {
+  background: linear-gradient(155deg, color-mix(in srgb, var(--slot-tone) 10%, #fffdf6), #fffdf6);
+}
+
+.wheelPoints {
+  color: var(--nj-solar-red-deep, #a92f2a);
+  border-color: var(--nj-solar-yellow, #f5c344);
+  background: #fffdf6;
+}

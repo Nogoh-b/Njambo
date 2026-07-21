@@ -3,6 +3,7 @@ import localFont from "next/font/local";
 import "./layout-tokens.css";
 import "./globals.css";
 import "./ter-nocturne.css";
+import "./mboa-solar.css";
 import { PwaRegistration } from "@/components/PwaRegistration";
 
 const bricolage = localFont({
@@ -29,7 +30,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   userScalable: true,
-  themeColor: "#231348",
+  themeColor: "#fff8e8",
 };
 
 export default function RootLayout({

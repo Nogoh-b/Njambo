@@ -13,6 +13,7 @@ export const NJAMBO_ICON_NAMES = [
 
 export type NjamboIconName = (typeof NJAMBO_ICON_NAMES)[number];
 export type NjamboIconTone = "gold" | "teal" | "pink" | "cobalt" | "palm" | "light";
+export type NjamboFriendlyIconName = "home" | "play" | "events" | "shop" | "social" | "notification" | "settings";
 
 const ICON_ASSETS: Record<NjamboIconName, string> = {
   bot: "bot",
@@ -109,6 +110,29 @@ export function NjamboIcon({ name, size = 28, tone = "gold" }: IconProps) {
         height={size}
         sizes={`${size}px`}
         draggable={false}
+      />
+    </span>
+  );
+}
+
+/** Glyphe fonctionnel clair, sans médaillon sombre intégré. */
+export function NjamboFriendlyIcon({
+  name,
+  size = 26,
+}: {
+  name: NjamboFriendlyIconName;
+  size?: number;
+}) {
+  return (
+    <span className="njambo-friendly-icon" style={{ width: size, height: size }} aria-hidden="true">
+      <Image
+        src={`/assets/njambo/friendly/icons/${name}.svg`}
+        alt=""
+        width={size}
+        height={size}
+        sizes={`${size}px`}
+        draggable={false}
+        unoptimized
       />
     </span>
   );

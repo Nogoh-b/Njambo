@@ -14,7 +14,7 @@ describe("navigation arcade de l'accueil", () => {
     expect(getBottomNavVisual("menu")).toMatchObject({ index: 0, tone: "gold" });
     expect(getBottomNavVisual("play")).toMatchObject({ index: 1, tone: "teal" });
     expect(getBottomNavVisual("events")).toMatchObject({ index: 2, tone: "pink" });
-    expect(getBottomNavVisual("shop")).toMatchObject({ index: 3, tone: "cobalt" });
+    expect(getBottomNavVisual("shop")).toMatchObject({ index: 3, tone: "gold" });
     expect(getBottomNavVisual("social")).toMatchObject({ index: 4, tone: "palm" });
   });
 

@@ -171,7 +171,7 @@ export function EventDetailScreen({ onStart }: { onStart?: (runId: string, mode:
         </div>
       }
     >
-      <button type="button" className={styles.backBtn} onClick={() => navigateTo("events")}>
+      <button data-nj-skin="none" type="button" className={styles.backBtn} onClick={() => navigateTo("events")}>
         <NjamboIcon name="history" tone="light" size={18} /> Retour aux événements
       </button>
 

@@ -5,7 +5,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { GameShell } from "@/components/ui/GameShell";
 import { StatusBanner } from "@/components/ui/GamePrimitives";
 import { HubReveal } from "@/components/ui/HubReveal";
-import { AvatarIllustration, NjamboIcon, type NjamboIconName, type NjamboIconTone } from "@/components/ui/Art";
+import { AvatarIllustration, NjamboFriendlyIcon, NjamboIcon, type NjamboIconName, type NjamboIconTone } from "@/components/ui/Art";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { DEFAULT_EVENTS, doualaDayKey, type Reward } from "@/domain";
@@ -48,7 +48,7 @@ const RESUME_SCENE: Record<"online" | "friends", SceneName> = {
 
 const QUICK_LINKS: Array<{ scene: SceneName; icon: NjamboIconName; tone: NjamboIconTone; label: string }> = [
   { scene: "leaderboard", icon: "trophy", tone: "gold", label: "Classement" },
-  { scene: "history", icon: "history", tone: "cobalt", label: "Historique" },
+  { scene: "history", icon: "history", tone: "teal", label: "Historique" },
   { scene: "rules", icon: "cards", tone: "pink", label: "Règles" },
 ];
 
@@ -424,7 +424,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
   return (
     <GameShell
       active="menu"
-      className={`${styles.homeScene} ${styles.homeFinal} ${motionClass}${motion.enabled ? ` ${styles.motionOn}` : ""}${pageActive ? "" : ` ${styles.pagePaused}`}`}
+      className={`${styles.homeScene} ${styles.homeFinal} nj-mboa-solar-home ${motionClass}${motion.enabled ? ` ${styles.motionOn}` : ""}${pageActive ? "" : ` ${styles.pagePaused}`}`}
       contentClassName={styles.scrollArea}
     >
       <div className={styles.ambient} aria-hidden="true">
@@ -470,11 +470,11 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
 
             <div className={styles.headerActions}>
               <button data-nj-skin="none" data-tone="pink" type="button" className={styles.iconButton} onClick={() => openLink("notifications")} aria-label={`Notifications : ${socialCounts.notifications + socialCounts.requests} non lues`}>
-                <NjamboIcon name="notification" tone="pink" size={26} />
+                <NjamboFriendlyIcon name="notification" size={27} />
                 <CountBadge count={socialCounts.notifications + socialCounts.requests} />
               </button>
-              <button data-nj-skin="none" data-tone="cobalt" type="button" className={styles.iconButton} onClick={() => openLink("options")} aria-label="Réglages">
-                <NjamboIcon name="settings" tone="cobalt" size={26} />
+              <button data-nj-skin="none" data-tone="teal" type="button" className={styles.iconButton} onClick={() => openLink("options")} aria-label="Réglages">
+                <NjamboFriendlyIcon name="settings" size={27} />
               </button>
             </div>
           </header>
@@ -544,7 +544,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                 <div className={styles.heroActionRow}>
                   <h1 id="home-play-title">{canResume ? "La table t’attend" : t("home.playTitle")}</h1>
                   <button
-                    data-nj-skin="gold"
+                    data-nj-skin="none"
                     type="button"
                     className={styles.primaryPlay}
                     onClick={handlePrimaryPlay}
@@ -592,7 +592,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                 <NjamboIcon name="sparkle" tone="gold" size={17} />
                 <span><small>Récompense finale</small><strong>{featuredReward}</strong></span>
               </div>
-              <button data-nj-skin="pink" type="button" className={styles.terAction} onClick={() => openLink("events")}>Voir le défi <span aria-hidden="true">→</span></button>
+              <button data-nj-skin="none" type="button" className={styles.terAction} onClick={() => openLink("events")}>Voir le défi <span aria-hidden="true">→</span></button>
             </article>
 
             <article className={`${styles.dailyCard} ${bonusReady ? styles.dailyReady : ""}${bonusBurst ? ` ${styles.bonusBurst}` : ""}`}>
@@ -614,7 +614,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                   <span aria-hidden="true" key={index} className={index < loyaltyPoints ? styles.loyaltyDone : ""}>{index + 1}</span>
                 ))}
               </div>
-              <button data-nj-skin="gold"
+              <button data-nj-skin="none"
                 type="button"
                 className={styles.bonusAction}
                 aria-live="polite"
