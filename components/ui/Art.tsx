@@ -87,13 +87,15 @@ interface IconProps {
   name: NjamboIconName;
   size?: number;
   tone?: NjamboIconTone;
+  /** Charge l'image en priorité (above-the-fold) au lieu du lazy par défaut. */
+  priority?: boolean;
 }
 
 /**
  * Icône de jeu matérialisée en médaillon 2,5D.
  * `tone` colore uniquement l'aura contextuelle : le bitmap conserve sa matière et sa palette.
  */
-export function NjamboIcon({ name, size = 28, tone = "gold" }: IconProps) {
+export function NjamboIcon({ name, size = 28, tone = "gold", priority = false }: IconProps) {
   const sourceSize = size > 64 ? 128 : 64;
   const style = {
     "--nj-icon-glow": TONE_GLOW[tone],
@@ -110,6 +112,7 @@ export function NjamboIcon({ name, size = 28, tone = "gold" }: IconProps) {
         height={size}
         sizes={`${size}px`}
         draggable={false}
+        priority={priority}
       />
     </span>
   );

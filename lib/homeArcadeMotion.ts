@@ -13,6 +13,8 @@ export interface HomeMotionFeatures {
   decorativeLoops: boolean;
   complexHalos: boolean;
   ambientSparkCount: number;
+  /** Nombre de cartes dans la pluie de fond (0 = désactivée). */
+  fallingCardCount: number;
   loopDurationMultiplier: number;
 }
 
@@ -23,6 +25,7 @@ export const HOME_MOTION_FEATURES: Record<HomeMotionMode, HomeMotionFeatures> = 
     decorativeLoops: true,
     complexHalos: true,
     ambientSparkCount: 6,
+    fallingCardCount: 7,
     loopDurationMultiplier: 1,
   },
   balanced: {
@@ -31,6 +34,7 @@ export const HOME_MOTION_FEATURES: Record<HomeMotionMode, HomeMotionFeatures> = 
     decorativeLoops: true,
     complexHalos: false,
     ambientSparkCount: 3,
+    fallingCardCount: 4,
     loopDurationMultiplier: 1.8,
   },
   lite: {
@@ -39,6 +43,7 @@ export const HOME_MOTION_FEATURES: Record<HomeMotionMode, HomeMotionFeatures> = 
     decorativeLoops: false,
     complexHalos: false,
     ambientSparkCount: 0,
+    fallingCardCount: 0,
     loopDurationMultiplier: 0,
   },
   off: {
@@ -47,6 +52,7 @@ export const HOME_MOTION_FEATURES: Record<HomeMotionMode, HomeMotionFeatures> = 
     decorativeLoops: false,
     complexHalos: false,
     ambientSparkCount: 0,
+    fallingCardCount: 0,
     loopDurationMultiplier: 0,
   },
 };

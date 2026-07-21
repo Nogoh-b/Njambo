@@ -16,16 +16,24 @@
   padding: 0;
   border-color: color-mix(in srgb, var(--mode-material) 44%, rgba(255, 244, 223, 0.14));
   background: var(--nj-solar-surface-strong, #fffdf6);
-  box-shadow: 0 18px 38px rgba(79, 63, 35, 0.18);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 18px 38px rgba(79, 63, 35, 0.18);
+  transition:
+    transform var(--nj-motion-panel) cubic-bezier(.2, .72, .2, 1),
+    box-shadow var(--nj-motion-interaction) ease,
+    border-color var(--nj-motion-interaction) ease;
 }
 
 .primaryCard.card {
   min-height: 360px;
 }
 
-.tone_teal { --mode-material: var(--nj-solar-green, #199b68); --mode-glow: #7ee0b9; }
-.tone_gold { --mode-material: var(--nj-solar-yellow, #f5c344); --mode-glow: #ffe08a; }
-.tone_pink { --mode-material: var(--nj-solar-red, #e45145); --mode-glow: #ffaea6; }
+/* Doublé (.card.tone_*) pour dépasser la spécificité de .card.card ci-dessus,
+   sinon --mode-material resterait bloqué sur le gold par défaut pour toutes les cartes. */
+.card.tone_teal { --mode-material: var(--nj-solar-green, #199b68); --mode-glow: #7ee0b9; }
+.card.tone_gold { --mode-material: var(--nj-solar-yellow, #f5c344); --mode-glow: #ffe08a; }
+.card.tone_pink { --mode-material: var(--nj-solar-red, #e45145); --mode-glow: #ffaea6; }
 
 .card.card::before {
   z-index: 2;
@@ -44,6 +52,17 @@
   border: 1px solid color-mix(in srgb, var(--mode-material) 22%, transparent);
   border-radius: calc(var(--nj-radius-lg, 22px) - 7px);
   box-shadow: inset 0 0 42px color-mix(in srgb, var(--mode-glow) 5%, transparent);
+  transition:
+    border-color var(--nj-motion-interaction) ease,
+    box-shadow var(--nj-motion-interaction) ease;
+}
+
+/* La carte "primary" est plus mise en avant : liseré et halo interne plus francs. */
+.primaryCard.card::after {
+  border-color: color-mix(in srgb, var(--mode-material) 32%, transparent);
+  box-shadow:
+    inset 0 0 54px color-mix(in srgb, var(--mode-glow) 9%, transparent),
+    inset 0 0 0 1px color-mix(in srgb, var(--mode-glow) 14%, transparent);
 }
 
 .card.card > .art {
@@ -63,9 +82,20 @@
   position: absolute;
   inset: 0;
   z-index: 1;
+  /* Base sombre teintée par le ton de la carte : le texte reste lisible,
+     mais teal / gold / pink respirent chacun leur propre couleur. */
   background:
-    linear-gradient(90deg, rgba(20, 75, 55, 0.62) 0%, rgba(20, 63, 49, 0.25) 52%, transparent 100%),
-    linear-gradient(0deg, rgba(17, 61, 46, 0.58), transparent 60%);
+    linear-gradient(
+      90deg,
+      color-mix(in srgb, var(--mode-material) 30%, rgba(9, 20, 14, 0.9)) 0%,
+      color-mix(in srgb, var(--mode-material) 18%, rgba(9, 18, 13, 0.42)) 54%,
+      transparent 100%
+    ),
+    linear-gradient(
+      0deg,
+      color-mix(in srgb, var(--mode-material) 22%, rgba(7, 15, 11, 0.86)) 0%,
+      transparent 62%
+    );
 }
 
 .card.card > .body {
@@ -110,6 +140,7 @@
   display: grid;
   flex: 0 0 auto;
   place-items: center;
+  transition: transform var(--nj-motion-interaction) cubic-bezier(.2, .9, .25, 1.15);
 }
 
 .titleRow h2 {
@@ -149,9 +180,9 @@
   gap: 5px;
   padding: 4px 9px;
   color: var(--nj-cream-100, #fff4df);
-  border: 1px solid color-mix(in srgb, var(--mode-material) 26%, rgba(255, 255, 255, 0.12));
+  border: 1px solid color-mix(in srgb, var(--mode-material) 32%, rgba(255, 255, 255, 0.14));
   border-radius: 999px;
-  background: rgba(20, 62, 48, 0.76);
+  background: color-mix(in srgb, var(--mode-material) 15%, rgba(11, 24, 17, 0.8));
   backdrop-filter: blur(8px);
   font-size: 0.72rem;
   font-weight: 750;
@@ -178,6 +209,17 @@
   cursor: pointer;
   touch-action: manipulation;
   transition: transform var(--nj-motion-press) ease, filter var(--nj-motion-interaction) ease, border-color var(--nj-motion-interaction) ease;
+}
+
+.cta > :last-child {
+  display: inline-flex;
+  flex: 0 0 auto;
+  transition: transform var(--nj-motion-interaction) cubic-bezier(.2, .8, .2, 1);
+}
+
+.cta:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--mode-glow) 72%, #fffdf6);
+  outline-offset: 3px;
 }
 
 .cta:active {
@@ -231,9 +273,35 @@
     filter: saturate(1.04) brightness(1.025);
   }
 
+  /* La carte entière se soulève et son halo interne s'intensifie. */
+  .card:has(.cta:hover),
+  .card:focus-within {
+    transform: translateY(-3px);
+    border-color: color-mix(in srgb, var(--mode-material) 58%, rgba(255, 244, 223, 0.18));
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.22),
+      0 26px 52px color-mix(in srgb, var(--mode-material) 22%, rgba(79, 63, 35, 0.24));
+  }
+
+  .card:has(.cta:hover)::after,
+  .card:focus-within::after {
+    border-color: color-mix(in srgb, var(--mode-material) 42%, transparent);
+    box-shadow: inset 0 0 60px color-mix(in srgb, var(--mode-glow) 13%, transparent);
+  }
+
+  .card:has(.cta:hover) .icon,
+  .card:focus-within .icon {
+    transform: translateY(-2px) rotate(-3deg) scale(1.06);
+  }
+
   .cta:hover {
-    filter: brightness(1.1);
+    filter: brightness(1.08);
     transform: translateY(-2px);
+    border-color: color-mix(in srgb, var(--mode-glow) 78%, transparent);
+  }
+
+  .cta:hover > :last-child {
+    transform: translateX(3px);
   }
 }
 
@@ -286,14 +354,22 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .card.card,
   .art,
-  .cta {
+  .icon,
+  .cta,
+  .cta > :last-child {
     transition: none;
   }
 
+  .card:has(.cta:hover),
+  .card:focus-within,
   .card:has(.cta:hover) .art,
   .card:focus-within .art,
+  .card:has(.cta:hover) .icon,
+  .card:focus-within .icon,
   .cta:hover,
+  .cta:hover > :last-child,
   .cta:active {
     filter: none;
     transform: none;

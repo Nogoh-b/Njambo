@@ -85,6 +85,57 @@
   box-shadow: 0 0 8px 2px rgba(242, 187, 69, 0.14);
 }
 
+/* Pluie de cartes de fond — layer décoratif léger, même garde que .ambient. */
+.cardRain {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.cardRain span {
+  position: absolute;
+  top: 0;
+  width: 44px;
+  height: 62px;
+  border-radius: 6px;
+  background: url("/assets/njambo/books/card-back-128.webp") center / cover no-repeat;
+  box-shadow: 0 6px 14px rgba(35, 31, 18, 0.22);
+  opacity: 0;
+  transform: translate3d(0, -30vh, 0) scale(var(--rain-scale, 0.7)) rotate(var(--rain-rot, 0deg));
+  will-change: transform, opacity;
+}
+
+/* Animée seulement en full/balanced et onglet actif (comme .ambient). */
+.motionFull:not(.pagePaused) .cardRain span,
+.motionBalanced:not(.pagePaused) .cardRain span {
+  animation-name: cardRainFall;
+  animation-timing-function: linear;
+  animation-iteration-count: infinite;
+}
+
+.motionBalanced .cardRain span {
+  box-shadow: 0 5px 12px rgba(35, 31, 18, 0.18);
+}
+
+@keyframes cardRainFall {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, -30vh, 0) scale(var(--rain-scale, 0.7)) rotate(var(--rain-rot, 0deg));
+  }
+  8% {
+    opacity: 0.22;
+  }
+  92% {
+    opacity: 0.22;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--rain-drift, 0px), 118vh, 0) scale(var(--rain-scale, 0.7)) rotate(calc(var(--rain-rot, 0deg) + 40deg));
+  }
+}
+
 .identityBar {
   position: relative;
   min-height: 68px;
@@ -1302,28 +1353,30 @@
 
 .quickLinks {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: 1fr;
   gap: 8px;
 }
 
+/* Raccourcis en lignes : médaillon d'icône teinté · libellé · chevron. */
 .quickLinks button {
   --quick-tone: var(--home-gold);
   --button-fx-tone: var(--quick-tone);
   min-width: 0;
-  min-height: 64px;
+  min-height: 56px;
   display: grid;
-  justify-items: center;
-  align-content: center;
-  gap: 4px;
-  padding: 7px 4px;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 14px;
   border: 1px solid color-mix(in srgb, var(--quick-tone) 44%, rgba(255, 248, 232, 0.12));
   border-radius: 15px;
   background:
-    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--quick-tone) 22%, transparent), transparent 56%),
+    radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--quick-tone) 22%, transparent), transparent 46%),
     linear-gradient(155deg, color-mix(in srgb, var(--quick-tone) 15%, rgba(40, 25, 22, 0.92)), rgba(8, 9, 18, 0.94));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 8px 18px rgba(0, 0, 0, 0.22);
-  font-size: 10px;
-  font-weight: 800;
+  text-align: left;
+  font-size: 13px;
+  font-weight: 850;
   transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
 }
 
@@ -1331,15 +1384,25 @@
 .quickLinks button[data-tone="teal"] { --quick-tone: var(--home-teal); }
 .quickLinks button[data-tone="pink"] { --quick-tone: var(--home-pink); }
 
-.quickLinks button span {
-  width: 30px;
-  height: 27px;
+.quickLinkIcon {
+  width: 38px;
+  height: 38px;
   display: grid;
   place-items: center;
   border: 1px solid color-mix(in srgb, var(--quick-tone) 56%, rgba(255, 248, 232, 0.12));
-  border-radius: 11px;
+  border-radius: 12px;
   background: color-mix(in srgb, var(--quick-tone) 22%, rgba(6, 7, 15, 0.72));
   box-shadow: 0 0 12px color-mix(in srgb, var(--quick-tone) 18%, transparent);
+  transition: transform 180ms ease;
+}
+
+.quickLinkChevron {
+  display: grid;
+  place-items: center;
+  color: var(--quick-tone);
+  font-size: 22px;
+  font-weight: 950;
+  line-height: 1;
   transition: transform 180ms ease;
 }
 
@@ -1348,17 +1411,22 @@
   transform: translateY(-2px);
   border-color: color-mix(in srgb, var(--quick-tone) 72%, #fff8e8);
   background:
-    radial-gradient(circle at 50% 20%, color-mix(in srgb, var(--quick-tone) 32%, transparent), transparent 58%),
+    radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--quick-tone) 32%, transparent), transparent 48%),
     linear-gradient(155deg, color-mix(in srgb, var(--quick-tone) 22%, rgba(40, 25, 22, 0.92)), rgba(8, 9, 18, 0.94));
 }
 
-.quickLinks button:hover span,
-.quickLinks button:focus-visible span {
-  transform: translateY(-2px) rotate(-2deg) scale(1.035);
+.quickLinks button:hover .quickLinkIcon,
+.quickLinks button:focus-visible .quickLinkIcon {
+  transform: rotate(-3deg) scale(1.05);
 }
 
-.quickLinks button:active span {
-  transform: translateY(0) scale(0.94);
+.quickLinks button:hover .quickLinkChevron,
+.quickLinks button:focus-visible .quickLinkChevron {
+  transform: translateX(3px);
+}
+
+.quickLinks button:active .quickLinkIcon {
+  transform: scale(0.94);
 }
 
 /* Une même matière interactive : empreinte chaude, jeton pressé et focus sculpté. */
@@ -1882,7 +1950,7 @@
   }
 
   .quickLinks {
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: 1fr;
   }
 }
 
@@ -2055,12 +2123,20 @@
 }
 
 .homeScene .quickModeArt {
-  opacity: 0.92;
-  filter: saturate(1.15) contrast(1.04) brightness(1.02);
+  opacity: 0.62;
+  filter: saturate(1.1) contrast(1.02) brightness(1.02);
 }
 
+/* Scrim crème ancré en bas : le texte (aligné en bas) repose sur une base
+   quasi opaque tandis que l'illustration transparaît en haut. */
 .homeScene .quickModeShade {
-  background: linear-gradient(0deg, rgba(242, 226, 193, 0.38), rgba(242, 226, 193, 0.02));
+  background: linear-gradient(
+    0deg,
+    rgba(247, 234, 208, 0.97) 0%,
+    rgba(247, 234, 208, 0.82) 38%,
+    rgba(247, 234, 208, 0.28) 66%,
+    transparent 92%
+  );
 }
 
 .homeScene .quickModeIcon {
@@ -2159,6 +2235,25 @@
   background: rgba(255, 255, 255, 0.64);
 }
 
+/* Jour récupéré : pastille dorée pleine. Sélecteur en 3 classes (0,3,0) pour
+   dépasser .homeScene .loyaltyRow span (0,2,1), sinon l'override crème l'écrase. */
+.homeScene .loyaltyRow .loyaltyDone {
+  border-color: color-mix(in srgb, var(--nj-solar-yellow) 72%, var(--nj-solar-outline));
+  color: #3a2408;
+  background: linear-gradient(150deg, #ffe9a6, var(--nj-solar-yellow) 68%, #e6a52f);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.55),
+    0 2px 6px rgba(169, 104, 12, 0.26);
+}
+
+/* Prochain jour à récupérer : anneau vert pour guider l'œil. */
+.homeScene .loyaltyRow .loyaltyNext {
+  border-color: color-mix(in srgb, var(--nj-solar-green) 70%, transparent);
+  color: var(--nj-solar-green-deep, #116345);
+  background: rgba(255, 255, 255, 0.9);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--nj-solar-green) 40%, transparent);
+}
+
 .homeScene .bonusAction {
   color: var(--nj-solar-ink);
   background: linear-gradient(145deg, #ffe28d, var(--nj-solar-yellow));
@@ -2169,14 +2264,18 @@
   color: var(--nj-solar-ink);
   border-color: color-mix(in srgb, var(--quick-tone) 44%, var(--nj-solar-outline));
   background:
-    radial-gradient(circle at 50% 18%, color-mix(in srgb, var(--quick-tone) 17%, transparent), transparent 58%),
+    radial-gradient(circle at 12% 50%, color-mix(in srgb, var(--quick-tone) 17%, transparent), transparent 48%),
     rgba(255, 253, 246, 0.92);
   box-shadow: inset 0 1px 0 white, 0 8px 18px rgba(76, 61, 34, 0.12);
 }
 
-.homeScene .quickLinks button span {
+.homeScene .quickLinks .quickLinkIcon {
   border-color: color-mix(in srgb, var(--quick-tone) 44%, var(--nj-solar-outline));
   background: color-mix(in srgb, var(--quick-tone) 16%, white);
+}
+
+.homeScene .quickLinks .quickLinkChevron {
+  color: color-mix(in srgb, var(--quick-tone) 70%, var(--nj-solar-ink));
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -2644,9 +2743,9 @@
 .quickModeCopy small {
   overflow: hidden;
   color: var(--quick-mode-tone);
-  font-size: 8px;
+  font-size: 9px;
   font-weight: 900;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.09em;
   text-overflow: ellipsis;
   text-transform: uppercase;
   white-space: nowrap;
@@ -2655,9 +2754,10 @@
 .quickModeCopy strong {
   overflow: hidden;
   font-family: var(--font-display), sans-serif;
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 900;
   line-height: 1;
+  letter-spacing: -0.01em;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -2832,9 +2932,14 @@
     height: 30px;
   }
 
-  .quickModeCopy small,
   .quickModeArrow {
     display: none;
+  }
+
+  /* Eyebrow restauré mais compact : le ton reste lisible au-dessus du titre. */
+  .quickModeCopy small {
+    font-size: 8px;
+    letter-spacing: 0.06em;
   }
 
   .quickModeLocked .quickModeCopy {
@@ -2843,7 +2948,7 @@
 
   .quickModeCopy strong {
     width: 100%;
-    font-size: clamp(12px, 3.7vw, 15px);
+    font-size: clamp(13px, 4.1vw, 16px);
     white-space: normal;
   }
 

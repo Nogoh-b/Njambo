@@ -27,6 +27,7 @@ import {
 import { t } from "@/lib/i18n";
 import { useMotionProfile, usePageActive } from "@/lib/motion";
 import { getPlayerLevel } from "@/lib/playerLevel";
+import { preloadScene } from "@/lib/scenePreload";
 import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
 import type { PlayerStats, PublicPlayerProfile, SceneName } from "@/types/game";
 import styles from "./MenuScreen.module.css";
@@ -59,6 +60,18 @@ const SPARKS = [
   { left: "31%", top: "84%", delay: "2.2s", duration: "4.8s", size: "3px" },
   { left: "92%", top: "58%", delay: "2.8s", duration: "5.2s", size: "2px" },
   { left: "8%", top: "64%", delay: "1.3s", duration: "4.6s", size: "2px" },
+];
+
+/* Pluie de cartes de fond : positions/délais fixes (déterministes, pas de Math.random
+   → aucun mismatch d'hydratation). Slicée par fallingCardCount + gardée par le profil motion. */
+const FALLING_CARDS = [
+  { left: "8%", delay: "0s", duration: "13s", scale: "0.8", rot: "-18deg", drift: "14px" },
+  { left: "24%", delay: "3.5s", duration: "16s", scale: "0.62", rot: "12deg", drift: "-10px" },
+  { left: "41%", delay: "6s", duration: "12s", scale: "0.9", rot: "-8deg", drift: "18px" },
+  { left: "57%", delay: "1.8s", duration: "15s", scale: "0.7", rot: "20deg", drift: "-16px" },
+  { left: "72%", delay: "8s", duration: "14s", scale: "0.55", rot: "-14deg", drift: "10px" },
+  { left: "86%", delay: "4.5s", duration: "17s", scale: "0.85", rot: "9deg", drift: "-12px" },
+  { left: "94%", delay: "10s", duration: "13s", scale: "0.6", rot: "-20deg", drift: "8px" },
 ];
 
 const compactNumber = new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 });
@@ -288,10 +301,12 @@ function QuickModeButton({
   mode,
   locked,
   onOpen,
+  onPrefetch,
 }: {
   mode: GameModeCatalogEntry;
   locked?: boolean;
   onOpen: () => void;
+  onPrefetch?: () => void;
 }) {
   return (
     <button
@@ -299,6 +314,8 @@ function QuickModeButton({
       type="button"
       className={`${styles.quickMode} ${styles[`quickMode${mode.tone}`]}${locked ? ` ${styles.quickModeLocked}` : ""}`}
       onClick={onOpen}
+      onPointerEnter={onPrefetch}
+      onFocus={onPrefetch}
       aria-label={`${locked ? "Créer un compte pour jouer à" : "Jouer à"} ${mode.title}`}
     >
       <Image className={styles.quickModeArt} src={mode.art} alt="" fill sizes="(max-width: 599px) 33vw, 220px" />
@@ -443,6 +460,22 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
         ))}
       </div>
 
+      <div className={styles.cardRain} aria-hidden="true">
+        {FALLING_CARDS.slice(0, motion.allowDecorativeLoop ? motionFeatures.fallingCardCount : 0).map((card, index) => (
+          <span
+            key={index}
+            style={{
+              left: card.left,
+              animationDelay: card.delay,
+              animationDuration: card.duration,
+              "--rain-scale": card.scale,
+              "--rain-rot": card.rot,
+              "--rain-drift": card.drift,
+            } as CSSProperties}
+          />
+        ))}
+      </div>
+
       <div className={styles.homeBody}>
         <HubReveal className={styles.topHud} order={0} duration="navigation">
           <header className={styles.identityBar}>
@@ -548,17 +581,19 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                     type="button"
                     className={styles.primaryPlay}
                     onClick={handlePrimaryPlay}
+                    onPointerEnter={() => preloadScene("play")}
+                    onFocus={() => preloadScene("play")}
                     aria-label={canResume ? "Reprendre la partie en cours" : "Jouer, choisir une table"}
                   >
                     <span className={styles.primaryPlayIcon} aria-hidden="true">
-                      <NjamboIcon name={canResume ? "history" : "play"} tone="gold" size={28} />
+                      <NjamboIcon name={canResume ? "history" : "play"} tone="gold" size={28} priority />
                     </span>
                     <span><strong>{canResume ? "Reprendre" : "Jouer"}</strong></span>
                     <span className={styles.primaryPlayArrow} aria-hidden="true">→</span>
                   </button>
                 </div>
               </div>
-              <button data-nj-skin="none" type="button" className={styles.allModesLink} onClick={() => openLink("play")} aria-label="Voir tous les modes de jeu">
+              <button data-nj-skin="none" type="button" className={styles.allModesLink} onClick={() => openLink("play")} onPointerEnter={() => preloadScene("play")} onFocus={() => preloadScene("play")} aria-label="Voir tous les modes de jeu">
                 <NjamboIcon name="cards" tone="teal" size={20} />
                 <span className={styles.allModesText}>Modes</span>
               </button>
@@ -571,6 +606,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                   mode={mode}
                   locked={isGameModeLocked(mode, isGuest)}
                   onOpen={() => openLink(resolveGameModeDestination(mode, isGuest))}
+                  onPrefetch={() => preloadScene(resolveGameModeDestination(mode, isGuest))}
                 />
               ))}
             </nav>
@@ -610,9 +646,19 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                 aria-valuemax={7}
                 aria-valuenow={loyaltyPoints}
               >
-                {Array.from({ length: 7 }, (_, index) => (
-                  <span aria-hidden="true" key={index} className={index < loyaltyPoints ? styles.loyaltyDone : ""}>{index + 1}</span>
-                ))}
+                {Array.from({ length: 7 }, (_, index) => {
+                  const done = index < loyaltyPoints;
+                  const next = bonusReady && index === loyaltyPoints;
+                  return (
+                    <span
+                      aria-hidden="true"
+                      key={index}
+                      className={`${done ? styles.loyaltyDone : ""}${next ? ` ${styles.loyaltyNext}` : ""}`}
+                    >
+                      {index + 1}
+                    </span>
+                  );
+                })}
               </div>
               <button data-nj-skin="none"
                 type="button"
@@ -635,9 +681,18 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
 
             <nav className={styles.quickLinks} aria-label="Raccourcis">
               {QUICK_LINKS.map((link) => (
-                <button data-nj-skin="none" data-tone={link.tone} type="button" key={link.scene} onClick={() => openLink(link.scene)}>
-                  <span><NjamboIcon name={link.icon} tone={link.tone} size={23} /></span>
+                <button
+                  data-nj-skin="none"
+                  data-tone={link.tone}
+                  type="button"
+                  key={link.scene}
+                  onClick={() => openLink(link.scene)}
+                  onPointerEnter={() => preloadScene(link.scene)}
+                  onFocus={() => preloadScene(link.scene)}
+                >
+                  <span className={styles.quickLinkIcon}><NjamboIcon name={link.icon} tone={link.tone} size={23} /></span>
                   {link.label}
+                  <span className={styles.quickLinkChevron} aria-hidden="true">›</span>
                 </button>
               ))}
             </nav>
