@@ -6,6 +6,7 @@ vi.mock("../components/ui/Art", () => ({
 }));
 
 import { Btn } from "../components/ui/Btn";
+import { ChoiceButtonGroup } from "../components/ui/ChoiceButtonGroup";
 import { NkapAmount } from "../components/ui/NkapAmount";
 
 describe("motifs textiles du bouton partagé", () => {
@@ -15,7 +16,7 @@ describe("motifs textiles du bouton partagé", () => {
         tone="teal"
         fill="outline"
         motif="indigo-dots"
-        motifPlacement="edges"
+        motifSides="both"
       >
         Choisir
       </Btn>,
@@ -24,26 +25,60 @@ describe("motifs textiles du bouton partagé", () => {
     expect(markup).toContain("njb--teal");
     expect(markup).toContain("njb--outline");
     expect(markup).toContain("njb--motif-indigo-dots");
-    expect(markup).toContain("njb--motif-edges");
+    expect(markup).toContain("njb--motif-both");
     expect(markup).toContain('class="njb__motif" aria-hidden="true"');
   });
 
-  it("permet un textile complet sur une sélection", () => {
+  it("garde une sélection douce avec le Ndop uniquement sur les côtés", () => {
     const markup = renderToStaticMarkup(
       <Btn
         tone="gold"
-        fill="solid"
-        motif="sun-stripes"
-        motifPlacement="full"
+        fill="soft"
+        motif="indigo-dots"
+        motifSides="both"
         ariaPressed
       >
         Normal
       </Btn>,
     );
 
-    expect(markup).toContain("njb--motif-sun-stripes");
-    expect(markup).toContain("njb--motif-full");
+    expect(markup).toContain("njb--soft");
+    expect(markup).toContain("njb--motif-indigo-dots");
+    expect(markup).toContain("njb--motif-both");
     expect(markup).toContain('aria-pressed="true"');
+  });
+
+  it("permet de choisir indépendamment le côté gauche ou droit", () => {
+    const left = renderToStaticMarkup(<Btn tone="pink" motif="indigo-dots" motifSides="left">Gauche</Btn>);
+    const right = renderToStaticMarkup(<Btn tone="pink" motif="indigo-dots" motifSides="right">Droite</Btn>);
+
+    expect(left).toContain("njb--motif-left");
+    expect(left).not.toContain("njb--motif-right");
+    expect(right).toContain("njb--motif-right");
+    expect(right).not.toContain("njb--motif-left");
+  });
+});
+
+describe("groupe de choix partagé", () => {
+  it("centralise l'état sélectionné tout en déléguant le design à Btn", () => {
+    const markup = renderToStaticMarkup(
+      <ChoiceButtonGroup
+        legend="Difficulté"
+        tone="gold"
+        value="normal"
+        onChange={() => undefined}
+        options={[
+          { value: "easy", content: "Facile" },
+          { value: "normal", content: "Normal" },
+          { value: "hard", content: "Difficile" },
+        ]}
+      />,
+    );
+
+    expect(markup).toContain("Difficulté");
+    expect(markup).toContain("njb--gold");
+    expect(markup).toContain("njb--motif-both");
+    expect(markup.match(/aria-pressed="true"/g)).toHaveLength(1);
   });
 });
 

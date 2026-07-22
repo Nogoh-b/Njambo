@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { BOTS } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
+import { ChoiceButtonGroup } from "@/components/ui/ChoiceButtonGroup";
 import { NkapAmount } from "@/components/ui/NkapAmount";
 import {
   PreGameFooter,
@@ -27,8 +28,6 @@ const DIFFICULTIES: { key: BotDifficulty; label: string }[] = [
   { key: "normal", label: "Normal" },
   { key: "hard", label: "Difficile" },
 ];
-
-const CHOICE_MOTIFS = ["indigo-dots", "sun-stripes", "royal-bands"] as const;
 
 export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
   const { navigateTo, cfg } = useGame();
@@ -93,21 +92,17 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
       <PreGameWorkspace rail={summary} railLabel="Résumé de la partie">
         <div className={styles.controlGrid}>
           <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelTeal} ${styles.widePanel}`}>
-            <fieldset className={styles.choiceSet}>
-              <legend className={styles.choiceLegend}>Nombre d&apos;adversaires</legend>
-              <div className={styles.choiceGrid}>
-                {[1, 2, 3].map((count) => (
-                  <Btn
-                    key={count}
-                    tone="teal"
-                    fill={botCount === count ? "solid" : "outline"}
-                    motif={CHOICE_MOTIFS[count - 1]}
-                    motifPlacement={botCount === count ? "full" : "edges"}
-                    className={styles.botChoice}
-                    ariaLabel={`${count} adversaire${count > 1 ? "s" : ""}`}
-                    ariaPressed={botCount === count}
-                    onClick={() => setBotCount(count)}
-                  >
+            <ChoiceButtonGroup
+              legend="Nombre d'adversaires"
+              tone="teal"
+              value={botCount}
+              onChange={setBotCount}
+              buttonClassName={styles.botChoice}
+              options={[1, 2, 3].map((count) => ({
+                value: count,
+                ariaLabel: `${count} adversaire${count > 1 ? "s" : ""}`,
+                content: (
+                  <>
                     <span className={styles.botAvatars} aria-hidden="true">
                       {Array.from({ length: count }, (_, index) => (
                         <span key={index}>
@@ -116,55 +111,37 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
                       ))}
                     </span>
                     <span className="nj-player-count-value" aria-hidden="true">{count}</span>
-                  </Btn>
-                ))}
-              </div>
-            </fieldset>
+                  </>
+                ),
+              }))}
+            />
           </Surface>
 
           <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelGold}`}>
-            <fieldset className={styles.choiceSet}>
-              <legend className={styles.choiceLegend}>Difficulté</legend>
-              <div className={styles.choiceGrid}>
-                {DIFFICULTIES.map((entry, index) => (
-                  <Btn
-                    key={entry.key}
-                    tone="gold"
-                    fill={difficulty === entry.key ? "solid" : "outline"}
-                    motif={CHOICE_MOTIFS[index]}
-                    motifPlacement={difficulty === entry.key ? "full" : "edges"}
-                    ariaPressed={difficulty === entry.key}
-                    onClick={() => setDifficulty(entry.key)}
-                    className={styles.choiceButton}
-                  >
-                    {entry.label}
-                  </Btn>
-                ))}
-              </div>
-            </fieldset>
+            <ChoiceButtonGroup
+              legend="Difficulté"
+              tone="gold"
+              value={difficulty}
+              onChange={setDifficulty}
+              options={DIFFICULTIES.map((entry) => ({
+                value: entry.key,
+                content: entry.label,
+              }))}
+            />
           </Surface>
 
           {!training && (
             <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelPink}`}>
-              <fieldset className={styles.choiceSet}>
-                <legend className={styles.choiceLegend}>Mise par manche</legend>
-                <div className={styles.choiceGrid}>
-                  {cfg.stakes.map((stake, index) => (
-                    <Btn
-                      key={stake}
-                      tone="pink"
-                      fill={mise === stake ? "solid" : "outline"}
-                      motif={CHOICE_MOTIFS[index % CHOICE_MOTIFS.length]}
-                      motifPlacement={mise === stake ? "full" : "edges"}
-                      ariaPressed={mise === stake}
-                      onClick={() => setMise(stake)}
-                      className={styles.choiceButton}
-                    >
-                      <NkapAmount value={stake} size="sm" />
-                    </Btn>
-                  ))}
-                </div>
-              </fieldset>
+              <ChoiceButtonGroup
+                legend="Mise par manche"
+                tone="pink"
+                value={mise}
+                onChange={setMise}
+                options={cfg.stakes.map((stake) => ({
+                  value: stake,
+                  content: <NkapAmount value={stake} size="sm" />,
+                }))}
+              />
             </Surface>
           )}
         </div>
@@ -172,14 +149,14 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
 
       <PreGameFooter status={footerStatus}>
         <div className={styles.actions}>
-          <Btn tone="gold" fill="outline" motif="royal-bands" motifPlacement="inset" onClick={() => navigateTo("menu")}>
+          <Btn tone="gold" fill="outline" motif="indigo-dots" motifSides="both" onClick={() => navigateTo("menu")}>
             ← Menu
           </Btn>
           <Btn
             tone="gold"
             fill="solid"
-            motif="sun-stripes"
-            motifPlacement="full"
+            motif="indigo-dots"
+            motifSides="both"
             onClick={() => onStart(botCount, training ? 0 : mise, difficulty)}
             disabled={!enoughNkap || !enoughEnergy}
             icon={<NjamboIcon name="play" tone="light" size={20} />}

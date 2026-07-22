@@ -5,7 +5,7 @@ import { T } from "@/config/theme";
 import { useAuth } from "@/hooks/useAuth";
 import { Surface } from "@/components/ui/Shell";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
-import { Btn, type BtnMotif } from "@/components/ui/Btn";
+import { Btn } from "@/components/ui/Btn";
 import styles from "./AuthGate.module.css";
 
 /* ═══════════════ AuthGate — inline login / register ═══════════════
@@ -59,12 +59,6 @@ const ACCOUNT_TONE_CLASS = {
   pink: styles.tonePink,
 } as const;
 
-const ACCOUNT_MOTIF: Record<NonNullable<AuthGateProps["tone"]>, BtnMotif> = {
-  gold: "sun-stripes",
-  teal: "indigo-dots",
-  pink: "royal-bands",
-};
-
 export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGateProps) {
   const {
     user, loading, loginWithEmail, registerWithEmail, loginWithGoogle,
@@ -87,8 +81,8 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
   /* ── Chargement ── */
   if (loading) {
     return (
-      <Surface className={gateClassName} style={{ textAlign: "center" }}>
-        <NjamboIcon name="profile" tone="gold" size={40} />
+      <Surface className={`${styles.authGate} ${ACCOUNT_TONE_CLASS[tone]}${gateClassName ? ` ${gateClassName}` : ""}`} style={{ textAlign: "center" }}>
+        <NjamboIcon name="profile" tone={tone} size={40} />
         <div role="status" style={{ fontWeight: 900, marginTop: 12 }}>Chargement…</div>
       </Surface>
     );
@@ -118,8 +112,8 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
             tone={tone}
             fill="outline"
             size="md"
-            motif={ACCOUNT_MOTIF[tone]}
-            motifPlacement="inset"
+            motif="indigo-dots"
+            motifSides="both"
             onClick={() => { void logout(); }}
             className={styles.logout}
           >
@@ -194,11 +188,11 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
   };
 
   return (
-    <Surface className={gateClassName}>
+    <Surface className={`${styles.authGate} ${ACCOUNT_TONE_CLASS[tone]}${gateClassName ? ` ${gateClassName}` : ""}`}>
       <form onSubmit={handleSubmit}>
         {/* Titre */}
         <div style={{ textAlign: "center", marginBottom: 16 }}>
-          <NjamboIcon name="profile" tone="gold" size={40} />
+          <NjamboIcon name="profile" tone={tone} size={40} />
           <h2 style={{ fontWeight: 900, margin: "10px 0 0", fontSize: 18 }}>
             {user?.isAnonymous ? "Sauvegarder mon compte" : isRegister ? "Créer un compte" : "Connexion"}
           </h2>
@@ -214,7 +208,7 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
         {/* Erreur */}
         {error && (
           <div role="alert" style={{
-            color: T.bad,
+            color: "var(--nj-solar-red-deep, #a92f2a)",
             fontSize: 13,
             textAlign: "center",
             padding: "8px 12px",
@@ -229,8 +223,26 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
         {/* Champs */}
         <div className="nj-stack" style={{ gap: 10 }}>
           <div role="group" aria-label="Méthode de connexion" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <button data-nj-skin="dark" aria-pressed={authMethod === "phone"} className={`nj-choice${authMethod === "phone" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("phone"); setError(""); }}>Téléphone</button>
-            <button data-nj-skin="dark" aria-pressed={authMethod === "email"} className={`nj-choice${authMethod === "email" ? " is-active" : ""}`} type="button" onClick={() => { setAuthMethod("email"); setError(""); }}>E-mail</button>
+            <Btn
+              tone={tone}
+              fill={authMethod === "phone" ? "soft" : "outline"}
+              motif="indigo-dots"
+              motifSides="both"
+              ariaPressed={authMethod === "phone"}
+              onClick={() => { setAuthMethod("phone"); setError(""); }}
+            >
+              Téléphone
+            </Btn>
+            <Btn
+              tone={tone}
+              fill={authMethod === "email" ? "soft" : "outline"}
+              motif="indigo-dots"
+              motifSides="both"
+              ariaPressed={authMethod === "email"}
+              onClick={() => { setAuthMethod("email"); setError(""); }}
+            >
+              E-mail
+            </Btn>
           </div>
 
           {authMethod === "phone" && (
@@ -290,25 +302,18 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
               <div id="auth-avatar-label" className="nj-subtle" style={{ marginBottom: 8, fontSize: 12 }}>Choisis ton avatar</div>
               <div role="group" aria-labelledby="auth-avatar-label" style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 8 }}>
                 {AVATARS.map((a) => (
-                  <button data-nj-skin="dark"
+                  <Btn
                     key={a}
-                    type="button"
-                    aria-label={`Choisir l'avatar ${a}`}
-                    aria-pressed={emoji === a}
+                    tone={tone}
+                    fill={emoji === a ? "soft" : "outline"}
+                    motif="indigo-dots"
+                    motifSides="both"
+                    ariaLabel={`Choisir l'avatar ${a}`}
+                    ariaPressed={emoji === a}
                     onClick={() => setEmoji(a)}
-                    className="nj-choice"
-                    style={{
-                      height: 48,
-                      borderRadius: 14,
-                      border: emoji === a ? `2px solid ${T.gold}` : "1px solid rgba(255,248,232,.12)",
-                      background: emoji === a ? `${T.gold}18` : "rgba(255,248,232,.05)",
-                      display: "grid",
-                      placeItems: "center",
-                      padding: 0,
-                    }}
-                  >
-                    <AvatarIllustration seed={a} size={32} />
-                  </button>
+                    className={styles.avatarChoice}
+                    icon={<AvatarIllustration seed={a} size={32} />}
+                  />
                 ))}
               </div>
             </div>
@@ -316,56 +321,50 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
           </>}
 
           {/* Bouton submit */}
-          <button data-nj-skin="dark"
+          <Btn
             type="submit"
+            tone={tone}
+            fill="solid"
+            size="lg"
+            motif="indigo-dots"
+            motifSides="both"
             disabled={busy}
-            aria-busy={busy}
-            style={{
-              width: "100%",
-              minHeight: 44,
-              borderRadius: 14,
-              border: "none",
-              fontWeight: 900,
-              cursor: busy ? "not-allowed" : "pointer",
-              opacity: busy ? 0.45 : 1,
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "center",
-              gap: 8,
-              fontSize: 15,
-              color: "#1b1010",
-              background: "linear-gradient(135deg, #f7cb63, #d88832)",
-              boxShadow: "0 4px 18px rgba(242,187,69,.32)",
-              padding: "0 20px",
+            ariaBusy={busy}
+            className={styles.fullButton}
+            icon={<NjamboIcon name={isRegister ? "play" : "home"} tone={tone} size={20} />}
+          >
+            {busy ? "…" : authMethod === "phone" ? (codeSent ? "Valider le code" : "Recevoir le code") : isRegister ? "Créer mon compte" : "Se connecter"}
+          </Btn>
+
+          <Btn
+            tone={tone}
+            fill="outline"
+            motif="indigo-dots"
+            motifSides="both"
+            disabled={busy}
+            className={styles.fullButton}
+            onClick={() => {
+              setBusy(true); setError("");
+              void loginWithGoogle().catch((err: unknown) => setError(authError((err as { code?: string })?.code))).finally(() => setBusy(false));
             }}
           >
-            <NjamboIcon name={isRegister ? "play" : "home"} tone="gold" size={20} />
-            {busy ? "…" : authMethod === "phone" ? (codeSent ? "Valider le code" : "Recevoir le code") : isRegister ? "Créer mon compte" : "Se connecter"}
-          </button>
-
-          <button data-nj-skin="dark" className="nj-choice" type="button" disabled={busy} onClick={() => {
-            setBusy(true); setError("");
-            void loginWithGoogle().catch((err: unknown) => setError(authError((err as { code?: string })?.code))).finally(() => setBusy(false));
-          }}>Continuer avec Google</button>
+            Continuer avec Google
+          </Btn>
 
           {/* Toggle mode */}
-          {authMethod === "email" && <button data-nj-skin="dark"
-            type="button"
-            onClick={() => { setMode(isRegister ? "login" : "register"); setError(""); }}
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: T.gold,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              textAlign: "center",
-              minHeight: 44,
-              padding: "8px 0",
-            }}
-          >
-            {isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? Créer un compte"}
-          </button>}
+          {authMethod === "email" && (
+            <Btn
+              tone={tone}
+              fill="outline"
+              motif="indigo-dots"
+              motifSides="both"
+              disabled={busy}
+              className={styles.fullButton}
+              onClick={() => { setMode(isRegister ? "login" : "register"); setError(""); }}
+            >
+              {isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? Créer un compte"}
+            </Btn>
+          )}
         </div>
       </form>
     </Surface>

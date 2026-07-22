@@ -182,7 +182,6 @@
 .sectionHeading button,
 .modeOpen,
 .resumeRibbon,
-.terAction,
 .bonusAction,
 .quickLinks button {
   border: 0;
@@ -1243,12 +1242,6 @@
   transition: transform 180ms ease, filter 180ms ease;
 }
 
-.terAction {
-  color: white;
-  background: linear-gradient(135deg, #a62b55, var(--home-pink));
-  box-shadow: 0 8px 18px rgba(216, 60, 104, 0.2);
-}
-
 .terAction:hover,
 .bonusAction:hover:not(:disabled) {
   transform: translateY(-2px);
@@ -1639,7 +1632,7 @@
 
 .iconButton > svg,
 .sectionHeading button span,
-.terAction span {
+.terAction .actionArrow {
   transition: transform 180ms ease;
 }
 
@@ -1654,10 +1647,10 @@
 .motionFull .sectionHeading button:focus-visible span,
 .motionBalanced .sectionHeading button:hover span,
 .motionBalanced .sectionHeading button:focus-visible span,
-.motionFull .terAction:hover span,
-.motionFull .terAction:focus-visible span,
-.motionBalanced .terAction:hover span,
-.motionBalanced .terAction:focus-visible span {
+.motionFull .terAction:hover .actionArrow,
+.motionFull .terAction:focus-visible .actionArrow,
+.motionBalanced .terAction:hover .actionArrow,
+.motionBalanced .terAction:focus-visible .actionArrow {
   transform: translateX(3px);
 }
 
@@ -2055,6 +2048,9 @@
   --home-teal: var(--nj-solar-green);
   --home-pink: var(--nj-solar-red);
   --home-muted: var(--nj-solar-muted);
+  --nj-tone-gold: var(--home-gold);
+  --nj-tone-teal: var(--home-teal);
+  --nj-tone-pink: var(--home-pink);
   color: var(--nj-solar-ink);
   background: transparent;
 }
@@ -2187,13 +2183,6 @@
   filter: saturate(1.12) contrast(1.05) brightness(1.05);
 }
 
-.homeScene .primaryPlay {
-  border-color: rgba(255, 255, 255, 0.62);
-  color: white;
-  background: linear-gradient(145deg, #32b77f, var(--nj-solar-green) 62%, var(--nj-solar-green-deep));
-  box-shadow: 0 12px 25px rgba(17, 99, 69, 0.25), inset 0 1px 0 rgba(255, 255, 255, 0.42);
-}
-
 .homeScene .primaryPlayIcon {
   border-color: rgba(255, 255, 255, 0.42);
   background: rgba(255, 255, 255, 0.2);
@@ -2298,12 +2287,6 @@
 
 .homeScene .rewardLine strong {
   color: var(--nj-solar-yellow-deep);
-}
-
-.homeScene .terAction {
-  color: white;
-  background: linear-gradient(135deg, var(--nj-solar-red-deep), var(--nj-solar-red));
-  box-shadow: 0 8px 18px rgba(169, 47, 42, 0.2);
 }
 
 .homeScene .dailyCard {
@@ -2658,28 +2641,24 @@
   position: relative;
   width: min(100%, 286px);
   min-height: 58px;
+  margin-top: 3px;
+  padding: 7px 13px 7px 8px;
+  border-radius: 18px;
+  text-align: left;
+}
+
+.primaryPlay :global(.njb__content) {
+  width: 100%;
   display: grid;
   grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
-  margin-top: 3px;
-  padding: 7px 13px 7px 8px;
-  border: 1px solid rgba(255, 239, 173, 0.62);
-  border-radius: 18px;
-  color: #2a1706;
-  background: linear-gradient(145deg, #ffec9c, var(--home-gold) 62%, #c87928);
-  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.38), 0 0 24px rgba(242, 187, 69, 0.14);
-  cursor: pointer;
-  text-align: left;
-  touch-action: manipulation;
-  transition: transform var(--nj-motion-interaction) ease, filter var(--nj-motion-interaction) ease, box-shadow var(--nj-motion-interaction) ease;
 }
 
 .primaryPlay:hover,
 .primaryPlay:focus-visible {
   transform: translateY(-2px);
   filter: brightness(1.05);
-  box-shadow: 0 15px 32px rgba(0, 0, 0, 0.42), 0 0 30px rgba(242, 187, 69, 0.2);
 }
 
 .primaryPlay:active {
@@ -2701,7 +2680,7 @@
   animation: primaryPlayReady var(--nj-motion-panel) 260ms cubic-bezier(.2, .9, .25, 1.18) both;
 }
 
-.primaryPlay > span:nth-child(2) {
+.primaryPlay :global(.njb__content) > span:nth-child(2) {
   min-width: 0;
   display: grid;
   gap: 2px;

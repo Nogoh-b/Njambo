@@ -6,6 +6,7 @@ import { useLobby } from "@/contexts/LobbyContext";
 import { useOnlinePlayers } from "@/hooks/useOnlinePlayers";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
+import { ChoiceButtonGroup } from "@/components/ui/ChoiceButtonGroup";
 import { NkapAmount } from "@/components/ui/NkapAmount";
 import { Chip } from "@/components/ui/Chip";
 import { AuthGate } from "@/components/ui/AuthGate";
@@ -17,8 +18,6 @@ import {
 } from "@/components/ui/PreGameLayout";
 import { Surface } from "@/components/ui/Shell";
 import styles from "./PreGameScreens.module.css";
-
-const CHOICE_MOTIFS = ["indigo-dots", "sun-stripes", "royal-bands"] as const;
 
 export function FriendsSetupScreen() {
   const { navigateTo, profile, cfg } = useGame();
@@ -88,48 +87,30 @@ export function FriendsSetupScreen() {
             <h2>Configurer la table</h2>
             <p>Choisis la mise et le nombre total de places.</p>
           </div>
-          <Chip strong={canCreate}>{canCreate ? "Prêt" : "Solde bas"}</Chip>
+          <Chip tone="pink">{canCreate ? "Prêt" : "Solde bas"}</Chip>
         </div>
 
-        <fieldset className={styles.choiceSet}>
-          <legend className={styles.choiceLegend}>Mise par manche</legend>
-          <div className={styles.choiceGrid}>
-            {cfg.stakes.map((stake, index) => (
-              <Btn
-                key={stake}
-                tone="pink"
-                fill={mise === stake ? "solid" : "outline"}
-                motif={CHOICE_MOTIFS[index % CHOICE_MOTIFS.length]}
-                motifPlacement={mise === stake ? "full" : "edges"}
-                ariaPressed={mise === stake}
-                onClick={() => setMise(stake)}
-                className={styles.choiceButton}
-              >
-                <NkapAmount value={stake} size="sm" />
-              </Btn>
-            ))}
-          </div>
-        </fieldset>
+        <ChoiceButtonGroup
+          legend="Mise par manche"
+          tone="pink"
+          value={mise}
+          onChange={setMise}
+          options={cfg.stakes.map((stake) => ({
+            value: stake,
+            content: <NkapAmount value={stake} size="sm" />,
+          }))}
+        />
 
-        <fieldset className={styles.choiceSet}>
-          <legend className={styles.choiceLegend}>Nombre de joueurs</legend>
-          <div className={styles.choiceGrid}>
-            {[2, 3, 4].map((count, index) => (
-              <Btn
-                key={count}
-                tone="pink"
-                fill={seats === count ? "solid" : "outline"}
-                motif={CHOICE_MOTIFS[index]}
-                motifPlacement={seats === count ? "full" : "edges"}
-                ariaPressed={seats === count}
-                onClick={() => changeSeats(count)}
-                className={styles.choiceButton}
-              >
-                {count}
-              </Btn>
-            ))}
-          </div>
-        </fieldset>
+        <ChoiceButtonGroup
+          legend="Nombre de joueurs"
+          tone="pink"
+          value={seats}
+          onChange={changeSeats}
+          options={[2, 3, 4].map((count) => ({
+            value: count,
+            content: count,
+          }))}
+        />
       </Surface>
 
       <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelGold}`}>
@@ -164,8 +145,8 @@ export function FriendsSetupScreen() {
               type="submit"
               tone="gold"
               fill="outline"
-              motif="sun-stripes"
-              motifPlacement="edges"
+              motif="indigo-dots"
+              motifSides="both"
               icon={<NjamboIcon name="code" tone="gold" size={16} />}
               disabled={busy || joinCode.length < 4}
             >
@@ -246,11 +227,11 @@ export function FriendsSetupScreen() {
             <Btn
               tone="pink"
               fill="solid"
-              motif="royal-bands"
-              motifPlacement="full"
+              motif="indigo-dots"
+              motifSides="both"
               onClick={handleCreate}
               disabled={!canCreate}
-              icon={<NjamboIcon name="home" tone="gold" size={18} />}
+              icon={<NjamboIcon name="home" tone="pink" size={18} />}
             >
               {busy ? "Création…" : "Créer la salle"}
             </Btn>

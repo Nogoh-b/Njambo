@@ -8,14 +8,14 @@
   grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: 11px;
-  padding: 10px 11px 10px 15px;
+  padding: 10px 13px;
   overflow: hidden;
   color: var(--nj-solar-ink, #24372f);
   border: 1px solid color-mix(in srgb, var(--equipped-tone) 54%, var(--nj-solar-outline, #b88e54));
   border-radius: 16px;
   background:
     radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--equipped-tone) 20%, transparent), transparent 42%),
-    linear-gradient(145deg, rgba(255, 253, 246, 0.96), rgba(242, 226, 193, 0.94));
+    linear-gradient(145deg, rgba(255, 253, 246, 0.96), color-mix(in srgb, var(--equipped-tone) 7%, #f2e2c1));
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 9px 20px rgba(35, 31, 18, 0.16);
   font: inherit;
   cursor: pointer;
@@ -24,14 +24,27 @@
   transition: transform var(--nj-motion-press) ease, border-color var(--nj-motion-interaction) ease, box-shadow var(--nj-motion-interaction) ease;
 }
 
-.bar::before {
+.bar::before,
+.bar::after {
   content: "";
   position: absolute;
-  inset: 0 auto 0 0;
-  z-index: -1;
-  width: 7px;
+  inset-block: 3px;
+  z-index: 0;
+  width: 5px;
+  border-radius: 999px;
   background:
-    repeating-linear-gradient(0deg, color-mix(in srgb, var(--equipped-tone) 76%, black) 0 7px, color-mix(in srgb, var(--equipped-tone) 22%, white) 7px 13px);
+    radial-gradient(circle, color-mix(in srgb, var(--equipped-tone) 28%, white) 0 1.3px, transparent 1.6px) 0 0 / 8px 11px,
+    radial-gradient(circle, color-mix(in srgb, var(--equipped-tone) 52%, white) 0 2px, transparent 2.3px) 4px 6px / 19px 23px,
+    linear-gradient(90deg, color-mix(in srgb, var(--equipped-tone) 46%, black), color-mix(in srgb, var(--equipped-tone) 72%, black) 52%, color-mix(in srgb, var(--equipped-tone) 46%, black));
+  opacity: 0.76;
+}
+
+.bar::before { left: 2px; }
+.bar::after { right: 2px; }
+
+.bar > * {
+  position: relative;
+  z-index: 1;
 }
 
 .bar:hover {

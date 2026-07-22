@@ -2,7 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
-import { Btn, type BtnMotif } from "./Btn";
+import { Btn } from "./Btn";
 import { GameShell } from "@/components/ui/GameShell";
 import type { GameTone } from "@/components/ui/GamePrimitives";
 import { HubReveal } from "@/components/ui/HubReveal";
@@ -47,13 +47,6 @@ const TONE_CLASS: Record<PreGameTone, string> = {
   cobalt: styles.toneCobalt,
 };
 
-const MOTIF_BY_TONE: Record<PreGameTone, BtnMotif> = {
-  gold: "sun-stripes",
-  teal: "indigo-dots",
-  pink: "royal-bands",
-  cobalt: "indigo-dots",
-};
-
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -89,8 +82,8 @@ export function PreGameLayout({
             <Btn
               tone={tone}
               fill="outline"
-              motif={MOTIF_BY_TONE[tone]}
-              motifPlacement="inset"
+              motif="indigo-dots"
+              motifSides="both"
               className={styles.backButton}
               onClick={onBack}
               ariaLabel={backAriaLabel ?? `Retour à ${backLabel}`}

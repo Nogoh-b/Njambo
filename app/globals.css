@@ -735,6 +735,7 @@ button[data-nj-skin="icon"],
    Tout est piloté par un unique --nj-btn-accent posé par .njb--<tone>. */
 .njb {
   --nj-btn-accent: var(--nj-tone-gold);
+  --nj-btn-ink: #765033;
   position: relative;
   min-height: var(--nj-touch-target);
   display: inline-flex;
@@ -760,12 +761,12 @@ button[data-nj-skin="icon"],
     background var(--nj-motion-interaction) ease;
 }
 
-.njb--gold { --nj-btn-accent: var(--nj-tone-gold); }
-.njb--teal { --nj-btn-accent: var(--nj-tone-teal); }
-.njb--pink { --nj-btn-accent: var(--nj-tone-pink); }
-.njb--cobalt { --nj-btn-accent: var(--nj-tone-cobalt); }
-.njb--blue { --nj-btn-accent: var(--nj-tone-blue); }
-.njb--orange { --nj-btn-accent: var(--nj-tone-orange); }
+.njb--gold { --nj-btn-accent: var(--nj-tone-gold); --nj-btn-ink: color-mix(in srgb, var(--nj-solar-yellow-deep, #a9680c) 72%, var(--nj-solar-ink, #24372f) 28%); }
+.njb--teal { --nj-btn-accent: var(--nj-tone-teal); --nj-btn-ink: var(--nj-solar-green-deep, #116345); }
+.njb--pink { --nj-btn-accent: var(--nj-tone-pink); --nj-btn-ink: var(--nj-solar-red-deep, #a92f2a); }
+.njb--cobalt { --nj-btn-accent: var(--nj-tone-cobalt); --nj-btn-ink: #263f96; }
+.njb--blue { --nj-btn-accent: var(--nj-tone-blue); --nj-btn-ink: #1f2d8d; }
+.njb--orange { --nj-btn-accent: var(--nj-tone-orange); --nj-btn-ink: #87340f; }
 
 .njb--sm { min-height: 38px; padding: 0 12px; border-radius: 12px; font-size: 0.8rem; }
 .njb--md { min-height: var(--nj-touch-target); font-size: 0.9rem; }
@@ -775,18 +776,34 @@ button[data-nj-skin="icon"],
 .njb--solid {
   color: #fff7e6;
   border-color: color-mix(in srgb, var(--nj-btn-accent) 40%, transparent);
-  background:
-    radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--nj-btn-accent) 55%, transparent), transparent 46%),
-    linear-gradient(150deg, color-mix(in srgb, var(--nj-btn-accent) 92%, white 8%), color-mix(in srgb, var(--nj-btn-accent) 78%, black 22%));
+  background: linear-gradient(150deg, color-mix(in srgb, var(--nj-btn-accent) 35%, var(--nj-btn-ink) 65%), color-mix(in srgb, var(--nj-btn-accent) 8%, var(--nj-btn-ink) 92%));
   box-shadow:
     inset 0 1px 0 rgba(255, 255, 255, 0.22),
     0 10px 22px color-mix(in srgb, var(--nj-btn-accent) 30%, transparent);
 }
 
+.njb--gold.njb--solid {
+  color: var(--nj-solar-ink, #24372f);
+  background: linear-gradient(150deg, color-mix(in srgb, var(--nj-btn-accent) 96%, white 4%), color-mix(in srgb, var(--nj-btn-accent) 78%, black 22%));
+}
+
+/* DOUX : sélection claire inspirée des cartes crème de l'accueil.
+   La teinte reste présente sans transformer le bouton en bloc saturé. */
+.njb--soft {
+  color: var(--nj-btn-ink);
+  border-color: color-mix(in srgb, var(--nj-btn-accent) 58%, var(--nj-solar-outline, #b88e54));
+  background:
+    radial-gradient(circle at 84% 8%, color-mix(in srgb, var(--nj-btn-accent) 18%, transparent), transparent 43%),
+    linear-gradient(145deg, rgba(255, 253, 246, 0.98), color-mix(in srgb, var(--nj-btn-accent) 11%, #f2e2c1));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.92),
+    0 7px 16px color-mix(in srgb, var(--nj-btn-accent) 14%, rgba(35, 31, 18, 0.14));
+}
+
 /* CONTOUR : bordure teintée, fond quasi transparent, texte = accent assombri
    (lisible sur crème comme sur sombre, sans dépendre de --text). */
 .njb--outline {
-  color: color-mix(in srgb, var(--nj-btn-accent) 86%, black 14%);
+  color: var(--nj-btn-ink);
   border-color: color-mix(in srgb, var(--nj-btn-accent) 62%, transparent);
   background: color-mix(in srgb, var(--nj-btn-accent) 8%, transparent);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
@@ -857,46 +874,37 @@ button[data-nj-skin="icon"],
     repeating-linear-gradient(90deg, color-mix(in srgb, var(--nj-btn-accent) 78%, black) 0 16px, color-mix(in srgb, var(--nj-btn-accent) 10%, white) 16px 28px, color-mix(in srgb, var(--nj-btn-accent) 78%, black) 28px 45px);
 }
 
-/* Deux bandes franches sur les côtés : très lisible sur les petits boutons. */
-.njb--motif-edges .njb__motif {
-  inset: 1px;
-  opacity: 0.92;
-  -webkit-mask: linear-gradient(90deg, #000 0 12px, transparent 12px calc(100% - 12px), #000 calc(100% - 12px));
-  mask: linear-gradient(90deg, #000 0 12px, transparent 12px calc(100% - 12px), #000 calc(100% - 12px));
+/* Signature Ndop très fine, activable à gauche, à droite ou des deux côtés. */
+.njb--motif-left .njb__motif,
+.njb--motif-right .njb__motif,
+.njb--motif-both .njb__motif {
+  inset: 2px;
+  opacity: 0.74;
 }
 
-/* Fin cadre textile à l'intérieur, pour les actions secondaires. */
-.njb--motif-inset .njb__motif {
-  inset: 5px;
-  padding: 3px;
-  opacity: 0.72;
-  -webkit-mask:
-    linear-gradient(#000 0 0) content-box,
-    linear-gradient(#000 0 0);
-  -webkit-mask-composite: xor;
-  mask-composite: exclude;
+.njb--motif-left .njb__motif {
+  -webkit-mask: linear-gradient(90deg, #000 0 6px, transparent 6px);
+  mask: linear-gradient(90deg, #000 0 6px, transparent 6px);
 }
 
-/* Motif en surface, volontairement atténué pour préserver le libellé. */
-.njb--motif-full .njb__motif {
-  inset: 1px;
-  opacity: 0.28;
+.njb--motif-right .njb__motif {
+  -webkit-mask: linear-gradient(90deg, transparent 0 calc(100% - 6px), #000 calc(100% - 6px));
+  mask: linear-gradient(90deg, transparent 0 calc(100% - 6px), #000 calc(100% - 6px));
 }
 
-.njb--motif-full .njb__content {
-  text-shadow: 0 1px 2px rgba(5, 7, 18, 0.42);
-}
-
-.njb--outline.njb--motif-full .njb__motif {
-  opacity: 0.16;
+.njb--motif-both .njb__motif {
+  -webkit-mask: linear-gradient(90deg, #000 0 6px, transparent 6px calc(100% - 6px), #000 calc(100% - 6px));
+  mask: linear-gradient(90deg, #000 0 6px, transparent 6px calc(100% - 6px), #000 calc(100% - 6px));
 }
 
 .njb:hover:not(:disabled) .njb__motif {
   opacity: 1;
 }
 
-.njb--motif-full:hover:not(:disabled) .njb__motif {
-  opacity: 0.38;
+.njb--motif-left:hover:not(:disabled) .njb__motif,
+.njb--motif-right:hover:not(:disabled) .njb__motif,
+.njb--motif-both:hover:not(:disabled) .njb__motif {
+  opacity: 0.88;
 }
 
 .njb--icon { width: var(--nj-touch-target); padding: 0; border-radius: 50%; }

@@ -1,3 +1,37 @@
+.authGate.authGate {
+  color: var(--nj-solar-ink, #24372f);
+  border-color: color-mix(in srgb, var(--account-tone) 52%, var(--nj-solar-outline, #b88e54));
+  background:
+    radial-gradient(circle at 90% 2%, color-mix(in srgb, var(--account-tone) 22%, transparent), transparent 40%),
+    linear-gradient(145deg, color-mix(in srgb, var(--account-tone) 7%, #f7ead0), color-mix(in srgb, var(--account-tone) 10%, #f2e2c1));
+  box-shadow: inset 0 1px 0 white, 0 12px 26px rgba(35, 31, 18, 0.2);
+}
+
+.authGate.authGate::before {
+  background: repeating-linear-gradient(135deg, transparent 0 24px, color-mix(in srgb, var(--account-tone) 8%, transparent) 24px 26px, transparent 26px 50px);
+  opacity: 0.68;
+}
+
+.authGate :global(.nj-subtle) {
+  color: var(--nj-solar-muted, #66756d);
+}
+
+.authGate :global(.nj-input) {
+  color: var(--nj-solar-ink, #24372f);
+  border-color: color-mix(in srgb, var(--account-tone) 42%, var(--nj-solar-outline, #b88e54));
+  background: rgba(255, 253, 246, 0.9);
+  box-shadow: inset 0 1px 0 white;
+}
+
+.authGate :global(.nj-input)::placeholder {
+  color: var(--nj-solar-muted, #66756d);
+}
+
+.authGate :global(.nj-input):focus {
+  border-color: color-mix(in srgb, var(--account-tone) 72%, var(--nj-solar-outline, #b88e54));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--account-tone) 18%, transparent), inset 0 1px 0 white;
+}
+
 .accountCard {
   --account-tone: var(--nj-solar-yellow, #f5c344);
   position: relative;
@@ -7,23 +41,15 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 4px;
-  padding: 9px 10px 9px 15px;
+  padding: 10px;
   overflow: hidden;
   border: 1px solid color-mix(in srgb, var(--account-tone) 50%, var(--nj-solar-outline, #b88e54));
   border-radius: 17px;
   color: var(--nj-solar-ink, #24372f);
   background:
     radial-gradient(circle at 90% 0, color-mix(in srgb, var(--account-tone) 20%, transparent), transparent 42%),
-    linear-gradient(145deg, rgba(255, 253, 246, 0.97), rgba(242, 226, 193, 0.95));
+    linear-gradient(145deg, rgba(255, 253, 246, 0.97), color-mix(in srgb, var(--account-tone) 7%, #f2e2c1));
   box-shadow: inset 0 1px 0 white, 0 10px 22px rgba(35, 31, 18, 0.17);
-}
-
-.accountCard::before {
-  content: "";
-  position: absolute;
-  inset: 0 auto 0 0;
-  width: 7px;
-  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--account-tone) 78%, black) 0 7px, color-mix(in srgb, var(--account-tone) 18%, white) 7px 13px);
 }
 
 .toneGold { --account-tone: var(--nj-solar-yellow, #f5c344); }
@@ -75,6 +101,17 @@
 
 .logout {
   flex: 0 0 auto;
+}
+
+.fullButton.fullButton,
+.avatarChoice.avatarChoice {
+  width: 100%;
+}
+
+.avatarChoice.avatarChoice {
+  height: 48px;
+  padding: 0;
+  border-radius: 14px;
 }
 
 @media (max-width: 480px) {

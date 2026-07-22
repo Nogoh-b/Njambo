@@ -63,7 +63,13 @@ export function SocialActions({ player, compact = false, showProfile = true, sho
   };
 
   const pad = compact ? { paddingInline: 9, fontSize: 11 } : undefined;
-  const sharedStyle = tone ? { tone, fill: "outline" as const, size: "md" as const } : {};
+  const sharedStyle = tone ? {
+    tone,
+    fill: "outline" as const,
+    size: "md" as const,
+    motif: "indigo-dots" as const,
+    motifSides: "both" as const,
+  } : {};
   const iconTone = tone ?? "gold";
 
   return (

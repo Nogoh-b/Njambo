@@ -5,6 +5,7 @@ import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useStat
 import { GameShell } from "@/components/ui/GameShell";
 import { StatusBanner } from "@/components/ui/GamePrimitives";
 import { HubReveal } from "@/components/ui/HubReveal";
+import { Btn } from "@/components/ui/Btn";
 import { AvatarIllustration, NjamboFriendlyIcon, NjamboIcon, type NjamboIconName, type NjamboIconTone } from "@/components/ui/Art";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
@@ -585,21 +586,24 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                 <small>{canResume ? "Partie en cours" : t("home.playKicker")}</small>
                 <div className={styles.heroActionRow}>
                   <h1 id="home-play-title">{canResume ? "La table t’attend" : t("home.playTitle")}</h1>
-                  <button
-                    data-nj-skin="none"
-                    type="button"
+                  <Btn
+                    tone={canResume ? "gold" : "teal"}
+                    fill="solid"
+                    size="lg"
+                    motif="indigo-dots"
+                    motifSides="both"
                     className={styles.primaryPlay}
                     onClick={handlePrimaryPlay}
                     onPointerEnter={() => preloadScene("play")}
                     onFocus={() => preloadScene("play")}
-                    aria-label={canResume ? "Reprendre la partie en cours" : "Jouer, choisir une table"}
+                    ariaLabel={canResume ? "Reprendre la partie en cours" : "Jouer, choisir une table"}
                   >
                     <span className={styles.primaryPlayIcon} aria-hidden="true">
-                      <NjamboIcon name={canResume ? "history" : "play"} tone="gold" size={28} priority />
+                      <NjamboIcon name={canResume ? "history" : "play"} tone={canResume ? "gold" : "teal"} size={28} priority />
                     </span>
                     <span><strong>{canResume ? "Reprendre" : "Jouer"}</strong></span>
                     <span className={styles.primaryPlayArrow} aria-hidden="true">→</span>
-                  </button>
+                  </Btn>
                 </div>
               </div>
               <button data-nj-skin="none" type="button" className={styles.allModesLink} onClick={() => openLink("play")} onPointerEnter={() => preloadScene("play")} onFocus={() => preloadScene("play")} aria-label="Voir tous les modes de jeu">
@@ -637,7 +641,16 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                 <NjamboIcon name="sparkle" tone="gold" size={17} />
                 <span><small>Récompense finale</small><strong>{featuredReward}</strong></span>
               </div>
-              <button data-nj-skin="none" type="button" className={styles.terAction} onClick={() => openLink("events")}>Voir le défi <span aria-hidden="true">→</span></button>
+              <Btn
+                tone="pink"
+                fill="solid"
+                motif="indigo-dots"
+                motifSides="both"
+                className={styles.terAction}
+                onClick={() => openLink("events")}
+              >
+                Voir le défi <span className={styles.actionArrow} aria-hidden="true">→</span>
+              </Btn>
             </article>
 
             <article className={`${styles.dailyCard} ${bonusReady ? styles.dailyReady : ""}${bonusBurst ? ` ${styles.bonusBurst}` : ""}${claiming ? ` ${styles.claiming}` : ""}`}>

@@ -16,11 +16,36 @@
   --nj-teal: var(--nj-solar-green, #199b68);
   --nj-pink: var(--nj-solar-red, #e45145);
   --nj-cobalt: #4d78c9;
+  /* Dans les menus de choix, le composant partagé reprend exactement les
+     couleurs des cartes de l'accueil, pas son ancienne palette néon. */
+  --nj-tone-gold: var(--nj-solar-yellow, #f5c344);
+  --nj-tone-teal: var(--nj-solar-green, #199b68);
+  --nj-tone-pink: var(--nj-solar-red, #e45145);
+  --nj-tone-cobalt: #4d78c9;
+  --gold: var(--nj-solar-yellow, #f5c344);
+  --teal: var(--nj-solar-green, #199b68);
+  --pink: var(--nj-solar-red, #e45145);
   --text: var(--nj-solar-ink, #24372f);
   --brass: var(--pre-game-accent);
   --wood-edge: color-mix(in srgb, var(--pre-game-accent) 24%, #d8c49e);
   --wood-grain: var(--nj-solar-surface-strong, #f7ead0);
   isolation: isolate;
+}
+
+.scene :global(.nj-input) {
+  color: var(--nj-solar-ink, #24372f);
+  border-color: color-mix(in srgb, var(--pre-game-accent) 38%, var(--nj-solar-outline, #b88e54));
+  background: rgba(255, 253, 246, 0.9);
+  box-shadow: inset 0 1px 0 white;
+}
+
+.scene :global(.nj-input)::placeholder {
+  color: color-mix(in srgb, var(--nj-solar-muted, #66756d) 74%, transparent);
+}
+
+.scene :global(.nj-input):focus {
+  border-color: color-mix(in srgb, var(--pre-game-accent) 72%, var(--nj-solar-outline, #b88e54));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pre-game-accent) 18%, transparent), inset 0 1px 0 white;
 }
 
 .scene::before {

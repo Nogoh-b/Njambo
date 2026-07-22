@@ -1,16 +1,16 @@
 "use client";
 
-import type { CSSProperties, ReactNode } from "react";
+import type { CSSProperties, FocusEventHandler, PointerEventHandler, ReactNode } from "react";
 
 /** Ancienne API (skins raster 9-slice). Conservée pour rétro-compatibilité. */
 export type BtnVariant = "gold" | "teal" | "pink" | "ghost" | "dark";
 
 /** Nouveau système partagé, piloté par props. */
 export type BtnTone = "gold" | "teal" | "pink" | "cobalt" | "blue" | "orange";
-export type BtnFill = "solid" | "outline" | "pattern";
+export type BtnFill = "solid" | "soft" | "outline" | "pattern";
 export type BtnSize = "sm" | "md" | "lg";
 export type BtnMotif = "indigo-dots" | "sun-stripes" | "royal-bands";
-export type BtnMotifPlacement = "edges" | "inset" | "full";
+export type BtnMotifSides = "left" | "right" | "both";
 
 interface BtnProps {
   children?: ReactNode;
@@ -26,14 +26,17 @@ interface BtnProps {
   size?: BtnSize;
   /** Motif textile inspiré des références africaines du projet. */
   motif?: BtnMotif;
-  /** Placement du motif : côtés, cadre intérieur ou surface complète. */
-  motifPlacement?: BtnMotifPlacement;
+  /** Côté portant le motif. Sans `motif`, le bouton reste uni. */
+  motifSides?: BtnMotifSides;
   disabled?: boolean;
   style?: CSSProperties;
   className?: string;
   icon?: ReactNode;
   ariaLabel?: string;
   ariaPressed?: boolean;
+  ariaBusy?: boolean;
+  onPointerEnter?: PointerEventHandler<HTMLButtonElement>;
+  onFocus?: FocusEventHandler<HTMLButtonElement>;
 }
 
 export function Btn({
@@ -45,13 +48,16 @@ export function Btn({
   fill,
   size,
   motif,
-  motifPlacement = "edges",
+  motifSides = "both",
   disabled,
   style,
   className,
   icon,
   ariaLabel,
   ariaPressed,
+  ariaBusy,
+  onPointerEnter,
+  onFocus,
 }: BtnProps) {
   const iconOnly = !!icon && !children;
 
@@ -69,7 +75,7 @@ export function Btn({
       `njb--${resolvedFill}`,
       `njb--${resolvedSize}`,
       motif ? `njb--motif-${motif}` : "",
-      motif ? `njb--motif-${motifPlacement}` : "",
+      motif ? `njb--motif-${motifSides}` : "",
       iconOnly ? "njb--icon" : "",
       className ?? "",
     ]
@@ -81,9 +87,12 @@ export function Btn({
         type={type}
         data-nj-skin="none"
         onClick={onClick}
+        onPointerEnter={onPointerEnter}
+        onFocus={onFocus}
         disabled={disabled}
         aria-label={ariaLabel}
         aria-pressed={ariaPressed}
+        aria-busy={ariaBusy}
         className={classes}
         style={style}
       >
@@ -101,9 +110,12 @@ export function Btn({
       type={type}
       data-nj-skin={iconOnly ? "icon" : variant}
       onClick={onClick}
+      onPointerEnter={onPointerEnter}
+      onFocus={onFocus}
       disabled={disabled}
       aria-label={ariaLabel}
       aria-pressed={ariaPressed}
+      aria-busy={ariaBusy}
       className={`btn btn-${variant}${iconOnly ? " btn-icon-only" : ""}${className ? ` ${className}` : ""}`}
       style={style}
     >
