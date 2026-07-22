@@ -65,13 +65,20 @@ const SPARKS = [
 /* Pluie de cartes de fond : positions/délais fixes (déterministes, pas de Math.random
    → aucun mismatch d'hydratation). Slicée par fallingCardCount + gardée par le profil motion. */
 const FALLING_CARDS = [
-  { left: "8%", delay: "0s", duration: "13s", scale: "0.8", rot: "-18deg", drift: "14px" },
-  { left: "24%", delay: "3.5s", duration: "16s", scale: "0.62", rot: "12deg", drift: "-10px" },
-  { left: "41%", delay: "6s", duration: "12s", scale: "0.9", rot: "-8deg", drift: "18px" },
-  { left: "57%", delay: "1.8s", duration: "15s", scale: "0.7", rot: "20deg", drift: "-16px" },
-  { left: "72%", delay: "8s", duration: "14s", scale: "0.55", rot: "-14deg", drift: "10px" },
-  { left: "86%", delay: "4.5s", duration: "17s", scale: "0.85", rot: "9deg", drift: "-12px" },
-  { left: "94%", delay: "10s", duration: "13s", scale: "0.6", rot: "-20deg", drift: "8px" },
+  { left: "3%", delay: "-2.1s", duration: "10.8s", scale: "1.08", rot: "-18deg", drift: "34px", opacity: ".62" },
+  { left: "11%", delay: "-8.4s", duration: "14.2s", scale: ".68", rot: "12deg", drift: "-22px", opacity: ".42" },
+  { left: "19%", delay: "-5.6s", duration: "12.6s", scale: ".88", rot: "-9deg", drift: "28px", opacity: ".54" },
+  { left: "27%", delay: "-11.8s", duration: "15.4s", scale: ".58", rot: "21deg", drift: "-18px", opacity: ".36" },
+  { left: "35%", delay: "-1.2s", duration: "11.4s", scale: "1", rot: "-13deg", drift: "24px", opacity: ".58" },
+  { left: "43%", delay: "-9.7s", duration: "13.8s", scale: ".72", rot: "16deg", drift: "-25px", opacity: ".43" },
+  { left: "51%", delay: "-4.2s", duration: "10.4s", scale: "1.13", rot: "-16deg", drift: "36px", opacity: ".64" },
+  { left: "59%", delay: "-12.2s", duration: "16s", scale: ".62", rot: "10deg", drift: "-20px", opacity: ".38" },
+  { left: "67%", delay: "-6.5s", duration: "12s", scale: ".92", rot: "-20deg", drift: "30px", opacity: ".55" },
+  { left: "75%", delay: "-2.8s", duration: "14.8s", scale: ".7", rot: "8deg", drift: "-28px", opacity: ".44" },
+  { left: "82%", delay: "-10.6s", duration: "11.2s", scale: "1.04", rot: "17deg", drift: "22px", opacity: ".61" },
+  { left: "88%", delay: "-7.3s", duration: "15.8s", scale: ".6", rot: "-11deg", drift: "-19px", opacity: ".37" },
+  { left: "93%", delay: "-3.7s", duration: "12.9s", scale: ".84", rot: "20deg", drift: "26px", opacity: ".52" },
+  { left: "97%", delay: "-13.1s", duration: "14.6s", scale: ".66", rot: "-15deg", drift: "-30px", opacity: ".4" },
 ];
 
 const compactNumber = new Intl.NumberFormat("fr-FR", { notation: "compact", maximumFractionDigits: 1 });
@@ -406,13 +413,14 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
     setClaiming(true);
     try {
       await command("claimDailyReward");
-      if (motion.allowParticles) {
+      // Burst joué dès que les animations sont activées (plus seulement en niveau "full").
+      if (motion.enabled) {
         if (bonusBurstTimerRef.current) clearTimeout(bonusBurstTimerRef.current);
         setBonusBurst(true);
         bonusBurstTimerRef.current = setTimeout(() => {
           setBonusBurst(false);
           bonusBurstTimerRef.current = null;
-        }, 900);
+        }, 1100);
       }
     } finally {
       setClaiming(false);
@@ -471,6 +479,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
               "--rain-scale": card.scale,
               "--rain-rot": card.rot,
               "--rain-drift": card.drift,
+              "--rain-opacity": card.opacity,
             } as CSSProperties}
           />
         ))}
@@ -631,9 +640,13 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
               <button data-nj-skin="none" type="button" className={styles.terAction} onClick={() => openLink("events")}>Voir le défi <span aria-hidden="true">→</span></button>
             </article>
 
-            <article className={`${styles.dailyCard} ${bonusReady ? styles.dailyReady : ""}${bonusBurst ? ` ${styles.bonusBurst}` : ""}`}>
+            <article className={`${styles.dailyCard} ${bonusReady ? styles.dailyReady : ""}${bonusBurst ? ` ${styles.bonusBurst}` : ""}${claiming ? ` ${styles.claiming}` : ""}`}>
+              <span className={styles.rewardToast} aria-hidden="true">+100 Nkap</span>
               <div className={styles.dailyHead}>
-                <span className={styles.dailyIcon}><Image src="/assets/njambo/economy/loyalty-wheel-64.webp" alt="" width={38} height={38} /></span>
+                <span className={styles.dailyWheel} aria-hidden="true">
+                  <span className={styles.dailyWheelHalo} />
+                  <span className={styles.dailyWheelDisc} />
+                </span>
                 <span><small>Rituel quotidien</small><h2>Le cadeau du quartier</h2></span>
                 <strong>+100</strong>
               </div>

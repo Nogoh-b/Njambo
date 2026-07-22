@@ -13,6 +13,29 @@
   overflow: visible;
 }
 
+/* Même palette que les trois cartes rapides de l'accueil, panachée entre les
+   blocs au lieu de teinter tout un écran avec une seule couleur. */
+.panelTone.panelTone {
+  --panel-tone: var(--nj-solar-yellow, #f5c344);
+  border-color: color-mix(in srgb, var(--panel-tone) 52%, var(--nj-solar-outline, #b88e54));
+  background:
+    radial-gradient(circle at 90% 4%, color-mix(in srgb, var(--panel-tone) 25%, transparent), transparent 38%),
+    linear-gradient(145deg, rgba(247, 234, 208, 0.98), rgba(242, 226, 193, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 232, 0.72),
+    0 10px 24px color-mix(in srgb, var(--panel-tone) 13%, rgba(35, 31, 18, 0.2));
+}
+
+.panelTone.panelTone::before {
+  background:
+    repeating-linear-gradient(135deg, transparent 0 24px, color-mix(in srgb, var(--panel-tone) 8%, transparent) 24px 26px, transparent 26px 50px);
+  opacity: 0.7;
+}
+
+.panelTeal { --panel-tone: var(--nj-solar-green, #199b68); }
+.panelGold { --panel-tone: var(--nj-solar-yellow, #f5c344); }
+.panelPink { --panel-tone: var(--nj-solar-red, #e45145); }
+
 .authPanel.authPanel {
   width: min(100%, 520px);
   margin-inline: auto;
@@ -89,6 +112,12 @@
   gap: 10px;
 }
 
+.legendAmount {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
 .choiceGrid {
   min-width: 0;
   display: grid;
@@ -115,10 +144,7 @@
   gap: 7px;
   padding: 6px;
   overflow: hidden;
-  color: var(--nj-text, var(--text, #fff4df));
-  border: 1px solid rgba(255, 244, 223, 0.14);
   border-radius: var(--nj-radius-md, 16px);
-  background: rgba(8, 8, 15, 0.62);
   font: inherit;
   font-size: 1rem;
   font-weight: 900;
@@ -127,7 +153,17 @@
   transition:
     transform var(--nj-motion-press) ease,
     border-color var(--nj-motion-interaction) ease,
+    box-shadow var(--nj-motion-interaction) ease,
     filter var(--nj-motion-interaction) ease;
+}
+
+.botChoice :global(.njb__content) {
+  width: 100%;
+  gap: 7px;
+}
+
+.botChoice:active {
+  transform: scale(0.985);
 }
 
 .botAvatars {
@@ -151,9 +187,9 @@
 }
 
 .notice {
-  color: #ffe9ac;
-  border: 1px solid rgba(242, 187, 69, 0.3);
-  background: rgba(89, 52, 21, 0.48);
+  color: var(--nj-solar-ink, #24372f);
+  border: 1px solid rgba(242, 187, 69, 0.44);
+  background: color-mix(in srgb, var(--nj-solar-yellow, #f5c344) 16%, rgba(255, 253, 246, 0.9));
 }
 
 .error {
@@ -163,9 +199,9 @@
 }
 
 .status {
-  color: var(--nj-text-muted, rgba(255, 244, 223, 0.72));
-  border: 1px solid rgba(255, 244, 223, 0.12);
-  background: rgba(5, 6, 12, 0.44);
+  color: var(--nj-text-muted, #66756d);
+  border: 1px solid rgba(118, 80, 51, 0.2);
+  background: rgba(255, 253, 246, 0.7);
 }
 
 .listBody {
@@ -193,8 +229,49 @@
   min-height: var(--nj-touch-target);
 }
 
+.playerCard.playerCard,
+.roomCard.roomCard {
+  --player-card-tone: var(--panel-tone, var(--pre-game-accent, #f5c344));
+  position: relative;
+  overflow: hidden;
+  color: var(--nj-solar-ink, #24372f);
+  border-color: color-mix(in srgb, var(--player-card-tone) 48%, var(--nj-solar-outline, #b88e54));
+  background:
+    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--player-card-tone) 18%, transparent), transparent 40%),
+    linear-gradient(145deg, rgba(255, 253, 246, 0.96), rgba(242, 226, 193, 0.92));
+  box-shadow: inset 0 1px 0 white, 0 7px 16px rgba(35, 31, 18, 0.15);
+}
+
+.playerCard.playerCard::before,
+.roomCard.roomCard::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 6px;
+  background: repeating-linear-gradient(0deg, color-mix(in srgb, var(--player-card-tone) 76%, black) 0 7px, color-mix(in srgb, var(--player-card-tone) 16%, white) 7px 13px);
+}
+
+.playerCard.playerCard:global(.is-active),
+.roomCard.roomCard:global(.is-active) {
+  border-color: color-mix(in srgb, var(--player-card-tone) 72%, var(--nj-solar-outline, #b88e54));
+  background:
+    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--player-card-tone) 24%, transparent), transparent 42%),
+    linear-gradient(145deg, rgba(255, 253, 246, 0.98), color-mix(in srgb, var(--player-card-tone) 10%, #f2e2c1));
+  box-shadow: inset 0 1px 0 white, 0 9px 20px color-mix(in srgb, var(--player-card-tone) 15%, rgba(35, 31, 18, 0.16));
+}
+
+.playerCard.playerCard:hover,
+.roomCard.roomCard:hover {
+  border-color: color-mix(in srgb, var(--player-card-tone) 70%, var(--nj-solar-outline, #b88e54));
+  box-shadow: inset 0 1px 0 white, 0 11px 22px color-mix(in srgb, var(--player-card-tone) 16%, rgba(35, 31, 18, 0.18));
+}
+
 .playerCard {
   flex-wrap: wrap;
+}
+
+.playerCard :global(.avatar-illu) {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--player-card-tone) 42%, white), 0 5px 12px rgba(35, 31, 18, 0.2);
 }
 
 .playerIdentity {
@@ -241,9 +318,45 @@
 .joinForm {
   min-width: 0;
   display: grid;
+  gap: 11px;
+}
+
+.joinLead {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.joinIcon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  flex: 0 0 auto;
+  place-items: center;
+  border: 1px solid rgba(169, 104, 12, 0.3);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.68);
+  box-shadow: 0 5px 12px rgba(76, 61, 34, 0.12);
+}
+
+.joinCopy {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.joinCopy small {
+  color: var(--nj-solar-muted, #66756d);
+  font-size: 0.7rem;
+}
+
+.joinControls {
+  min-width: 0;
+  display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
   gap: 8px;
-  align-items: end;
+  align-items: stretch;
 }
 
 .joinInput {
@@ -254,6 +367,12 @@
   letter-spacing: 0.1em;
   text-align: center;
   text-transform: uppercase;
+  color: var(--nj-solar-ink, #24372f);
+  border-color: rgba(169, 104, 12, 0.36);
+  background:
+    repeating-linear-gradient(90deg, transparent 0 24px, rgba(245, 195, 68, 0.055) 24px 26px),
+    rgba(255, 253, 246, 0.92);
+  box-shadow: inset 0 1px 0 white;
 }
 
 .summaryRow,
@@ -331,9 +450,9 @@
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  border: 2px solid rgba(255, 248, 232, 0.22);
+  border: 2px solid color-mix(in srgb, var(--player-card-tone, var(--nj-solar-red, #e45145)) 42%, var(--nj-solar-outline, #b88e54));
   border-radius: 9px;
-  background: transparent;
+  background: rgba(255, 253, 246, 0.82);
 }
 
 .selectMarkActive {
@@ -345,10 +464,10 @@
   min-width: 0;
   padding: 9px 13px;
   overflow: hidden;
-  color: var(--nj-gold, var(--gold, #d0a35d));
-  border: 1px solid rgba(255, 244, 223, 0.14);
+  color: var(--nj-solar-yellow-deep, #a9680c);
+  border: 1px solid rgba(118, 80, 51, 0.24);
   border-radius: var(--nj-radius-md, 16px);
-  background: rgba(6, 7, 13, 0.58);
+  background: rgba(255, 253, 246, 0.8);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: clamp(1rem, 4vw, 1.35rem);
   font-weight: 900;
@@ -399,6 +518,10 @@
   .roomCodeRow {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .joinControls {
+    grid-template-columns: 1fr;
   }
 
   .roomCodeRow > :last-child {

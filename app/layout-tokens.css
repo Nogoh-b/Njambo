@@ -18,6 +18,16 @@
   --nj-motion-navigation: 250ms;
   --nj-motion-panel: 320ms;
   --nj-motion-flip: 620ms;
+
+  /* Table de tons partagée — source unique pour le composant Btn (--nj-btn-accent).
+     Valeurs vives réconciliées (proches de config/theme.ts) + bleu royal & orange
+     inspirés des motifs bamiléké/ndop. */
+  --nj-tone-gold: #f2bb45;
+  --nj-tone-teal: #10b7a6;
+  --nj-tone-pink: #d83c68;
+  --nj-tone-cobalt: #3154d4;
+  --nj-tone-blue: #2436c9;
+  --nj-tone-orange: #e8631a;
 }
 
 @media (min-width: 600px) {

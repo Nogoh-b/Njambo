@@ -34,6 +34,7 @@ interface PowerCardViewProps {
   compact?: boolean;
   showMeta?: boolean;
   className?: string;
+  surface?: "default" | "solar";
 }
 
 export function PowerCardView({
@@ -44,6 +45,7 @@ export function PowerCardView({
   compact = false,
   showMeta = true,
   className,
+  surface = "default",
 }: PowerCardViewProps) {
   const tone = cardToneColor(card.tone);
   return (
@@ -54,6 +56,7 @@ export function PowerCardView({
         selected ? "is-selected" : "",
         disabled ? "is-disabled" : "",
         compact ? "is-compact" : "",
+        surface === "solar" ? "is-solar" : "",
         className ?? "",
       ].filter(Boolean).join(" ")}
       style={{ "--power-tone": tone } as CSSProperties}

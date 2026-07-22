@@ -5,6 +5,8 @@ import { T } from "@/config/theme";
 import { useAuth } from "@/hooks/useAuth";
 import { Surface } from "@/components/ui/Shell";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { Btn, type BtnMotif } from "@/components/ui/Btn";
+import styles from "./AuthGate.module.css";
 
 /* ═══════════════ AuthGate — inline login / register ═══════════════
    Affiche un formulaire de connexion/inscription quand l&apos;utilisateur
@@ -48,9 +50,22 @@ function authError(code?: string): string {
 interface AuthGateProps {
   children: ReactNode;
   gateClassName?: string;
+  tone?: "gold" | "teal" | "pink";
 }
 
-export function AuthGate({ children, gateClassName }: AuthGateProps) {
+const ACCOUNT_TONE_CLASS = {
+  gold: styles.toneGold,
+  teal: styles.toneTeal,
+  pink: styles.tonePink,
+} as const;
+
+const ACCOUNT_MOTIF: Record<NonNullable<AuthGateProps["tone"]>, BtnMotif> = {
+  gold: "sun-stripes",
+  teal: "indigo-dots",
+  pink: "royal-bands",
+};
+
+export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGateProps) {
   const {
     user, loading, loginWithEmail, registerWithEmail, loginWithGoogle,
     requestPhoneCode, confirmPhoneCode, logout,
@@ -84,48 +99,32 @@ export function AuthGate({ children, gateClassName }: AuthGateProps) {
     return (
       <>
         {/* Barre de connexion */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 10,
-            padding: "8px 14px",
-            borderRadius: 14,
-            background: "linear-gradient(160deg, rgba(60,37,20,.5), rgba(10,8,6,.82))",
-            border: "1px solid var(--wood-edge)",
-            marginBottom: 4,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10, minWidth: 0 }}>
-            <span style={{ fontSize: 22 }}>{user.emoji === "you-nogoh" ? "😎" : "🎭"}</span>
-            <span style={{ fontWeight: 900, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {user.name}
+        <div className={`${styles.accountCard} ${ACCOUNT_TONE_CLASS[tone]}`}>
+          <div className={styles.identity}>
+            <span className={styles.avatar} aria-hidden="true">
+              <AvatarIllustration seed={user.emoji} size={42} online />
             </span>
-            {user.email && (
-              <span className="nj-subtle" style={{ fontSize: 11, overflow: "hidden", textOverflow: "ellipsis" }}>
-                {user.email}
-              </span>
-            )}
-            {user.phoneNumber && <span className="nj-subtle" style={{ fontSize: 11 }}>{user.phoneNumber}</span>}
+            <span className={styles.copy}>
+              <strong>{user.name}</strong>
+              {(user.email || user.phoneNumber) && (
+                <span className={styles.contact}>
+                  <NjamboIcon name="message" tone={tone} size={14} />
+                  {user.email ?? user.phoneNumber}
+                </span>
+              )}
+            </span>
           </div>
-          <button data-nj-skin="dark"
-            type="button"
-            onClick={() => { logout(); }}
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: T.muted,
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              minHeight: 44,
-              padding: "8px 10px",
-            }}
+          <Btn
+            tone={tone}
+            fill="outline"
+            size="md"
+            motif={ACCOUNT_MOTIF[tone]}
+            motifPlacement="inset"
+            onClick={() => { void logout(); }}
+            className={styles.logout}
           >
             Déconnexion
-          </button>
+          </Btn>
         </div>
         {children}
       </>

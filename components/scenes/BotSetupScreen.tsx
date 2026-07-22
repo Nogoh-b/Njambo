@@ -4,9 +4,10 @@ import { useState } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useAuth } from "@/hooks/useAuth";
-import { NKAP, BOTS } from "@/data/mock";
+import { BOTS } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
+import { NkapAmount } from "@/components/ui/NkapAmount";
 import {
   PreGameFooter,
   PreGameLayout,
@@ -26,6 +27,8 @@ const DIFFICULTIES: { key: BotDifficulty; label: string }[] = [
   { key: "normal", label: "Normal" },
   { key: "hard", label: "Difficile" },
 ];
+
+const CHOICE_MOTIFS = ["indigo-dots", "sun-stripes", "royal-bands"] as const;
 
 export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
   const { navigateTo, cfg } = useGame();
@@ -48,23 +51,23 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
       )}
 
       {!training && (
-        <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+        <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelTeal}`}>
           <h2 className={styles.sectionTitle}>Pouvoirs équipés</h2>
           <div className={styles.sectionHint}>Ta sélection sera disponible à la table.</div>
           <div style={{ marginTop: 12 }}>
-            <EquippedPowersBar />
+            <EquippedPowersBar tone="teal" />
           </div>
         </Surface>
       )}
 
-      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelPink}`}>
         <div className={styles.potRow}>
           <span className={styles.summaryLabel}>
             <strong>Pot par manche</strong>
             <span>La caisse que tout le monde vise</span>
           </span>
           <span className={styles.potValue}>
-            {training ? "Entraînement" : NKAP(pot)}
+            {training ? "Entraînement" : <NkapAmount value={pot} size="lg" />}
           </span>
         </div>
       </Surface>
@@ -89,18 +92,20 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
     >
       <PreGameWorkspace rail={summary} railLabel="Résumé de la partie">
         <div className={styles.controlGrid}>
-          <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.widePanel}`}>
+          <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelTeal} ${styles.widePanel}`}>
             <fieldset className={styles.choiceSet}>
               <legend className={styles.choiceLegend}>Nombre d&apos;adversaires</legend>
               <div className={styles.choiceGrid}>
                 {[1, 2, 3].map((count) => (
-                  <button
-                    data-nj-skin={botCount === count ? "gold" : "ghost"}
-                    type="button"
+                  <Btn
                     key={count}
+                    tone="teal"
+                    fill={botCount === count ? "solid" : "outline"}
+                    motif={CHOICE_MOTIFS[count - 1]}
+                    motifPlacement={botCount === count ? "full" : "edges"}
                     className={styles.botChoice}
-                    aria-label={`${count} adversaire${count > 1 ? "s" : ""}`}
-                    aria-pressed={botCount === count}
+                    ariaLabel={`${count} adversaire${count > 1 ? "s" : ""}`}
+                    ariaPressed={botCount === count}
                     onClick={() => setBotCount(count)}
                   >
                     <span className={styles.botAvatars} aria-hidden="true">
@@ -111,20 +116,23 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
                       ))}
                     </span>
                     <span className="nj-player-count-value" aria-hidden="true">{count}</span>
-                  </button>
+                  </Btn>
                 ))}
               </div>
             </fieldset>
           </Surface>
 
-          <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+          <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelGold}`}>
             <fieldset className={styles.choiceSet}>
               <legend className={styles.choiceLegend}>Difficulté</legend>
               <div className={styles.choiceGrid}>
-                {DIFFICULTIES.map((entry) => (
+                {DIFFICULTIES.map((entry, index) => (
                   <Btn
                     key={entry.key}
-                    variant={difficulty === entry.key ? "gold" : "ghost"}
+                    tone="gold"
+                    fill={difficulty === entry.key ? "solid" : "outline"}
+                    motif={CHOICE_MOTIFS[index]}
+                    motifPlacement={difficulty === entry.key ? "full" : "edges"}
                     ariaPressed={difficulty === entry.key}
                     onClick={() => setDifficulty(entry.key)}
                     className={styles.choiceButton}
@@ -137,19 +145,22 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
           </Surface>
 
           {!training && (
-            <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+            <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelPink}`}>
               <fieldset className={styles.choiceSet}>
                 <legend className={styles.choiceLegend}>Mise par manche</legend>
                 <div className={styles.choiceGrid}>
-                  {cfg.stakes.map((stake) => (
+                  {cfg.stakes.map((stake, index) => (
                     <Btn
                       key={stake}
-                      variant={mise === stake ? "gold" : "ghost"}
+                      tone="pink"
+                      fill={mise === stake ? "solid" : "outline"}
+                      motif={CHOICE_MOTIFS[index % CHOICE_MOTIFS.length]}
+                      motifPlacement={mise === stake ? "full" : "edges"}
                       ariaPressed={mise === stake}
                       onClick={() => setMise(stake)}
                       className={styles.choiceButton}
                     >
-                      {NKAP(stake)}
+                      <NkapAmount value={stake} size="sm" />
                     </Btn>
                   ))}
                 </div>
@@ -161,11 +172,14 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
 
       <PreGameFooter status={footerStatus}>
         <div className={styles.actions}>
-          <Btn variant="ghost" onClick={() => navigateTo("menu")}>
+          <Btn tone="gold" fill="outline" motif="royal-bands" motifPlacement="inset" onClick={() => navigateTo("menu")}>
             ← Menu
           </Btn>
           <Btn
-            variant="pink"
+            tone="gold"
+            fill="solid"
+            motif="sun-stripes"
+            motifPlacement="full"
             onClick={() => onStart(botCount, training ? 0 : mise, difficulty)}
             disabled={!enoughNkap || !enoughEnergy}
             icon={<NjamboIcon name="play" tone="light" size={20} />}

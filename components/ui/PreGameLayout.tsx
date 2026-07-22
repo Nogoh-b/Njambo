@@ -2,6 +2,7 @@
 
 import { useId, type ReactNode } from "react";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
+import { Btn, type BtnMotif } from "./Btn";
 import { GameShell } from "@/components/ui/GameShell";
 import type { GameTone } from "@/components/ui/GamePrimitives";
 import { HubReveal } from "@/components/ui/HubReveal";
@@ -46,6 +47,13 @@ const TONE_CLASS: Record<PreGameTone, string> = {
   cobalt: styles.toneCobalt,
 };
 
+const MOTIF_BY_TONE: Record<PreGameTone, BtnMotif> = {
+  gold: "sun-stripes",
+  teal: "indigo-dots",
+  pink: "royal-bands",
+  cobalt: "indigo-dots",
+};
+
 function cx(...classes: Array<string | false | null | undefined>) {
   return classes.filter(Boolean).join(" ");
 }
@@ -72,22 +80,24 @@ export function PreGameLayout({
   return (
     <GameShell
       active="play"
-      className={cx(styles.scene, TONE_CLASS[tone], className)}
+      className={cx(styles.scene, "nj-mboa-solar-hub", TONE_CLASS[tone], className)}
       contentClassName={styles.shellScroll}
     >
       <div className={styles.page}>
         <HubReveal className={styles.headerReveal} duration="navigation">
           <header className={styles.header}>
-            <button
-              data-nj-skin="ghost"
-              type="button"
+            <Btn
+              tone={tone}
+              fill="outline"
+              motif={MOTIF_BY_TONE[tone]}
+              motifPlacement="inset"
               className={styles.backButton}
               onClick={onBack}
-              aria-label={backAriaLabel ?? `Retour à ${backLabel}`}
+              ariaLabel={backAriaLabel ?? `Retour à ${backLabel}`}
             >
               <span aria-hidden="true">←</span>
               <span className={styles.backLabel}>{backLabel}</span>
-            </button>
+            </Btn>
 
             <div className={styles.identity}>
               <span className={styles.icon} aria-hidden="true">

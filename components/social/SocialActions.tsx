@@ -14,13 +14,14 @@ interface SocialActionsProps {
   compact?: boolean;
   showProfile?: boolean;
   showInvite?: boolean;
+  tone?: "gold" | "teal" | "pink" | "cobalt";
 }
 
 function toLite(player: PublicPlayerProfile | SocialUserLite): SocialUserLite {
   return { uid: player.uid, name: player.name, emoji: player.emoji };
 }
 
-export function SocialActions({ player, compact = false, showProfile = true, showInvite = true }: SocialActionsProps) {
+export function SocialActions({ player, compact = false, showProfile = true, showInvite = true, tone }: SocialActionsProps) {
   const { user } = useAuth();
   const { navigateTo, setSocialTarget, cfg } = useGame();
   const { currentRoom, createRoom } = useLobby();
@@ -62,6 +63,8 @@ export function SocialActions({ player, compact = false, showProfile = true, sho
   };
 
   const pad = compact ? { paddingInline: 9, fontSize: 11 } : undefined;
+  const sharedStyle = tone ? { tone, fill: "outline" as const, size: "md" as const } : {};
+  const iconTone = tone ?? "gold";
 
   return (
     <div
@@ -70,18 +73,18 @@ export function SocialActions({ player, compact = false, showProfile = true, sho
       style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}
     >
       {showProfile && (
-        <Btn ariaLabel={`Voir le profil de ${player.name}`} variant="ghost" onClick={openProfile} style={pad} icon={<NjamboIcon name="profile" tone="gold" size={compact ? 16 : 18} />}>
+        <Btn {...sharedStyle} ariaLabel={`Voir le profil de ${player.name}`} variant="ghost" onClick={openProfile} style={pad} icon={<NjamboIcon name="profile" tone={iconTone} size={compact ? 16 : 18} />}>
           {compact ? "" : "Profil"}
         </Btn>
       )}
-      <Btn ariaLabel={`Ajouter ${player.name} aux amis`} variant="gold" onClick={addFriend} disabled={isSelf || busy === "friend"} style={pad} icon={<NjamboIcon name="plus" tone="gold" size={compact ? 16 : 18} />}>
+      <Btn {...sharedStyle} ariaLabel={`Ajouter ${player.name} aux amis`} variant="gold" onClick={addFriend} disabled={isSelf || busy === "friend"} style={pad} icon={<NjamboIcon name="plus" tone={iconTone} size={compact ? 16 : 18} />}>
         {compact ? "" : busy === "friend" ? "..." : "Ajouter"}
       </Btn>
-      <Btn ariaLabel={`Écrire à ${player.name}`} variant="dark" onClick={openChat} disabled={isSelf} style={pad} icon={<NjamboIcon name="message" tone="light" size={compact ? 16 : 18} />}>
+      <Btn {...sharedStyle} ariaLabel={`Écrire à ${player.name}`} variant="dark" onClick={openChat} disabled={isSelf} style={pad} icon={<NjamboIcon name="message" tone={tone ?? "light"} size={compact ? 16 : 18} />}>
         {compact ? "" : "Message"}
       </Btn>
       {showInvite && (
-        <Btn ariaLabel={`Inviter ${player.name} à une table`} variant="pink" onClick={invite} disabled={isSelf || busy === "invite"} style={pad} icon={<NjamboIcon name="online" tone="pink" size={compact ? 16 : 18} />}>
+        <Btn {...sharedStyle} ariaLabel={`Inviter ${player.name} à une table`} variant="pink" onClick={invite} disabled={isSelf || busy === "invite"} style={pad} icon={<NjamboIcon name="online" tone={tone ?? "pink"} size={compact ? 16 : 18} />}>
           {compact ? "" : busy === "invite" ? "..." : "Inviter"}
         </Btn>
       )}

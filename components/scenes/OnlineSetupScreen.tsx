@@ -8,6 +8,7 @@ import { useEconomy } from "@/contexts/EconomyContext";
 import { listenDiscoverPlayers } from "@/lib/socialData";
 import { NKAP } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
+import { NkapAmount } from "@/components/ui/NkapAmount";
 import { Chip } from "@/components/ui/Chip";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { AuthGate } from "@/components/ui/AuthGate";
@@ -22,6 +23,8 @@ import { SocialActions } from "@/components/social/SocialActions";
 import { EquippedPowersBar } from "@/components/power/EquippedPowersBar";
 import type { PublicPlayerProfile } from "@/types/game";
 import styles from "./PreGameScreens.module.css";
+
+const CHOICE_MOTIFS = ["indigo-dots", "sun-stripes", "royal-bands"] as const;
 
 export function OnlineSetupScreen() {
   const { navigateTo, cfg } = useGame();
@@ -96,24 +99,27 @@ export function OnlineSetupScreen() {
         {!canPayStake && <div className={styles.notice}>Nkap insuffisants pour cette mise.</div>}
       </div>
 
-      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelTeal}`}>
         <fieldset className={styles.choiceSet}>
           <legend className={styles.choiceLegend}>
             <span className={styles.legendRow}>
               <span>Mise par manche</span>
-              <span>Pot {NKAP(selectedStake * maxPlayers)}</span>
+              <span className={styles.legendAmount}>Pot <NkapAmount value={selectedStake * maxPlayers} size="sm" /></span>
             </span>
           </legend>
           <div className={styles.choiceGrid}>
-            {cfg.stakes.map((stake) => (
+            {cfg.stakes.map((stake, index) => (
               <Btn
                 key={stake}
-                variant={selectedStake === stake ? "gold" : "ghost"}
+                tone="teal"
+                fill={selectedStake === stake ? "solid" : "outline"}
+                motif={CHOICE_MOTIFS[index % CHOICE_MOTIFS.length]}
+                motifPlacement={selectedStake === stake ? "full" : "edges"}
                 ariaPressed={selectedStake === stake}
                 onClick={() => setSelectedStake(stake)}
                 className={styles.choiceButton}
               >
-                {NKAP(stake)}
+                <NkapAmount value={stake} size="sm" />
               </Btn>
             ))}
           </div>
@@ -122,10 +128,13 @@ export function OnlineSetupScreen() {
         <fieldset className={styles.choiceSet}>
           <legend className={styles.choiceLegend}>Nombre de joueurs</legend>
           <div className={styles.choiceGrid}>
-            {[2, 3, 4].map((count) => (
+            {[2, 3, 4].map((count, index) => (
               <Btn
                 key={count}
-                variant={maxPlayers === count ? "gold" : "ghost"}
+                tone="teal"
+                fill={maxPlayers === count ? "solid" : "outline"}
+                motif={CHOICE_MOTIFS[index]}
+                motifPlacement={maxPlayers === count ? "full" : "edges"}
                 ariaPressed={maxPlayers === count}
                 onClick={() => setMaxPlayers(count)}
                 className={styles.choiceButton}
@@ -137,11 +146,11 @@ export function OnlineSetupScreen() {
         </fieldset>
       </Surface>
 
-      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelGold}`}>
         <h2 className={styles.sectionTitle}>Pouvoirs équipés</h2>
         <div className={styles.sectionHint}>Prépare ton jeu avant de chercher une table.</div>
         <div style={{ marginTop: 12 }}>
-          <EquippedPowersBar />
+          <EquippedPowersBar tone="gold" />
         </div>
       </Surface>
     </div>
@@ -160,13 +169,13 @@ export function OnlineSetupScreen() {
       tone="teal"
       onBack={goBack}
     >
-      <AuthGate gateClassName={styles.authPanel}>
+      <AuthGate gateClassName={styles.authPanel} tone="teal">
         <PreGameWorkspace
           rail={configuration}
           railLabel="Configuration de la table en ligne"
         >
           <div className={styles.onlineLists}>
-            <Surface className={`nj-panel-pad-sm ${styles.listPanel}${publicRooms.length === 0 ? ` ${styles.widePanel}` : ""}`}>
+            <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelTeal}${publicRooms.length === 0 ? ` ${styles.widePanel}` : ""}`}>
               <div className={styles.panelHeader}>
                 <div className={styles.panelHeading}>
                   <h2>Joueurs</h2>
@@ -194,14 +203,14 @@ export function OnlineSetupScreen() {
                 )}
                 {players.map((player, index) => (
                   <HubReveal key={player.uid} className={styles.listReveal} order={index}>
-                    <div className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""} ${styles.playerCard}`}>
+                      <div className={`nj-list-card nj-list-card--teal${player.online ? " is-active" : ""} ${styles.playerCard}`}>
                       <AvatarIllustration seed={player.emoji} size={42} online={player.online} />
                       <div className={styles.playerIdentity}>
                         <span className={styles.playerName}>{player.name}</span>
                         <span className={styles.playerState}>{player.online ? "En ligne" : "Hors ligne"}</span>
                       </div>
                       <div className={styles.socialActions}>
-                        <SocialActions player={player} compact />
+                        <SocialActions player={player} compact tone="teal" />
                       </div>
                     </div>
                   </HubReveal>
@@ -210,7 +219,7 @@ export function OnlineSetupScreen() {
             </Surface>
 
             {publicRooms.length > 0 && (
-              <Surface className={`nj-panel-pad-sm ${styles.listPanel}`}>
+              <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelPink}`}>
                 <div className={styles.panelHeader}>
                   <div className={styles.panelHeading}>
                     <h2>Salles disponibles</h2>
@@ -227,14 +236,14 @@ export function OnlineSetupScreen() {
                         type="button"
                         disabled={busy || !canStart || room.stake > (economy?.nkap ?? 0)}
                         onClick={() => handleJoinRoom(room.id)}
-                        className={`nj-list-card nj-list-card--teal ${styles.roomCard}`}
+                        className={`nj-list-card nj-list-card--pink ${styles.roomCard}`}
                         aria-label={`Rejoindre la salle ${room.code}, mise ${NKAP(room.stake)}, ${room.players.length} joueurs sur ${room.maxPlayers}`}
                       >
                         <span className={styles.roomMeta}>
                           <span className={styles.roomCodeSmall}>{room.code}</span>
-                          <span className={styles.roomDetails}>{NKAP(room.stake)} · {room.players.length}/{room.maxPlayers}</span>
+                          <span className={styles.roomDetails}><NkapAmount value={room.stake} size="sm" /> · {room.players.length}/{room.maxPlayers}</span>
                         </span>
-                        <NjamboIcon name="play" tone="teal" size={20} />
+                        <NjamboIcon name="play" tone="pink" size={20} />
                       </button>
                     </HubReveal>
                   ))}
@@ -247,7 +256,10 @@ export function OnlineSetupScreen() {
         <PreGameFooter status={footerStatus}>
           <div className={styles.actions} aria-busy={busy}>
             <Btn
-              variant="gold"
+              tone="teal"
+              fill="solid"
+              motif="indigo-dots"
+              motifPlacement="full"
               onClick={handleCreate}
               disabled={busy || !canStart}
               icon={<NjamboIcon name="home" tone="gold" size={18} />}
@@ -255,7 +267,10 @@ export function OnlineSetupScreen() {
               {busy ? "…" : "Créer"}
             </Btn>
             <Btn
-              variant="ghost"
+              tone="teal"
+              fill="outline"
+              motif="royal-bands"
+              motifPlacement="inset"
               disabled={busy || !canStart}
               icon={<NjamboIcon name="play" tone="gold" size={18} />}
               onClick={handleAutoMatch}

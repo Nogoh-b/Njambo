@@ -25,7 +25,7 @@ export const HOME_MOTION_FEATURES: Record<HomeMotionMode, HomeMotionFeatures> = 
     decorativeLoops: true,
     complexHalos: true,
     ambientSparkCount: 6,
-    fallingCardCount: 7,
+    fallingCardCount: 14,
     loopDurationMultiplier: 1,
   },
   balanced: {
@@ -34,7 +34,7 @@ export const HOME_MOTION_FEATURES: Record<HomeMotionMode, HomeMotionFeatures> = 
     decorativeLoops: true,
     complexHalos: false,
     ambientSparkCount: 3,
-    fallingCardCount: 4,
+    fallingCardCount: 8,
     loopDurationMultiplier: 1.8,
   },
   lite: {

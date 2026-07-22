@@ -1,6 +1,25 @@
 .scene {
-  --pre-game-accent: var(--nj-gold, var(--gold, #d0a35d));
-  --pre-game-accent-rgb: 208, 163, 93;
+  --pre-game-accent: var(--nj-solar-yellow, #f5c344);
+  --pre-game-accent-rgb: 245, 195, 68;
+  /* Bascule solar clair (miroir de GameHubLayout) : les primitives enfants
+     (Surface, Btn, nj-list-card, nj-input) suivent ces tokens. */
+  --nj-text: var(--nj-solar-ink, #24372f);
+  --nj-text-muted: var(--nj-solar-muted, #66756d);
+  --nj-surface: var(--nj-solar-surface, rgba(242, 226, 193, 0.96));
+  --nj-surface-soft: #e2cfa9;
+  --nj-surface-strong: var(--nj-solar-surface-strong, #f7ead0);
+  --nj-border-soft: rgba(118, 80, 51, 0.24);
+  --nj-shadow-card: 0 12px 26px rgba(35, 31, 18, 0.24);
+  --nj-tab-active-text: var(--nj-solar-ink, #24372f);
+  --nj-tab-active-background: linear-gradient(145deg, rgba(var(--pre-game-accent-rgb), 0.24), var(--nj-solar-surface-strong, #f7ead0));
+  --nj-gold: var(--nj-solar-yellow, #f5c344);
+  --nj-teal: var(--nj-solar-green, #199b68);
+  --nj-pink: var(--nj-solar-red, #e45145);
+  --nj-cobalt: #4d78c9;
+  --text: var(--nj-solar-ink, #24372f);
+  --brass: var(--pre-game-accent);
+  --wood-edge: color-mix(in srgb, var(--pre-game-accent) 24%, #d8c49e);
+  --wood-grain: var(--nj-solar-surface-strong, #f7ead0);
   isolation: isolate;
 }
 
@@ -16,23 +35,23 @@
 }
 
 .toneGold {
-  --pre-game-accent: var(--nj-gold, var(--gold, #d0a35d));
-  --pre-game-accent-rgb: 208, 163, 93;
+  --pre-game-accent: var(--nj-solar-yellow, #f5c344);
+  --pre-game-accent-rgb: 245, 195, 68;
 }
 
 .toneTeal {
-  --pre-game-accent: var(--nj-teal, var(--teal, #559b91));
-  --pre-game-accent-rgb: 85, 155, 145;
+  --pre-game-accent: var(--nj-solar-green, #199b68);
+  --pre-game-accent-rgb: 25, 155, 104;
 }
 
 .tonePink {
-  --pre-game-accent: var(--nj-pink, var(--pink, #ad6972));
-  --pre-game-accent-rgb: 173, 105, 114;
+  --pre-game-accent: var(--nj-solar-red, #e45145);
+  --pre-game-accent-rgb: 228, 81, 69;
 }
 
 .toneCobalt {
-  --pre-game-accent: var(--nj-cobalt, var(--cobalt, #687c99));
-  --pre-game-accent-rgb: 104, 124, 153;
+  --pre-game-accent: #4d78c9;
+  --pre-game-accent-rgb: 77, 120, 201;
 }
 
 .shellScroll {
@@ -95,10 +114,7 @@
   justify-content: center;
   gap: 7px;
   padding: 0 12px;
-  color: var(--nj-text, var(--text, #fff4df));
-  border: 1px solid rgba(255, 244, 223, 0.16);
   border-radius: var(--nj-radius-md, 16px);
-  background: rgba(5, 7, 14, 0.62);
   font: inherit;
   font-size: 13px;
   font-weight: 850;
@@ -134,9 +150,9 @@
   border: 1px solid color-mix(in srgb, var(--pre-game-accent) 56%, transparent);
   border-radius: var(--nj-radius-md, 16px);
   background:
-    radial-gradient(circle at 32% 24%, rgba(255, 239, 207, 0.24), transparent 58%),
-    linear-gradient(150deg, rgba(var(--pre-game-accent-rgb), 0.22), rgba(7, 8, 14, 0.88));
-  box-shadow: inset 0 1px 0 rgba(255, 241, 214, 0.18), 0 8px 18px rgba(0, 0, 0, 0.34);
+    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.6), transparent 58%),
+    linear-gradient(150deg, color-mix(in srgb, var(--pre-game-accent) 28%, white), rgba(255, 253, 246, 0.92));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 8px 18px rgba(35, 31, 18, 0.18);
 }
 
 .heading {
@@ -209,9 +225,9 @@
   border: 1px solid color-mix(in srgb, var(--pre-game-accent) 32%, var(--wood-edge));
   border-radius: var(--nj-radius-lg, 22px);
   background:
-    linear-gradient(145deg, rgba(var(--pre-game-accent-rgb), 0.1), transparent 45%),
-    rgba(12, 10, 13, 0.94);
-  box-shadow: 0 -12px 28px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 237, 205, 0.12);
+    linear-gradient(145deg, rgba(var(--pre-game-accent-rgb), 0.12), transparent 45%),
+    var(--nj-solar-surface-strong, #f7ead0);
+  box-shadow: 0 -12px 28px rgba(35, 31, 18, 0.18), inset 0 1px 0 rgba(255, 250, 232, 0.6);
   backdrop-filter: blur(18px);
 }
 
@@ -232,8 +248,6 @@
 
 @media (hover: hover) and (pointer: fine) {
   .backButton:hover {
-    border-color: color-mix(in srgb, var(--pre-game-accent) 58%, transparent);
-    background: rgba(var(--pre-game-accent-rgb), 0.12);
     transform: translateY(-1px);
   }
 }

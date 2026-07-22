@@ -4,9 +4,9 @@ import { useState } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useOnlinePlayers } from "@/hooks/useOnlinePlayers";
-import { NKAP } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
+import { NkapAmount } from "@/components/ui/NkapAmount";
 import { Chip } from "@/components/ui/Chip";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { HubReveal } from "@/components/ui/HubReveal";
@@ -17,6 +17,8 @@ import {
 } from "@/components/ui/PreGameLayout";
 import { Surface } from "@/components/ui/Shell";
 import styles from "./PreGameScreens.module.css";
+
+const CHOICE_MOTIFS = ["indigo-dots", "sun-stripes", "royal-bands"] as const;
 
 export function FriendsSetupScreen() {
   const { navigateTo, profile, cfg } = useGame();
@@ -80,7 +82,7 @@ export function FriendsSetupScreen() {
 
   const configuration = (
     <div className={styles.railStack}>
-      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelPink}`}>
         <div className={styles.panelHeader}>
           <div className={styles.panelHeading}>
             <h2>Configurer la table</h2>
@@ -92,15 +94,18 @@ export function FriendsSetupScreen() {
         <fieldset className={styles.choiceSet}>
           <legend className={styles.choiceLegend}>Mise par manche</legend>
           <div className={styles.choiceGrid}>
-            {cfg.stakes.map((stake) => (
+            {cfg.stakes.map((stake, index) => (
               <Btn
                 key={stake}
-                variant={mise === stake ? "gold" : "ghost"}
+                tone="pink"
+                fill={mise === stake ? "solid" : "outline"}
+                motif={CHOICE_MOTIFS[index % CHOICE_MOTIFS.length]}
+                motifPlacement={mise === stake ? "full" : "edges"}
                 ariaPressed={mise === stake}
                 onClick={() => setMise(stake)}
                 className={styles.choiceButton}
               >
-                {NKAP(stake)}
+                <NkapAmount value={stake} size="sm" />
               </Btn>
             ))}
           </div>
@@ -109,10 +114,13 @@ export function FriendsSetupScreen() {
         <fieldset className={styles.choiceSet}>
           <legend className={styles.choiceLegend}>Nombre de joueurs</legend>
           <div className={styles.choiceGrid}>
-            {[2, 3, 4].map((count) => (
+            {[2, 3, 4].map((count, index) => (
               <Btn
                 key={count}
-                variant={seats === count ? "gold" : "ghost"}
+                tone="pink"
+                fill={seats === count ? "solid" : "outline"}
+                motif={CHOICE_MOTIFS[index]}
+                motifPlacement={seats === count ? "full" : "edges"}
                 ariaPressed={seats === count}
                 onClick={() => changeSeats(count)}
                 className={styles.choiceButton}
@@ -124,7 +132,7 @@ export function FriendsSetupScreen() {
         </fieldset>
       </Surface>
 
-      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelGold}`}>
         <form
           className={styles.joinForm}
           onSubmit={(event) => {
@@ -132,8 +140,14 @@ export function FriendsSetupScreen() {
             void handleJoin();
           }}
         >
-          <div className={styles.joinField}>
-            <label className={styles.fieldLabel} htmlFor="friends-room-code">Rejoindre avec un code</label>
+          <div className={styles.joinLead}>
+            <span className={styles.joinIcon} aria-hidden="true"><NjamboIcon name="code" tone="gold" size={22} /></span>
+            <span className={styles.joinCopy}>
+              <label className={styles.fieldLabel} htmlFor="friends-room-code">Rejoindre avec un code</label>
+              <small>Entre le code partagé par ton ami.</small>
+            </span>
+          </div>
+          <div className={styles.joinControls}>
             <input
               id="friends-room-code"
               value={joinCode}
@@ -146,20 +160,28 @@ export function FriendsSetupScreen() {
               autoComplete="off"
               className={`nj-input ${styles.joinInput}`}
             />
+            <Btn
+              type="submit"
+              tone="gold"
+              fill="outline"
+              motif="sun-stripes"
+              motifPlacement="edges"
+              icon={<NjamboIcon name="code" tone="gold" size={16} />}
+              disabled={busy || joinCode.length < 4}
+            >
+              {busy ? "…" : "Rejoindre"}
+            </Btn>
           </div>
-          <Btn type="submit" variant="pink" disabled={busy || joinCode.length < 4}>
-            {busy ? "…" : "Rejoindre"}
-          </Btn>
         </form>
       </Surface>
 
-      <Surface className={`nj-panel-pad-sm ${styles.panel}`}>
+      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelTeal}`}>
         <div className={styles.potRow}>
           <span className={styles.summaryLabel}>
             <strong>{seats} joueurs</strong>
             <span>Pot total de la table</span>
           </span>
-          <span className={styles.potValue}>{NKAP(mise * seats)}</span>
+          <span className={styles.potValue}><NkapAmount value={mise * seats} size="lg" /></span>
         </div>
       </Surface>
     </div>
@@ -174,9 +196,9 @@ export function FriendsSetupScreen() {
       tone="pink"
       onBack={() => navigateTo("menu")}
     >
-      <AuthGate gateClassName={styles.authPanel}>
+      <AuthGate gateClassName={styles.authPanel} tone="pink">
         <PreGameWorkspace rail={configuration} railLabel="Création et accès à la table">
-          <Surface className={`nj-panel-pad-sm ${styles.listPanel}`}>
+          <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelPink}`}>
             <div className={styles.panelHeader}>
               <div className={styles.panelHeading}>
                 <h2>Joueurs disponibles</h2>
@@ -222,7 +244,10 @@ export function FriendsSetupScreen() {
         <PreGameFooter status={roomError ? <div className={styles.error} role="alert">{roomError}</div> : undefined}>
           <div className={styles.actions} aria-busy={busy}>
             <Btn
-              variant="gold"
+              tone="pink"
+              fill="solid"
+              motif="royal-bands"
+              motifPlacement="full"
               onClick={handleCreate}
               disabled={!canCreate}
               icon={<NjamboIcon name="home" tone="gold" size={18} />}

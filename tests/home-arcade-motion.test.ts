@@ -36,6 +36,7 @@ describe("dégradation des effets arcade", () => {
       decorativeLoops: true,
       complexHalos: true,
       ambientSparkCount: 6,
+      fallingCardCount: 14,
     });
   });
 
@@ -45,6 +46,7 @@ describe("dégradation des effets arcade", () => {
       decorativeLoops: true,
       complexHalos: false,
       ambientSparkCount: 3,
+      fallingCardCount: 8,
     });
     expect(HOME_MOTION_FEATURES.balanced.loopDurationMultiplier).toBeGreaterThan(1);
     expect(HOME_MOTION_FEATURES.lite).toMatchObject({
@@ -52,6 +54,7 @@ describe("dégradation des effets arcade", () => {
       entrances: false,
       decorativeLoops: false,
       ambientSparkCount: 0,
+      fallingCardCount: 0,
     });
   });
 

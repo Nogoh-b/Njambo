@@ -729,6 +729,199 @@ button[data-nj-skin="icon"],
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
 }
 
+/* ═══════════ Système de boutons partagé (.njb) ═══════════
+   Un seul composant (components/ui/Btn.tsx), le style change via props :
+   tone (couleur partagée) · fill (solid/outline/pattern) · size.
+   Tout est piloté par un unique --nj-btn-accent posé par .njb--<tone>. */
+.njb {
+  --nj-btn-accent: var(--nj-tone-gold);
+  position: relative;
+  min-height: var(--nj-touch-target);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  border: 1.5px solid transparent;
+  border-radius: 14px;
+  color: #fff7e6;
+  font: inherit;
+  font-weight: 900;
+  line-height: 1;
+  cursor: pointer;
+  isolation: isolate;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  transition:
+    transform var(--nj-motion-press) ease,
+    filter var(--nj-motion-interaction) ease,
+    box-shadow var(--nj-motion-interaction) ease,
+    border-color var(--nj-motion-interaction) ease,
+    background var(--nj-motion-interaction) ease;
+}
+
+.njb--gold { --nj-btn-accent: var(--nj-tone-gold); }
+.njb--teal { --nj-btn-accent: var(--nj-tone-teal); }
+.njb--pink { --nj-btn-accent: var(--nj-tone-pink); }
+.njb--cobalt { --nj-btn-accent: var(--nj-tone-cobalt); }
+.njb--blue { --nj-btn-accent: var(--nj-tone-blue); }
+.njb--orange { --nj-btn-accent: var(--nj-tone-orange); }
+
+.njb--sm { min-height: 38px; padding: 0 12px; border-radius: 12px; font-size: 0.8rem; }
+.njb--md { min-height: var(--nj-touch-target); font-size: 0.9rem; }
+.njb--lg { min-height: 54px; padding: 0 22px; border-radius: 16px; font-size: 1rem; }
+
+/* PLEIN : dégradé teinté, texte clair. */
+.njb--solid {
+  color: #fff7e6;
+  border-color: color-mix(in srgb, var(--nj-btn-accent) 40%, transparent);
+  background:
+    radial-gradient(circle at 82% 12%, color-mix(in srgb, var(--nj-btn-accent) 55%, transparent), transparent 46%),
+    linear-gradient(150deg, color-mix(in srgb, var(--nj-btn-accent) 92%, white 8%), color-mix(in srgb, var(--nj-btn-accent) 78%, black 22%));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 10px 22px color-mix(in srgb, var(--nj-btn-accent) 30%, transparent);
+}
+
+/* CONTOUR : bordure teintée, fond quasi transparent, texte = accent assombri
+   (lisible sur crème comme sur sombre, sans dépendre de --text). */
+.njb--outline {
+  color: color-mix(in srgb, var(--nj-btn-accent) 86%, black 14%);
+  border-color: color-mix(in srgb, var(--nj-btn-accent) 62%, transparent);
+  background: color-mix(in srgb, var(--nj-btn-accent) 8%, transparent);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+/* MOTIF ndop : trame géométrique générée en CSS, teintée par l'accent. */
+.njb--pattern {
+  color: #fff7e6;
+  border-color: color-mix(in srgb, var(--nj-btn-accent) 55%, transparent);
+  background:
+    repeating-linear-gradient(45deg, transparent 0 7px, color-mix(in srgb, var(--nj-btn-accent) 30%, transparent) 7px 9px, transparent 9px 16px),
+    repeating-linear-gradient(-45deg, transparent 0 7px, color-mix(in srgb, var(--nj-btn-accent) 22%, transparent) 7px 9px, transparent 9px 16px),
+    linear-gradient(150deg, color-mix(in srgb, var(--nj-btn-accent) 88%, black 12%), color-mix(in srgb, var(--nj-btn-accent) 70%, black 30%));
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, white 18%, transparent),
+    inset 0 1px 0 rgba(255, 255, 255, 0.2),
+    0 10px 22px color-mix(in srgb, var(--nj-btn-accent) 28%, transparent);
+}
+
+/* Motifs textiles africains issus des trois références fournies.
+   Ils restent indépendants de la couleur et du remplissage du bouton. */
+.njb__content {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.njb__motif {
+  position: absolute;
+  z-index: 1;
+  pointer-events: none;
+  border-radius: inherit;
+  background: var(--nj-btn-motif);
+  transition: opacity var(--nj-motion-interaction) ease;
+}
+
+/* Pluie de points — structure de la référence 1, recolorée avec la teinte
+   de la carte afin de ne jamais introduire une palette concurrente. */
+.njb--motif-indigo-dots {
+  --nj-btn-motif:
+    radial-gradient(circle, color-mix(in srgb, var(--nj-btn-accent) 28%, white) 0 1.3px, transparent 1.6px) 0 0 / 8px 11px,
+    radial-gradient(circle, color-mix(in srgb, var(--nj-btn-accent) 52%, white) 0 2px, transparent 2.3px) 4px 6px / 19px 23px,
+    linear-gradient(90deg, color-mix(in srgb, var(--nj-btn-accent) 46%, black), color-mix(in srgb, var(--nj-btn-accent) 72%, black) 52%, color-mix(in srgb, var(--nj-btn-accent) 46%, black));
+}
+
+/* Rayures tissées — rythme de la référence 2, en camaïeu de la carte. */
+.njb--motif-sun-stripes {
+  --nj-btn-motif: repeating-linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--nj-btn-accent) 12%, white) 0 8px,
+    color-mix(in srgb, var(--nj-btn-accent) 82%, white) 8px 18px,
+    color-mix(in srgb, var(--nj-btn-accent) 18%, white) 18px 25px,
+    color-mix(in srgb, var(--nj-btn-accent) 78%, black) 25px 29px,
+    color-mix(in srgb, var(--nj-btn-accent) 12%, white) 29px 35px,
+    color-mix(in srgb, var(--nj-btn-accent) 60%, black) 35px 38px,
+    color-mix(in srgb, var(--nj-btn-accent) 12%, white) 38px 45px
+  );
+}
+
+/* Bandes royales — composition de la référence 3, elle aussi monochrome. */
+.njb--motif-royal-bands {
+  --nj-btn-motif:
+    repeating-linear-gradient(0deg, transparent 0 8px, color-mix(in srgb, var(--nj-btn-accent) 56%, white) 8px 10px, transparent 10px 18px),
+    repeating-linear-gradient(90deg, color-mix(in srgb, var(--nj-btn-accent) 78%, black) 0 16px, color-mix(in srgb, var(--nj-btn-accent) 10%, white) 16px 28px, color-mix(in srgb, var(--nj-btn-accent) 78%, black) 28px 45px);
+}
+
+/* Deux bandes franches sur les côtés : très lisible sur les petits boutons. */
+.njb--motif-edges .njb__motif {
+  inset: 1px;
+  opacity: 0.92;
+  -webkit-mask: linear-gradient(90deg, #000 0 12px, transparent 12px calc(100% - 12px), #000 calc(100% - 12px));
+  mask: linear-gradient(90deg, #000 0 12px, transparent 12px calc(100% - 12px), #000 calc(100% - 12px));
+}
+
+/* Fin cadre textile à l'intérieur, pour les actions secondaires. */
+.njb--motif-inset .njb__motif {
+  inset: 5px;
+  padding: 3px;
+  opacity: 0.72;
+  -webkit-mask:
+    linear-gradient(#000 0 0) content-box,
+    linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+/* Motif en surface, volontairement atténué pour préserver le libellé. */
+.njb--motif-full .njb__motif {
+  inset: 1px;
+  opacity: 0.28;
+}
+
+.njb--motif-full .njb__content {
+  text-shadow: 0 1px 2px rgba(5, 7, 18, 0.42);
+}
+
+.njb--outline.njb--motif-full .njb__motif {
+  opacity: 0.16;
+}
+
+.njb:hover:not(:disabled) .njb__motif {
+  opacity: 1;
+}
+
+.njb--motif-full:hover:not(:disabled) .njb__motif {
+  opacity: 0.38;
+}
+
+.njb--icon { width: var(--nj-touch-target); padding: 0; border-radius: 50%; }
+
+.njb:hover:not(:disabled) { transform: translateY(-1px); filter: brightness(1.06); }
+.njb:active:not(:disabled) { transform: translateY(1px) scale(0.98); }
+.njb:disabled { opacity: 0.5; filter: saturate(0.6); cursor: not-allowed; }
+.njb:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--nj-btn-accent) 78%, white 8%);
+  outline-offset: 3px;
+}
+.njb[aria-pressed="true"] {
+  box-shadow:
+    inset 0 0 0 2px color-mix(in srgb, var(--nj-btn-accent) 48%, transparent),
+    0 0 0 2px color-mix(in srgb, var(--nj-btn-accent) 22%, transparent),
+    0 10px 24px color-mix(in srgb, var(--nj-btn-accent) 26%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .njb { transition: none; }
+  .njb__motif { transition: none; }
+  .njb:hover:not(:disabled),
+  .njb:active:not(:disabled) { transform: none; }
+}
+
 .njambo-asset-icon {
   position: relative;
   display: inline-grid;
@@ -2953,6 +3146,52 @@ button[data-nj-skin="icon"],
   font-size: 8px;
   line-height: 1;
   text-align: center;
+}
+
+/* Présentation claire des cartes booster dans les hubs solaires. */
+.nj-power-card-view.is-solar {
+  color: var(--nj-solar-ink, #24372f);
+  border-color: color-mix(in srgb, var(--power-tone) 58%, var(--nj-solar-outline, #b88e54));
+  border-radius: 13px;
+  background:
+    radial-gradient(circle at 82% 4%, color-mix(in srgb, var(--power-tone) 24%, transparent), transparent 38%),
+    linear-gradient(145deg, rgba(255, 253, 246, 0.98), rgba(242, 226, 193, 0.96));
+  box-shadow: inset 0 1px 0 white, 0 7px 15px rgba(35, 31, 18, 0.18);
+}
+
+.nj-power-card-view.is-solar::before {
+  opacity: 0.58;
+  background:
+    repeating-linear-gradient(135deg, transparent 0 11px, color-mix(in srgb, var(--power-tone) 13%, transparent) 11px 13px, transparent 13px 25px),
+    radial-gradient(circle at 12% 10%, color-mix(in srgb, var(--power-tone) 18%, transparent), transparent 42%);
+}
+
+.nj-power-card-view.is-solar .nj-power-card-art {
+  border-color: color-mix(in srgb, var(--power-tone) 48%, var(--nj-solar-outline, #b88e54));
+  background: rgba(255, 255, 255, 0.72);
+}
+
+.nj-power-card-view.is-solar strong {
+  color: color-mix(in srgb, var(--power-tone) 70%, var(--nj-solar-ink, #24372f));
+}
+
+.nj-power-card-view.is-solar.is-compact {
+  width: 62px;
+  min-height: 84px;
+}
+
+.nj-power-card-view.is-solar.is-compact .nj-power-card-art {
+  margin: 4px;
+  border-radius: 9px;
+}
+
+.nj-power-card-view.is-solar.is-compact .nj-power-card-body {
+  padding-bottom: 6px;
+}
+
+.nj-power-card-view.is-solar.is-compact strong {
+  color: var(--nj-solar-ink, #24372f);
+  font-size: 8px;
 }
 
 .nj-power-activation-overlay {

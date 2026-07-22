@@ -1,0 +1,32 @@
+.amount {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  color: inherit;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.value {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sm {
+  gap: 3px;
+  font-size: 0.75rem;
+}
+
+.md {
+  font-size: 0.86rem;
+}
+
+.lg {
+  gap: 7px;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(1.1rem, 4vw, 1.5rem);
+  font-weight: 900;
+}
