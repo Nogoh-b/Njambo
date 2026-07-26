@@ -50,7 +50,7 @@ export function ChoiceButtonGroup<T extends ChoiceValue>({
   value,
   onChange,
   tone,
-  selectedFill = "soft",
+  selectedFill = "solid",
   idleFill = "outline",
   motif = "indigo-dots",
   motifSides = "both",

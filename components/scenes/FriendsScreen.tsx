@@ -14,6 +14,7 @@ import { AvatarIllustration } from "@/components/ui/Art";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
+import { TabBar } from "@/components/ui/TabBar";
 import { SocialActions } from "@/components/social/SocialActions";
 import type { FriendRequest, PublicPlayerProfile, SocialFriendEntry } from "@/types/game";
 import styles from "./FriendsScreen.module.css";
@@ -58,13 +59,18 @@ export function FriendsScreen() {
       className={styles.socialHub}
     >
       <section className={styles.panel} aria-label="Réseau social Njambo">
-            <div className={styles.tabs} role="tablist" aria-label="Sections sociales">
-              <button data-nj-skin="none" type="button" role="tab" aria-selected={tab === "friends"} onClick={() => setTab("friends")}>Amis</button>
-              <button data-nj-skin="none" type="button" role="tab" aria-selected={tab === "requests"} onClick={() => setTab("requests")}>
-                Demandes{incomingCount > 0 && <span>{incomingCount}</span>}
-              </button>
-              <button data-nj-skin="none" type="button" role="tab" aria-selected={tab === "players"} onClick={() => setTab("players")}>Joueurs</button>
-            </div>
+            <TabBar
+              tabs={[
+                { id: "friends", label: "Amis" },
+                { id: "requests", label: "Demandes", tone: "pink", badge: incomingCount > 0 ? incomingCount : undefined },
+                { id: "players", label: "Joueurs" },
+              ]}
+              activeId={tab}
+              onChange={(next) => setTab(next as Tab)}
+              ariaLabel="Sections sociales"
+              tone="palm"
+              className={styles.tabs}
+            />
 
             {tab === "players" && (
               <input

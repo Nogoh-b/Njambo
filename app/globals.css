@@ -767,6 +767,7 @@ button[data-nj-skin="icon"],
 .njb--cobalt { --nj-btn-accent: var(--nj-tone-cobalt); --nj-btn-ink: #263f96; }
 .njb--blue { --nj-btn-accent: var(--nj-tone-blue); --nj-btn-ink: #1f2d8d; }
 .njb--orange { --nj-btn-accent: var(--nj-tone-orange); --nj-btn-ink: #87340f; }
+.njb--palm { --nj-btn-accent: var(--nj-tone-palm); --nj-btn-ink: var(--nj-solar-green-deep, #116345); }
 
 .njb--sm { min-height: 38px; padding: 0 12px; border-radius: 12px; font-size: 0.8rem; }
 .njb--md { min-height: var(--nj-touch-target); font-size: 0.9rem; }

@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { Surface } from "@/components/ui/Shell";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
+import { TabBar } from "@/components/ui/TabBar";
 import styles from "./AuthGate.module.css";
 
 /* ═══════════════ AuthGate — inline login / register ═══════════════
@@ -222,28 +223,18 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
 
         {/* Champs */}
         <div className="nj-stack" style={{ gap: 10 }}>
-          <div role="group" aria-label="Méthode de connexion" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-            <Btn
-              tone={tone}
-              fill={authMethod === "phone" ? "soft" : "outline"}
-              motif="indigo-dots"
-              motifSides="both"
-              ariaPressed={authMethod === "phone"}
-              onClick={() => { setAuthMethod("phone"); setError(""); }}
-            >
-              Téléphone
-            </Btn>
-            <Btn
-              tone={tone}
-              fill={authMethod === "email" ? "soft" : "outline"}
-              motif="indigo-dots"
-              motifSides="both"
-              ariaPressed={authMethod === "email"}
-              onClick={() => { setAuthMethod("email"); setError(""); }}
-            >
-              E-mail
-            </Btn>
-          </div>
+          <TabBar
+            tabs={[
+              { id: "phone", label: "Téléphone" },
+              { id: "email", label: "E-mail" },
+            ]}
+            activeId={authMethod}
+            onChange={(next) => { setAuthMethod(next as "phone" | "email"); setError(""); }}
+            ariaLabel="Méthode de connexion"
+            tone={'gold'}
+            size="md"
+            className={styles.shopTabs}
+          />
 
           {authMethod === "phone" && (
             <>
@@ -337,8 +328,8 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
           </Btn>
 
           <Btn
-            tone={tone}
-            fill="outline"
+            tone={'pink'}
+            fill="solid"
             motif="indigo-dots"
             motifSides="both"
             disabled={busy}

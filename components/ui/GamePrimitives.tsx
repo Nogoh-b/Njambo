@@ -1,14 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import {
-  useId,
-  useRef,
-  type CSSProperties,
-  type KeyboardEvent,
-  type MouseEventHandler,
-  type ReactNode,
-} from "react";
+import { type CSSProperties, type MouseEventHandler, type ReactNode } from "react";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import styles from "./GamePrimitives.module.css";
 
@@ -304,80 +297,6 @@ export function TicketBadge({ kind, count, label, compact = false, className }: 
       <span>{label ?? TICKET_LABELS[kind]}</span>
       {count !== undefined && <strong>×{formatAmount(count)}</strong>}
     </span>
-  );
-}
-
-export interface GameTab {
-  id: string;
-  label: ReactNode;
-  badge?: ReactNode;
-  disabled?: boolean;
-}
-
-export interface GameTabsProps {
-  tabs: GameTab[];
-  activeId: string;
-  onChange: (id: string) => void;
-  ariaLabel: string;
-  className?: string;
-}
-
-/** Onglets accessibles au clavier (flèches, début et fin). */
-export function GameTabs({ tabs, activeId, onChange, ariaLabel, className }: GameTabsProps) {
-  const generatedId = useId().replaceAll(":", "");
-  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
-
-  function activateByKeyboard(event: KeyboardEvent<HTMLButtonElement>, currentIndex: number) {
-    const enabledTabs = tabs
-      .map((tab, index) => ({ tab, index }))
-      .filter(({ tab }) => !tab.disabled);
-    const enabledIndex = enabledTabs.findIndex(({ index }) => index === currentIndex);
-    if (enabledIndex < 0) return;
-
-    let targetIndex: number | undefined;
-    if (event.key === "ArrowRight" || event.key === "ArrowDown") {
-      targetIndex = (enabledIndex + 1) % enabledTabs.length;
-    } else if (event.key === "ArrowLeft" || event.key === "ArrowUp") {
-      targetIndex = (enabledIndex - 1 + enabledTabs.length) % enabledTabs.length;
-    } else if (event.key === "Home") {
-      targetIndex = 0;
-    } else if (event.key === "End") {
-      targetIndex = enabledTabs.length - 1;
-    }
-
-    if (targetIndex === undefined) return;
-    event.preventDefault();
-    const target = enabledTabs[targetIndex].tab;
-    onChange(target.id);
-    buttonRefs.current[target.id]?.focus();
-  }
-
-  return (
-    <div className={cx(styles.tabs, className)} role="tablist" aria-label={ariaLabel}>
-      {tabs.map((tab, index) => {
-        const isActive = tab.id === activeId;
-        return (
-          <button data-nj-skin="none"
-            key={tab.id}
-            ref={(node) => {
-              buttonRefs.current[tab.id] = node;
-            }}
-            id={`${generatedId}-${tab.id}-tab`}
-            type="button"
-            role="tab"
-            className={cx(styles.tab, isActive && styles.tabActive)}
-            aria-selected={isActive}
-            tabIndex={isActive ? 0 : -1}
-            disabled={tab.disabled}
-            onClick={() => onChange(tab.id)}
-            onKeyDown={(event) => activateByKeyboard(event, index)}
-          >
-            <span>{tab.label}</span>
-            {tab.badge !== undefined && <strong>{tab.badge}</strong>}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 

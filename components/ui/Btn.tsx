@@ -1,12 +1,19 @@
 "use client";
 
-import type { CSSProperties, FocusEventHandler, PointerEventHandler, ReactNode } from "react";
+import {
+  forwardRef,
+  type CSSProperties,
+  type FocusEventHandler,
+  type KeyboardEventHandler,
+  type PointerEventHandler,
+  type ReactNode,
+} from "react";
 
 /** Ancienne API (skins raster 9-slice). Conservée pour rétro-compatibilité. */
 export type BtnVariant = "gold" | "teal" | "pink" | "ghost" | "dark";
 
 /** Nouveau système partagé, piloté par props. */
-export type BtnTone = "gold" | "teal" | "pink" | "cobalt" | "blue" | "orange";
+export type BtnTone = "gold" | "teal" | "pink" | "cobalt" | "blue" | "orange" | "palm";
 export type BtnFill = "solid" | "soft" | "outline" | "pattern";
 export type BtnSize = "sm" | "md" | "lg";
 export type BtnMotif = "indigo-dots" | "sun-stripes" | "royal-bands";
@@ -35,11 +42,17 @@ interface BtnProps {
   ariaLabel?: string;
   ariaPressed?: boolean;
   ariaBusy?: boolean;
+  /** Pour un usage en tablist (role="tab" + aria-selected géré par l'appelant). */
+  role?: string;
+  id?: string;
+  ariaSelected?: boolean;
+  tabIndex?: number;
+  onKeyDown?: KeyboardEventHandler<HTMLButtonElement>;
   onPointerEnter?: PointerEventHandler<HTMLButtonElement>;
   onFocus?: FocusEventHandler<HTMLButtonElement>;
 }
 
-export function Btn({
+export const Btn = forwardRef<HTMLButtonElement, BtnProps>(function Btn({
   children,
   onClick,
   type = "button",
@@ -56,9 +69,14 @@ export function Btn({
   ariaLabel,
   ariaPressed,
   ariaBusy,
+  role,
+  id,
+  ariaSelected,
+  tabIndex,
+  onKeyDown,
   onPointerEnter,
   onFocus,
-}: BtnProps) {
+}, ref) {
   const iconOnly = !!icon && !children;
 
   // Dès qu'une prop du nouveau système est fournie, on bascule sur la famille .njb
@@ -84,15 +102,21 @@ export function Btn({
 
     return (
       <button
+        ref={ref}
         type={type}
         data-nj-skin="none"
+        role={role}
+        id={id}
         onClick={onClick}
+        onKeyDown={onKeyDown}
         onPointerEnter={onPointerEnter}
         onFocus={onFocus}
         disabled={disabled}
         aria-label={ariaLabel}
         aria-pressed={ariaPressed}
+        aria-selected={ariaSelected}
         aria-busy={ariaBusy}
+        tabIndex={tabIndex}
         className={classes}
         style={style}
       >
@@ -107,15 +131,21 @@ export function Btn({
 
   return (
     <button
+      ref={ref}
       type={type}
       data-nj-skin={iconOnly ? "icon" : variant}
+      role={role}
+      id={id}
       onClick={onClick}
+      onKeyDown={onKeyDown}
       onPointerEnter={onPointerEnter}
       onFocus={onFocus}
       disabled={disabled}
       aria-label={ariaLabel}
       aria-pressed={ariaPressed}
+      aria-selected={ariaSelected}
       aria-busy={ariaBusy}
+      tabIndex={tabIndex}
       className={`btn btn-${variant}${iconOnly ? " btn-icon-only" : ""}${className ? ` ${className}` : ""}`}
       style={style}
     >
@@ -123,4 +153,4 @@ export function Btn({
       {children}
     </button>
   );
-}
+});

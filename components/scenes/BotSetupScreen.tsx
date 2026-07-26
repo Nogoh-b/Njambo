@@ -97,7 +97,7 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
               tone="teal"
               value={botCount}
               onChange={setBotCount}
-              buttonClassName={styles.botChoice}
+              // buttonClassName={styles.botChoice}
               options={[1, 2, 3].map((count) => ({
                 value: count,
                 ariaLabel: `${count} adversaire${count > 1 ? "s" : ""}`,
@@ -149,9 +149,9 @@ export function BotSetupScreen({ onStart }: BotSetupScreenProps) {
 
       <PreGameFooter status={footerStatus}>
         <div className={styles.actions}>
-          <Btn tone="gold" fill="outline" motif="indigo-dots" motifSides="both" onClick={() => navigateTo("menu")}>
+          {/* <Btn tone="gold" fill="outline" motif="indigo-dots" motifSides="left" onClick={() => navigateTo("menu")}>
             ← Menu
-          </Btn>
+          </Btn> */}
           <Btn
             tone="gold"
             fill="solid"

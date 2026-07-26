@@ -8,7 +8,8 @@ import { useGame } from "@/contexts/GameContext";
 import { db } from "@/lib/firebase";
 import { t } from "@/lib/i18n";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
-import { EmptyState, GameTabs, RankBadge, ResourcePill, Skeleton, StatusBanner } from "@/components/ui/GamePrimitives";
+import { EmptyState, RankBadge, ResourcePill, Skeleton, StatusBanner } from "@/components/ui/GamePrimitives";
+import { TabBar } from "@/components/ui/TabBar";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import styles from "./GameHubs.module.css";
 
@@ -24,8 +25,8 @@ interface LedgerEntry {
 
 const LEDGER_FILTERS = [
   { id: "all", label: "Tout" },
-  { id: "nkap", label: "Nkap", icon: "coin" as const },
-  { id: "cauris", label: "Cauris", icon: "sparkle" as const },
+  { id: "nkap", label: "Nkap" },
+  { id: "cauris", label: "Cauris", tone: "cobalt" as const },
 ];
 
 const COMMAND_LABELS: Record<string, { label: string; icon: NjamboIconName }> = {
@@ -176,7 +177,7 @@ export function WalletScreen() {
         <div className={styles.ledgerHeading}>
           <div><span className={styles.eyebrow}>Journal sécurisé</span><h2 id="ledger-title">Derniers mouvements</h2></div>
           <div className={styles.ledgerFilters}>
-            <GameTabs tabs={LEDGER_FILTERS} activeId={filter} onChange={(next) => setFilter(next as LedgerFilter)} ariaLabel="Filtrer l’historique" />
+            <TabBar tabs={LEDGER_FILTERS} activeId={filter} onChange={(next) => setFilter(next as LedgerFilter)} ariaLabel="Filtrer l’historique" tone="gold" />
           </div>
         </div>
 

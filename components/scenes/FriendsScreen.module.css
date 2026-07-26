@@ -16,53 +16,14 @@
 }
 
 .tabs {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 7px;
   padding: 5px;
   border: 1px solid rgba(84, 169, 79, 0.22);
   border-radius: 16px;
   background: rgba(214, 234, 215, 0.78);
 }
 
-.tabs button {
-  min-width: 0;
-  min-height: 44px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 5px;
-  padding: 7px 8px;
-  color: var(--nj-solar-muted, #66756d);
-  border: 1px solid transparent;
-  border-radius: 12px;
-  background: transparent;
-  font: inherit;
-  font-size: clamp(0.72rem, 3vw, 0.82rem);
-  font-weight: 850;
-  cursor: pointer;
-  transition: color var(--nj-motion-interaction) ease, background var(--nj-motion-interaction) ease, transform var(--nj-motion-press) ease;
-}
-
-.tabs button[aria-selected="true"] {
-  color: var(--nj-solar-ink, #24372f);
-  border-color: rgba(245, 195, 68, 0.52);
-  background: linear-gradient(145deg, rgba(245, 195, 68, 0.34), var(--nj-solar-surface-strong, #fbf4e6));
-  box-shadow: 0 6px 14px rgba(79, 63, 35, 0.1);
-}
-
-.tabs button:nth-child(2)[aria-selected="true"] {
-  border-color: rgba(228, 81, 69, 0.44);
-  background: linear-gradient(145deg, rgba(228, 81, 69, 0.16), var(--nj-solar-surface-strong, #fbf4e6));
-}
-
-.tabs button span {
-  min-width: 19px;
-  padding: 2px 5px;
-  color: white;
-  border-radius: 999px;
-  background: var(--nj-solar-red, #e45145);
-  font-size: 0.65rem;
+.tabs > button {
+  flex: 1 1 0;
 }
 
 .search.search {
@@ -119,15 +80,3 @@
   background: linear-gradient(145deg, #f06c5f, var(--nj-solar-red-deep, #a92f2a));
 }
 
-@media (max-width: 359px) {
-  .tabs button {
-    padding-inline: 4px;
-    font-size: 0.68rem;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .tabs button {
-    transition: none;
-  }
-}

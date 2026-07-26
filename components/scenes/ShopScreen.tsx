@@ -9,7 +9,8 @@ import { useGame } from "@/contexts/GameContext";
 import { useDailyGrid, useLiveOpsContent } from "@/hooks/useLiveOpsContent";
 import { t } from "@/lib/i18n";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
-import { EmptyState, GameCard, GameTabs, ResourcePill, RewardPreview, StatusBanner } from "@/components/ui/GamePrimitives";
+import { EmptyState, GameCard, ResourcePill, RewardPreview, StatusBanner } from "@/components/ui/GamePrimitives";
+import { TabBar } from "@/components/ui/TabBar";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
@@ -382,11 +383,12 @@ export function ShopScreen() {
       }
     >
       <div className={styles.stickyTabs}>
-        <GameTabs
+        <TabBar
           tabs={SHOP_TABS}
           activeId={tab}
           onChange={(next) => setTab(next as ShopTab)}
           ariaLabel="Rayons de la boutique"
+          tone="gold"
           className={styles.shopTabs}
         />
       </div>
@@ -408,19 +410,14 @@ export function ShopScreen() {
             </div>
             <span>{visibleOffers.length} offre{visibleOffers.length > 1 ? "s" : ""}</span>
           </div>
-          <div className={styles.offerCategories} aria-label="Catégories d’offres">
-            {OFFER_CATEGORIES.filter((category) => category.id === "featured" || offers.some((offer) => offer.type === category.id)).map((category) => (
-              <button data-nj-skin="none"
-                key={category.id}
-                type="button"
-                className={offerCategory === category.id ? styles.offerCategoryActive : undefined}
-                aria-pressed={offerCategory === category.id}
-                onClick={() => setOfferCategory(category.id)}
-              >
-                {category.label}
-              </button>
-            ))}
-          </div>
+          <TabBar
+            tabs={OFFER_CATEGORIES.filter((category) => category.id === "featured" || offers.some((offer) => offer.type === category.id))}
+            activeId={offerCategory}
+            onChange={(next) => setOfferCategory(next as OfferCategory)}
+            ariaLabel="Catégories d’offres"
+            tone="cobalt"
+            className={styles.offerCategories}
+          />
           {visibleOffers.length === 0 ? (
             <EmptyState
               icon="coin"
