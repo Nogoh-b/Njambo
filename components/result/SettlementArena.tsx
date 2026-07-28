@@ -20,24 +20,24 @@ interface Seat {
   nkapDelta: number;
   crownsDelta?: number;
   isWinner: boolean;
-  /** Décalage depuis le centre, en pourcentage de la scène. */
+  /** Direction depuis le centre, sans unité (cos/sin). Le CSS la multiplie
+   *  par les rayons, qu'il adapte à l'orientation et à la place disponible. */
   x: string;
   y: string;
 }
 
-/** Jetons émis par trajet. Volontairement bas : l'audit perf a montré que le
- *  coût vient du nombre d'éléments animés, pas de la durée. `full` n'est jamais
- *  atteint sur mobile, l'effet doit donc rester lisible en `balanced`. */
-const COINS_PER_TRIP: Record<string, number> = { full: 4, balanced: 3, lite: 0, off: 0 };
+/** Jetons émis par trajet. Le transfert des NKAP est le sujet même de cet
+ *  écran : il doit jouer à TOUS les niveaux de motion, seul le nombre de
+ *  jetons varie. Le réserver à `full` le rendait invisible sur mobile, où ce
+ *  niveau n'est jamais atteint (cf. deriveMotionLevel), et une rétrogradation
+ *  du capteur de FPS suffisait à le faire disparaître. Seul le respect de
+ *  « mouvement réduit » (`off`) le supprime, à juste titre. */
+const COINS_PER_TRIP: Record<string, number> = { full: 4, balanced: 3, lite: 2, off: 0 };
 
-/** Rayons de la couronne de sièges, en pourcentage de la largeur de scène.
- *  L'ellipse est plus haute que large parce qu'un siège est plus haut que
- *  large : à rayon circulaire, les sièges du haut et du bas débordaient du
- *  cadre et mordaient sur le texte voisin. À quatre joueurs on écarte encore,
- *  et le pot se resserre en regard (cf. `data-dense`). */
-function arenaRadii(count: number): { rx: number; ry: number } {
-  return count <= 3 ? { rx: 32, ry: 31 } : { rx: 35, ry: 37 };
-}
+/* Les rayons de la couronne vivent dans le CSS (`--arena-rx` / `--arena-ry`) :
+   c'est lui qui sait si l'on est en portrait, en paysage ou à l'étroit. Le JS
+   n'émet que la DIRECTION de chaque siège, sans unité. Les figer ici en dur
+   empêchait toute adaptation et cassait le paysage. */
 
 function signed(value: number): string {
   return `${value > 0 ? "+ " : value < 0 ? "− " : ""}${NKAP(Math.abs(value))}`;
@@ -58,7 +58,6 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
     /* Le joueur local est ancré en bas, comme à la table : on retrouve sa
        place sans la chercher. Les autres se répartissent dans le sens horaire. */
     const anchor = Math.max(0, players.findIndex((player) => player.isYou));
-    const { rx, ry } = arenaRadii(count);
 
     return players.map((player, playerIdx) => {
       const entry = byIdx.get(playerIdx);
@@ -70,8 +69,8 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
         nkapDelta: entry?.nkapDelta ?? 0,
         crownsDelta: entry?.crownsDelta,
         isWinner: playerIdx === winnerIdx,
-        x: `${(Math.cos(angle) * rx).toFixed(2)}cqi`,
-        y: `${(Math.sin(angle) * ry).toFixed(2)}cqi`,
+        x: Math.cos(angle).toFixed(4),
+        y: Math.sin(angle).toFixed(4),
       };
     });
   }, [players, settlement, winnerIdx]);
@@ -87,14 +86,21 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
   }, [settlement, winnerIdx]);
 
   const showCrowns = seats.some((seat) => seat.crownsDelta !== undefined);
-  const scripted = motion.enabled && motion.allowEntranceCascade;
-  const coinsPerTrip = COINS_PER_TRIP[motion.mode] ?? 0;
+  /* Volontairement PAS conditionné à `allowEntranceCascade`, qui tombe en
+     `lite` : seul « mouvement réduit » doit priver du transfert. */
+  const scripted = motion.enabled && !motion.reduced;
+  const coinsPerTrip = COINS_PER_TRIP[motion.mode] ?? 2;
 
   useGsapTimeline(scripted, arenaRef, (gsap) => {
     const arena = arenaRef.current;
     const flight = flightRef.current;
     const pot = potRef.current;
     if (!arena || !pot) return;
+
+    /* Les jetons sont créés à la main : le `revert()` du contexte GSAP ne les
+       connaît pas et ne les retirerait pas. On repart d'une couche vide à
+       chaque construction pour éviter qu'ils ne s'accumulent. */
+    flight?.replaceChildren();
 
     const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
     const base = arena.getBoundingClientRect();
@@ -227,7 +233,7 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
           key={seat.playerIdx}
           ref={(node) => { if (node) seatRefs.current.set(seat.playerIdx, node); }}
           className={`${styles.seat}${seat.isWinner ? ` ${styles.seatWinner}` : ""}`}
-          style={{ "--sx": seat.x, "--sy": seat.y } as React.CSSProperties}
+          style={{ "--ux": seat.x, "--uy": seat.y } as React.CSSProperties}
           role="listitem"
           /* L'issue est annoncée d'un bloc : les compteurs animés restent
              masqués aux lecteurs d'écran pour ne pas égrener les valeurs. */

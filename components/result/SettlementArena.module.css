@@ -4,14 +4,34 @@
 
 .arena {
   position: relative;
-  width: 100%;
-  max-width: 380px;
-  margin: 16px auto 6px;
+  /* La scène remplit la hauteur que son conteneur lui laisse (`.arenaSlot`,
+     seul élément extensible de la colonne) et en déduit sa largeur via le
+     ratio. Elle ne peut donc structurellement pas pousser l'écran : plus
+     besoin d'estimer la place occupée par le reste, ni d'ajuster au pixel
+     média-requête par média-requête. */
+  /* Se cale sur la plus contraignante des deux dimensions du conteneur. Un
+     simple `height:100%` + `max-width:100%` ne suffit pas : la largeur déduite
+     du ratio ignore le plafond et la scène débordait de l'écran en portrait
+     large. Ici la contrainte est explicite sur les deux axes. */
+  width: min(100cqw, calc(100cqh / var(--arena-ratio)));
+  max-width: 100%;
+  margin-inline: auto;
   /* Un peu plus haute que large : c'est ce qui donne aux sièges du haut et du
      bas la place de tenir dans le cadre sans mordre sur le texte voisin. */
-  aspect-ratio: 1 / 1.1;
+  --arena-ratio: 1.1;
+  aspect-ratio: 1 / var(--arena-ratio);
   container-type: inline-size;
   container-name: njarena;
+  /* Rayons de la couronne de sièges. Le JS ne fournit que la direction
+     (--ux/--uy) ; c'est ici qu'on décide de la forme. */
+  --arena-rx: 32cqi;
+  --arena-ry: 31cqi;
+}
+
+/* À quatre joueurs, on écarte la couronne (et le pot se resserre plus bas). */
+.arena[data-dense] {
+  --arena-rx: 35cqi;
+  --arena-ry: 37cqi;
 }
 
 /* ── Pot central ───────────────────────────────────────────────────────── */
@@ -79,8 +99,10 @@
   min-width: 76px;
   padding: 6px 4px;
   border-radius: 14px;
-  /* --sx/--sy sont posés en JS : la position dépend du nombre de joueurs. */
-  transform: translate(-50%, -50%) translate(var(--sx), var(--sy));
+  /* Direction (JS) × rayon (CSS) : c'est ce découplage qui permet de passer
+     d'une couronne haute en portrait à une ellipse large en paysage. */
+  transform: translate(-50%, -50%)
+    translate(calc(var(--ux) * var(--arena-rx)), calc(var(--uy) * var(--arena-ry)));
   text-align: center;
 }
 
@@ -178,6 +200,57 @@
   box-shadow: 0 3px 9px rgba(0, 0, 0, 0.45);
   opacity: 0;
   will-change: transform, opacity;
+}
+
+/* ── Paysage bas ───────────────────────────────────────────────────────────
+   La hauteur manque mais la largeur abonde : la couronne s'aplatit en ellipse
+   large. Sans cela l'arène tombait sur sa largeur minimale et les sièges se
+   chevauchaient. */
+@media (orientation: landscape) and (max-height: 560px) {
+  .arena {
+    /* Ellipse large : la hauteur manque, la largeur abonde. */
+    --arena-ratio: 0.385;
+    --arena-rx: 37cqi;
+    --arena-ry: 8.5cqi;
+  }
+
+  .arena[data-dense] {
+    --arena-rx: 39cqi;
+    --arena-ry: 9cqi;
+  }
+
+  .pot,
+  .arena[data-dense] .pot {
+    width: 19%;
+  }
+
+  .seat,
+  .arena[data-dense] .seat {
+    width: 22%;
+    min-width: 64px;
+    gap: 0;
+    padding: 2px;
+  }
+
+  /* Sièges plus courts : c'est leur hauteur, pas leur largeur, qui débordait
+     de l'ellipse aplatie. La taille de l'avatar est posée en style inline par
+     AvatarIllustration, d'où le !important. */
+  .seat .avatarWrap :global(.avatar-illu) {
+    width: 32px !important;
+    height: 32px !important;
+  }
+
+  .crownMark {
+    top: -8px;
+  }
+
+  .name {
+    font-size: 10px;
+  }
+
+  .delta {
+    font-size: 11px;
+  }
 }
 
 @container njarena (max-width: 300px) {

@@ -171,7 +171,9 @@ export function ResultScreen({
 
       {/* L'arène porte désormais le montant : le pot central et le siège du
           vainqueur disent le gain mieux qu'un nombre isolé au-dessus d'eux. */}
-      {arena ?? (
+      {arena ? (
+        <div className={styles.arenaSlot}>{arena}</div>
+      ) : (
         <>
           <div
             ref={gainRef}
@@ -239,7 +241,16 @@ export function ResultScreen({
       decoration={(
         <>
           {motion.enabled && motion.allowDecorativeLoop && <div className="nj-result-aura" aria-hidden="true" />}
-          {motion.enabled && motion.allowParticles && win.isYou && <PowerParticles variant="confetti" zIndex={1} />}
+          {/* Les confettis marquent la victoire : les réserver au niveau `full`
+              les rendait invisibles sur mobile, où il n'est jamais atteint. On
+              baisse l'intensité au lieu de les supprimer. */}
+          {motion.enabled && !motion.reduced && win.isYou && (
+            <PowerParticles
+              variant="confetti"
+              zIndex={1}
+              intensity={motion.level === "full" ? "full" : "balanced"}
+            />
+          )}
         </>
       )}
     />
