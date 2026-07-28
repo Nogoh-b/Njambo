@@ -533,7 +533,19 @@ export class LocalGameSync implements GameSyncActions {
     this.activePowerEffects = []; // Nettoyer après résolution
     // Le remboursement reste purement local : cet adaptateur ne sert qu'à
     // l'entraînement invité et ne peut jamais écrire l'économie serveur.
-    this.result = { ...info, winner: final[winnerIdx], gain: potNow, playersCount: ps.length, refund: youRefund || undefined };
+    /* Règlement obtenu par différence avant/après : capture d'un seul geste le
+       doublement, la protection Totem, les remboursements et le multiplicateur,
+       sans redire les règles appliquées ci-dessus. Pas de couronnes ici :
+       l'entraînement local n'est jamais classé. */
+    const settlement = final.map((player, index) => ({
+      playerIdx: index,
+      contributed: this.opts.mise,
+      nkapDelta: player.balance - ps[index].balance,
+    }));
+    this.result = {
+      ...info, winner: final[winnerIdx], gain: potNow, playersCount: ps.length,
+      refund: youRefund || undefined, players: final, settlement,
+    };
 
     // Mettre à jour le solde du profil
     const youPlayer = final.find((p) => p.isYou);

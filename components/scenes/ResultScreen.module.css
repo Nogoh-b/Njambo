@@ -30,6 +30,16 @@
   text-wrap: balance;
 }
 
+/* En défaite, le doré est réservé au vainqueur : le titre passe en teinte
+   froide et sourde pour que la hiérarchie soit lisible d'un coup d'œil. */
+:global([data-outcome="loss"]) .title {
+  color: rgba(214, 224, 240, 0.88);
+}
+
+:global([data-outcome="loss"]) .markBadge {
+  filter: saturate(0.55) brightness(0.9);
+}
+
 .reasons {
   display: flex;
   flex-wrap: wrap;

@@ -3435,6 +3435,15 @@ button[data-nj-skin="icon"],
   animation: resultAuraBreathe 3.4s ease-in-out infinite;
 }
 
+/* Défaite : halo froid et immobile. L'absence de pulsation fait autant pour
+   distinguer l'ambiance que la teinte — la victoire seule respire. */
+[data-outcome="loss"] .nj-result-aura {
+  background:
+    radial-gradient(ellipse at 50% 38%, rgba(74, 96, 128, 0.26), transparent 52%),
+    radial-gradient(ellipse at 50% 78%, rgba(20, 24, 38, 0.4), transparent 56%);
+  animation: none;
+}
+
 .nj-result-particle {
   z-index: 1;
   box-shadow: 0 0 12px rgba(255, 248, 232, 0.2);

@@ -18,6 +18,8 @@ interface ResultLayoutProps {
   main: ReactNode;
   rail?: ReactNode;
   panelRef?: Ref<HTMLElement>;
+  /** Pilote l'ambiance (halo, teintes) : chaude en victoire, froide en défaite. */
+  outcome?: "win" | "loss";
 }
 
 interface ResultActionsProps {
@@ -41,6 +43,7 @@ export const ResultLayout = forwardRef<HTMLDivElement, ResultLayoutProps>(functi
     main,
     rail,
     panelRef,
+    outcome,
   },
   ref,
 ) {
@@ -50,6 +53,7 @@ export const ResultLayout = forwardRef<HTMLDivElement, ResultLayoutProps>(functi
       className={styles.root}
       data-motion-level={motionMode}
       data-reduced-motion={reducedMotion || undefined}
+      data-outcome={outcome}
     >
       {decoration}
       <section

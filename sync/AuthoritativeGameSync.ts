@@ -28,7 +28,11 @@ interface ServerMatch {
   turnId: string;
   actionDeadlineAt: number;
   potNkap: number;
-  result: null | { winnerUid: string; winnerName: string; winnerIsBot: boolean; type: "lastTrick"; crownGain?: number };
+  result: null | {
+    winnerUid: string; winnerName: string; winnerIsBot: boolean; type: "lastTrick"; crownGain?: number;
+    /** Règlement par joueur calculé au serveur (cf. matchCommands, settle). */
+    settlement?: Array<{ uid: string; contributed: number; nkapDelta: number; crownsBefore?: number; crownsDelta?: number }>;
+  };
   recentActions?: ServerAction[];
   /** Activations de pouvoir diffusées à tous les participants (version
    *  expurgée des identités de cartes cachées — la version complète arrive
@@ -591,7 +595,25 @@ export class AuthoritativeGameSync implements GameSyncActions {
     const winnerIdx = this.localIndex(serverWinner);
     const players = this.players();
     const lastCard = match.recentActions?.at(-1)?.card ?? ({ id: "result", rank: "3", value: 3, suit: "♠", color: "#1e1e1e" } as Card);
-    const result: Result = { type: "lastTrick", winnerIdx, winner: players[winnerIdx], doubles: false, lastCard, gain: match.potNkap, playersCount: players.length };
+    /* Le serveur indexe le règlement par uid ; l'UI raisonne en sièges locaux. */
+    const settlement = match.result.settlement
+      ?.map((entry) => {
+        const serverIdx = match.participants.findIndex((participant) => participant.uid === entry.uid);
+        if (serverIdx < 0) return null;
+        return {
+          playerIdx: this.localIndex(serverIdx),
+          contributed: entry.contributed,
+          nkapDelta: entry.nkapDelta,
+          crownsBefore: entry.crownsBefore,
+          crownsDelta: entry.crownsDelta,
+        };
+      })
+      .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
+
+    const result: Result = {
+      type: "lastTrick", winnerIdx, winner: players[winnerIdx], doubles: false, lastCard,
+      gain: match.potNkap, playersCount: players.length, players, settlement,
+    };
     this.roundListeners.forEach((listener) => listener(result));
     this.opts.onResult(result);
   }

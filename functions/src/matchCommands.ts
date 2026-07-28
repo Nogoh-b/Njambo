@@ -14,6 +14,19 @@ type MatchMode = "bot" | "online" | "friends" | "event";
 type Suit = "♥" | "♦" | "♣" | "♠";
 interface ServerCard { id: string; suit: Suit; value: number; rank: string; color: string }
 export interface MatchParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number }
+
+/** Mouvement de compte d'un joueur sur la manche qui vient de se terminer.
+ *  `crownsBefore`/`crownsDelta` restent absents hors match classé (modes bot
+ *  et amis), où les couronnes ne bougent pas : l'UI masque alors la ligne. */
+export interface MatchSettlementEntry {
+  uid: string;
+  /** Mise engagée par ce joueur dans le pot (0 s'il n'a pas contribué). */
+  contributed: number;
+  /** Solde net de la manche : gain du pot moins la mise, remboursements inclus. */
+  nkapDelta: number;
+  crownsBefore?: number;
+  crownsDelta?: number;
+}
 interface MatchPlay { uid: string; card: ServerCard; turnId: string }
 export interface MatchDocument {
   status: string;
@@ -579,6 +592,26 @@ export async function performGameAction(
       type: "lastTrick", settledAt: now,
     } : null;
 
+    /* Règlement par joueur, exposé à l'UI pour animer les transferts.
+       Les bots y figurent : l'écran de résultat les affiche aussi. En mode
+       bot le pot inclut leur mise (financée par la maison, cf. potNkap), donc
+       ils comptent comme contributeurs — ailleurs seuls les joueurs réels le
+       sont. Les couronnes ne sont renseignées que si le match est classé. */
+    const settlementByUid = new Map<string, MatchSettlementEntry>();
+    if (finished) {
+      const stakePaid = Number(match.stakeNkap ?? 0);
+      const winnerUid = participants[finalWinnerIndex].uid;
+      const botModeMatch = match.mode === "bot";
+      participants.forEach((participant) => {
+        const contributed = botModeMatch || !participant.bot ? stakePaid : 0;
+        settlementByUid.set(participant.uid, {
+          uid: participant.uid,
+          contributed,
+          nkapDelta: (participant.uid === winnerUid ? pot : 0) - contributed,
+        });
+      });
+    }
+
     if (finished) {
       const winnerUid = participants[finalWinnerIndex].uid;
       realParticipants.forEach((participant, index) => {
@@ -615,6 +648,8 @@ export async function performGameAction(
         loserEconomy.nkap += amount;
         transaction.set(db.doc(`economies/${participant.uid}`), loserEconomy, { merge: false });
         ledger(transaction, participant.uid, stableId(participant.uid, "power-refund", matchId), "powerRefund", { nkap: amount }, loserEconomy, now, { matchId });
+        const settled = settlementByUid.get(participant.uid);
+        if (settled) settled.nkapDelta += amount;
       });
     }
 
@@ -634,15 +669,26 @@ export async function performGameAction(
         let lossIndex = 0;
         realParticipants.forEach((participant, index) => {
           const delta = index === winnerPlayerIndex ? gain : -losses[lossIndex++];
+          const crownsAfter = Math.max(0, crownValues[index] + delta);
           transaction.set(db.doc(`players/${participant.uid}`), {
-            crowns: Math.max(0, crownValues[index] + delta),
+            crowns: crownsAfter,
             placementMatchesRemaining: Math.max(0, Number(playerSnaps[index].get("placementMatchesRemaining") ?? 5) - 1),
             updatedAt: now,
           }, { merge: true });
+          const settled = settlementByUid.get(participant.uid);
+          if (settled) {
+            settled.crownsBefore = crownValues[index];
+            /* Le plancher à zéro peut absorber une partie de la perte : on
+               expose l'écart réellement appliqué, pas le delta théorique. */
+            settled.crownsDelta = crownsAfter - crownValues[index];
+          }
         });
         (result as Record<string, unknown>).crownGain = gain;
       }
     }
+
+    /* Attaché après les blocs remboursement et couronnes, qui l'alimentent. */
+    if (result) (result as Record<string, unknown>).settlement = [...settlementByUid.values()];
 
     if (finished && eventRunSnaps.length > 0) {
       const winnerUid = participants[finalWinnerIndex].uid;

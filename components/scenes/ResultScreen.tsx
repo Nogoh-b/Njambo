@@ -7,6 +7,7 @@ import { Chip } from "@/components/ui/Chip";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { ResultActions, ResultLayout } from "@/components/ui/ResultLayout";
+import { SettlementBoard } from "@/components/result/SettlementBoard";
 import { SocialActions } from "@/components/social/SocialActions";
 import { useAuth } from "@/hooks/useAuth";
 import { useGame } from "@/contexts/GameContext";
@@ -175,6 +176,15 @@ export function ResultScreen({
         <div className={styles.refund}>Remboursement Cauris : + {NKAP(result.refund ?? 0)}</div>
       )}
 
+      {result.players && result.settlement && result.settlement.length > 0 && (
+        <SettlementBoard
+          players={result.players}
+          settlement={result.settlement}
+          winnerIdx={result.winnerIdx}
+          motion={motion}
+        />
+      )}
+
       <ResultActions status={nextRound.status}>
         <Btn
           variant="pink"
@@ -216,6 +226,7 @@ export function ResultScreen({
       scriptedMotion={scriptedMotion}
       main={main}
       rail={rail}
+      outcome={win.isYou ? "win" : "loss"}
       decoration={(
         <>
           {motion.enabled && motion.allowDecorativeLoop && <div className="nj-result-aura" aria-hidden="true" />}

@@ -385,6 +385,21 @@ export interface LastTrickWinCore {
 /** Infos brutes produites par le moteur / resolveWin. */
 export type WinInfo = InstantWinCore | LastTrickWinCore;
 
+/** Mouvement de compte d'un joueur sur la manche, tel qu'affiché à l'écran de
+ *  résultat. Le lien avec `Result.players` se fait par `playerIdx` (siège
+ *  local) et non par uid : l'entraînement local n'en a pas. */
+export interface ResultSettlementEntry {
+  playerIdx: number;
+  /** Mise engagée dans le pot par ce joueur (0 s'il n'a pas contribué). */
+  contributed: number;
+  /** Solde net de la manche : part du pot moins la mise, remboursements inclus. */
+  nkapDelta: number;
+  /** Renseignés uniquement en match classé — absents en mode bot et amis,
+   *  où les couronnes ne bougent pas. Leur présence pilote l'affichage. */
+  crownsBefore?: number;
+  crownsDelta?: number;
+}
+
 /** Résultat complet exposé à l'UI (gagnant + gain + infos de la victoire). */
 export type Result = (InstantWinCore | LastTrickWinCore) & {
   winner: Player;
@@ -392,6 +407,10 @@ export type Result = (InstantWinCore | LastTrickWinCore) & {
   playersCount: number;
   /** Remboursement crédité au joueur local s'il perd avec Cauris Chanceux (F). */
   refund?: number;
+  /** Tous les joueurs de la manche, dans l'ordre des sièges locaux. */
+  players?: Player[];
+  /** Règlement par joueur, aligné sur `players` via `playerIdx`. */
+  settlement?: ResultSettlementEntry[];
 };
 
 /* ───── Config du jeu (règles, vitesses d'animation) ───── */
