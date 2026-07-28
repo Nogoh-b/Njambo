@@ -7,6 +7,8 @@ export interface SoundApi {
   turnStart: () => void;
   dominance: () => void;
   tick: () => void;
+  coin: () => void;
+  crown: () => void;
   win: () => void;
   lose: () => void;
   startMusic: () => void;
@@ -109,6 +111,21 @@ export function createSound(): SoundApi {
         { f: 660, delay: 180, dur: 0.16, type: "sine", gain: 0.045 },
       ]),
     tick: () => tone(880, 0.05, "sine", 0.05),
+    /* Tintement de pièce : deux harmoniques brèves et brillantes, jouées à
+       l'atterrissage des jetons de l'écran de résultat. Volontairement discret
+       — il se répète plusieurs fois par transfert. */
+    coin: () =>
+      sequence([
+        { f: 1318, delay: 0, dur: 0.05, type: "triangle", gain: 0.045 },
+        { f: 1976, delay: 32, dur: 0.07, type: "sine", gain: 0.03 },
+      ]),
+    /* Couronne gagnée ou perdue : plus grave et plus long que la pièce, pour
+       qu'on distingue à l'oreille l'argent du classement. */
+    crown: () =>
+      sequence([
+        { f: 784, delay: 0, dur: 0.1, type: "triangle", gain: 0.05 },
+        { f: 1174, delay: 85, dur: 0.16, type: "sine", gain: 0.04 },
+      ]),
     win: () =>
       [523, 659, 784, 1046].forEach((f, i) =>
         setTimeout(() => tone(f, 0.22, "triangle", 0.09), i * 110)

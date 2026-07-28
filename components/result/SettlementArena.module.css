@@ -36,31 +36,51 @@
 
 /* ── Pot central ───────────────────────────────────────────────────────── */
 
+/* La natte : le sol de la scène. Elle épouse la couronne de sièges via les
+   mêmes rayons, donc elle suit automatiquement le passage en paysage. C'est
+   elle qui relie les joueurs entre eux et pose le pot dans un lieu, au lieu
+   de le laisser flotter au milieu du vide. */
+.mat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--arena-rx) * 2 + 22cqi);
+  height: calc(var(--arena-ry) * 2 + 22cqi);
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(closest-side, rgba(255, 252, 244, 0.75), rgba(233, 214, 178, 0.34) 66%, rgba(169, 98, 67, 0.08));
+  border: 1px solid rgba(169, 98, 67, 0.16);
+  box-shadow: inset 0 1px 0 rgba(255, 253, 246, 0.8);
+  pointer-events: none;
+}
+
+/* Pot volontairement PETIT : c'est le point de convergence, pas le sujet.
+   Palette claire, comme le panneau ivoire qui l'accueille — la version
+   précédente était un disque nocturne posé sur une carte crème. */
 .pot {
   position: absolute;
   top: 50%;
   left: 50%;
+  z-index: 2;
   display: grid;
   place-items: center;
-  gap: 1px;
-  width: 38%;
+  width: 21%;
   aspect-ratio: 1;
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  background:
-    radial-gradient(circle at 40% 30%, rgba(255, 236, 196, 0.34), transparent 58%),
-    radial-gradient(circle at 50% 50%, rgba(60, 37, 20, 0.9), rgba(10, 8, 6, 0.95));
-  border: 1px solid rgba(242, 187, 69, 0.42);
+  background: radial-gradient(circle at 38% 30%, #fff6df, var(--gold, #d0a35d) 62%, var(--copper, #a96243));
+  border: 1px solid rgba(255, 246, 223, 0.9);
   box-shadow:
-    inset 0 1px 0 rgba(255, 236, 196, 0.22),
-    0 0 28px rgba(242, 187, 69, 0.16),
-    0 14px 30px rgba(0, 0, 0, 0.4);
+    inset 0 1px 0 rgba(255, 252, 240, 0.9),
+    0 3px 10px rgba(84, 52, 24, 0.26),
+    0 0 0 5px rgba(208, 163, 93, 0.13);
 }
 
-/* À quatre joueurs, les sièges latéraux se rapprochent : le pot rétrécit pour
-   préserver la respiration entre le centre et la couronne. */
 .arena[data-dense] .pot {
-  width: 31%;
+  width: 19%;
 }
 
 .arena[data-dense] .seat {
@@ -68,18 +88,10 @@
   min-width: 70px;
 }
 
-.potLabel {
-  color: rgba(255, 244, 223, 0.56);
-  font-size: 9px;
-  font-weight: 900;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-}
-
 .potAmount {
-  color: var(--gold, #f2bb45);
+  color: #3d2708;
   font-family: var(--font-display), Georgia, serif;
-  font-size: clamp(15px, 5.2cqi, 22px);
+  font-size: clamp(10px, 3.6cqi, 15px);
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -108,8 +120,12 @@
 
 /* Le vainqueur est la seule position chaude et cerclée : le contraste porte
    l'information avant même que les compteurs ne bougent. */
+.seat {
+  z-index: 3;
+}
+
 .seatWinner {
-  background: radial-gradient(circle at 50% 32%, rgba(242, 187, 69, 0.22), transparent 70%);
+  background: radial-gradient(circle at 50% 32%, rgba(208, 163, 93, 0.3), transparent 72%);
 }
 
 .avatarWrap {
@@ -123,8 +139,8 @@
   position: absolute;
   inset: -5px;
   border-radius: 50%;
-  border: 2px solid rgba(242, 187, 69, 0.7);
-  box-shadow: 0 0 16px rgba(242, 187, 69, 0.4);
+  border: 2px solid rgba(208, 163, 93, 0.95);
+  box-shadow: 0 0 14px rgba(208, 163, 93, 0.45);
 }
 
 .crownMark {
@@ -132,13 +148,14 @@
   top: -12px;
   left: 50%;
   transform: translateX(-50%);
-  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+  filter: drop-shadow(0 1px 3px rgba(84, 52, 24, 0.45));
 }
 
+/* Encre sombre : le panneau de résultat est une surface solaire CLAIRE. */
 .name {
   max-width: 100%;
   overflow: hidden;
-  color: rgba(255, 248, 236, 0.9);
+  color: var(--nj-solar-ink, #24372f);
   font-size: 11px;
   font-weight: 900;
   text-overflow: ellipsis;
@@ -146,7 +163,7 @@
 }
 
 .seatWinner .name {
-  color: var(--gold, #f2bb45);
+  color: #8f4f33;
 }
 
 .delta {
@@ -157,23 +174,27 @@
   white-space: nowrap;
 }
 
+/* Teintes assombries par rapport aux tokens bruts : sur ivoire, le teal et le
+   rose clairs d'origine tombaient sous le seuil de lisibilité (1,26:1 !).
+   Ces valeurs sont mesurées à ≥ 4,5:1 contre --nj-solar-surface, le minimum
+   pour du texte de 10 à 12 px. */
 .deltaUp {
-  color: var(--teal, #10b7a6);
+  color: #1a6b5d;
 }
 
 .deltaDown {
-  color: rgba(255, 186, 186, 0.82);
+  color: #8f4f33;
 }
 
 .deltaFlat {
-  color: rgba(255, 244, 223, 0.42);
+  color: rgba(36, 55, 47, 0.45);
 }
 
 .crowns {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: rgba(255, 244, 223, 0.6);
+  color: rgba(36, 55, 47, 0.62);
   font-size: 10px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
@@ -184,20 +205,43 @@
 .flightLayer {
   position: absolute;
   inset: 0;
+  z-index: 4;
   overflow: visible;
   pointer-events: none;
+}
+
+/* Jeton de couronne : même mécanique de vol que la pièce, mais glyphe et
+   teinte distincts — on doit voir d'un coup d'œil que ce n'est pas de l'argent
+   qui circule, mais du classement. */
+.crownToken {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: grid;
+  place-items: center;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 36% 30%, #fffaf0, #e8d5a8 58%, #b9925a);
+  border: 1px solid rgba(255, 250, 235, 0.95);
+  box-shadow: 0 2px 6px rgba(84, 52, 24, 0.36);
+  color: #6d4a1c;
+  font-size: 11px;
+  line-height: 1;
+  opacity: 0;
+  will-change: transform, opacity;
 }
 
 .coin {
   position: absolute;
   top: 0;
   left: 0;
-  width: 20px;
-  height: 20px;
+  width: 17px;
+  height: 17px;
   border-radius: 50%;
-  background: radial-gradient(circle at 34% 28%, #ffe9b4, var(--gold, #f2bb45) 58%, var(--copper, #b8722f));
-  border: 1px solid rgba(255, 240, 208, 0.82);
-  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.45);
+  background: radial-gradient(circle at 36% 30%, #fff6df, var(--gold, #d0a35d) 60%, var(--copper, #a96243));
+  border: 1px solid rgba(255, 246, 223, 0.9);
+  box-shadow: 0 2px 6px rgba(84, 52, 24, 0.4);
   opacity: 0;
   will-change: transform, opacity;
 }

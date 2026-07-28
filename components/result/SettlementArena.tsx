@@ -2,6 +2,7 @@
 
 import { useMemo, useRef } from "react";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { useGame } from "@/contexts/GameContext";
 import { NKAP } from "@/data/mock";
 import { useGsapTimeline, type MotionProfile } from "@/lib/motion";
 import type { Player, ResultSettlementEntry } from "@/types/game";
@@ -43,7 +44,14 @@ function signed(value: number): string {
   return `${value > 0 ? "+ " : value < 0 ? "− " : ""}${NKAP(Math.abs(value))}`;
 }
 
+/** Le pot est un petit disque : il porte le nombre seul, sans l'unité, qui
+ *  n'y tiendrait pas et que le contexte rend superflue. */
+function bare(value: number): string {
+  return value.toLocaleString("fr-FR");
+}
+
 export function SettlementArena({ players, settlement, winnerIdx, motion }: SettlementArenaProps) {
+  const { sfx } = useGame();
   const arenaRef = useRef<HTMLDivElement>(null);
   const potRef = useRef<HTMLDivElement>(null);
   const potAmountRef = useRef<HTMLSpanElement>(null);
@@ -118,61 +126,85 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
       0,
     ).fromTo(pot, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.8)" }, 0.12);
 
-    const spendCoins = (from: { x: number; y: number }, to: { x: number; y: number }, at: number, spread: number) => {
+    /* Un seul mécanisme de vol pour les deux monnaies : seuls le glyphe et le
+       son changent. Les couronnes voyagent de perdant à vainqueur en direct —
+       elles ne transitent pas par le pot, qui ne concerne que les NKAP. */
+    const flyTokens = (
+      kind: "coin" | "crown",
+      from: { x: number; y: number },
+      to: { x: number; y: number },
+      at: number,
+      spread: number,
+    ) => {
       if (!flight || coinsPerTrip === 0) return;
-      for (let index = 0; index < coinsPerTrip; index += 1) {
-        const coin = document.createElement("span");
-        coin.className = styles.coin;
-        coin.setAttribute("aria-hidden", "true");
-        flight.appendChild(coin);
-        const delay = at + index * 0.07;
+      const count = kind === "crown" ? Math.max(1, coinsPerTrip - 1) : coinsPerTrip;
+      const travel = (motion.allowLongCascade ? 0.9 : 0.74) * (kind === "crown" ? 0.92 : 1);
+
+      for (let index = 0; index < count; index += 1) {
+        const token = document.createElement("span");
+        token.className = kind === "crown" ? styles.crownToken : styles.coin;
+        token.setAttribute("aria-hidden", "true");
+        if (kind === "crown") token.textContent = "♛";
+        flight.appendChild(token);
+
+        const delay = at + index * 0.1;
         /* Décalage perpendiculaire décroissant : les jetons partent en éventail
            puis se resserrent à l'arrivée, ce qui évite l'empilement. */
-        const offset = (index - (coinsPerTrip - 1) / 2) * spread;
+        const offset = (index - (count - 1) / 2) * spread;
         tl.fromTo(
-          coin,
-          { x: from.x - 10, y: from.y - 10, opacity: 0, scale: 0.55 },
-          { opacity: 1, scale: 1, duration: 0.14 },
+          token,
+          { x: from.x - 9, y: from.y - 9, opacity: 0, scale: 0.5 },
+          { opacity: 1, scale: 1, duration: 0.18 },
           delay,
         )
-          .to(coin, {
-            x: to.x - 10 + offset * 0.25,
-            y: to.y - 10,
-            duration: motion.allowLongCascade ? 0.6 : 0.48,
+          .to(token, {
+            x: to.x - 9 + offset * 0.25,
+            y: to.y - 9,
+            duration: travel,
             ease: "power1.inOut",
           }, delay)
-          .to(coin, { opacity: 0, scale: 0.6, duration: 0.16 }, delay + (motion.allowLongCascade ? 0.5 : 0.4));
+          .to(token, { opacity: 0, scale: 0.62, duration: 0.2 }, delay + travel - 0.14);
+
+        /* Le son se déclenche à l'ATTERRISSAGE, pas au départ : c'est le
+           contact qui doit s'entendre. Un seul jeton sonne par trajet, sinon
+           la rafale devient une bouillie. */
+        if (index === 0) {
+          tl.call(() => { sfx((sound) => (kind === "crown" ? sound.crown() : sound.coin())); }, [], delay + travel);
+        }
       }
     };
 
     /* Temps 1 — les mises quittent les perdants et tombent dans le pot. */
-    const payIn = 0.5;
+    const payIn = 0.62;
     let sawPayment = false;
-    seats.forEach((seat) => {
+    seats.forEach((seat, order) => {
       const node = seatRefs.current.get(seat.playerIdx);
       if (!node || seat.isWinner || seat.nkapDelta >= 0) return;
       sawPayment = true;
-      spendCoins(centreOf(node), potCentre, payIn, 22);
+      /* Les perdants paient l'un APRÈS l'autre : on voit qui donne quoi, au
+         lieu d'une salve simultanée illisible. */
+      const at = payIn + order * 0.22;
+      flyTokens("coin", centreOf(node), potCentre, at, 22);
       const counter = { value: 0 };
       const label = deltaRefs.current.get(seat.playerIdx);
       if (label) {
         tl.to(counter, {
           value: seat.nkapDelta,
-          duration: 0.5,
+          duration: 0.72,
           onUpdate: () => { label.textContent = signed(Math.round(counter.value)); },
           onComplete: () => { label.textContent = signed(seat.nkapDelta); },
-        }, payIn);
+        }, at);
       }
     });
 
     /* Temps 2 — le pot bascule chez le vainqueur. Il part même si personne n'a
        payé à l'instant (mise nulle) : le pot s'est rempli pendant la manche. */
-    const payOut = sawPayment ? 1.25 : 0.55;
+    const payOut = sawPayment ? 2.1 : 0.8;
     const winnerNode = seatRefs.current.get(winnerIdx);
     if (winnerNode) {
-      tl.to(pot, { scale: 1.08, duration: 0.16, ease: "power2.out" }, payOut - 0.16)
-        .to(pot, { scale: 1, duration: 0.2 }, payOut);
-      spendCoins(potCentre, centreOf(winnerNode), payOut, 26);
+      tl.to(pot, { scale: 1.12, duration: 0.2, ease: "power2.out" }, payOut - 0.2)
+        .to(pot, { scale: 1, duration: 0.26 }, payOut);
+      flyTokens("coin", potCentre, centreOf(winnerNode), payOut, 26);
 
       const winnerLabel = deltaRefs.current.get(winnerIdx);
       const winnerSeat = seats.find((seat) => seat.playerIdx === winnerIdx);
@@ -193,27 +225,42 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
         tl.to(counter, {
           value: 0,
           duration: 0.6,
-          onUpdate: () => { node.textContent = NKAP(Math.round(counter.value)); },
-          onComplete: () => { node.textContent = NKAP(0); },
+          onUpdate: () => { node.textContent = bare(Math.round(counter.value)); },
+          onComplete: () => { node.textContent = bare(0); },
         }, payOut + 0.2);
       }
     }
 
-    /* Temps 3 — les couronnes, une fois l'argent posé. */
+    /* Temps 3 — les couronnes, une fois l'argent posé. Elles VOLENT elles
+       aussi : le classement se transfère de perdant à vainqueur, en direct et
+       sans passer par le pot, qui ne concerne que les NKAP. */
+    const crownsAt = payOut + 1.25;
     if (showCrowns) {
+      const winnerNode = seatRefs.current.get(winnerIdx);
+      let crownOrder = 0;
+
       seats.forEach((seat) => {
         const node = crownRefs.current.get(seat.playerIdx);
         if (!node || seat.crownsDelta === undefined) return;
+
+        /* Chaque perdant de couronnes envoie les siennes au vainqueur. */
+        const seatNode = seatRefs.current.get(seat.playerIdx);
+        const at = crownsAt + crownOrder * 0.2;
+        if (seat.crownsDelta < 0 && seatNode && winnerNode) {
+          flyTokens("crown", centreOf(seatNode), centreOf(winnerNode), at, 20);
+          crownOrder += 1;
+        }
+
         const counter = { value: 0 };
         tl.to(counter, {
           value: seat.crownsDelta,
-          duration: 0.45,
+          duration: 0.6,
           onUpdate: () => { node.textContent = signed(Math.round(counter.value)); },
           onComplete: () => { node.textContent = signed(seat.crownsDelta ?? 0); },
-        }, payOut + 0.7);
+        }, seat.crownsDelta < 0 ? at : crownsAt + 0.5);
       });
     }
-  }, [scripted, seats, potTotal, showCrowns, coinsPerTrip, winnerIdx]);
+  }, [scripted, seats, potTotal, showCrowns, coinsPerTrip, winnerIdx, sfx]);
 
   return (
     <div
@@ -223,9 +270,11 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
       aria-label="Règlement de la manche"
       data-dense={players.length >= 4 || undefined}
     >
+      {/* La natte, posée avant tout le reste : elle est le sol de la scène. */}
+      <div className={styles.mat} aria-hidden="true" />
+
       <div ref={potRef} className={styles.pot} aria-hidden="true">
-        <span className={styles.potLabel}>Pot</span>
-        <span ref={potAmountRef} className={styles.potAmount}>{NKAP(potTotal)}</span>
+        <span ref={potAmountRef} className={styles.potAmount}>{bare(potTotal)}</span>
       </div>
 
       {seats.map((seat) => (
