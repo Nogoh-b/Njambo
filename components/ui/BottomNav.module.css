@@ -24,7 +24,7 @@
   overflow: visible;
   padding: 0 4px env(safe-area-inset-bottom);
   transform: translateX(-50%);
-  border: 1px solid color-mix(in srgb, var(--nj-wood-edge, #5c3e25) 78%, #b99363);
+  border: 1px solid color-mix(in srgb, var(--nj-panel-edge, #b88e54) 78%, #b99363);
   border-bottom: 0;
   border-radius: var(--nj-radius-lg, 20px) var(--nj-radius-lg, 20px) 0 0;
   background:
@@ -34,8 +34,7 @@
     radial-gradient(circle at 66% 115%, color-mix(in srgb, var(--dock-cobalt) 18%, transparent), transparent 26%),
     radial-gradient(circle at 92% 115%, color-mix(in srgb, var(--dock-palm) 23%, transparent), transparent 28%),
     linear-gradient(180deg, rgba(255, 229, 177, 0.14), transparent 38%),
-    repeating-linear-gradient(91deg, rgba(0, 0, 0, 0.2) 0 1px, transparent 1px 5px, rgba(234, 211, 162, 0.025) 5px 6px, transparent 6px 13px),
-    linear-gradient(158deg, #57351e, #2c1b18 52%, #15121b);
+    var(--nj-solar-surface-strong, #f7ead0);
   box-shadow:
     0 -10px 30px rgba(0, 0, 0, 0.34),
     inset 0 1px 0 rgba(255, 230, 177, 0.17);

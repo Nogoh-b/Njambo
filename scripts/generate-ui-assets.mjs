@@ -140,24 +140,28 @@ function markSvg() {
   </svg>`);
 }
 
+/* Cadres de boutons — thème solaire « Mboa ».
+   Les surfaces sont des parchemins clairs teintés par la tonalité, les
+   liserés reprennent la couleur de ton, l'encre reste sombre. Voir
+   app/mboa-solar.css pour les tokens équivalents côté CSS. */
 const buttonThemes = {
-  gold: { edge: "#d0a35d", light: "#f0d59a", surface1: "#5a3b22", surface2: "#1d130e", inlay: "#aa7041", warm: "#e1b548", hot: "#a94135" },
-  teal: { edge: "#609d93", light: "#b5d5ca", surface1: "#30423c", surface2: "#101917", inlay: "#b68a50", warm: "#dfaa3e", hot: "#b24739" },
-  pink: { edge: "#ad6972", light: "#d8afb0", surface1: "#452d2d", surface2: "#19100f", inlay: "#b68a50", warm: "#e0ae43", hot: "#9f382f" },
-  dark: { edge: "#8c6746", light: "#c5a574", surface1: "#3d291d", surface2: "#120d0b", inlay: "#675443", warm: "#d7a33c", hot: "#a43c32" },
-  ghost: { edge: "#5f5144", light: "#8e7960", surface1: "#25201c", surface2: "#0b0a0b", inlay: "#4c453d", warm: "#b98a36", hot: "#87382f" },
+  gold: { edge: "#b88e54", light: "#fff7e4", surface1: "#f9e7bd", surface2: "#eed296", inlay: "#a9680c", warm: "#f5c344", hot: "#e45145" },
+  teal: { edge: "#199b68", light: "#eaf7f0", surface1: "#ddf1e6", surface2: "#bce4d1", inlay: "#116345", warm: "#f5c344", hot: "#199b68" },
+  pink: { edge: "#e45145", light: "#fdece8", surface1: "#fbdfd9", surface2: "#f4c6bc", inlay: "#a92f2a", warm: "#f5c344", hot: "#a92f2a" },
+  dark: { edge: "#765033", light: "#fbf1dc", surface1: "#ecd9b5", surface2: "#d9ba82", inlay: "#765033", warm: "#f5c344", hot: "#a92f2a" },
+  ghost: { edge: "#b88e54", light: "#fdf6e8", surface1: "#f7ead0", surface2: "#e6d3ae", inlay: "#b88e54", warm: "#d6b77d", hot: "#b88e54" },
 };
 
 function buttonSvg(theme, iconOnly = false) {
   const width = iconOnly ? 256 : 720;
   const height = iconOnly ? 256 : 288;
   const geometry = iconOnly
-    ? `<circle cx="128" cy="128" r="114" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><circle cx="128" cy="128" r="94" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".42" stroke-width="4"/><circle cx="128" cy="128" r="78" fill="#08090d" fill-opacity=".48" stroke="#e8d4af" stroke-opacity=".09" stroke-width="3"/><path d="M128 10l12 17-12 17-12-17 12-17Zm0 202 12 17-12 17-12-17 12-17Z" fill="${theme.warm}" stroke="#5d3519" stroke-width="3"/><path d="M10 128l17-12 17 12-17 12-17-12Zm202 0 17-12 17 12-17 12-17-12Z" fill="${theme.hot}" stroke="#4d1e1a" stroke-width="3"/>`
-    : `<path d="M72 12h576l60 60v144l-60 60H72l-60-60V72l60-60Z" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><path d="M91 38h538l53 53v106l-53 53H91l-53-53V91l53-53Z" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".5" stroke-width="5"/><path d="M108 59h504l46 46v78l-46 46H108l-46-46v-78l46-46Z" fill="#07080d" fill-opacity=".3" stroke="#ead8b8" stroke-opacity=".08" stroke-width="3"/><path d="M72 30h576M72 258h576" stroke="${theme.light}" stroke-opacity=".2" stroke-width="4"/><path d="M54 71l16-16 16 16-16 16-16-16Zm577 146 16-16 16 16-16 16-16-16Z" fill="${theme.warm}" stroke="#5d3519" stroke-width="3"/><path d="M634 71l16-16 16 16-16 16-16-16ZM54 217l16-16 16 16-16 16-16-16Z" fill="${theme.hot}" stroke="#4d1e1a" stroke-width="3"/><path d="M138 19h140M442 269h140" stroke="${theme.warm}" stroke-width="10" stroke-linecap="round"/><path d="M442 19h140M138 269h140" stroke="${theme.hot}" stroke-width="10" stroke-linecap="round"/>`;
+    ? `<circle cx="128" cy="128" r="114" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><circle cx="128" cy="128" r="94" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".42" stroke-width="4"/><circle cx="128" cy="128" r="78" fill="#765033" fill-opacity=".10" stroke="#fffaf0" stroke-opacity=".5" stroke-width="3"/><path d="M128 10l12 17-12 17-12-17 12-17Zm0 202 12 17-12 17-12-17 12-17Z" fill="${theme.warm}" stroke="${theme.inlay}" stroke-width="3"/><path d="M10 128l17-12 17 12-17 12-17-12Zm202 0 17-12 17 12-17 12-17-12Z" fill="${theme.hot}" stroke="${theme.inlay}" stroke-width="3"/>`
+    : `<path d="M72 12h576l60 60v144l-60 60H72l-60-60V72l60-60Z" fill="url(#surface)" stroke="url(#edge)" stroke-width="13"/><path d="M91 38h538l53 53v106l-53 53H91l-53-53V91l53-53Z" fill="url(#weave)" stroke="${theme.inlay}" stroke-opacity=".5" stroke-width="5"/><path d="M108 59h504l46 46v78l-46 46H108l-46-46v-78l46-46Z" fill="#765033" fill-opacity=".10" stroke="#fffaf0" stroke-opacity=".5" stroke-width="3"/><path d="M72 30h576M72 258h576" stroke="${theme.light}" stroke-opacity=".45" stroke-width="4"/><path d="M54 71l16-16 16 16-16 16-16-16Zm577 146 16-16 16 16-16 16-16-16Z" fill="${theme.warm}" stroke="${theme.inlay}" stroke-width="3"/><path d="M634 71l16-16 16 16-16 16-16-16ZM54 217l16-16 16 16-16 16-16-16Z" fill="${theme.hot}" stroke="${theme.inlay}" stroke-width="3"/><path d="M138 19h140M442 269h140" stroke="${theme.warm}" stroke-width="10" stroke-linecap="round"/><path d="M442 19h140M138 269h140" stroke="${theme.hot}" stroke-width="10" stroke-linecap="round"/>`;
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}">
     <defs>
-      <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${theme.surface1}"/><stop offset=".5" stop-color="${theme.surface2}"/><stop offset="1" stop-color="#070609"/></linearGradient>
-      <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${theme.light}"/><stop offset=".38" stop-color="${theme.edge}"/><stop offset=".72" stop-color="#5d402b"/><stop offset="1" stop-color="${theme.edge}"/></linearGradient>
+      <linearGradient id="surface" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${theme.surface1}"/><stop offset=".5" stop-color="${theme.surface2}"/><stop offset="1" stop-color="#d6b77d"/></linearGradient>
+      <linearGradient id="edge" x1="0" y1="0" x2="1" y2="1"><stop stop-color="${theme.light}"/><stop offset=".38" stop-color="${theme.edge}"/><stop offset=".72" stop-color="${theme.inlay}"/><stop offset="1" stop-color="${theme.edge}"/></linearGradient>
       <pattern id="weave" width="34" height="34" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><path d="M0 8h34M0 26h34" stroke="${theme.edge}" stroke-opacity=".13" stroke-width="4"/><path d="M8 0v34M26 0v34" stroke="${theme.inlay}" stroke-opacity=".1" stroke-width="3"/></pattern>
     </defs>
     <rect width="${width}" height="${height}" fill="#09080a" fill-opacity="0"/>

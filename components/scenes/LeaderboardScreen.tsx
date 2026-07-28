@@ -5,9 +5,10 @@ import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
-import { rankTier } from "@/domain";
 import { listenLeaderboard } from "@/lib/playerData";
-import { AvatarIllustration } from "@/components/ui/Art";
+import { resolveRank } from "@/lib/playerRank";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromPublicProfile } from "@/components/player/playerCardData";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Surface, displayFont } from "@/components/ui/Shell";
@@ -43,42 +44,44 @@ export function LeaderboardScreen() {
               {players.map((p, i) => {
                 const isYou = p.uid === user?.uid;
                 const crowns = p.crowns ?? 1_000;
-                const tier = rankTier(crowns);
+                const rank = resolveRank(crowns);
                 return (
-                  <div
+                  <PlayerCard
                     key={p.uid}
-                    className={`nj-list-card${isYou ? " nj-list-card--gold is-active" : ""}`}
+                    player={fromPublicProfile(p)}
+                    tone={isYou ? "gold" : undefined}
+                    active={isYou}
                     style={getEntranceAnimationStyle(motion, i, { duration: 0.34, step: 0.06 })}
-                  >
-                    <div
-                      style={{
-                        width: 38,
-                        height: 38,
-                        borderRadius: 14,
-                        display: "grid",
-                        placeItems: "center",
-                        ...displayFont,
-                        fontWeight: 900,
-                        background: i === 0 ? T.gold : i === 1 ? "#c7d0da" : i === 2 ? T.copper : "rgba(255,248,232,.08)",
-                        color: i < 3 ? T.ink : T.text,
-                      }}
-                    >
-                      {i + 1}
-                    </div>
-                    <AvatarIllustration seed={p.emoji} size={48} online={p.online} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {p.name}
-                      </div>
-                      <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
-                        <Chip strong style={{ minHeight: 22, fontSize: 10 }}>{tier.label}</Chip>
+                    subtitle={null}
+                    lead={(
+                      <span
+                        style={{
+                          width: 38,
+                          height: 38,
+                          borderRadius: 14,
+                          display: "grid",
+                          placeItems: "center",
+                          ...displayFont,
+                          fontWeight: 900,
+                          background: i === 0 ? T.gold : i === 1 ? "#c7d0da" : i === 2 ? T.copper : "var(--nj-solar-sand)",
+                          color: i < 3 ? T.ink : "var(--nj-solar-ink)",
+                        }}
+                      >
+                        {i + 1}
+                      </span>
+                    )}
+                    badges={(
+                      <>
+                        <Chip strong style={{ minHeight: 22, fontSize: 10 }}>{rank.label}</Chip>
                         {isYou && <Chip strong style={{ minHeight: 22, fontSize: 10 }}>Toi</Chip>}
-                      </div>
-                    </div>
-                    <div style={{ ...displayFont, color: T.gold, fontWeight: 900, fontSize: 19, whiteSpace: "nowrap" }}>
-                      {crowns.toLocaleString("fr-FR")} couronnes
-                    </div>
-                  </div>
+                      </>
+                    )}
+                    meta={(
+                      <span style={{ ...displayFont, color: "var(--nj-solar-yellow-deep)", fontWeight: 900, fontSize: 19, whiteSpace: "nowrap" }}>
+                        {crowns.toLocaleString("fr-FR")} couronnes
+                      </span>
+                    )}
+                  />
                 );
               })}
             </div>

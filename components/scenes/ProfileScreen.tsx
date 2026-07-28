@@ -6,9 +6,11 @@ import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { getPlayerLevel } from "@/lib/playerLevel";
+import { resolveRank } from "@/lib/playerRank";
 import { listenPlayer } from "@/lib/socialData";
 import { NKAP } from "@/data/mock";
 import { AvatarIllustration } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Btn } from "@/components/ui/Btn";
 import { AuthGate } from "@/components/ui/AuthGate";
@@ -95,41 +97,41 @@ export function ProfileScreen() {
               </div>
             )}
 
-            {/* Identité compacte (avatar + pseudo + niveau) */}
-            <Surface className="nj-panel-pad-sm" style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <AvatarIllustration seed={shownEmoji} size={78} active />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                {editing ? (
-                  <div style={{ display: "flex", gap: 8 }}>
-                    <input value={draftName} onChange={(e) => { setDraftName(e.target.value); setError(""); }} className="nj-input" maxLength={22} style={{ minHeight: 42 }} />
-                    <Btn variant="gold" onClick={save} disabled={saving}>{saving ? "..." : "OK"}</Btn>
-                  </div>
-                ) : (
-                  <button data-nj-skin="ghost"
-                    type="button"
-                    onClick={() => { setDraftName(shownName); setEditing(true); setError(""); }}
-                    className="nj-profile-name-btn"
-                  >
-                    <span>{shownName}</span>
-                    <span className="nj-subtle">Modifier ✎</span>
-                  </button>
-                )}
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}>
-                  <span className="nj-profile-level-pill">Niv. {level.level}</span>
-                  <span className="nj-subtle" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{level.title}</span>
+            {/* Identité — même variante `hero` que PublicProfileScreen, pour que
+                mon profil et celui des autres se ressemblent. */}
+            <PlayerCard
+              variant="hero"
+              player={{ uid: user?.uid ?? "me", name: shownName, emoji: shownEmoji }}
+              rank={resolveRank(rank?.crowns)}
+              subtitle={editing ? null : undefined}
+              badges={editing ? undefined : (
+                <Btn tone="gold" fill="outline" size="sm" onClick={() => { setDraftName(shownName); setEditing(true); setError(""); }}>
+                  Modifier ✎
+                </Btn>
+              )}
+            >
+              {editing && (
+                <div style={{ display: "flex", gap: 8, width: "100%" }}>
+                  <input value={draftName} onChange={(e) => { setDraftName(e.target.value); setError(""); }} className="nj-input" maxLength={22} style={{ minHeight: 42, flex: 1 }} />
+                  <Btn tone="gold" fill="solid" onClick={save} disabled={saving}>{saving ? "..." : "OK"}</Btn>
                 </div>
-                <div className="nj-level-track" style={{ marginTop: 6 }} aria-hidden="true">
-                  <span className="nj-level-fill" style={{ width: `${Math.round(level.progress * 100)}%` }} />
-                </div>
+              )}
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8, marginTop: 6 }}>
+                <span className="nj-profile-level-pill">Niv. {level.level}</span>
+                <span className="nj-subtle" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{level.title}</span>
               </div>
-            </Surface>
+              <div className="nj-level-track" style={{ marginTop: 6, width: "100%" }} aria-hidden="true">
+                <span className="nj-level-fill" style={{ width: `${Math.round(level.progress * 100)}%` }} />
+              </div>
+            </PlayerCard>
 
             {/* Sélecteur d'avatar */}
             <Surface className="nj-panel-pad-sm">
               <div className="nj-subtle" style={{ marginBottom: 8, fontSize: 12 }}>Choisis ton avatar</div>
               <div style={{ display: "grid", gridTemplateColumns: "repeat(5, 1fr)", gap: 7 }}>
                 {AVATARS.map((a) => (
-                  <button data-nj-skin={shownEmoji === a ? "gold" : "ghost"}
+                  <button
+                    data-nj-skin="none"
                     type="button"
                     key={a}
                     onClick={() => { void saveProfile({ ...profile, name: shownName, emoji: a, balance: shownBalance }); }}
@@ -148,8 +150,24 @@ export function ProfileScreen() {
                 <div style={{ fontWeight: 900, marginBottom: 4 }}>Tranche d’âge</div>
                 <div className="nj-subtle" style={{ marginBottom: 10, fontSize: 12 }}>Les achats XAF restent bloqués tant que le compte n’est pas déclaré 18+.</div>
                 <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                  <button data-nj-skin={user.ageBand === "13_17" ? "gold" : "ghost"} className={`nj-choice${user.ageBand === "13_17" ? " is-active" : ""}`} type="button" aria-pressed={user.ageBand === "13_17"} onClick={() => void updateAgeBand("13_17")}>13–17 ans</button>
-                  <button data-nj-skin={user.ageBand === "18_plus" ? "gold" : "ghost"} className={`nj-choice${user.ageBand === "18_plus" ? " is-active" : ""}`} type="button" aria-pressed={user.ageBand === "18_plus"} onClick={() => void updateAgeBand("18_plus")}>18 ans ou plus</button>
+                  <Btn
+                    tone="gold"
+                    fill={user.ageBand === "13_17" ? "solid" : "outline"}
+                    className="nj-choice"
+                    ariaPressed={user.ageBand === "13_17"}
+                    onClick={() => void updateAgeBand("13_17")}
+                  >
+                    13–17 ans
+                  </Btn>
+                  <Btn
+                    tone="gold"
+                    fill={user.ageBand === "18_plus" ? "solid" : "outline"}
+                    className="nj-choice"
+                    ariaPressed={user.ageBand === "18_plus"}
+                    onClick={() => void updateAgeBand("18_plus")}
+                  >
+                    18 ans ou plus
+                  </Btn>
                 </div>
               </Surface>
             )}

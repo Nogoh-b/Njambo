@@ -6,12 +6,48 @@
   overflow: hidden;
   isolation: isolate;
   overscroll-behavior: none;
+  /* Îlot nocturne. Le reste de l'app est passé au thème solaire clair, mais
+     la table garde son identité sombre. On restaure donc ici les tokens de la
+     palette nuit : les primitives partagées (.chip, .nj-surface…) rendues à
+     l'intérieur de la table s'y adaptent automatiquement, sans avoir à les
+     surcharger une par une. */
+  --text: #fff4df;
+  --nj-text: #fff4df;
+  --nj-text-muted: #b9afc4;
+  --nj-surface: rgba(12, 12, 28, 0.88);
+  --nj-surface-soft: rgba(8, 9, 22, 0.78);
+  --nj-surface-strong: rgba(10, 10, 25, 0.95);
+  --nj-border-soft: rgba(255, 236, 199, 0.12);
+  --panel-edge: #8a5a30;
+  --nj-chip-ink: var(--text);
+  --nj-chip-bg: rgba(5, 5, 12, 0.54);
+  --nj-chip-edge: rgba(255, 248, 232, 0.13);
   color: var(--text, #fff4df);
   background:
     linear-gradient(150deg, rgba(16, 20, 45, 0.12), rgba(5, 5, 12, 0.52)),
     var(--nj-bg-app),
     linear-gradient(150deg, var(--night-2, #12162f), var(--night-1, #090b1d) 58%, var(--deep, #05050c));
   font-family: var(--font-sans), sans-serif;
+}
+
+/* Puces de tonalité : la version solaire (encre sombre sur fond clair) serait
+   trop lumineuse sur le feutre. On restaure l'accent clair sur fond translucide. */
+.root :global(.chip-strong) {
+  color: var(--gold, #d0a35d);
+  border-color: rgba(242, 187, 69, 0.46);
+  background: rgba(242, 187, 69, 0.12);
+}
+
+.root :global(.chip-teal) {
+  color: var(--teal, #559b91);
+  border-color: rgba(16, 183, 166, 0.42);
+  background: rgba(16, 183, 166, 0.1);
+}
+
+.root :global(.chip-pink) {
+  color: var(--pink, #ad6972);
+  border-color: rgba(216, 60, 104, 0.42);
+  background: rgba(216, 60, 104, 0.12);
 }
 
 .root[data-screen-effect="lose"] {

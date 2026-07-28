@@ -568,8 +568,11 @@
   transform-origin: 50% 0;
 }
 
+/* Le trait suit l'encre du remplissage plein, pas l'accent : depuis que
+   `solid` utilise l'accent quasi pur, un trait couleur accent serait invisible
+   sur le fond de l'onglet actif. */
 .shopTabs [role="tab"]::after {
-  background: linear-gradient(90deg, transparent, var(--nj-gold, #f3c969), transparent);
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--nj-btn-on-solid, #fff7e6) 78%, transparent), transparent);
   border-radius: 999px;
   bottom: 4px;
   content: "";

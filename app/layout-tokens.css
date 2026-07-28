@@ -29,6 +29,9 @@
   --nj-tone-blue: #2436c9;
   --nj-tone-orange: #e8631a;
   --nj-tone-palm: #64c778;
+  /* Rouge solaire (= --nj-solar-red). Réservé aux actions destructives,
+     cf. la convention documentée sur BtnTone dans components/ui/Btn.tsx. */
+  --nj-tone-red: #e45145;
 }
 
 @media (min-width: 600px) {

@@ -10,6 +10,7 @@ import { useDailyGrid, useLiveOpsContent } from "@/hooks/useLiveOpsContent";
 import { t } from "@/lib/i18n";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
 import { EmptyState, GameCard, ResourcePill, RewardPreview, StatusBanner } from "@/components/ui/GamePrimitives";
+import type { BtnTone } from "@/components/ui/Btn";
 import { TabBar } from "@/components/ui/TabBar";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { PowerCardView } from "@/components/power/PowerCardView";
@@ -39,20 +40,22 @@ const REVEAL_TONES: Record<string, string> = {
   ancetre: "#f3c969",
 };
 
+/* Un ton par onglet (convention maison : gold → teal → pink, prolongée par
+   cobalt puis palm ; cobalt reste attaché aux cauris). */
 const SHOP_TABS = [
-  { id: "offers", label: t("shop.offers") },
-  { id: "boosters", label: t("shop.boosters") },
-  { id: "grid", label: t("shop.dailyGrid") },
-  { id: "wheel", label: t("shop.wheel") },
+  { id: "offers", label: t("shop.offers"), tone: "gold" as const },
+  { id: "boosters", label: t("shop.boosters"), tone: "teal" as const },
+  { id: "grid", label: t("shop.dailyGrid"), tone: "pink" as const },
+  { id: "wheel", label: t("shop.wheel"), tone: "cobalt" as const },
 ];
 
-const OFFER_CATEGORIES: Array<{ id: OfferCategory; label: string }> = [
-  { id: "featured", label: t("shop.category.featured") },
-  { id: "cauris_pack", label: t("shop.category.cauris") },
-  { id: "nkap_conversion", label: t("shop.category.nkap") },
-  { id: "energy_pass", label: t("shop.category.energy") },
-  { id: "ticket", label: t("shop.category.tickets") },
-  { id: "element_pack", label: t("shop.category.packs") },
+const OFFER_CATEGORIES: Array<{ id: OfferCategory; label: string; tone: BtnTone }> = [
+  { id: "featured", label: t("shop.category.featured"), tone: "gold" },
+  { id: "cauris_pack", label: t("shop.category.cauris"), tone: "cobalt" },
+  { id: "nkap_conversion", label: t("shop.category.nkap"), tone: "orange" },
+  { id: "energy_pass", label: t("shop.category.energy"), tone: "teal" },
+  { id: "ticket", label: t("shop.category.tickets"), tone: "pink" },
+  { id: "element_pack", label: t("shop.category.packs"), tone: "palm" },
 ];
 
 const FEATURED_OFFER_IDS = ["cauris_110", "nkap_3000", "energy_120", "ticket_bronze", "pack_mboa"];

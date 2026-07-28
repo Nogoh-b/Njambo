@@ -10,8 +10,6 @@
   --nj-surface-strong: var(--nj-solar-surface-strong, #f7ead0);
   --nj-border-soft: rgba(118, 80, 51, 0.24);
   --nj-shadow-card: 0 12px 26px rgba(35, 31, 18, 0.24);
-  --nj-tab-active-text: var(--nj-solar-ink, #24372f);
-  --nj-tab-active-background: linear-gradient(145deg, rgba(var(--pre-game-accent-rgb), 0.24), var(--nj-solar-surface-strong, #f7ead0));
   --nj-gold: var(--nj-solar-yellow, #f5c344);
   --nj-teal: var(--nj-solar-green, #199b68);
   --nj-pink: var(--nj-solar-red, #e45145);
@@ -27,8 +25,8 @@
   --pink: var(--nj-solar-red, #e45145);
   --text: var(--nj-solar-ink, #24372f);
   --brass: var(--pre-game-accent);
-  --wood-edge: color-mix(in srgb, var(--pre-game-accent) 24%, #d8c49e);
-  --wood-grain: var(--nj-solar-surface-strong, #f7ead0);
+  --panel-edge: color-mix(in srgb, var(--pre-game-accent) 24%, #d8c49e);
+  --panel-grain: var(--nj-solar-surface-strong, #f7ead0);
   isolation: isolate;
 }
 
@@ -111,11 +109,11 @@
   gap: clamp(10px, 2.5vw, 16px);
   padding: clamp(11px, 2vw, 16px);
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--pre-game-accent) 34%, var(--wood-edge));
+  border: 1px solid color-mix(in srgb, var(--pre-game-accent) 34%, var(--panel-edge));
   border-radius: var(--nj-radius-lg, 22px);
   background:
     linear-gradient(112deg, rgba(var(--pre-game-accent-rgb), 0.12), transparent 42%),
-    var(--wood-grain);
+    var(--panel-grain);
   box-shadow: var(--nj-shadow-low, 0 10px 24px rgba(0, 0, 0, 0.28));
 }
 
@@ -247,7 +245,7 @@
   gap: 8px;
   margin-top: auto;
   padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--pre-game-accent) 32%, var(--wood-edge));
+  border: 1px solid color-mix(in srgb, var(--pre-game-accent) 32%, var(--panel-edge));
   border-radius: var(--nj-radius-lg, 22px);
   background:
     linear-gradient(145deg, rgba(var(--pre-game-accent-rgb), 0.12), transparent 45%),

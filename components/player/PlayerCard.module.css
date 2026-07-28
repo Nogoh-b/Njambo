@@ -1,0 +1,244 @@
+/* Carte joueur partagée.
+   Le responsive est piloté par CONTAINER queries et non par media queries :
+   le layout expose un rail de 320px dès 960px de viewport (layout-tokens.css),
+   donc une même carte peut se retrouver dans une colonne étroite sur un grand
+   écran. Une media query verrait « desktop » et se tromperait. */
+
+.card {
+  container-type: inline-size;
+  container-name: njpc;
+  --pc-avatar: 48px;
+  --pc-gap: 11px;
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--pc-gap);
+}
+
+/* Variante ligne : la géométrie de base ci-dessus suffit ; la classe sert de
+   point d'accroche aux ruptures de conteneur plus bas. */
+.row {
+  grid-template-rows: auto;
+}
+
+.compact {
+  --pc-avatar: 40px;
+  --pc-gap: 9px;
+}
+
+/* L'avatar est dimensionné par le CSS, jamais par une prop numérique :
+   AvatarIllustration est rendu en mode `fluid`. */
+.avatar {
+  position: relative;
+  flex: 0 0 auto;
+  width: var(--pc-avatar);
+  height: var(--pc-avatar);
+}
+
+.lead {
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+}
+
+.identity {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 900;
+  line-height: 1.2;
+}
+
+.subtitle {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--nj-text-muted, var(--nj-solar-muted, #59675d));
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.badges {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+  margin-top: 3px;
+}
+
+.trailing {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.meta {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actions {
+  min-width: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+/* ── Variante HÉROS : colonne centrée (profils) ───────────────────── */
+.hero {
+  --pc-avatar: clamp(72px, 26cqi, 104px);
+  grid-template-columns: minmax(0, 1fr);
+  justify-items: center;
+  text-align: center;
+  gap: 9px;
+}
+
+.hero .name {
+  white-space: normal;
+  overflow: visible;
+  overflow-wrap: anywhere;
+  font-family: var(--nj-font-display, var(--font-display)), serif;
+  font-size: clamp(22px, 7cqi, 32px);
+  line-height: 1.05;
+}
+
+.hero .identity {
+  justify-items: center;
+  gap: 4px;
+}
+
+.hero .trailing,
+.hero .actions {
+  justify-content: center;
+}
+
+/* ── Variante HUD : barre dense (accueil) ─────────────────────────── */
+.hud {
+  --pc-avatar: 54px;
+}
+
+.hud .name {
+  font-family: var(--nj-font-display, var(--font-display)), serif;
+  font-size: clamp(17px, 5cqi, 21px);
+}
+
+/* Médaille de niveau et insigne de rang, posés sur l'avatar. */
+.levelMedal {
+  position: absolute;
+  left: -6px;
+  bottom: -5px;
+  z-index: 2;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 5px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--nj-solar-surface-strong, #f7ead0);
+  border-radius: 999px;
+  background: linear-gradient(145deg, var(--nj-tone-gold, #f2bb45), var(--nj-solar-yellow-deep, #a9680c));
+  color: var(--nj-solar-ink, #24372f);
+  font-size: 11px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.rankMark {
+  position: absolute;
+  top: -7px;
+  right: -9px;
+  z-index: 2;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 2px solid var(--nj-solar-surface-strong, #f7ead0);
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--nj-solar-surface-strong, #f7ead0), var(--nj-solar-sand, #d6b77d) 72%);
+  box-shadow: 0 4px 10px rgba(35, 31, 18, 0.24), 0 0 0 1px rgba(245, 195, 68, 0.55);
+}
+
+.rankMark img {
+  width: 27px;
+  height: 27px;
+  object-fit: contain;
+}
+
+.rankLine {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  font-size: 12px;
+}
+
+/* ── Ruptures de conteneur ────────────────────────────────────────── */
+@container njpc (max-width: 360px) {
+  .row .trailing,
+  .row .actions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .row .actions > * {
+    flex: 1 1 0;
+    min-height: var(--nj-touch-target);
+  }
+}
+
+/* Attention : une container query ne peut pas styler son propre conteneur.
+   `--pc-avatar` étant déclaré sur `.card` (le conteneur), le redéfinir ici
+   n'aurait aucun effet — on dimensionne donc `.avatar`, qui est descendant. */
+@container njpc (max-width: 300px) {
+  .avatar {
+    width: 36px;
+    height: 36px;
+  }
+
+  .hud .avatar {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+/* Repli pour les moteurs sans container queries : on rejoue les mêmes règles
+   au breakpoint « très petit téléphone » déjà utilisé par globals.css. */
+@supports not (container-type: inline-size) {
+  @media (max-width: 380px) {
+    .row .trailing,
+    .row .actions {
+      grid-column: 1 / -1;
+      justify-content: stretch;
+    }
+
+    .row .actions > * {
+      flex: 1 1 0;
+      min-height: var(--nj-touch-target);
+    }
+
+    .avatar {
+      width: 36px;
+      height: 36px;
+    }
+
+    .hud .avatar {
+      width: 44px;
+      height: 44px;
+    }
+  }
+}

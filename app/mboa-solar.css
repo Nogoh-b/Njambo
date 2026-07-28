@@ -31,25 +31,8 @@
   }
 }
 
-.nj-shell:has(.nj-mboa-solar-home),
-.nj-shell:has(.nj-mboa-solar-hub) {
-  color: var(--nj-solar-ink);
-  background:
-    linear-gradient(180deg, rgba(232, 214, 174, 0.1), rgba(216, 195, 151, 0.06)),
-    var(--nj-solar-app-bg) center / cover no-repeat,
-    var(--nj-solar-felt);
-}
-
-.nj-shell:has(.nj-mboa-solar-home)::before,
-.nj-shell:has(.nj-mboa-solar-hub)::before {
-  opacity: 0;
-  background-image:
-    repeating-linear-gradient(0deg, transparent 0 25px, rgba(228, 81, 69, 0.13) 25px 27px, transparent 27px 52px),
-    repeating-linear-gradient(90deg, transparent 0 31px, rgba(25, 155, 104, 0.12) 31px 33px, transparent 33px 64px);
-}
-
-.nj-shell:has(.nj-mboa-solar-home)::after,
-.nj-shell:has(.nj-mboa-solar-hub)::after {
-  background: repeating-linear-gradient(90deg, var(--nj-solar-green) 0 18px, var(--nj-solar-yellow) 18px 32px, var(--nj-solar-red) 32px 42px, var(--nj-solar-yellow) 42px 50px);
-  opacity: 0.68;
-}
+/* Le thème solaire est désormais le socle par défaut de `.nj-shell`
+   (cf. app/globals.css). Les classes marqueur `nj-mboa-solar-home` /
+   `nj-mboa-solar-hub` restent posées par MenuScreen / GameHubLayout /
+   PreGameLayout comme points d'accroche pour des variations locales,
+   mais ne conditionnent plus le fond d'écran. */

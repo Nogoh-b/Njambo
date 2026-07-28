@@ -144,6 +144,12 @@ export function NjamboFriendlyIcon({
 interface AvatarIllustrationProps {
   seed: string;
   size?: number;
+  /**
+   * La taille vient du CSS parent au lieu de `size`. Indispensable pour
+   * PlayerCard, qui pilote l'avatar par container query : un style inline
+   * `width`/`height` battrait toute règle CSS non-`!important`.
+   */
+  fluid?: boolean;
   active?: boolean;
   online?: boolean;
 }
@@ -157,22 +163,23 @@ const AVATAR_PALETTES = [
   { skin: "#5f3324", wrap: T.teal, cloth: T.pink, hair: "#0f0a0d", mark: T.gold },
 ];
 
-export function AvatarIllustration({ seed, size = 56, active = false, online }: AvatarIllustrationProps) {
+export function AvatarIllustration({ seed, size = 56, fluid = false, active = false, online }: AvatarIllustrationProps) {
   const index = hashSeed(seed) % AVATAR_PALETTES.length;
   const p = AVATAR_PALETTES[index];
   const hasGlasses = hashSeed(`${seed}-glasses`) % 3 === 0;
   const hasHeadwrap = hashSeed(`${seed}-wrap`) % 2 === 0;
+  const box = fluid ? "100%" : size;
 
   return (
     <span
       className="avatar-illu"
       style={{
-        width: size,
-        height: size,
+        width: box,
+        height: box,
         boxShadow: active ? `0 0 0 3px ${T.gold}, 0 0 24px ${T.gold}66` : undefined,
       }}
     >
-      <svg width={size} height={size} viewBox="0 0 72 72" aria-hidden="true">
+      <svg width={box} height={box} viewBox="0 0 72 72" aria-hidden="true">
         <circle cx="36" cy="36" r="34" fill={T.night2} />
         <circle cx="36" cy="36" r="31" fill={p.cloth} opacity="0.28" />
         <path d="M11 49c8-8 16-12 25-12s17 4 25 12v12H11V49Z" fill={p.cloth} />

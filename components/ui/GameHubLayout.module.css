@@ -8,15 +8,13 @@
   --nj-surface-strong: var(--nj-solar-surface-strong, #f7ead0);
   --nj-border-soft: rgba(118, 80, 51, 0.24);
   --nj-shadow-card: 0 12px 26px rgba(35, 31, 18, 0.24);
-  --nj-tab-active-text: var(--nj-solar-ink, #24372f);
-  --nj-tab-active-background: linear-gradient(145deg, rgba(var(--hub-accent-rgb), 0.24), var(--nj-solar-surface-strong, #f7ead0));
   --nj-gold: var(--nj-solar-yellow, #f5c344);
   --nj-teal: var(--nj-solar-green, #199b68);
   --nj-pink: var(--nj-solar-red, #e45145);
   --nj-cobalt: #4d78c9;
   --text: var(--nj-solar-ink, #24372f);
   --brass: var(--hub-accent);
-  --wood-edge: color-mix(in srgb, var(--hub-accent) 24%, #d8c49e);
+  --panel-edge: color-mix(in srgb, var(--hub-accent) 24%, #d8c49e);
   isolation: isolate;
 }
 

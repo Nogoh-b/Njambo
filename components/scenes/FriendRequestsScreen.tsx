@@ -5,7 +5,8 @@ import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { acceptFriendRequest, listenFriendRequests, rejectFriendRequest } from "@/lib/socialData";
-import { AvatarIllustration } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromFriendRequest } from "@/components/player/playerCardData";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
@@ -44,25 +45,23 @@ export function FriendRequestsScreen() {
               {requests.map((req, i) => {
                 const incoming = req.toUid === user?.uid;
                 return (
-                  <div
+                  <PlayerCard
                     key={req.id}
-                    className={`nj-list-card${incoming ? " nj-list-card--pink is-active" : ""}`}
+                    player={fromFriendRequest(req, incoming ? "from" : "to")}
+                    tone={incoming ? "pink" : undefined}
+                    active={incoming}
                     style={getEntranceAnimationStyle(motion, i)}
-                  >
-                    <AvatarIllustration seed={incoming ? req.fromEmoji : req.toEmoji} size={50} online />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 900 }}>{incoming ? req.fromName : req.toName}</div>
-                      <Chip tone={incoming ? "pink" : "muted"}>{incoming ? "Reçue" : "Envoyee"}</Chip>
-                    </div>
-                    {incoming ? (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <Btn variant="gold" onClick={() => { void acceptFriendRequest(req); }} style={{ paddingInline: 10 }}>OK</Btn>
-                        <Btn variant="dark" onClick={() => { void rejectFriendRequest(req.id); }} style={{ paddingInline: 10 }}>Non</Btn>
-                      </div>
+                    subtitle={null}
+                    badges={<Chip tone={incoming ? "pink" : "muted"}>{incoming ? "Reçue" : "Envoyee"}</Chip>}
+                    actions={incoming ? (
+                      <>
+                        <Btn tone="teal" fill="solid" size="sm" onClick={() => { void acceptFriendRequest(req); }} style={{ paddingInline: 10 }}>OK</Btn>
+                        <Btn tone="red" fill="solid" size="sm" onClick={() => { void rejectFriendRequest(req.id); }} style={{ paddingInline: 10 }}>Non</Btn>
+                      </>
                     ) : (
-                      <Btn variant="dark" onClick={() => { void rejectFriendRequest(req.id, true); }} style={{ paddingInline: 10 }}>Annuler</Btn>
+                      <Btn tone="red" fill="outline" size="sm" onClick={() => { void rejectFriendRequest(req.id, true); }} style={{ paddingInline: 10 }}>Annuler</Btn>
                     )}
-                  </div>
+                  />
                 );
               })}
             </div>

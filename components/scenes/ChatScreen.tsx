@@ -5,7 +5,9 @@ import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { listenMessages, markConversationRead, sendMessage } from "@/lib/socialData";
-import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { NjamboIcon } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromSocialLite } from "@/components/player/playerCardData";
 import { Btn } from "@/components/ui/Btn";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { ScreenHeader, Surface } from "@/components/ui/Shell";
@@ -57,13 +59,14 @@ export function ChatScreen() {
         <div className="nj-phone">
           <ScreenHeader title={peer.name} kicker="Message prive" icon="message" tone="teal" onBack={() => navigateTo("messages")} backLabel="Messages" />
           <Surface style={{ minHeight: "60svh", display: "flex", flexDirection: "column", gap: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <AvatarIllustration seed={peer.emoji} size={46} online />
-              <div>
-                <div style={{ fontWeight: 900 }}>{peer.name}</div>
-                <div className="nj-subtle">Conversation 1-to-1</div>
-              </div>
-            </div>
+            {/* La présence du correspondant n'est pas connue depuis le chat :
+                pas de pastille plutôt qu'une pastille toujours verte. */}
+            <PlayerCard
+              player={fromSocialLite(peer)}
+              tone="teal"
+              showStatus={false}
+              subtitle="Conversation 1-to-1"
+            />
 
             <div style={{ flex: 1, overflowY: "auto", display: "flex", flexDirection: "column", gap: 8, padding: "8px 0" }}>
               {messages.length === 0 && <div className="nj-subtle" style={{ textAlign: "center", padding: 20 }}>Aucun message.</div>}
@@ -80,7 +83,7 @@ export function ChatScreen() {
                       background: mine
                         ? `${T.teal}26`
                         : "linear-gradient(160deg, rgba(60,37,20,.55), rgba(10,8,6,.82))",
-                      border: mine ? `1px solid ${T.teal}66` : "1px solid var(--wood-edge)",
+                      border: mine ? `1px solid ${T.teal}66` : "1px solid var(--panel-edge)",
                     }}
                   >
                     {msg.text}

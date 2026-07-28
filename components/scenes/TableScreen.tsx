@@ -14,6 +14,7 @@ import { DeckZone } from "@/components/table/zones/DeckZone";
 import { RevealOverlay } from "@/components/table/zones/RevealOverlay";
 import { ZoneRegistry, ZoneRegistryProvider } from "@/components/table/zones/ZoneRegistry";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
+import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import {
   TableLayout,
@@ -1793,20 +1794,13 @@ export function TableScreen({
                     : "Vous serez éliminé de cette partie. Les autres joueurs continueront."}
             </div>
             <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <button data-nj-skin="ghost"
-                type="button"
-                onClick={() => setConfirmQuit(false)}
-                style={{ padding: "10px 18px", borderRadius: 12, color: T.text, fontWeight: 800, cursor: "pointer" }}
-              >
+              <Btn tone="teal" fill="soft" size="md" onClick={() => setConfirmQuit(false)} style={{ paddingInline: 18 }}>
                 Rester
-              </button>
-              <button data-nj-skin="gold"
-                type="button"
-                onClick={handleQuitConfirm}
-                style={{ padding: "10px 18px", borderRadius: 12, color: T.text, fontWeight: 900, cursor: "pointer" }}
-              >
+              </Btn>
+              {/* Abandonner la partie en cours : action destructive → rouge plein. */}
+              <Btn tone="red" fill="solid" size="md" onClick={handleQuitConfirm} style={{ paddingInline: 18 }}>
                 Quitter
-              </button>
+              </Btn>
             </div>
           </div>
         </div>

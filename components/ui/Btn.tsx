@@ -12,8 +12,16 @@ import {
 /** Ancienne API (skins raster 9-slice). Conservée pour rétro-compatibilité. */
 export type BtnVariant = "gold" | "teal" | "pink" | "ghost" | "dark";
 
-/** Nouveau système partagé, piloté par props. */
-export type BtnTone = "gold" | "teal" | "pink" | "cobalt" | "blue" | "orange" | "palm";
+/**
+ * Nouveau système partagé, piloté par props.
+ *
+ * Convention de couleur — à respecter pour que le rouge garde son sens :
+ * - `red` est RÉSERVÉ aux actions destructives ou irréversibles :
+ *   Déconnexion, Quitter/Abandonner une partie en cours, Refuser une demande.
+ * - `pink` reste la couleur d'appel principale (Lancer la partie, Envoyer).
+ * Sans cette règle, `red` dérive et devient un second `pink`.
+ */
+export type BtnTone = "gold" | "teal" | "pink" | "cobalt" | "blue" | "orange" | "palm" | "red";
 export type BtnFill = "solid" | "soft" | "outline" | "pattern";
 export type BtnSize = "sm" | "md" | "lg";
 export type BtnMotif = "indigo-dots" | "sun-stripes" | "royal-bands";

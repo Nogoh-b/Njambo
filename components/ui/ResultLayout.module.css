@@ -14,7 +14,7 @@
     max(12px, env(safe-area-inset-right))
     max(16px, env(safe-area-inset-bottom))
     max(12px, env(safe-area-inset-left));
-  color: var(--text, #fff4df);
+  color: var(--nj-solar-ink, #24372f);
   background:
     radial-gradient(ellipse at 50% 24%, rgba(242, 187, 69, 0.16), transparent 42%),
     linear-gradient(155deg, rgba(18, 22, 47, 0.98), rgba(5, 5, 12, 0.995));

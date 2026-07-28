@@ -1,15 +1,16 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { getPlayerLevel } from "@/lib/playerLevel";
+import { resolveRank } from "@/lib/playerRank";
 import { listenPlayer } from "@/lib/socialData";
 import { NKAP } from "@/data/mock";
-import { AvatarIllustration } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromPublicProfile } from "@/components/player/playerCardData";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Surface, displayFont } from "@/components/ui/Shell";
+import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
 import type { PublicPlayerProfile } from "@/types/game";
 
@@ -43,32 +44,34 @@ export function PublicProfileScreen() {
               const level = getPlayerLevel(player.stats, player.balance);
               return (
                 <div className="nj-stack" style={{ alignItems: "center", gap: 14 }}>
-                  <AvatarIllustration seed={player.emoji} size={96} online={player.online} />
-                  <div>
-                    <div style={{ ...displayFont, fontSize: 34, fontWeight: 900, color: T.gold }}>{player.name}</div>
-                    <div className="nj-subtle">{player.online ? "En ligne" : "Hors ligne"}</div>
-                  </div>
-                  <div className="nj-profile-level-card" style={{ width: "100%" }}>
-                    <div className="nj-profile-level-top">
-                      <span className="nj-profile-level-pill">Niveau {level.level}</span>
-                      <span>{level.title}</span>
+                  <PlayerCard
+                    variant="hero"
+                    player={fromPublicProfile(player)}
+                    rank={resolveRank(player.crowns)}
+                    style={{ width: "100%" }}
+                    badges={(
+                      <>
+                        <Chip strong>{NKAP(player.balance)}</Chip>
+                        <Chip>{player.stats.played} parties</Chip>
+                        <Chip tone="teal">{player.stats.won} victoires</Chip>
+                      </>
+                    )}
+                    actions={<SocialActions player={player} showProfile={false} />}
+                  >
+                    <div className="nj-profile-level-card" style={{ width: "100%" }}>
+                      <div className="nj-profile-level-top">
+                        <span className="nj-profile-level-pill">Niveau {level.level}</span>
+                        <span>{level.title}</span>
+                      </div>
+                      <div className="nj-level-track nj-profile-level-track" aria-hidden="true">
+                        <span className="nj-level-fill" style={{ width: `${Math.round(level.progress * 100)}%` }} />
+                      </div>
+                      <div className="nj-profile-level-meta">
+                        <span>{level.xp} XP</span>
+                        <span>{level.xpToNext} XP avant niveau {level.level + 1}</span>
+                      </div>
                     </div>
-                    <div className="nj-level-track nj-profile-level-track" aria-hidden="true">
-                      <span className="nj-level-fill" style={{ width: `${Math.round(level.progress * 100)}%` }} />
-                    </div>
-                    <div className="nj-profile-level-meta">
-                      <span>{level.xp} XP</span>
-                      <span>{level.xpToNext} XP avant niveau {level.level + 1}</span>
-                    </div>
-                  </div>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8, width: "100%" }}>
-                    <Chip strong>{NKAP(player.balance)}</Chip>
-                    <Chip>{player.stats.played} parties</Chip>
-                    <Chip tone="teal">{player.stats.won} victoires</Chip>
-                  </div>
-                  <div style={{ width: "100%", display: "flex", justifyContent: "center" }}>
-                    <SocialActions player={player} showProfile={false} />
-                  </div>
+                  </PlayerCard>
                 </div>
               );
             })()}

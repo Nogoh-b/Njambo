@@ -5,8 +5,11 @@ import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenConversations } from "@/lib/socialData";
-import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { NjamboIcon } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromConversation } from "@/components/player/playerCardData";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
+import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { ConversationEntry } from "@/types/game";
 
@@ -43,25 +46,26 @@ export function MessagesScreen() {
                 const peer = conv.participantMeta[peerUid] ?? { name: "Joueur", emoji: "😎" };
                 const unread = !!(user?.uid && conv.unreadBy?.[user.uid]);
                 return (
-                  <button data-nj-skin="dark"
+                  <PlayerCard
                     key={conv.id}
-                    type="button"
+                    as="button"
+                    player={fromConversation(conv, peerUid)}
                     onClick={() => {
                       setSocialTarget({ conversationId: conv.id, peerUid, peerName: peer.name, peerEmoji: peer.emoji });
                       navigateTo("chat");
                     }}
-                    className={`nj-list-card${unread ? " nj-list-card--teal is-active" : ""}`}
+                    ariaLabel={`Conversation avec ${peer.name}${unread ? " — non lue" : ""}`}
+                    tone={unread ? "teal" : undefined}
+                    active={unread}
                     style={getEntranceAnimationStyle(motion, i)}
-                  >
-                    <AvatarIllustration seed={peer.emoji} size={50} online={unread} />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 900 }}>{peer.name}</div>
-                      <div className="nj-subtle" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                        {conv.lastMessage || "Nouvelle conversation"}
-                      </div>
-                    </div>
-                    <NjamboIcon name="message" tone={unread ? "teal" : "light"} size={22} />
-                  </button>
+                    subtitle={conv.lastMessage || "Nouvelle conversation"}
+                    meta={(
+                      <>
+                        {unread && <Chip tone="teal">Nouveau</Chip>}
+                        <NjamboIcon name="message" tone="teal" size={22} />
+                      </>
+                    )}
+                  />
                 );
               })}
             </div>

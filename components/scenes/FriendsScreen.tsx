@@ -10,7 +10,8 @@ import {
   listenFriends,
   rejectFriendRequest,
 } from "@/lib/socialData";
-import { AvatarIllustration } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromFriendEntry, fromFriendRequest, fromPublicProfile } from "@/components/player/playerCardData";
 import { GameHubLayout } from "@/components/ui/GameHubLayout";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
@@ -61,9 +62,9 @@ export function FriendsScreen() {
       <section className={styles.panel} aria-label="Réseau social Njambo">
             <TabBar
               tabs={[
-                { id: "friends", label: "Amis" },
+                { id: "friends", label: "Amis", tone: "palm" },
                 { id: "requests", label: "Demandes", tone: "pink", badge: incomingCount > 0 ? incomingCount : undefined },
-                { id: "players", label: "Joueurs" },
+                { id: "players", label: "Joueurs", tone: "teal" },
               ]}
               activeId={tab}
               onChange={(next) => setTab(next as Tab)}
@@ -87,18 +88,14 @@ export function FriendsScreen() {
                 <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Aucun ami pour le moment.</div>
               )}
               {tab === "friends" && friends.map((friend, i) => (
-                <div
+                <PlayerCard
                   key={friend.uid}
-                  className={`nj-list-card${friend.online ? " nj-list-card--teal is-active" : ""}`}
+                  player={fromFriendEntry(friend)}
+                  tone={friend.online ? "teal" : undefined}
+                  active={friend.online}
                   style={getEntranceAnimationStyle(motion, i)}
-                >
-                  <AvatarIllustration seed={friend.emoji} size={50} online={friend.online} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{friend.name}</div>
-                    <div className="nj-subtle">{friend.online ? "En ligne" : "Hors ligne"}</div>
-                  </div>
-                  <SocialActions player={friend} compact showProfile={false} />
-                </div>
+                  actions={<SocialActions player={friend} compact showProfile={false} />}
+                />
               ))}
 
               {tab === "requests" && requests.length === 0 && (
@@ -107,25 +104,23 @@ export function FriendsScreen() {
               {tab === "requests" && requests.map((req, i) => {
                 const incoming = req.toUid === user?.uid;
                 return (
-                  <div
+                  <PlayerCard
                     key={req.id}
-                    className={`nj-list-card${incoming ? " nj-list-card--pink is-active" : ""}`}
+                    player={fromFriendRequest(req, incoming ? "from" : "to")}
+                    tone={incoming ? "pink" : undefined}
+                    active={incoming}
                     style={getEntranceAnimationStyle(motion, i)}
-                  >
-                    <AvatarIllustration seed={incoming ? req.fromEmoji : req.toEmoji} size={50} online />
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ fontWeight: 900 }}>{incoming ? req.fromName : req.toName}</div>
-                      <Chip tone={incoming ? "pink" : "muted"}>{incoming ? "Reçue" : "Envoyee"}</Chip>
-                    </div>
-                    {incoming ? (
-                      <div style={{ display: "flex", gap: 6 }}>
-                        <Btn variant="gold" onClick={() => { void acceptFriendRequest(req); }} style={{ paddingInline: 10 }}>OK</Btn>
-                        <Btn variant="dark" onClick={() => { void rejectFriendRequest(req.id); }} style={{ paddingInline: 10 }}>Non</Btn>
-                      </div>
+                    subtitle={null}
+                    badges={<Chip tone={incoming ? "pink" : "muted"}>{incoming ? "Reçue" : "Envoyee"}</Chip>}
+                    actions={incoming ? (
+                      <>
+                        <Btn tone="teal" fill="solid" size="sm" onClick={() => { void acceptFriendRequest(req); }} style={{ paddingInline: 10 }}>OK</Btn>
+                        <Btn tone="red" fill="solid" size="sm" onClick={() => { void rejectFriendRequest(req.id); }} style={{ paddingInline: 10 }}>Non</Btn>
+                      </>
                     ) : (
-                      <Btn variant="dark" onClick={() => { void rejectFriendRequest(req.id, true); }} style={{ paddingInline: 10 }}>Annuler</Btn>
+                      <Btn tone="red" fill="outline" size="sm" onClick={() => { void rejectFriendRequest(req.id, true); }} style={{ paddingInline: 10 }}>Annuler</Btn>
                     )}
-                  </div>
+                  />
                 );
               })}
 
@@ -133,18 +128,14 @@ export function FriendsScreen() {
                 <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Aucun joueur trouve.</div>
               )}
               {tab === "players" && players.map((player, i) => (
-                <div
+                <PlayerCard
                   key={player.uid}
-                  className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""}`}
+                  player={fromPublicProfile(player)}
+                  tone={player.online ? "teal" : undefined}
+                  active={player.online}
                   style={getEntranceAnimationStyle(motion, i)}
-                >
-                  <AvatarIllustration seed={player.emoji} size={50} online={player.online} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{player.name}</div>
-                    <div className="nj-subtle">{player.online ? "En ligne" : "Hors ligne"}</div>
-                  </div>
-                  <SocialActions player={player} compact />
-                </div>
+                  actions={<SocialActions player={player} compact />}
+                />
               ))}
             </div>
       </section>

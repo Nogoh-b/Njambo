@@ -4,7 +4,9 @@ import { useState } from "react";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useOnlinePlayers } from "@/hooks/useOnlinePlayers";
-import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { NjamboIcon } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromPublicProfile } from "@/components/player/playerCardData";
 import { Btn } from "@/components/ui/Btn";
 import { ChoiceButtonGroup } from "@/components/ui/ChoiceButtonGroup";
 import { NkapAmount } from "@/components/ui/NkapAmount";
@@ -197,24 +199,22 @@ export function FriendsSetupScreen() {
                 const isSelected = selected.has(player.uid);
                 return (
                   <HubReveal key={player.uid} className={styles.listReveal} order={index}>
-                    <button
-                      data-nj-skin="dark"
-                      type="button"
+                    <PlayerCard
+                      as="button"
+                      player={fromPublicProfile(player)}
                       onClick={() => toggleFriend(player.uid, player.online)}
                       disabled={!player.online}
-                      className={`nj-list-card${isSelected ? " nj-list-card--pink is-active" : ""} ${styles.playerCard}`}
-                      aria-label={`${isSelected ? "Retirer" : "Inviter"} ${player.name}${player.online ? "" : ", hors ligne"}`}
-                      aria-pressed={isSelected}
-                    >
-                      <span className={`${styles.selectMark}${isSelected ? ` ${styles.selectMarkActive}` : ""}`} aria-hidden="true">
-                        {isSelected && <NjamboIcon name="check" tone="light" size={18} />}
-                      </span>
-                      <AvatarIllustration seed={player.emoji} size={46} online={player.online} />
-                      <span className={styles.playerIdentity}>
-                        <span className={styles.playerName}>{player.name}</span>
-                        <span className={styles.playerState}>{player.online ? "En ligne" : "Hors ligne"}</span>
-                      </span>
-                    </button>
+                      tone={isSelected ? "pink" : undefined}
+                      active={isSelected}
+                      className={styles.playerCard}
+                      ariaLabel={`${isSelected ? "Retirer" : "Inviter"} ${player.name}${player.online ? "" : ", hors ligne"}`}
+                      ariaPressed={isSelected}
+                      lead={(
+                        <span className={`${styles.selectMark}${isSelected ? ` ${styles.selectMarkActive}` : ""}`} aria-hidden="true">
+                          {isSelected && <NjamboIcon name="check" tone="light" size={18} />}
+                        </span>
+                      )}
+                    />
                   </HubReveal>
                 );
               })}

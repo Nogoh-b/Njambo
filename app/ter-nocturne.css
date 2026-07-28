@@ -8,8 +8,8 @@
   --nj-indigo-750: #1b2340;
   --nj-ebony-950: #140b07;
   --nj-ebony-850: #26140b;
-  --nj-wood-700: #3f2a1c;
-  --nj-wood-600: #5c3e25;
+  --nj-timber-700: #3f2a1c;
+  --nj-timber-600: #5c3e25;
   --nj-brass-500: #d0a35d;
   --nj-brass-300: #ead3a2;
   --nj-copper-500: #a96243;
@@ -18,32 +18,38 @@
   --nj-cobalt-500: #687c99;
   --nj-cream-100: #fff4df;
   --nj-cream-300: #e8d8bd;
-  --nj-text-muted: #b9afc4;
+  --nj-text-muted: var(--nj-solar-muted, #59675d);
   --nj-success: #75bc91;
   --nj-danger: #ce7580;
   --nj-warning: #d2a259;
 
-  --nj-gold: var(--nj-brass-500);
-  --nj-teal: var(--nj-teal-500);
-  --nj-pink: var(--nj-pink-500);
-  --nj-cobalt: var(--nj-cobalt-500);
-  --nj-text: var(--nj-cream-100);
-  --nj-surface: rgba(12, 12, 28, 0.88);
-  --nj-surface-soft: rgba(8, 9, 22, 0.78);
-  --nj-surface-strong: rgba(10, 10, 25, 0.95);
-  --nj-wood-edge: var(--nj-wood-600);
-  --nj-wood-grain:
-    repeating-linear-gradient(91deg, rgba(0, 0, 0, 0.22) 0 1px, transparent 1px 4px, rgba(255, 214, 150, 0.04) 4px 5px, transparent 5px 12px),
-    linear-gradient(158deg, var(--nj-wood-700), var(--nj-ebony-850) 52%, var(--nj-ebony-950));
+  /* --- Alias sémantiques : thème solaire « Mboa » ---
+     Ce sont ces tokens que consomment tous les modules CSS. Ils pointaient
+     autrefois sur la palette nuit/bois ci-dessus ; ils résolvent désormais
+     vers `app/mboa-solar.css`, ce qui bascule d'un coup toutes les scènes
+     sur le design clair du menu. La palette brute nuit/bois est conservée
+     au-dessus uniquement pour les surfaces volontairement sombres
+     (photo du hero, tapis de jeu). */
+  --nj-gold: var(--nj-solar-yellow, #f5c344);
+  --nj-teal: var(--nj-solar-green, #199b68);
+  --nj-pink: var(--nj-solar-red, #e45145);
+  --nj-cobalt: #4d78c9;
+  --nj-text: var(--nj-solar-ink, #24372f);
+  --nj-surface: var(--nj-solar-surface, rgba(242, 226, 193, 0.96));
+  --nj-surface-soft: var(--nj-solar-ivory, #ead8b3);
+  --nj-surface-strong: var(--nj-solar-surface-strong, #f7ead0);
+  --nj-panel-edge: var(--nj-solar-outline, #b88e54);
+  --nj-panel-grain:
+    repeating-linear-gradient(91deg, rgba(118, 80, 51, 0.05) 0 1px, transparent 1px 4px),
+    linear-gradient(158deg, var(--nj-solar-surface-strong, #f7ead0), var(--nj-solar-ivory, #ead8b3) 62%, var(--nj-solar-sand, #d6b77d));
 
-  --nj-surface-deep: linear-gradient(155deg, rgba(32, 20, 19, 0.97), rgba(7, 8, 15, 0.98));
-  --nj-surface-wood: linear-gradient(155deg, rgba(86, 48, 23, 0.96), rgba(25, 13, 9, 0.98));
-  --nj-surface-indigo: linear-gradient(150deg, rgba(24, 34, 66, 0.95), rgba(7, 9, 19, 0.98));
-  --nj-border-soft: rgba(255, 236, 199, 0.12);
-  --nj-border-brass: rgba(242, 187, 69, 0.38);
-  --nj-shadow-low: 0 10px 24px rgba(0, 0, 0, 0.28);
-  --nj-shadow-high: 0 22px 52px rgba(0, 0, 0, 0.44);
-  --nj-glow-brass: 0 0 28px rgba(242, 187, 69, 0.2);
+  --nj-surface-deep: linear-gradient(155deg, var(--nj-solar-surface-strong, #f7ead0), var(--nj-solar-ivory, #ead8b3));
+  --nj-surface-indigo: linear-gradient(150deg, rgba(232, 240, 250, 0.96), rgba(214, 226, 243, 0.98));
+  --nj-border-soft: rgba(118, 80, 51, 0.22);
+  --nj-border-brass: rgba(184, 142, 84, 0.5);
+  --nj-shadow-low: 0 10px 24px rgba(35, 31, 18, 0.16);
+  --nj-shadow-high: 0 22px 52px rgba(35, 31, 18, 0.26);
+  --nj-glow-brass: 0 0 28px rgba(245, 195, 68, 0.22);
 
   --nj-space-1: 4px;
   --nj-space-2: 8px;

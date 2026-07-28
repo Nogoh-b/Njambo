@@ -86,8 +86,8 @@ export function HistoryScreen() {
                       style={{
                         width: 42,
                         height: 42,
-                        background: match.won ? T.gold : "rgba(255,248,232,.08)",
-                        color: match.won ? T.ink : T.text,
+                        background: match.won ? T.gold : "var(--nj-solar-sand)",
+                        color: match.won ? T.ink : "var(--nj-solar-ink)",
                       }}
                     >
                       <NjamboIcon name={match.won ? "trophy" : "history"} tone={match.won ? "gold" : "light"} size={24} />

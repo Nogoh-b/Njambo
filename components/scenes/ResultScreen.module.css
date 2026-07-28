@@ -52,7 +52,7 @@
 
 .gain {
   margin-top: 10px;
-  color: var(--text, #fff4df);
+  color: var(--nj-solar-ink, #24372f);
   font-family: var(--font-display), Georgia, serif;
   font-size: clamp(26px, 7vw, 36px);
   font-weight: 950;
@@ -97,7 +97,7 @@
   gap: 8px;
   min-width: 0;
   padding: 8px 10px;
-  border: 1px solid var(--wood-edge, rgba(242, 187, 69, 0.22));
+  border: 1px solid var(--nj-panel-edge, rgba(184, 142, 84, 0.5));
   border-radius: 12px;
   background: linear-gradient(160deg, rgba(60, 37, 20, 0.5), rgba(10, 8, 6, 0.82));
 }

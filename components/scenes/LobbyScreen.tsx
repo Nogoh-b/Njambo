@@ -5,6 +5,8 @@ import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { NKAP } from "@/data/mock";
 import { NjamboIcon } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromRoomPlayer } from "@/components/player/playerCardData";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { HubReveal } from "@/components/ui/HubReveal";
@@ -134,26 +136,22 @@ export function LobbyScreen({ onGameStart, onBack }: LobbyScreenProps) {
               const isReady = isRoomHost || player.ready;
               return (
                 <HubReveal key={player.uid} className={styles.listReveal} order={index}>
-                  <div className={`nj-list-card${isReady ? " nj-list-card--teal is-active" : ""} ${styles.playerCard}`}>
-                    <span style={{ fontSize: 28 }} aria-hidden="true">{player.emoji}</span>
-                    <span className={styles.playerIdentity}>
-                      <span className={styles.playerName}>
-                        {player.name}
-                        {isRoomHost && <span className={styles.hostBadge}>HÔTE</span>}
-                      </span>
-                      <span className={styles.playerState}>{isRoomHost ? "Hôte" : isReady ? "Prêt" : "En attente…"}</span>
-                    </span>
-                    <span
-                      className={`${styles.readyDot}${isReady ? ` ${styles.readyDotActive}` : ""}`}
-                      aria-label={isReady ? "Prêt" : "En attente"}
-                      role="img"
-                    />
-                    {player.uid !== user?.uid && (
-                      <span className={styles.socialActions}>
-                        <SocialActions player={player} compact />
-                      </span>
+                  <PlayerCard
+                    player={fromRoomPlayer(player)}
+                    tone={isReady ? "teal" : undefined}
+                    active={isReady}
+                    className={styles.playerCard}
+                    subtitle={isRoomHost ? "Hôte" : isReady ? "Prêt" : "En attente…"}
+                    badges={isRoomHost ? <span className={styles.hostBadge}>HÔTE</span> : undefined}
+                    meta={(
+                      <span
+                        className={`${styles.readyDot}${isReady ? ` ${styles.readyDotActive}` : ""}`}
+                        aria-label={isReady ? "Prêt" : "En attente"}
+                        role="img"
+                      />
                     )}
-                  </div>
+                    actions={player.uid !== user?.uid ? <SocialActions player={player} compact /> : undefined}
+                  />
                 </HubReveal>
               );
             })}

@@ -28,6 +28,7 @@ import {
 import { t } from "@/lib/i18n";
 import { useMotionProfile, usePageActive } from "@/lib/motion";
 import { getPlayerLevel } from "@/lib/playerLevel";
+import { rankAssetSrc } from "@/lib/playerRank";
 import { preloadScene } from "@/lib/scenePreload";
 import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
 import type { PlayerStats, PublicPlayerProfile, SceneName } from "@/types/game";
@@ -397,7 +398,9 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
   const energyProgress = economy?.energy.unlimited ? 100 : economy?.energy.available ?? 100;
   const economyPending = Boolean(user && !user.isAnonymous && loading && !economy);
   const isGuest = !user || user.isAnonymous === true;
-  const rankAssetId = rank.badge.id.replaceAll("_", "-");
+  /* Le chemin de l'asset vient de lib/playerRank : c'était la seule autre
+     source de vérité du rang avec LeaderboardScreen. */
+  const rankSrc = rankAssetSrc(rank.badge);
 
   const openLink = useCallback((scene: SceneName) => navigateTo(scene), [navigateTo]);
 
@@ -499,7 +502,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
                 <AvatarIllustration seed={displayProfile.emoji} size={54} online={!!user} />
                 <span className={styles.levelMedal}>{level.level}</span>
                 <span className={styles.rankMark} aria-hidden="true">
-                  <Image src={`/assets/njambo/ranks/rank-${rankAssetId}-64.webp`} alt="" width={32} height={32} />
+                  <Image src={rankSrc} alt="" width={32} height={32} />
                 </span>
               </span>
               <span className={styles.identityCopy}>

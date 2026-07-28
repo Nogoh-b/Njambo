@@ -1,5 +1,8 @@
 .homeScene {
-  --home-cream: var(--text, #fff4df);
+  /* Crème fixe : sert au texte posé sur des fonds volontairement sombres
+     (photo du hero, vignettes de mode). Ne doit PAS suivre `--text`, qui vaut
+     désormais l'encre solaire sombre. */
+  --home-cream: #fff4df;
   --home-muted: #b8adcf;
   --home-night: rgba(6, 7, 18, 0.94);
   --home-panel: rgba(16, 13, 27, 0.86);
@@ -149,7 +152,7 @@
   border-radius: var(--home-radius-lg);
   background:
     linear-gradient(100deg, rgba(74, 42, 19, 0.84), rgba(13, 12, 27, 0.86) 58%),
-    var(--wood-grain);
+    var(--panel-grain);
   box-shadow: var(--home-shadow), inset 0 1px 0 rgba(255, 239, 207, 0.12);
   overflow: hidden;
 }
@@ -3221,7 +3224,7 @@
     radial-gradient(circle at 64% 0%, rgba(16, 183, 166, 0.13), transparent 30%),
     radial-gradient(circle at 96% 100%, rgba(77, 111, 255, 0.14), transparent 30%),
     linear-gradient(100deg, rgba(91, 49, 20, 0.9), rgba(18, 17, 36, 0.93) 48%, rgba(7, 17, 27, 0.92)),
-    var(--wood-grain);
+    var(--panel-grain);
   box-shadow: var(--home-shadow), inset 0 1px 0 rgba(255, 239, 207, 0.23), 0 0 28px rgba(16, 183, 166, 0.06);
   isolation: isolate;
 }
@@ -3276,10 +3279,10 @@
   display: grid;
   place-items: center;
   overflow: hidden;
-  border: 2px solid rgba(12, 9, 15, 0.94);
+  border: 2px solid var(--nj-solar-surface-strong, #f7ead0);
   border-radius: 50%;
-  background: radial-gradient(circle, #3b2819, #110d14 72%);
-  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.48), 0 0 0 1px rgba(242, 187, 69, 0.42);
+  background: radial-gradient(circle, var(--nj-solar-surface-strong, #f7ead0), var(--nj-solar-sand, #d6b77d) 72%);
+  box-shadow: 0 4px 10px rgba(35, 31, 18, 0.24), 0 0 0 1px rgba(245, 195, 68, 0.55);
 }
 
 .rankMark img {

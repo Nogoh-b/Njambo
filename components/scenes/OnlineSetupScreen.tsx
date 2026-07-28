@@ -11,7 +11,9 @@ import { Btn } from "@/components/ui/Btn";
 import { ChoiceButtonGroup } from "@/components/ui/ChoiceButtonGroup";
 import { NkapAmount } from "@/components/ui/NkapAmount";
 import { Chip } from "@/components/ui/Chip";
-import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { NjamboIcon } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromPublicProfile } from "@/components/player/playerCardData";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { HubReveal } from "@/components/ui/HubReveal";
 import {
@@ -184,16 +186,14 @@ export function OnlineSetupScreen() {
                 )}
                 {players.map((player, index) => (
                   <HubReveal key={player.uid} className={styles.listReveal} order={index}>
-                      <div className={`nj-list-card nj-list-card--teal${player.online ? " is-active" : ""} ${styles.playerCard}`}>
-                      <AvatarIllustration seed={player.emoji} size={42} online={player.online} />
-                      <div className={styles.playerIdentity}>
-                        <span className={styles.playerName}>{player.name}</span>
-                        <span className={styles.playerState}>{player.online ? "En ligne" : "Hors ligne"}</span>
-                      </div>
-                      <div className={styles.socialActions}>
-                        <SocialActions player={player} compact tone="teal" />
-                      </div>
-                    </div>
+                    <PlayerCard
+                      player={fromPublicProfile(player)}
+                      tone="teal"
+                      active={player.online}
+                      density="compact"
+                      className={styles.playerCard}
+                      actions={<SocialActions player={player} compact tone="teal" />}
+                    />
                   </HubReveal>
                 ))}
               </div>
@@ -213,7 +213,6 @@ export function OnlineSetupScreen() {
                   {publicRooms.map((room, index) => (
                     <HubReveal key={room.id} className={styles.listReveal} order={index}>
                       <button
-                        data-nj-skin="dark"
                         type="button"
                         disabled={busy || !canStart || room.stake > (economy?.nkap ?? 0)}
                         onClick={() => handleJoinRoom(room.id)}

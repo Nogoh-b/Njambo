@@ -24,8 +24,8 @@ interface LedgerEntry {
 }
 
 const LEDGER_FILTERS = [
-  { id: "all", label: "Tout" },
-  { id: "nkap", label: "Nkap" },
+  { id: "all", label: "Tout", tone: "gold" as const },
+  { id: "nkap", label: "Nkap", tone: "teal" as const },
   { id: "cauris", label: "Cauris", tone: "cobalt" as const },
 ];
 

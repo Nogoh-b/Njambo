@@ -6,7 +6,9 @@ import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenNotifications, markNotificationRead } from "@/lib/socialData";
-import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { NjamboIcon } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromNotification } from "@/components/player/playerCardData";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { NotificationEntry } from "@/types/game";
@@ -64,22 +66,25 @@ export function NotificationsScreen() {
               {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement...</div>}
               {!loading && notifications.length === 0 && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Aucune notification.</div>}
               {notifications.map((item, i) => (
-                <button data-nj-skin="dark"
+                <PlayerCard
                   key={item.id}
-                  type="button"
+                  as="button"
+                  /* L'avatar est celui de l'auteur, mais la ligne principale porte
+                     le titre de la notification, pas son nom. */
+                  player={{ ...fromNotification(item), name: item.title }}
                   onClick={() => { void openNotification(item); }}
-                  className={`nj-list-card${item.read ? "" : " nj-list-card--pink is-active"}`}
+                  ariaLabel={`${item.title} — ${item.body}`}
+                  tone={item.read ? undefined : "pink"}
+                  active={!item.read}
+                  showStatus={false}
                   style={getEntranceAnimationStyle(motion, i)}
-                >
-                  <AvatarIllustration seed={item.actorEmoji} size={48} online />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 900 }}>{item.title}</div>
-                    <div className="nj-subtle" style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{item.body}</div>
-                  </div>
-                  <span className="nj-title-icon" style={{ width: 34, height: 34, borderRadius: 12 }}>
-                    <NjamboIcon name={item.type === "message" ? "message" : "play"} tone="gold" size={18} />
-                  </span>
-                </button>
+                  subtitle={item.body}
+                  meta={(
+                    <span className="nj-title-icon" style={{ width: 34, height: 34, borderRadius: 12 }}>
+                      <NjamboIcon name={item.type === "message" ? "message" : "play"} tone="gold" size={18} />
+                    </span>
+                  )}
+                />
               ))}
             </div>
           </Surface>

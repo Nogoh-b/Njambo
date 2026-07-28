@@ -5,7 +5,9 @@ import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenDiscoverPlayers } from "@/lib/socialData";
-import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { NjamboIcon } from "@/components/ui/Art";
+import { PlayerCard } from "@/components/player/PlayerCard";
+import { fromPublicProfile } from "@/components/player/playerCardData";
 import { BottomNavScene } from "@/components/ui/BottomNavScene";
 import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import { SocialActions } from "@/components/social/SocialActions";
@@ -51,18 +53,15 @@ export function PlayersScreen() {
                 <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Aucun joueur trouve.</div>
               )}
               {players.map((player, i) => (
-                <div
+                <PlayerCard
                   key={player.uid}
-                  className={`nj-list-card${player.online ? " nj-list-card--teal is-active" : ""}`}
+                  player={fromPublicProfile(player)}
+                  tone={player.online ? "teal" : undefined}
+                  active={player.online}
                   style={getEntranceAnimationStyle(motion, i)}
-                >
-                  <AvatarIllustration seed={player.emoji} size={50} online={player.online} />
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontWeight: 900, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{player.name}</div>
-                    <div className="nj-subtle">{player.online ? "En ligne" : "Hors ligne"} · {player.stats.played} parties</div>
-                  </div>
-                  <SocialActions player={player} compact />
-                </div>
+                  subtitle={`${player.online ? "En ligne" : "Hors ligne"} · ${player.stats.played} parties`}
+                  actions={<SocialActions player={player} compact />}
+                />
               ))}
             </div>
           </Surface>

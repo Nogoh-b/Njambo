@@ -109,12 +109,13 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
               )}
             </span>
           </div>
+          {/* Rouge plein, indépendant du ton de l'écran : c'est une action
+              destructive. Pas de motif — il poserait un calque par-dessus le
+              fond et diluerait le signal. */}
           <Btn
-            tone={tone}
-            fill="outline"
+            tone="red"
+            fill="solid"
             size="md"
-            motif="indigo-dots"
-            motifSides="both"
             onClick={() => { void logout(); }}
             className={styles.logout}
           >
@@ -225,15 +226,15 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
         <div className="nj-stack" style={{ gap: 10 }}>
           <TabBar
             tabs={[
-              { id: "phone", label: "Téléphone" },
-              { id: "email", label: "E-mail" },
+              { id: "phone", label: "Téléphone", tone: "teal" },
+              { id: "email", label: "E-mail", tone: "gold" },
             ]}
             activeId={authMethod}
             onChange={(next) => { setAuthMethod(next as "phone" | "email"); setError(""); }}
             ariaLabel="Méthode de connexion"
-            tone={'gold'}
+            tone="gold"
             size="md"
-            className={styles.shopTabs}
+            className={styles.authMethodTabs}
           />
 
           {authMethod === "phone" && (
