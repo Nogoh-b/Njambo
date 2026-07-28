@@ -1,0 +1,196 @@
+/* Arène de fin de manche : les joueurs occupent une position propre autour
+   d'un pot central, et les NKAP traversent réellement l'écran. La distance
+   parcourue EST l'effet — d'où une scène large plutôt qu'une liste. */
+
+.arena {
+  position: relative;
+  width: 100%;
+  max-width: 380px;
+  margin: 16px auto 6px;
+  /* Un peu plus haute que large : c'est ce qui donne aux sièges du haut et du
+     bas la place de tenir dans le cadre sans mordre sur le texte voisin. */
+  aspect-ratio: 1 / 1.1;
+  container-type: inline-size;
+  container-name: njarena;
+}
+
+/* ── Pot central ───────────────────────────────────────────────────────── */
+
+.pot {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  place-items: center;
+  gap: 1px;
+  width: 38%;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  background:
+    radial-gradient(circle at 40% 30%, rgba(255, 236, 196, 0.34), transparent 58%),
+    radial-gradient(circle at 50% 50%, rgba(60, 37, 20, 0.9), rgba(10, 8, 6, 0.95));
+  border: 1px solid rgba(242, 187, 69, 0.42);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 236, 196, 0.22),
+    0 0 28px rgba(242, 187, 69, 0.16),
+    0 14px 30px rgba(0, 0, 0, 0.4);
+}
+
+/* À quatre joueurs, les sièges latéraux se rapprochent : le pot rétrécit pour
+   préserver la respiration entre le centre et la couronne. */
+.arena[data-dense] .pot {
+  width: 31%;
+}
+
+.arena[data-dense] .seat {
+  width: 27%;
+  min-width: 70px;
+}
+
+.potLabel {
+  color: rgba(255, 244, 223, 0.56);
+  font-size: 9px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.potAmount {
+  color: var(--gold, #f2bb45);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(15px, 5.2cqi, 22px);
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ── Sièges ────────────────────────────────────────────────────────────── */
+
+.seat {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  width: 30%;
+  min-width: 76px;
+  padding: 6px 4px;
+  border-radius: 14px;
+  /* --sx/--sy sont posés en JS : la position dépend du nombre de joueurs. */
+  transform: translate(-50%, -50%) translate(var(--sx), var(--sy));
+  text-align: center;
+}
+
+/* Le vainqueur est la seule position chaude et cerclée : le contraste porte
+   l'information avant même que les compteurs ne bougent. */
+.seatWinner {
+  background: radial-gradient(circle at 50% 32%, rgba(242, 187, 69, 0.22), transparent 70%);
+}
+
+.avatarWrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.seatWinner .avatarWrap::after {
+  content: "";
+  position: absolute;
+  inset: -5px;
+  border-radius: 50%;
+  border: 2px solid rgba(242, 187, 69, 0.7);
+  box-shadow: 0 0 16px rgba(242, 187, 69, 0.4);
+}
+
+.crownMark {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.5));
+}
+
+.name {
+  max-width: 100%;
+  overflow: hidden;
+  color: rgba(255, 248, 236, 0.9);
+  font-size: 11px;
+  font-weight: 900;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seatWinner .name {
+  color: var(--gold, #f2bb45);
+}
+
+.delta {
+  font-size: 12px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.deltaUp {
+  color: var(--teal, #10b7a6);
+}
+
+.deltaDown {
+  color: rgba(255, 186, 186, 0.82);
+}
+
+.deltaFlat {
+  color: rgba(255, 244, 223, 0.42);
+}
+
+.crowns {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: rgba(255, 244, 223, 0.6);
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── Couche de vol ─────────────────────────────────────────────────────── */
+
+.flightLayer {
+  position: absolute;
+  inset: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.coin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 34% 28%, #ffe9b4, var(--gold, #f2bb45) 58%, var(--copper, #b8722f));
+  border: 1px solid rgba(255, 240, 208, 0.82);
+  box-shadow: 0 3px 9px rgba(0, 0, 0, 0.45);
+  opacity: 0;
+  will-change: transform, opacity;
+}
+
+@container njarena (max-width: 300px) {
+  .seat {
+    min-width: 66px;
+    padding: 4px 2px;
+  }
+
+  .name {
+    font-size: 10px;
+  }
+
+  .delta {
+    font-size: 11px;
+  }
+}

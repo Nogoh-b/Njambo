@@ -7,7 +7,7 @@ import { Chip } from "@/components/ui/Chip";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { ResultActions, ResultLayout } from "@/components/ui/ResultLayout";
-import { SettlementBoard } from "@/components/result/SettlementBoard";
+import { SettlementArena } from "@/components/result/SettlementArena";
 import { SocialActions } from "@/components/social/SocialActions";
 import { useAuth } from "@/hooks/useAuth";
 import { useGame } from "@/contexts/GameContext";
@@ -122,6 +122,17 @@ export function ResultScreen({
     onNext();
   };
 
+  /* Rendue seulement si le règlement a été transmis : les anciennes parties
+     rejouées depuis l'historique n'en ont pas et gardent l'affichage simple. */
+  const arena = result.players && result.settlement && result.settlement.length > 0 ? (
+    <SettlementArena
+      players={result.players}
+      settlement={result.settlement}
+      winnerIdx={result.winnerIdx}
+      motion={motion}
+    />
+  ) : null;
+
   const main = (
     <>
       <div className={styles.markStage} aria-hidden="true">
@@ -158,31 +169,29 @@ export function ResultScreen({
         </div>
       )}
 
-      <div
-        ref={gainRef}
-        className={`${styles.gain} nj-result-gain`}
-        style={{ opacity: scriptedMotion ? 0 : 1 }}
-      >
-        + {NKAP(totalGain)}
-      </div>
-      <div id={summaryId} className={styles.gainOwner}>
-        {win.isYou ? "Ton gain" : `Gain de ${win.name}`}
-      </div>
-      <div className={styles.gainDetail}>
+      {/* L'arène porte désormais le montant : le pot central et le siège du
+          vainqueur disent le gain mieux qu'un nombre isolé au-dessus d'eux. */}
+      {arena ?? (
+        <>
+          <div
+            ref={gainRef}
+            className={`${styles.gain} nj-result-gain`}
+            style={{ opacity: scriptedMotion ? 0 : 1 }}
+          >
+            + {NKAP(totalGain)}
+          </div>
+          <div className={styles.gainOwner}>
+            {win.isYou ? "Ton gain" : `Gain de ${win.name}`}
+          </div>
+        </>
+      )}
+
+      <div id={summaryId} className={styles.gainDetail}>
         {result.doubles ? "Pot et pénalités doublés" : "Le pot revient au ngata"}
       </div>
 
       {!win.isYou && (result.refund ?? 0) > 0 && (
         <div className={styles.refund}>Remboursement Cauris : + {NKAP(result.refund ?? 0)}</div>
-      )}
-
-      {result.players && result.settlement && result.settlement.length > 0 && (
-        <SettlementBoard
-          players={result.players}
-          settlement={result.settlement}
-          winnerIdx={result.winnerIdx}
-          motion={motion}
-        />
       )}
 
       <ResultActions status={nextRound.status}>
