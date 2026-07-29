@@ -20,6 +20,8 @@ export interface MatchParticipant { uid: string; name: string; emoji: string; bo
  *  et amis), où les couronnes ne bougent pas : l'UI masque alors la ligne. */
 export interface MatchSettlementEntry {
   uid: string;
+  /** Un bot ne peut pas être ajouté en ami : l'UI masque l'action. */
+  bot: boolean;
   /** Mise engagée par ce joueur dans le pot (0 s'il n'a pas contribué). */
   contributed: number;
   /** Solde net de la manche : gain du pot moins la mise, remboursements inclus. */
@@ -606,6 +608,7 @@ export async function performGameAction(
         const contributed = botModeMatch || !participant.bot ? stakePaid : 0;
         settlementByUid.set(participant.uid, {
           uid: participant.uid,
+          bot: participant.bot,
           contributed,
           nkapDelta: (participant.uid === winnerUid ? pot : 0) - contributed,
         });

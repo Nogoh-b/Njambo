@@ -114,16 +114,23 @@
   margin-top: clamp(10px, 2.2vh, 22px);
 }
 
+/* Une seule ligne, toujours. Le `min-width: min(100%, 176px)` précédent
+   laissait gagner `100%` sous ~400 px : chaque bouton prenait toute la
+   largeur et ils s'empilaient. Ici ils se partagent la ligne. */
 .actionButtons {
   display: flex;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   justify-content: center;
   gap: 10px;
 }
 
 .actionButtons > button {
-  min-width: min(100%, 176px);
+  flex: 1 1 0;
+  min-width: 0;
+  max-width: 210px;
   min-height: var(--nj-touch-target, 44px);
+  padding-inline: clamp(8px, 3vw, 18px);
+  white-space: nowrap;
 }
 
 .actionStatus {

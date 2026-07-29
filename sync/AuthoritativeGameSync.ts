@@ -31,7 +31,7 @@ interface ServerMatch {
   result: null | {
     winnerUid: string; winnerName: string; winnerIsBot: boolean; type: "lastTrick"; crownGain?: number;
     /** Règlement par joueur calculé au serveur (cf. matchCommands, settle). */
-    settlement?: Array<{ uid: string; contributed: number; nkapDelta: number; crownsBefore?: number; crownsDelta?: number }>;
+    settlement?: Array<{ uid: string; bot?: boolean; contributed: number; nkapDelta: number; crownsBefore?: number; crownsDelta?: number }>;
   };
   recentActions?: ServerAction[];
   /** Activations de pouvoir diffusées à tous les participants (version
@@ -602,6 +602,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
         if (serverIdx < 0) return null;
         return {
           playerIdx: this.localIndex(serverIdx),
+          uid: entry.uid,
+          bot: entry.bot ?? match.participants[serverIdx]?.bot,
           contributed: entry.contributed,
           nkapDelta: entry.nkapDelta,
           crownsBefore: entry.crownsBefore,

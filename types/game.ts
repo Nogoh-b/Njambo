@@ -390,6 +390,11 @@ export type WinInfo = InstantWinCore | LastTrickWinCore;
  *  local) et non par uid : l'entraînement local n'en a pas. */
 export interface ResultSettlementEntry {
   playerIdx: number;
+  /** Identifiant du joueur, requis pour les actions sociales (ajout en ami).
+   *  Absent en entraînement local, qui n'a pas de comptes. */
+  uid?: string;
+  /** Un bot n'est pas ajoutable : l'UI masque l'action correspondante. */
+  bot?: boolean;
   /** Mise engagée dans le pot par ce joueur (0 s'il n'a pas contribué). */
   contributed: number;
   /** Solde net de la manche : part du pot moins la mise, remboursements inclus. */

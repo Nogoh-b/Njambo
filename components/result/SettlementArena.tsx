@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { AvatarIllustration } from "@/components/ui/Art";
 import { useGame } from "@/contexts/GameContext";
 import { NKAP } from "@/data/mock";
 import { useGsapTimeline, type MotionProfile } from "@/lib/motion";
@@ -13,13 +13,20 @@ interface SettlementArenaProps {
   settlement: ResultSettlementEntry[];
   winnerIdx: number;
   motion: MotionProfile;
+  /** uid des joueurs déjà amis (ou en demande) : leur siège n'affiche pas le
+   *  bouton d'ajout. Omis, aucun bouton n'est proposé. */
+  friendUids?: ReadonlySet<string>;
+  onAddFriend?: (seat: Seat) => void;
 }
 
-interface Seat {
+export interface Seat {
   playerIdx: number;
   player: Player;
+  uid?: string;
   nkapDelta: number;
+  crownsBefore?: number;
   crownsDelta?: number;
+  canAddFriend: boolean;
   isWinner: boolean;
   /** Direction depuis le centre, sans unité (cos/sin). Le CSS la multiplie
    *  par les rayons, qu'il adapte à l'orientation et à la place disponible. */
@@ -40,6 +47,20 @@ const COINS_PER_TRIP: Record<string, number> = { full: 4, balanced: 3, lite: 2, 
    n'émet que la DIRECTION de chaque siège, sans unité. Les figer ici en dur
    empêchait toute adaptation et cassait le paysage. */
 
+/** Couronne vectorielle. Les médaillons bitmap de `NjamboIcon` sont chargés en
+ *  64 px : réduits à 10-17 px ils deviennent illisibles. Un tracé simple reste
+ *  net à toute taille et se colore par `currentColor`. */
+function CrownGlyph({ size = 11 }: { size?: number }) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
+      <path
+        d="M3 8.5 6.4 12 12 4.5 17.6 12 21 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18V8.5Z"
+        fill="currentColor"
+      />
+    </svg>
+  );
+}
+
 function signed(value: number): string {
   return `${value > 0 ? "+ " : value < 0 ? "− " : ""}${NKAP(Math.abs(value))}`;
 }
@@ -50,7 +71,9 @@ function bare(value: number): string {
   return value.toLocaleString("fr-FR");
 }
 
-export function SettlementArena({ players, settlement, winnerIdx, motion }: SettlementArenaProps) {
+export function SettlementArena({
+  players, settlement, winnerIdx, motion, friendUids, onAddFriend,
+}: SettlementArenaProps) {
   const { sfx } = useGame();
   const arenaRef = useRef<HTMLDivElement>(null);
   const potRef = useRef<HTMLDivElement>(null);
@@ -71,17 +94,27 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
       const entry = byIdx.get(playerIdx);
       const step = ((playerIdx - anchor + count) % count) / count;
       const angle = (90 + step * 360) * (Math.PI / 180);
+      /* Ajoutable seulement si c'est un vrai compte, pas moi, pas un bot, et
+         pas déjà dans mes relations. Sinon le bouton est simplement absent. */
+      const uid = entry?.uid;
+      const canAddFriend = Boolean(
+        uid && !player.isYou && !entry?.bot && !friendUids?.has(uid),
+      );
+
       return {
         playerIdx,
         player,
+        uid,
         nkapDelta: entry?.nkapDelta ?? 0,
+        crownsBefore: entry?.crownsBefore,
         crownsDelta: entry?.crownsDelta,
+        canAddFriend,
         isWinner: playerIdx === winnerIdx,
         x: Math.cos(angle).toFixed(4),
         y: Math.sin(angle).toFixed(4),
       };
     });
-  }, [players, settlement, winnerIdx]);
+  }, [players, settlement, winnerIdx, friendUids]);
 
   /* Le pot vaut la somme des mises engagées. En table d'entraînement la mise
      est nulle : on retombe alors sur le gain du vainqueur, qui vient du pot
@@ -93,7 +126,7 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
     return Math.max(0, winner?.nkapDelta ?? 0);
   }, [settlement, winnerIdx]);
 
-  const showCrowns = seats.some((seat) => seat.crownsDelta !== undefined);
+  const showCrowns = seats.some((seat) => seat.crownsBefore !== undefined);
   /* Volontairement PAS conditionné à `allowEntranceCascade`, qui tombe en
      `lite` : seul « mouvement réduit » doit priver du transfert. */
   const scripted = motion.enabled && !motion.reduced;
@@ -188,11 +221,14 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
       const counter = { value: 0 };
       const label = deltaRefs.current.get(seat.playerIdx);
       if (label) {
+        /* `player.balance` est le solde APRÈS règlement : on remonte au solde
+           d'avant pour le voir redescendre au rythme des jetons. */
+        counter.value = seat.player.balance - seat.nkapDelta;
         tl.to(counter, {
-          value: seat.nkapDelta,
+          value: seat.player.balance,
           duration: 0.72,
-          onUpdate: () => { label.textContent = signed(Math.round(counter.value)); },
-          onComplete: () => { label.textContent = signed(seat.nkapDelta); },
+          onUpdate: () => { label.textContent = bare(Math.round(counter.value)); },
+          onComplete: () => { label.textContent = bare(seat.player.balance); },
         }, at);
       }
     });
@@ -209,12 +245,12 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
       const winnerLabel = deltaRefs.current.get(winnerIdx);
       const winnerSeat = seats.find((seat) => seat.playerIdx === winnerIdx);
       if (winnerLabel && winnerSeat) {
-        const counter = { value: 0 };
+        const counter = { value: winnerSeat.player.balance - winnerSeat.nkapDelta };
         tl.to(counter, {
-          value: winnerSeat.nkapDelta,
-          duration: motion.allowLongCascade ? 0.7 : 0.55,
-          onUpdate: () => { winnerLabel.textContent = signed(Math.round(counter.value)); },
-          onComplete: () => { winnerLabel.textContent = signed(winnerSeat.nkapDelta); },
+          value: winnerSeat.player.balance,
+          duration: motion.allowLongCascade ? 0.8 : 0.62,
+          onUpdate: () => { winnerLabel.textContent = bare(Math.round(counter.value)); },
+          onComplete: () => { winnerLabel.textContent = bare(winnerSeat.player.balance); },
         }, payOut + 0.2);
       }
 
@@ -251,12 +287,15 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
           crownOrder += 1;
         }
 
-        const counter = { value: 0 };
+        /* Le compteur parcourt le TOTAL de couronnes, de l'ancien au nouveau :
+           on voit le classement de chacun bouger, pas seulement l'écart. */
+        const before = seat.crownsBefore ?? 0;
+        const counter = { value: before };
         tl.to(counter, {
-          value: seat.crownsDelta,
-          duration: 0.6,
-          onUpdate: () => { node.textContent = signed(Math.round(counter.value)); },
-          onComplete: () => { node.textContent = signed(seat.crownsDelta ?? 0); },
+          value: before + seat.crownsDelta,
+          duration: 0.7,
+          onUpdate: () => { node.textContent = bare(Math.round(counter.value)); },
+          onComplete: () => { node.textContent = bare(before + (seat.crownsDelta ?? 0)); },
         }, seat.crownsDelta < 0 ? at : crownsAt + 0.5);
       });
     }
@@ -297,30 +336,47 @@ export function SettlementArena({ players, settlement, winnerIdx, motion }: Sett
             <AvatarIllustration seed={seat.player.emoji} size={44} active={seat.isWinner} />
             {seat.isWinner && (
               <span className={styles.crownMark}>
-                <NjamboIcon name="crown" tone="gold" size={18} />
+                <CrownGlyph size={17} />
               </span>
             )}
           </span>
 
           <span className={styles.name} aria-hidden="true">{seat.player.name}</span>
 
-          <span
-            ref={(node) => { if (node) deltaRefs.current.set(seat.playerIdx, node); }}
-            className={`${styles.delta} ${
-              seat.nkapDelta > 0 ? styles.deltaUp : seat.nkapDelta < 0 ? styles.deltaDown : styles.deltaFlat
-            }`}
-            aria-hidden="true"
-          >
-            {signed(seat.nkapDelta)}
-          </span>
+          {/* Le solde complet n'est connu que pour le joueur local : le serveur
+              ne divulgue pas le portefeuille des adversaires. Eux ne portent
+              que leurs couronnes, ce qui allège aussi la scène. */}
+          {seat.player.isYou && (
+            <span
+              ref={(node) => { if (node) deltaRefs.current.set(seat.playerIdx, node); }}
+              className={`${styles.delta} ${
+                seat.nkapDelta > 0 ? styles.deltaUp : seat.nkapDelta < 0 ? styles.deltaDown : styles.deltaFlat
+              }`}
+              aria-hidden="true"
+            >
+              {bare(seat.player.balance)}
+            </span>
+          )}
 
-          {showCrowns && seat.crownsDelta !== undefined && (
+          {seat.crownsBefore !== undefined && (
             <span className={styles.crowns} aria-hidden="true">
-              <NjamboIcon name="crown" tone="gold" size={10} />
+              <CrownGlyph />
               <span ref={(node) => { if (node) crownRefs.current.set(seat.playerIdx, node); }}>
-                {signed(seat.crownsDelta)}
+                {bare(seat.crownsBefore + (seat.crownsDelta ?? 0))}
               </span>
             </span>
+          )}
+
+          {onAddFriend && seat.canAddFriend && (
+            <button
+              type="button"
+              className={styles.addFriend}
+              onClick={() => onAddFriend(seat)}
+              aria-label={`Ajouter ${seat.player.name} en ami`}
+              data-nj-skin="none"
+            >
+              +
+            </button>
           )}
         </div>
       ))}

@@ -22,17 +22,19 @@ describe("présentation de fin de manche", () => {
     const bot = getNextRoundPresentation(true, false, false);
     const event = getNextRoundPresentation(true, false, false);
 
-    expect(bot).toEqual({ label: "Manche suivante", status: null });
+    expect(bot).toEqual({ label: "Manche suivante", short: "Rejouer", status: null });
     expect(event).toEqual(bot);
   });
 
   it.each(["online", "friends"])("explicite le consensus en mode %s", () => {
     expect(getNextRoundPresentation(true, true, false)).toEqual({
       label: "Demander une revanche",
+      short: "Revanche",
       status: "La prochaine manche démarrera lorsque la table aura validé la revanche.",
     });
     expect(getNextRoundPresentation(true, true, true)).toEqual({
       label: "Revanche demandée",
+      short: "En attente",
       status: "Demande envoyée. En attente de la validation des autres joueurs.",
     });
   });
@@ -40,8 +42,23 @@ describe("présentation de fin de manche", () => {
   it("annonce un blocage de solde sans changer le callback métier", () => {
     expect(getNextRoundPresentation(false, false, false)).toEqual({
       label: "Manche indisponible",
+      short: "Indispo.",
       status: "Solde insuffisant pour rejoindre la prochaine manche.",
     });
+  });
+
+  /* Le bouton doit tenir sur une ligne à 320 px : on verrouille la brièveté
+     plutôt que le libellé exact, pour ne pas figer la formulation. */
+  it("garde des libellés de bouton assez courts pour une seule ligne", () => {
+    const cases = [
+      getNextRoundPresentation(true, false, false),
+      getNextRoundPresentation(true, true, false),
+      getNextRoundPresentation(true, true, true),
+      getNextRoundPresentation(false, false, false),
+    ];
+    for (const presentation of cases) {
+      expect(presentation.short.length).toBeLessThanOrEqual(12);
+    }
   });
 
   it("normalise les conditions de victoire", () => {

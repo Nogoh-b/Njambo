@@ -309,7 +309,6 @@ function SceneRouter() {
           onMenu={handleMenu}
           canNext={!!profile && profile.balance >= gameMise}
           nextRequiresConsensus={gameMode === "online" || gameMode === "friends"}
-          socialPlayers={gameMode === "bot" ? [] : roomPlayers as RoomPlayer[]}
         />
       )}
       <PerformanceHud />

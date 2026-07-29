@@ -122,6 +122,8 @@
    l'information avant même que les compteurs ne bougent. */
 .seat {
   z-index: 3;
+  /* Ancre le bouton d'ajout en ami, positionné en absolu sur le coin. */
+  position: absolute;
 }
 
 .seatWinner {
@@ -190,12 +192,47 @@
   color: rgba(36, 55, 47, 0.45);
 }
 
+/* Ajout en ami : pastille posée sur le coin du siège, hors du flux vertical
+   pour ne pas allonger une colonne déjà dense. Elle n'apparaît que sur les
+   joueurs réellement ajoutables. */
+.addFriend {
+  position: absolute;
+  top: -2px;
+  right: 2px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 250, 235, 0.95);
+  background: linear-gradient(160deg, #7fb8ae, #3f7d72);
+  color: #fffdf6;
+  font-size: 15px;
+  font-weight: 950;
+  line-height: 1;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(30, 48, 42, 0.35);
+  transition: transform 0.16s ease, filter 0.16s ease;
+}
+
+.addFriend:hover {
+  transform: scale(1.1);
+  filter: brightness(1.08);
+}
+
+.addFriend:active {
+  transform: scale(0.94);
+}
+
 .crowns {
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  color: rgba(36, 55, 47, 0.62);
-  font-size: 10px;
+  /* Ocre soutenu : la couronne vectorielle hérite de `currentColor`, elle est
+     donc lisible sans dépendre d'un bitmap doré écrasé. */
+  color: #8a6a2f;
+  font-size: 11px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;
 }

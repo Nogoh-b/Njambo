@@ -1,7 +1,11 @@
 import type { Result, SyncStatus } from "@/types/game";
 
 export interface NextRoundPresentation {
+  /** Libellé complet, conservé pour l'étiquette d'accessibilité. */
   label: string;
+  /** Version courte affichée dans le bouton : les actions de fin de manche
+   *  doivent tenir sur une seule ligne, y compris à 320 px. */
+  short: string;
   status: string | null;
 }
 
@@ -38,6 +42,7 @@ export function getNextRoundPresentation(
   if (!canNext) {
     return {
       label: requiresConsensus ? "Revanche indisponible" : "Manche indisponible",
+      short: "Indispo.",
       status: "Solde insuffisant pour rejoindre la prochaine manche.",
     };
   }
@@ -45,6 +50,7 @@ export function getNextRoundPresentation(
   if (requested) {
     return {
       label: requiresConsensus ? "Revanche demandée" : "Préparation…",
+      short: requiresConsensus ? "En attente" : "Préparation…",
       status: requiresConsensus
         ? "Demande envoyée. En attente de la validation des autres joueurs."
         : "Préparation de la prochaine manche.",
@@ -53,6 +59,7 @@ export function getNextRoundPresentation(
 
   return {
     label: requiresConsensus ? "Demander une revanche" : "Manche suivante",
+    short: requiresConsensus ? "Revanche" : "Rejouer",
     status: requiresConsensus
       ? "La prochaine manche démarrera lorsque la table aura validé la revanche."
       : null,

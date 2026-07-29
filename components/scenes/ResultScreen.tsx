@@ -1,20 +1,21 @@
 "use client";
 
-import { useEffect, useId, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { ResultActions, ResultLayout } from "@/components/ui/ResultLayout";
-import { SettlementArena } from "@/components/result/SettlementArena";
-import { SocialActions } from "@/components/social/SocialActions";
+import { SettlementArena, type Seat } from "@/components/result/SettlementArena";
 import { useAuth } from "@/hooks/useAuth";
 import { useGame } from "@/contexts/GameContext";
+import { useLobby } from "@/contexts/LobbyContext";
 import { NKAP } from "@/data/mock";
 import { getNextRoundPresentation, getResultReasonLabels } from "@/lib/gamePresentation";
 import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
-import type { Result, RoomPlayer } from "@/types/game";
+import { listenFriends, sendFriendRequest } from "@/lib/socialData";
+import type { Result } from "@/types/game";
 import styles from "./ResultScreen.module.css";
 
 /* Particules tsparticles chargées en lazy, client uniquement (jamais au SSR). */
@@ -27,7 +28,6 @@ export interface ResultScreenProps {
   onMenu: () => void;
   canNext: boolean;
   nextRequiresConsensus?: boolean;
-  socialPlayers?: RoomPlayer[];
 }
 
 export function ResultScreen({
@@ -37,10 +37,10 @@ export function ResultScreen({
   onMenu,
   canNext,
   nextRequiresConsensus = false,
-  socialPlayers = [],
 }: ResultScreenProps) {
   const { user } = useAuth();
   const { sfx } = useGame();
+  const { currentRoom } = useLobby();
   const motion = useMotionProfile();
   const win = result.winner;
   const [nextRequested, setNextRequested] = useState(false);
@@ -50,10 +50,33 @@ export function ResultScreen({
   const scriptedMotion = motion.enabled && motion.allowEntranceCascade;
   const reasonLabels = getResultReasonLabels(result);
   const nextRound = getNextRoundPresentation(canNext, nextRequiresConsensus, nextRequested);
-  const opponents = useMemo(
-    () => socialPlayers.filter((player) => player.uid !== user?.uid),
-    [socialPlayers, user?.uid],
-  );
+  /* Relations connues, pour n'proposer l'ajout qu'aux joueurs qui n'en font
+     pas déjà partie. Les uid ajoutés localement s'y greffent aussitôt : la
+     pastille disparaît sans attendre l'aller-retour serveur. */
+  const [friendUids, setFriendUids] = useState<ReadonlySet<string>>(new Set());
+
+  useEffect(() => {
+    if (!user?.uid) return undefined;
+    return listenFriends(user.uid, (friends) => {
+      setFriendUids(new Set(friends.map((friend) => friend.uid)));
+    });
+  }, [user?.uid]);
+
+  /* Pendant l'attente d'une revanche, le bouton porte un compteur « 2/4 »
+     plutôt qu'une phrase : c'est la seule forme qui ne casse jamais la ligne
+     tout en disant ce qui manque. */
+  const consentLabel = nextRequested && nextRequiresConsensus && currentRoom?.players?.length
+    ? `${currentRoom.players.filter((player) => player.ready).length}/${currentRoom.players.length}`
+    : null;
+
+  const handleAddFriend = useCallback((seat: Seat) => {
+    if (!seat.uid || !user) return;
+    setFriendUids((previous) => new Set(previous).add(seat.uid as string));
+    void sendFriendRequest(
+      { uid: user.uid, name: user.name, emoji: user.emoji },
+      { uid: seat.uid, name: seat.player.name, emoji: seat.player.emoji },
+    );
+  }, [user]);
 
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
@@ -130,6 +153,8 @@ export function ResultScreen({
       settlement={result.settlement}
       winnerIdx={result.winnerIdx}
       motion={motion}
+      friendUids={friendUids}
+      onAddFriend={handleAddFriend}
     />
   ) : null;
 
@@ -196,6 +221,9 @@ export function ResultScreen({
         <div className={styles.refund}>Remboursement Cauris : + {NKAP(result.refund ?? 0)}</div>
       )}
 
+      {/* Libellés courts + pictogramme : les deux actions tiennent sur une
+          seule ligne jusqu'à 320 px. Le texte complet reste dans `ariaLabel`
+          pour les lecteurs d'écran. */}
       <ResultActions status={nextRound.status}>
         <Btn
           variant="pink"
@@ -203,28 +231,18 @@ export function ResultScreen({
           disabled={!canNext || nextRequested}
           ariaLabel={nextRound.label}
         >
-          {nextRound.label}
+          <span aria-hidden="true">↻</span> {consentLabel ?? nextRound.short}
         </Btn>
         <Btn variant="dark" onClick={onMenu} ariaLabel="Quitter la table et revenir au menu">
-          Menu
+          <span aria-hidden="true">⌂</span> Menu
         </Btn>
       </ResultActions>
     </>
   );
 
-  const rail = opponents.length > 0 ? (
-    <>
-      <h2 className={styles.railTitle}>Joueurs rencontrés</h2>
-      <div className={styles.socialList}>
-        {opponents.map((player) => (
-          <div key={player.uid} className={styles.socialPlayer}>
-            <span className={styles.socialName}>{player.name}</span>
-            <SocialActions player={player} compact />
-          </div>
-        ))}
-      </div>
-    </>
-  ) : undefined;
+  /* Le rail « Joueurs rencontrés » a été retiré : l'ajout en ami se fait
+     directement depuis le siège de chaque joueur dans l'arène, là où on le
+     regarde déjà. */
 
   return (
     <ResultLayout
@@ -236,7 +254,6 @@ export function ResultScreen({
       reducedMotion={motion.reduced}
       scriptedMotion={scriptedMotion}
       main={main}
-      rail={rail}
       outcome={win.isYou ? "win" : "loss"}
       decoration={(
         <>
