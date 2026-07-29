@@ -225,15 +225,29 @@ export function ResultScreen({
           seule ligne jusqu'à 320 px. Le texte complet reste dans `ariaLabel`
           pour les lecteurs d'écran. */}
       <ResultActions status={nextRound.status}>
+        {/* Système `njb` avec motifs pagne : le rose reste la couleur d'appel
+            principale (cf. la convention dans Btn.tsx), le cobalt en soutien
+            pour une sortie qui ne doit pas rivaliser avec elle. Les motifs
+            sont monochromes et se teintent du ton choisi. */}
         <Btn
-          variant="pink"
+          tone="pink"
+          fill="solid"
+          motif="royal-bands"
+          motifSides="both"
           onClick={handleNext}
           disabled={!canNext || nextRequested}
           ariaLabel={nextRound.label}
         >
           <span aria-hidden="true">↻</span> {consentLabel ?? nextRound.short}
         </Btn>
-        <Btn variant="dark" onClick={onMenu} ariaLabel="Quitter la table et revenir au menu">
+        <Btn
+          tone="cobalt"
+          fill="soft"
+          motif="indigo-dots"
+          motifSides="both"
+          onClick={onMenu}
+          ariaLabel="Quitter la table et revenir au menu"
+        >
           <span aria-hidden="true">⌂</span> Menu
         </Btn>
       </ResultActions>

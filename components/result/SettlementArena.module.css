@@ -269,18 +269,43 @@
   will-change: transform, opacity;
 }
 
+/* Jetons panachés : quatre teintes qui se relaient, comme des jetons de
+   valeurs différentes. La grappe se lit mieux qu'un aplat uniformément doré,
+   et la densité — proportionnelle au montant — devient perceptible. */
 .coin {
   position: absolute;
   top: 0;
   left: 0;
-  width: 17px;
-  height: 17px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, #fff6df, var(--gold, #d0a35d) 60%, var(--copper, #a96243));
-  border: 1px solid rgba(255, 246, 223, 0.9);
-  box-shadow: 0 2px 6px rgba(84, 52, 24, 0.4);
+  background: radial-gradient(circle at 36% 30%, #fff6df, var(--coin-a) 58%, var(--coin-b));
+  border: 1px solid rgba(255, 250, 235, 0.92);
+  box-shadow: 0 2px 5px rgba(84, 52, 24, 0.38);
   opacity: 0;
   will-change: transform, opacity;
+  --coin-a: #d0a35d;
+  --coin-b: #a96243;
+}
+
+.coinGold {
+  --coin-a: #e0b767;
+  --coin-b: #a97c2e;
+}
+
+.coinCopper {
+  --coin-a: #d08c5d;
+  --coin-b: #8f4f33;
+}
+
+.coinTeal {
+  --coin-a: #7fc0b4;
+  --coin-b: #2f6f66;
+}
+
+.coinPalm {
+  --coin-a: #b9c97e;
+  --coin-b: #5f7434;
 }
 
 /* ── Paysage bas ───────────────────────────────────────────────────────────

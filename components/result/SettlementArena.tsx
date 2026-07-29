@@ -40,7 +40,21 @@ export interface Seat {
  *  niveau n'est jamais atteint (cf. deriveMotionLevel), et une rétrogradation
  *  du capteur de FPS suffisait à le faire disparaître. Seul le respect de
  *  « mouvement réduit » (`off`) le supprime, à juste titre. */
-const COINS_PER_TRIP: Record<string, number> = { full: 4, balanced: 3, lite: 2, off: 0 };
+const COIN_BUDGET: Record<string, number> = { full: 14, balanced: 9, lite: 5, off: 0 };
+
+/** Teintes de jetons, panachées comme des jetons de valeurs différentes. Le
+ *  cycle est déterministe : une même manche produit toujours le même mélange. */
+const COIN_TONES = ["coinGold", "coinCopper", "coinTeal", "coinPalm"] as const;
+
+/** Nombre de jetons d'un trajet, proportionnel à la part qu'il transporte.
+ *  Un gros transfert doit se VOIR plus dense qu'un petit — c'est la densité,
+ *  pas la vitesse, qui dit le montant. Toujours au moins un jeton, sinon un
+ *  petit paiement passerait inaperçu. */
+function coinsForShare(budget: number, part: number, whole: number): number {
+  if (budget <= 0) return 0;
+  if (whole <= 0) return Math.min(budget, 2);
+  return Math.max(1, Math.min(budget, Math.round((part / whole) * budget)));
+}
 
 /* Les rayons de la couronne vivent dans le CSS (`--arena-rx` / `--arena-ry`) :
    c'est lui qui sait si l'on est en portrait, en paysage ou à l'étroit. Le JS
@@ -130,7 +144,7 @@ export function SettlementArena({
   /* Volontairement PAS conditionné à `allowEntranceCascade`, qui tombe en
      `lite` : seul « mouvement réduit » doit priver du transfert. */
   const scripted = motion.enabled && !motion.reduced;
-  const coinsPerTrip = COINS_PER_TRIP[motion.mode] ?? 2;
+  const coinBudget = COIN_BUDGET[motion.mode] ?? 5;
 
   useGsapTimeline(scripted, arenaRef, (gsap) => {
     const arena = arenaRef.current;
@@ -168,19 +182,24 @@ export function SettlementArena({
       to: { x: number; y: number },
       at: number,
       spread: number,
+      count: number,
     ) => {
-      if (!flight || coinsPerTrip === 0) return;
-      const count = kind === "crown" ? Math.max(1, coinsPerTrip - 1) : coinsPerTrip;
+      if (!flight || count <= 0) return;
       const travel = (motion.allowLongCascade ? 0.9 : 0.74) * (kind === "crown" ? 0.92 : 1);
+      /* Plus il y a de jetons, plus ils se serrent : une grosse somme part en
+         grappe dense, une petite en gouttes espacées. */
+      const step = Math.max(0.035, 0.34 / count);
 
       for (let index = 0; index < count; index += 1) {
         const token = document.createElement("span");
-        token.className = kind === "crown" ? styles.crownToken : styles.coin;
+        token.className = kind === "crown"
+          ? styles.crownToken
+          : `${styles.coin} ${styles[COIN_TONES[index % COIN_TONES.length]]}`;
         token.setAttribute("aria-hidden", "true");
         if (kind === "crown") token.textContent = "♛";
         flight.appendChild(token);
 
-        const delay = at + index * 0.1;
+        const delay = at + index * step;
         /* Décalage perpendiculaire décroissant : les jetons partent en éventail
            puis se resserrent à l'arrivée, ce qui évite l'empilement. */
         const offset = (index - (count - 1) / 2) * spread;
@@ -207,8 +226,14 @@ export function SettlementArena({
       }
     };
 
-    /* Temps 1 — les mises quittent les perdants et tombent dans le pot. */
+    /* Temps 1 — les mises quittent les perdants et tombent dans le pot. Le
+       budget de jetons se répartit au prorata : celui qui perd le plus en
+       envoie visiblement plus. */
     const payIn = 0.62;
+    const totalPaidIn = seats.reduce(
+      (sum, seat) => (seat.isWinner || seat.nkapDelta >= 0 ? sum : sum + Math.abs(seat.nkapDelta)),
+      0,
+    );
     let sawPayment = false;
     seats.forEach((seat, order) => {
       const node = seatRefs.current.get(seat.playerIdx);
@@ -217,7 +242,8 @@ export function SettlementArena({
       /* Les perdants paient l'un APRÈS l'autre : on voit qui donne quoi, au
          lieu d'une salve simultanée illisible. */
       const at = payIn + order * 0.22;
-      flyTokens("coin", centreOf(node), potCentre, at, 22);
+      flyTokens("coin", centreOf(node), potCentre, at, 22,
+        coinsForShare(coinBudget, Math.abs(seat.nkapDelta), totalPaidIn));
       const counter = { value: 0 };
       const label = deltaRefs.current.get(seat.playerIdx);
       if (label) {
@@ -240,7 +266,8 @@ export function SettlementArena({
     if (winnerNode) {
       tl.to(pot, { scale: 1.12, duration: 0.2, ease: "power2.out" }, payOut - 0.2)
         .to(pot, { scale: 1, duration: 0.26 }, payOut);
-      flyTokens("coin", potCentre, centreOf(winnerNode), payOut, 26);
+      /* Le pot part en entier : c'est le trajet le plus dense de la scène. */
+      flyTokens("coin", potCentre, centreOf(winnerNode), payOut, 26, coinBudget);
 
       const winnerLabel = deltaRefs.current.get(winnerIdx);
       const winnerSeat = seats.find((seat) => seat.playerIdx === winnerIdx);
@@ -283,7 +310,10 @@ export function SettlementArena({
         const seatNode = seatRefs.current.get(seat.playerIdx);
         const at = crownsAt + crownOrder * 0.2;
         if (seat.crownsDelta < 0 && seatNode && winnerNode) {
-          flyTokens("crown", centreOf(seatNode), centreOf(winnerNode), at, 20);
+          /* Les couronnes restent peu nombreuses : elles se comptent à l'unité,
+             une grappe dense les rendrait illisibles. */
+          flyTokens("crown", centreOf(seatNode), centreOf(winnerNode), at, 20,
+            Math.min(3, Math.max(1, Math.round(Math.abs(seat.crownsDelta) / 8))));
           crownOrder += 1;
         }
 
@@ -299,7 +329,7 @@ export function SettlementArena({
         }, seat.crownsDelta < 0 ? at : crownsAt + 0.5);
       });
     }
-  }, [scripted, seats, potTotal, showCrowns, coinsPerTrip, winnerIdx, sfx]);
+  }, [scripted, seats, potTotal, showCrowns, coinBudget, winnerIdx, sfx]);
 
   return (
     <div
