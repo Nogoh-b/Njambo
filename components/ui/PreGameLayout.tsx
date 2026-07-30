@@ -97,8 +97,12 @@ export function PreGameLayout({
   const titleId = `pre-game-${useId().replaceAll(":", "")}`;
 
   return (
+    /* Pas de dock : ces écrans sont des sous-menus ouverts depuis « Jouer »
+       et portent déjà leur bouton de retour. Le garder ferait doublon et
+       réserverait 64 px sur des mises en page déjà contraintes. */
     <GameShell
       active="play"
+      dock={false}
       className={cx(styles.scene, "nj-mboa-solar-hub", TONE_CLASS[tone], className)}
       contentClassName={styles.shellScroll}
     >

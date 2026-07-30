@@ -13,6 +13,12 @@
   padding-bottom: calc(var(--nj-dock-content-height) + env(safe-area-inset-bottom));
 }
 
+/* Sans dock, on ne garde qu'une gouttière symétrique du haut : c'est ~48 px
+   rendus au contenu, le plus gros poste de l'écran après l'en-tête. */
+.noDock.noDock {
+  padding-bottom: max(var(--nj-layout-gutter), env(safe-area-inset-bottom));
+}
+
 .scroll {
   width: 100%;
   flex: 1 1 auto;

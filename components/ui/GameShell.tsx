@@ -8,6 +8,8 @@ export interface GameShellProps {
   children: ReactNode;
   active?: BottomNavKey;
   compact?: boolean;
+  /** Voir `BottomNavScene` : `false` sur les sous-écrans qui ont leur propre retour. */
+  dock?: boolean;
   className?: string;
   contentClassName?: string;
 }
@@ -20,6 +22,7 @@ export function GameShell({
   children,
   active,
   compact = false,
+  dock = true,
   className,
   contentClassName,
 }: GameShellProps) {
@@ -27,6 +30,7 @@ export function GameShell({
     <BottomNavScene
       active={active}
       narrow={compact}
+      dock={dock}
       className={className}
       contentClassName={contentClassName}
     >

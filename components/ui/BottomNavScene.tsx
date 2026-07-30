@@ -12,6 +12,12 @@ interface BottomNavSceneProps {
   active?: BottomNavKey;
   /** Limite le contenu et le dock à la largeur des anciennes scènes téléphone. */
   narrow?: boolean;
+  /**
+   * Affiche le dock principal. À passer à `false` sur les sous-écrans ouverts
+   * DEPUIS le dock : ils portent déjà leur propre retour, le dock y ferait
+   * doublon et sa réserve de hauteur est la plus chère de l'écran.
+   */
+  dock?: boolean;
   className?: string;
   contentClassName?: string;
 }
@@ -25,6 +31,7 @@ export function BottomNavScene({
   children,
   active,
   narrow = false,
+  dock = true,
   className,
   contentClassName,
 }: BottomNavSceneProps) {
@@ -33,11 +40,11 @@ export function BottomNavScene({
 
   return (
     <Shell>
-      <div className={`nj-safe nj-bottom-nav-scene ${styles.scene}${narrow ? ` nj-bottom-nav-scene--narrow ${styles.narrow}` : ""}${className ? ` ${className}` : ""}`}>
+      <div className={`nj-safe nj-bottom-nav-scene ${styles.scene}${narrow ? ` nj-bottom-nav-scene--narrow ${styles.narrow}` : ""}${dock ? "" : ` ${styles.noDock}`}${className ? ` ${className}` : ""}`}>
         <div className={`nj-bottom-nav-scene-scroll ${styles.scroll}${contentClassName ? ` ${contentClassName}` : ""}`}>
           {children}
         </div>
-        <BottomNav active={resolvedActive} />
+        {dock && <BottomNav active={resolvedActive} />}
       </div>
     </Shell>
   );
