@@ -603,9 +603,12 @@
   .onlineFit {
     --nj-layout-gap: 7px;
     --nj-layout-section-gap: 8px;
-    --nj-choice-tile-h: clamp(46px, 7svh, 56px);
-    --nj-choice-art: clamp(20px, 3.4svh, 26px);
-    --nj-room-strip-h: clamp(64px, 10svh, 80px);
+    --nj-choice-tile-h: clamp(46px, 9svh, 68px);
+    /* Les deux groupes passent côte à côte ici : la tuile ne fait plus que
+       ~46 px de large, et le palier à deux piles vaut 1,5 × cette valeur.
+       Au-delà de 24 px il déborde — contrainte géométrique, pas budgétaire. */
+    --nj-choice-art: clamp(20px, 3.4svh, 24px);
+    --nj-room-strip-h: clamp(64px, 13svh, 96px);
   }
 
   .onlineFit fieldset > legend {
