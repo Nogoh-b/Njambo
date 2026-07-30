@@ -558,7 +558,368 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .botChoice {
+  .botChoice,
+  .tile.tile,
+  .roomTile.roomTile {
     transition: none;
+  }
+
+  .tile.tile:active,
+  .roomTile.roomTile:active {
+    transform: none;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   Écran « En ligne » — mise en page contrainte + contrôles illustrés
+
+   Tout est piloté par des jetons `clamp()` en `svh` posés sur `.onlineFit`
+   (appliqué à `.page`). Les hauteurs se négocient donc entre elles au lieu
+   d'être additionnées à la main : la même règle tient en 390×844, en
+   375×667 et en paysage.
+   ═══════════════════════════════════════════════════════════════════ */
+.onlineFit {
+  --nj-layout-gap: clamp(8px, 1.5svh, 16px);
+  --nj-layout-section-gap: clamp(10px, 1.9svh, 18px);
+  --nj-choice-tile-h: clamp(52px, 8svh, 74px);
+  --nj-choice-art: clamp(26px, 4.2svh, 40px);
+  --nj-room-strip-h: clamp(64px, 15svh, 140px);
+  --nj-room-strip-min: 64px;
+  /* Cartes booster : c'est le bloc que le joueur doit pouvoir LIRE avant de
+     lancer. On dimensionne la carte elle-même (et son nom) plutôt que de la
+     mettre à l'échelle. Le ratio 0,74 est celui de la carte compacte
+     d'origine (56 × 76) ; le décalage de l'icône suit la vignette d'art,
+     qui est carrée et fait `largeur − 8`. */
+  --nj-power-card-compact-h: clamp(74px, 11svh, 96px);
+  --nj-power-card-compact-w: calc(var(--nj-power-card-compact-h) * 0.74);
+  --nj-power-card-compact-font: clamp(9px, 1.4svh, 11px);
+  --nj-power-card-compact-topline: calc((var(--nj-power-card-compact-w) - 16px) * -1);
+}
+
+/* Écrans courts : le chrome se resserre avant que le contenu ne cède.
+   La hauteur des tuiles est pilotée par leur CONTENU (art + valeur), pas
+   par `min-height` — c'est donc `--nj-choice-art` qu'il faut réduire. */
+@media (max-height: 700px) {
+  .onlineFit {
+    --nj-layout-gap: 7px;
+    --nj-layout-section-gap: 8px;
+    --nj-choice-tile-h: clamp(46px, 7svh, 56px);
+    --nj-choice-art: clamp(20px, 3.4svh, 26px);
+    --nj-room-strip-h: clamp(64px, 10svh, 80px);
+  }
+
+  .onlineFit fieldset > legend {
+    margin-bottom: 4px;
+  }
+
+  .onlineFit .configPowers {
+    margin-top: 6px;
+  }
+
+  .onlineFit .roomsHead {
+    margin-bottom: 5px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .onlineFit {
+    --nj-layout-gap: 6px;
+    --nj-layout-section-gap: 7px;
+    --nj-choice-tile-h: clamp(44px, 12svh, 56px);
+    --nj-choice-art: clamp(18px, 5svh, 24px);
+    --nj-room-strip-h: clamp(56px, 16svh, 76px);
+    --nj-room-strip-min: 56px;
+    /* 302 px utiles en tout : les cartes y restent petites, on privilégie
+       les tuiles de mise et de sièges, qui sont ce qu'on manipule. On pilote
+       ici la LARGEUR — la vignette d'art étant carrée, c'est elle qui dicte
+       la hauteur réelle, qu'un `min-height` ne plafonne pas. */
+    --nj-power-card-compact-w: clamp(36px, 11svh, 44px);
+    --nj-power-card-compact-h: 0px;
+    --nj-power-card-compact-font: clamp(7px, 2svh, 9px);
+  }
+}
+
+/* ── Colonne principale : la bande de salles est le seul absorbeur ── */
+.onlineFit .onlineLists {
+  min-height: 0;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--nj-layout-gap);
+}
+
+/* ── Panneau de configuration ──
+   Les dimensions des tuiles passent par les propriétés personnalisées de
+   ChoiceButtonGroup : aucune classe d'écrasement, donc aucune bataille de
+   spécificité contre `.button.button`. */
+.configPanel {
+  --nj-choice-height: var(--nj-choice-tile-h);
+  --nj-choice-pad: 5px;
+  --nj-choice-gap: 8px;
+  --nj-choice-set-gap: clamp(8px, 1.4svh, 14px);
+}
+
+.configPowers {
+  margin-top: clamp(8px, 1.4svh, 12px);
+}
+
+/* ── Tuiles de choix illustrées (mises et sièges) ── */
+.tile.tile {
+  position: relative;
+  padding-block: 5px;
+  overflow: hidden;
+}
+
+.tile.tile :global(.njb__content) {
+  width: 100%;
+  flex-direction: column;
+  gap: 3px;
+}
+
+/* Marque discrète de sélection. `button.btn[aria-pressed="true"]::after`
+   (globals.css) ne vise que la famille raster `.btn` : les tuiles `.njb`
+   n'héritent de rien. Coin gauche — le coin droit porte le compteur de
+   sièges, on garde les deux familles alignées. */
+.tile.tile[aria-pressed="true"]::after {
+  content: "";
+  position: absolute;
+  top: 5px;
+  left: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--nj-btn-on-solid, #fff7e6);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--nj-btn-solid, #199b68) 60%, black);
+}
+
+/* Aucune déclaration de `color` : la valeur hérite de --nj-btn-on-solid ou
+   --nj-btn-ink selon l'état, seules paires calibrées à 4,5:1. */
+.tileValue {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(0.8rem, 2.4svh, 1rem);
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: -0.01em;
+}
+
+.tileArt {
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  height: var(--nj-choice-art);
+}
+
+.tileArt img {
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 4px rgba(35, 31, 18, 0.28));
+}
+
+/* Escalade des mises : 1 pièce → 1 pile → 2 piles chevauchées.
+   Le chevauchement est une LONGUEUR, pas un pourcentage : un pourcentage de
+   marge se résout sur la largeur du bloc conteneur, indéfinie ici puisque
+   `.tileArt` se dimensionne sur son contenu — il calculait donc à zéro et
+   les deux piles se posaient côte à côte, débordant la tuile. */
+.tileArt[data-tier="1"] img { height: 108%; }
+.tileArt[data-tier="2"] img { height: 92%; }
+.tileArt[data-tier="2"] img + img {
+  margin-inline-start: calc(var(--nj-choice-art) * -0.34);
+}
+
+.tile.tile[aria-pressed="true"] .tileArt img {
+  filter: drop-shadow(0 3px 7px rgba(35, 31, 18, 0.34)) brightness(1.05);
+}
+
+/* Mise au-dessus du solde : on désature au lieu de désactiver. Désactiver
+   piégerait un joueur sous 250 Nkap sur la sélection initiale. */
+.tileShort .tileArt img { filter: saturate(0.45) brightness(0.94); }
+.tileShort .tileValue { opacity: 0.72; }
+
+/* ── Sièges : avatars chevauchés ──
+   AvatarIllustration écrit width/height en style inline ; il faut donc le
+   passer en `fluid` et dimensionner le span parent. */
+.seatAvatars {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: var(--nj-choice-art);
+}
+
+.seatAvatars > span {
+  width: calc(var(--nj-choice-art) * 0.86);
+  height: calc(var(--nj-choice-art) * 0.86);
+  flex: 0 0 auto;
+}
+
+.seatAvatars > span + span {
+  margin-inline-start: calc(var(--nj-choice-art) * -0.34);
+}
+
+.seatAvatars :global(.avatar-illu) {
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--panel-tone, #199b68) 34%, white);
+}
+
+/* ── Bande horizontale des salles ── */
+.roomsPanel.roomsPanel {
+  position: relative;
+  min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.roomsHead {
+  min-width: 0;
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.roomStrip {
+  min-width: 0;
+  min-height: var(--nj-room-strip-min, 64px);
+  height: var(--nj-room-strip-h);
+  display: flex;
+  flex: 1 1 auto;
+  align-items: stretch;
+  gap: 9px;
+  padding: 3px 3px 7px;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  /* `proximity` et non `mandatory` : mandatory se bat avec l'inertie iOS. */
+  scroll-snap-type: x proximity;
+  scroll-padding-inline: 3px;
+  scrollbar-width: thin;
+}
+
+.roomSlot {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+}
+
+.roomSlot > * {
+  height: 100%;
+}
+
+/* Les 14 px horizontaux dégagent les liserés ndop de `.roomCard::before`
+   et `::after`, posés à 2 px des bords sur 5 px de large. */
+.roomTile.roomTile {
+  width: clamp(132px, 38vw, 168px);
+  min-height: var(--nj-touch-target);
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 14px;
+}
+
+.roomTileMeta {
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--nj-text-muted, #66756d);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+.roomTileGo {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--panel-ink, var(--nj-solar-red-deep, #a92f2a));
+  font-size: 0.68rem;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.roomEmpty {
+  min-width: 0;
+  display: flex;
+  flex: 1 1 auto;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 10px 14px;
+  color: var(--nj-text-muted, #66756d);
+  border: 1px dashed color-mix(in srgb, var(--panel-tone, #e45145) 42%, var(--nj-solar-outline, #b88e54));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--panel-tone, #e45145) 6%, rgba(255, 253, 246, 0.7));
+  font-size: 0.8rem;
+  text-align: left;
+}
+
+/* Élément réel plutôt qu'un `mask-image` sur le défileur : un masque
+   rognerait les anneaux de focus des tuiles. */
+.stripFade {
+  position: absolute;
+  inset-block: 0;
+  right: 0;
+  width: 26px;
+  pointer-events: none;
+  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--panel-tone, #e45145) 8%, #f2e2c1));
+}
+
+@media (max-height: 700px) {
+  .roomTileGo { display: none; }
+}
+
+/* La grille à deux colonnes des ≥600 px n'a plus lieu d'être : la colonne
+   principale ne porte que la bande de salles. */
+@media (min-width: 600px) {
+  .onlineFit .onlineLists {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* Écran court et rail encore empilé en pleine largeur : les deux groupes de
+   choix passent côte à côte. On économise une rangée entière (~95 px), qui
+   part directement dans la taille des cartes booster — c'est ce qui les rend
+   lisibles sur un 375 × 667.
+   Au-delà de 720 px le rail devient une colonne de 300 px (cf. PreGameLayout) :
+   y couper en deux ramènerait les tuiles à 38 px de large, sous la cible
+   tactile. On les laisse alors empilées. */
+@media (max-height: 700px) and (max-width: 719px),
+       (orientation: landscape) and (max-height: 620px) and (min-width: 720px) {
+  /* Le retrait entre groupes passe par le jeton, pas par une règle
+     concurrente : `.set + .set` est en (0,2,0) et gagnerait tout duel. */
+  .configPanel {
+    --nj-choice-set-gap: 0px;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+    align-items: start;
+  }
+
+  .configPowers {
+    grid-column: 1 / -1;
+    margin-top: 0;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .roomsHead p { display: none; }
+
+  /* Derniers pixels : le rembourrage des panneaux passe de ~15 à 8. */
+  .onlineFit .configPanel,
+  .onlineFit .roomsPanel {
+    padding: 8px;
+  }
+
+  .onlineFit .roomsHead {
+    margin-bottom: 4px;
+  }
+
+  .onlineFit .configPowers {
+    margin-top: 5px;
   }
 }

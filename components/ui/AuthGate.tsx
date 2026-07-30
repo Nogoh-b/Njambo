@@ -52,6 +52,13 @@ interface AuthGateProps {
   children: ReactNode;
   gateClassName?: string;
   tone?: "gold" | "teal" | "pink";
+  /**
+   * Barre de compte affichée au-dessus des enfants une fois connecté.
+   * `none` la supprime : sur un écran de préparation de partie, l'identité
+   * vient d'être vue sur l'accueil et se déconnecter n'est pas un geste du
+   * parcours. Le réglage reste accessible depuis le profil.
+   */
+  accountBar?: "full" | "none";
 }
 
 const ACCOUNT_TONE_CLASS = {
@@ -60,7 +67,7 @@ const ACCOUNT_TONE_CLASS = {
   pink: styles.tonePink,
 } as const;
 
-export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGateProps) {
+export function AuthGate({ children, gateClassName, tone = "gold", accountBar = "full" }: AuthGateProps) {
   const {
     user, loading, loginWithEmail, registerWithEmail, loginWithGoogle,
     requestPhoneCode, confirmPhoneCode, logout,
@@ -91,6 +98,7 @@ export function AuthGate({ children, gateClassName, tone = "gold" }: AuthGatePro
 
   /* ── Connecté → afficher les enfants ── */
   if (user && !user.isAnonymous) {
+    if (accountBar === "none") return <>{children}</>;
     return (
       <>
         {/* Barre de connexion */}

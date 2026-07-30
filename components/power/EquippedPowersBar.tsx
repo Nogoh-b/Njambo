@@ -10,7 +10,14 @@ import styles from "./EquippedPowersBar.module.css";
    Affiche les 2 slots de cartes pouvoir équipées. Tape pour ouvrir la
    collection et modifier l'équipement. Réutilisé par les écrans de setup. */
 
-export function EquippedPowersBar({ tone = "gold" }: { tone?: "gold" | "teal" | "pink" }) {
+export function EquippedPowersBar({
+  tone = "gold",
+  density = "full",
+}: {
+  tone?: "gold" | "teal" | "pink";
+  /** `compact` range les slots sur la même ligne que le texte (~72 px au lieu de 136). */
+  density?: "full" | "compact";
+}) {
   const { navigateTo, profile } = useGame();
   const equipped = profile.equippedPowers ?? [];
   const slots = Array.from({ length: MAX_EQUIPPED_POWERS }, (_, i) => equipped[i]);
@@ -21,7 +28,7 @@ export function EquippedPowersBar({ tone = "gold" }: { tone?: "gold" | "teal" | 
       type="button"
       onClick={() => navigateTo("power_collection")}
       aria-label="Choisir les cartes booster"
-      className={`${styles.bar} ${styles[tone]}`}
+      className={`${styles.bar} ${styles[tone]}${density === "compact" ? ` ${styles.compact}` : ""}`}
     >
       <span className={styles.slots} aria-hidden="true">
         {slots.map((id, i) => {

@@ -6,7 +6,7 @@
 }
 
 .set + .set {
-  margin-top: 14px;
+  margin-top: var(--nj-choice-set-gap, 14px);
 }
 
 .legend {
@@ -19,17 +19,23 @@
   line-height: 1.35;
 }
 
+/* Les dimensions sont pilotées par des propriétés personnalisées héritées,
+   pas par des classes d'écrasement. `.button.button` a une spécificité de
+   (0,2,0) : une classe doublée côté écran ferait match nul et se ferait
+   départager par l'ordre du bundle — c'est ce qui a condamné `.botChoice`
+   (cf. PreGameScreens.module.css). Un écran qui veut des tuiles hautes
+   redéclare simplement `--nj-choice-height` sur un ancêtre. */
 .grid {
   min-width: 0;
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 8px;
+  grid-template-columns: repeat(var(--nj-choice-cols, 3), minmax(0, 1fr));
+  gap: var(--nj-choice-gap, 8px);
 }
 
 .button.button {
   min-width: 0;
   width: 100%;
-  min-height: var(--nj-touch-target);
-  padding-inline: 7px;
-  font-size: 0.79rem;
+  min-height: var(--nj-choice-height, var(--nj-touch-target));
+  padding-inline: var(--nj-choice-pad, 7px);
+  font-size: var(--nj-choice-font, 0.79rem);
 }

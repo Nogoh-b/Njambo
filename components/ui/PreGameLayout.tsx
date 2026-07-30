@@ -1,6 +1,7 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
+import Image from "next/image";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { Btn } from "./Btn";
 import { GameShell } from "@/components/ui/GameShell";
@@ -22,6 +23,21 @@ interface PreGameLayoutProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  /**
+   * Illustration de fond du bandeau de titre (typiquement l'art du mode dont
+   * on prépare une partie). Posée très en retrait derrière les dégradés
+   * existants : elle donne son image à l'écran sans coûter un pixel de hauteur.
+   */
+  headerArt?: string;
+  /** Classe additionnelle sur `.page` — porte les jetons de l'écran. */
+  pageClassName?: string;
+  /**
+   * Contraint la page à la hauteur du viewport : la chaîne devient
+   * rétractable et c'est à l'écran de désigner son absorbeur. Sans ce
+   * drapeau, la page grandit et déborde en défilement (comportement
+   * historique, conservé pour les autres écrans).
+   */
+  fit?: boolean;
 }
 
 interface PreGameWorkspaceProps {
@@ -31,6 +47,13 @@ interface PreGameWorkspaceProps {
   className?: string;
   primaryClassName?: string;
   railClassName?: string;
+  /**
+   * Place le rail avant le contenu dans le DOM. Sur mobile, la configuration
+   * doit se lire avant la liste qu'elle filtre ; on déplace donc l'ordre
+   * source plutôt que d'utiliser `order`, qui désynchroniserait la tabulation
+   * de la lecture entre deux blocs tous deux interactifs (WCAG 2.4.3).
+   */
+  railFirst?: boolean;
 }
 
 interface PreGameFooterProps {
@@ -67,6 +90,9 @@ export function PreGameLayout({
   children,
   className,
   contentClassName,
+  headerArt,
+  pageClassName,
+  fit = false,
 }: PreGameLayoutProps) {
   const titleId = `pre-game-${useId().replaceAll(":", "")}`;
 
@@ -76,9 +102,19 @@ export function PreGameLayout({
       className={cx(styles.scene, "nj-mboa-solar-hub", TONE_CLASS[tone], className)}
       contentClassName={styles.shellScroll}
     >
-      <div className={styles.page}>
+      <div className={cx(styles.page, fit && styles.fitPage, pageClassName)}>
         <HubReveal className={styles.headerReveal} duration="navigation">
           <header className={styles.header}>
+            {headerArt !== undefined && (
+              <Image
+                className={styles.headerArt}
+                src={headerArt}
+                alt=""
+                fill
+                sizes="100vw"
+                priority
+              />
+            )}
             <Btn
               tone={tone}
               fill="outline"
@@ -127,7 +163,15 @@ export function PreGameWorkspace({
   className,
   primaryClassName,
   railClassName,
+  railFirst = false,
 }: PreGameWorkspaceProps) {
+  const primaryNode = <div className={cx(styles.primary, primaryClassName)}>{children}</div>;
+  const railNode = rail !== undefined ? (
+    <aside className={cx(styles.rail, railClassName)} aria-label={railLabel}>
+      {rail}
+    </aside>
+  ) : null;
+
   return (
     <div
       className={cx(
@@ -136,12 +180,9 @@ export function PreGameWorkspace({
         className,
       )}
     >
-      <div className={cx(styles.primary, primaryClassName)}>{children}</div>
-      {rail !== undefined && (
-        <aside className={cx(styles.rail, railClassName)} aria-label={railLabel}>
-          {rail}
-        </aside>
-      )}
+      {railFirst
+        ? <>{railNode}{primaryNode}</>
+        : <>{primaryNode}{railNode}</>}
     </div>
   );
 }

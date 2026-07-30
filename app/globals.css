@@ -3065,10 +3065,14 @@ button[data-nj-skin="icon"],
   border-style: double;
 }
 
+/* La carte compacte est dimensionnée par des propriétés personnalisées :
+   un contexte qui a la place (préparation de partie) l'agrandit et rend son
+   nom lisible, sans mettre à l'échelle au `transform` — qui ne ferait que
+   grossir un texte de 8 px en le rendant flou. */
 .nj-power-card-view.is-compact {
   grid-template-columns: 1fr;
-  width: 56px;
-  min-height: 76px;
+  width: var(--nj-power-card-compact-w, 56px);
+  min-height: var(--nj-power-card-compact-h, 76px);
   border-radius: 9px;
 }
 
@@ -3081,15 +3085,17 @@ button[data-nj-skin="icon"],
   gap: 2px;
 }
 
+/* L'icône remonte sur la vignette d'art. Le décalage suit la taille de la
+   carte, sinon il atterrit au milieu de l'illustration dès qu'on l'agrandit. */
 .nj-power-card-view.is-compact .nj-power-card-topline {
   position: absolute;
-  top: -40px;
+  top: var(--nj-power-card-compact-topline, -40px);
   right: 2px;
 }
 
 .nj-power-card-view.is-compact strong {
-  font-size: 8px;
-  line-height: 1;
+  font-size: var(--nj-power-card-compact-font, 8px);
+  line-height: 1.08;
   text-align: center;
 }
 
@@ -3120,9 +3126,12 @@ button[data-nj-skin="icon"],
   color: color-mix(in srgb, var(--power-tone) 70%, var(--nj-solar-ink, #24372f));
 }
 
+/* Cette variante est en (0,3,0) : sans les mêmes jetons que `.is-compact`
+   ci-dessus, elle regagnerait tous les duels et figerait la carte à 62 px.
+   Ses valeurs d'origine restent les valeurs par défaut. */
 .nj-power-card-view.is-solar.is-compact {
-  width: 62px;
-  min-height: 84px;
+  width: var(--nj-power-card-compact-w, 62px);
+  min-height: var(--nj-power-card-compact-h, 84px);
 }
 
 .nj-power-card-view.is-solar.is-compact .nj-power-card-art {
@@ -3136,7 +3145,7 @@ button[data-nj-skin="icon"],
 
 .nj-power-card-view.is-solar.is-compact strong {
   color: var(--nj-solar-ink, #24372f);
-  font-size: 8px;
+  font-size: var(--nj-power-card-compact-font, 8px);
 }
 
 .nj-power-activation-overlay {

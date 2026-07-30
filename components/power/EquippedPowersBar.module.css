@@ -1,5 +1,7 @@
 .bar {
   --equipped-tone: var(--nj-solar-yellow, #f5c344);
+  --equipped-slot-w: 64px;
+  --equipped-slot-h: 86px;
   position: relative;
   min-width: 0;
   width: 100%;
@@ -66,8 +68,8 @@
 }
 
 .slot {
-  width: 64px;
-  min-height: 86px;
+  width: var(--equipped-slot-w);
+  min-height: var(--equipped-slot-h);
   display: grid;
   flex: 0 0 auto;
   place-items: center;
@@ -132,9 +134,103 @@
   background: color-mix(in srgb, var(--equipped-tone) 12%, white);
 }
 
+/* ── Densité compacte : slots, texte et chevron sur une seule ligne ──
+   La ligne porteuse est `.compact .slots { grid-column: auto }` : la base
+   force les slots sur leur propre rangée (`1 / -1`), d'où les 136 px. */
+/* Densité compacte = même structure que la densité pleine (cartes en haut,
+   libellé dessous), mais dimensionnée par des jetons. Les cartes rendent à
+   leur taille réelle : pas de `transform: scale`, qui ne ferait que grossir
+   un nom de 8 px en le rendant flou. C'est le chrome qui se resserre, pas
+   le contenu qu'on écrase. */
+.compact {
+  --equipped-slot-w: var(--nj-power-card-compact-w, 104px);
+  --equipped-slot-h: var(--nj-power-card-compact-h, 140px);
+  min-height: 0;
+  gap: 7px;
+  padding: 8px 10px;
+}
+
+.compact .slots {
+  gap: 8px;
+  justify-content: center;
+}
+
+.compact .slot {
+  height: var(--equipped-slot-h);
+  min-height: 0;
+  border-radius: 12px;
+}
+
+.compact .emptySlot {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+}
+
+/* Le libellé tient sur UNE ligne : sous les cartes, un pavé de trois lignes
+   coûtait ~46 px pour une information que la rangée de cartes montre déjà. */
+.compact .copy {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+}
+
+.compact .copy small {
+  display: none;
+}
+
+.compact .copy strong {
+  font-size: 0.76rem;
+}
+
+.compact .copy span {
+  overflow: hidden;
+  font-size: 0.66rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.compact .chevron {
+  width: 30px;
+  height: 30px;
+}
+
+/* Réservé à la densité pleine : en compact, cette règle écraserait le
+   42 px sur exactement le viewport que la variante vise. */
 @media (max-width: 390px) {
-  .slot {
-    width: 58px;
+  .bar:not(.compact) {
+    --equipped-slot-w: 58px;
+  }
+}
+
+/* Paysage court : ~300 px de hauteur en tout. Les cartes repassent EN LIGNE
+   avec le texte — leur donner une rangée à elles coûterait la ligne de
+   libellé, que le budget ne peut pas payer. */
+@media (orientation: landscape) and (max-height: 620px) {
+  .compact {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 8px;
+    padding: 6px 8px;
+  }
+
+  .compact .slots {
+    grid-column: auto;
+    gap: 5px;
+  }
+
+  /* La hauteur suit la carte : en paysage c'est la largeur qui pilote
+     (vignette carrée), le slot ne doit donc pas imposer de hauteur. */
+  .compact .slot {
+    height: auto;
+  }
+
+  .compact .copy small {
+    display: none;
+  }
+
+  .compact .chevron {
+    width: 26px;
+    height: 26px;
   }
 }
 

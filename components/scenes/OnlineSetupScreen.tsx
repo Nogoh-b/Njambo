@@ -1,19 +1,17 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Image from "next/image";
 import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
-import { listenDiscoverPlayers } from "@/lib/socialData";
 import { NKAP } from "@/data/mock";
 import { Btn } from "@/components/ui/Btn";
 import { ChoiceButtonGroup } from "@/components/ui/ChoiceButtonGroup";
 import { NkapAmount } from "@/components/ui/NkapAmount";
 import { Chip } from "@/components/ui/Chip";
-import { NjamboIcon } from "@/components/ui/Art";
-import { PlayerCard } from "@/components/player/PlayerCard";
-import { fromPublicProfile } from "@/components/player/playerCardData";
+import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { HubReveal } from "@/components/ui/HubReveal";
 import {
@@ -22,31 +20,43 @@ import {
   PreGameWorkspace,
 } from "@/components/ui/PreGameLayout";
 import { Surface } from "@/components/ui/Shell";
-import { SocialActions } from "@/components/social/SocialActions";
 import { EquippedPowersBar } from "@/components/power/EquippedPowersBar";
-import type { PublicPlayerProfile } from "@/types/game";
 import styles from "./PreGameScreens.module.css";
+
+/* Escalade visuelle des mises, lue en masse : une pièce, une pile, deux
+   piles. Rien de nouveau côté assets — c'est la famille Nkap déjà utilisée
+   par le portefeuille et l'arène de règlement. */
+const STAKE_TIERS = [
+  { src: "/assets/njambo/economy/nkap-128.webp", count: 1 },
+  { src: "/assets/njambo/economy/nkap-stack-128.webp", count: 1 },
+  { src: "/assets/njambo/economy/nkap-stack-128.webp", count: 2 },
+] as const;
+
+const SEAT_SEEDS = ["avatar-douala", "avatar-bamoun", "avatar-beti", "avatar-sawa"];
 
 export function OnlineSetupScreen() {
   const { navigateTo, cfg } = useGame();
   const { user } = useAuth();
   const { economy } = useEconomy();
   const { createRoom, joinRoomById, findAvailableRoom, publicRooms, searchRooms, roomError, clearError } = useLobby();
-  const [playerSearch, setPlayerSearch] = useState("");
-  const [players, setPlayers] = useState<PublicPlayerProfile[]>([]);
   const [selectedStake, setSelectedStake] = useState(cfg.stakes[1]);
   const [maxPlayers, setMaxPlayers] = useState(2);
   const [busy, setBusy] = useState(false);
+  /* LobbyContext n'expose pas d'état de chargement : sans ce drapeau, la
+     bande afficherait « Aucune salle » pendant la première frame, juste
+     avant que les cartes n'arrivent. */
+  const [searched, setSearched] = useState(false);
+  const nkap = economy?.nkap ?? 0;
   const canPayEnergy = economy?.energy.unlimited || (economy?.energy.available ?? 0) >= 10;
-  const canPayStake = (economy?.nkap ?? 0) >= selectedStake;
-
-  useEffect(() => searchRooms(), [searchRooms]);
-  const canStart = Boolean(user && !user.isAnonymous && canPayEnergy && canPayStake);
+  const canPayStake = nkap >= selectedStake;
 
   useEffect(() => {
-    const unsub = listenDiscoverPlayers(user?.uid, playerSearch, setPlayers);
-    return unsub;
-  }, [playerSearch, user?.uid]);
+    searchRooms();
+    const timer = setTimeout(() => setSearched(true), 900);
+    return () => clearTimeout(timer);
+  }, [searchRooms]);
+
+  const canStart = Boolean(user && !user.isAnonymous && canPayEnergy && canPayStake);
 
   const goBack = () => navigateTo("menu");
   const goToLobby = () => navigateTo("lobby");
@@ -100,7 +110,7 @@ export function OnlineSetupScreen() {
         {!canPayStake && <div className={styles.notice}>Nkap insuffisants pour cette mise.</div>}
       </div>
 
-      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelTeal}`}>
+      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelTeal} ${styles.configPanel}`}>
         <ChoiceButtonGroup
           legend={(
             <span className={styles.legendRow}>
@@ -111,10 +121,19 @@ export function OnlineSetupScreen() {
           tone="teal"
           value={selectedStake}
           onChange={setSelectedStake}
-          options={cfg.stakes.map((stake) => ({
-            value: stake,
-            content: <NkapAmount value={stake} size="sm" />,
-          }))}
+          options={cfg.stakes.map((stake, index) => {
+            /* La mise reste sélectionnable même hors budget : le bandeau
+               au-dessus l'explique, et `selectedStake` démarre au palier
+               intermédiaire — désactiver échouerait un joueur pauvre sur
+               une sélection qu'il ne pourrait plus quitter. */
+            const short = stake > nkap;
+            return {
+              value: stake,
+              ariaLabel: `Mise de ${NKAP(stake)} par manche${short ? ", solde insuffisant" : ""}`,
+              className: `${styles.tile} ${styles.stakeTile}${short ? ` ${styles.tileShort}` : ""}`,
+              content: <StakeArt tier={index} stake={stake} />,
+            };
+          })}
         />
 
         <ChoiceButtonGroup
@@ -124,16 +143,14 @@ export function OnlineSetupScreen() {
           onChange={setMaxPlayers}
           options={[2, 3, 4].map((count) => ({
             value: count,
-            content: count,
+            ariaLabel: `Table de ${count} joueurs`,
+            className: `${styles.tile} ${styles.seatTile} nj-player-count-choice`,
+            content: <SeatArt count={count} userEmoji={user?.emoji} />,
           }))}
         />
-      </Surface>
 
-      <Surface className={`nj-panel-pad-sm ${styles.panel} ${styles.panelTone} ${styles.panelGold}`}>
-        <h2 className={styles.sectionTitle}>Pouvoirs équipés</h2>
-        <div className={styles.sectionHint}>Prépare ton jeu avant de chercher une table.</div>
-        <div style={{ marginTop: 12 }}>
-          <EquippedPowersBar tone="gold" />
+        <div className={styles.configPowers}>
+          <EquippedPowersBar tone="teal" density="compact" />
         </div>
       </Surface>
     </div>
@@ -150,86 +167,60 @@ export function OnlineSetupScreen() {
       subtitle="Configure ta mise, retrouve les joueurs disponibles ou rejoins une salle publique."
       icon="online"
       tone="teal"
+      headerArt="/assets/njambo/menu/mode-online-480.webp"
+      pageClassName={styles.onlineFit}
+      fit
       onBack={goBack}
     >
-      <AuthGate gateClassName={styles.authPanel} tone="teal">
+      <AuthGate gateClassName={styles.authPanel} tone="teal" accountBar="none">
         <PreGameWorkspace
           rail={configuration}
           railLabel="Configuration de la table en ligne"
+          railFirst
         >
           <div className={styles.onlineLists}>
-            {/* <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelTeal}${publicRooms.length === 0 ? ` ${styles.widePanel}` : ""}`}>
-              <div className={styles.panelHeader}>
-                <div className={styles.panelHeading}>
-                  <h2>Joueurs</h2>
-                  <p>Ajoute, invite ou envoie un message.</p>
-                </div>
-                <Chip tone="teal">{players.length}</Chip>
+            {/* Panneau rendu inconditionnellement : le faire apparaître et
+                disparaître ferait varier la hauteur à l'exécution, ce que la
+                mise en page contrainte ne peut pas absorber. */}
+            <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelPink} ${styles.roomsPanel}`}>
+              <div className={styles.roomsHead}>
+                <h2 className={styles.sectionTitle}>Salles disponibles</h2>
+                <Chip tone="pink">{publicRooms.length}</Chip>
               </div>
 
-              <div className={styles.searchField}>
-                <label className={styles.fieldLabel} htmlFor="online-player-search">Rechercher un joueur</label>
-                <input
-                  id="online-player-search"
-                  type="search"
-                  value={playerSearch}
-                  onChange={(event) => setPlayerSearch(event.target.value)}
-                  placeholder="Nom ou quartier"
-                  autoComplete="off"
-                  className="nj-input"
-                />
-              </div>
-
-              <div className={styles.listBody} aria-live="polite">
-                {players.length === 0 && (
-                  <div className={styles.emptyState}>Aucun joueur ne correspond à cette recherche.</div>
-                )}
-                {players.map((player, index) => (
-                  <HubReveal key={player.uid} className={styles.listReveal} order={index}>
-                    <PlayerCard
-                      player={fromPublicProfile(player)}
-                      tone="teal"
-                      active={player.online}
-                      density="compact"
-                      className={styles.playerCard}
-                      actions={<SocialActions player={player} compact tone="teal" />}
-                    />
+              {/* `group` et non `list` : HubReveal insère un motion.div entre
+                  le conteneur et le bouton, ce qui casserait la relation
+                  list/listitem. */}
+              <div className={styles.roomStrip} role="group" aria-label="Salles publiques disponibles" aria-live="polite">
+                {publicRooms.length === 0 ? (
+                  <div className={styles.roomEmpty}>
+                    <NjamboIcon name="empty" tone="pink" size={22} />
+                    <span>{searched ? "Aucune salle ouverte pour l’instant." : "Recherche des salles…"}</span>
+                  </div>
+                ) : publicRooms.map((room, index) => (
+                  <HubReveal key={room.id} className={styles.roomSlot} order={index} axis="x" distance={10}>
+                    <button
+                      data-nj-skin="none"
+                      type="button"
+                      disabled={busy || !canStart || room.stake > nkap}
+                      onClick={() => handleJoinRoom(room.id)}
+                      className={`nj-list-card nj-list-card--pink ${styles.roomCard} ${styles.roomTile}`}
+                      aria-label={`Rejoindre la salle ${room.code}, mise ${NKAP(room.stake)}, ${room.players.length} joueurs sur ${room.maxPlayers}`}
+                    >
+                      <span className={styles.roomCodeSmall}>{room.code}</span>
+                      <span className={styles.roomTileMeta}>
+                        <NkapAmount value={room.stake} size="sm" />
+                        <span>{room.players.length}/{room.maxPlayers}</span>
+                      </span>
+                      <span className={styles.roomTileGo} aria-hidden="true">
+                        <NjamboIcon name="play" tone="pink" size={15} />Rejoindre
+                      </span>
+                    </button>
                   </HubReveal>
                 ))}
               </div>
-            </Surface> */}
-
-            {publicRooms.length > 0 && (
-              <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelPink}`}>
-                <div className={styles.panelHeader}>
-                  <div className={styles.panelHeading}>
-                    <h2>Salles disponibles</h2>
-                    <p>Rejoins une table déjà ouverte.</p>
-                  </div>
-                  <Chip tone="pink">{publicRooms.length} salle{publicRooms.length > 1 ? "s" : ""}</Chip>
-                </div>
-
-                <div className={styles.listBody}>
-                  {publicRooms.map((room, index) => (
-                    <HubReveal key={room.id} className={styles.listReveal} order={index}>
-                      <button
-                        type="button"
-                        disabled={busy || !canStart || room.stake > (economy?.nkap ?? 0)}
-                        onClick={() => handleJoinRoom(room.id)}
-                        className={`nj-list-card nj-list-card--pink ${styles.roomCard}`}
-                        aria-label={`Rejoindre la salle ${room.code}, mise ${NKAP(room.stake)}, ${room.players.length} joueurs sur ${room.maxPlayers}`}
-                      >
-                        <span className={styles.roomMeta}>
-                          <span className={styles.roomCodeSmall}>{room.code}</span>
-                          <span className={styles.roomDetails}><NkapAmount value={room.stake} size="sm" /> · {room.players.length}/{room.maxPlayers}</span>
-                        </span>
-                        <NjamboIcon name="play" tone="pink" size={20} />
-                      </button>
-                    </HubReveal>
-                  ))}
-                </div>
-              </Surface>
-            )}
+              <span className={styles.stripFade} aria-hidden="true" />
+            </Surface>
           </div>
         </PreGameWorkspace>
 
@@ -246,10 +237,12 @@ export function OnlineSetupScreen() {
             >
               {busy ? "…" : "Créer"}
             </Btn>
+            {/* Second niveau : `soft` et un motif différent séparent les deux
+                actions sans introduire une seconde couleur d'appel. */}
             <Btn
               tone="teal"
-              fill="outline"
-              motif="indigo-dots"
+              fill="soft"
+              motif="sun-stripes"
               motifSides="both"
               disabled={busy || !canStart}
               icon={<NjamboIcon name="play" tone="teal" size={18} />}
@@ -261,5 +254,37 @@ export function OnlineSetupScreen() {
         </PreGameFooter>
       </AuthGate>
     </PreGameLayout>
+  );
+}
+
+/** Palier de mise : pièces Nkap dont la masse croît avec le montant. */
+function StakeArt({ tier, stake }: { tier: number; stake: number }) {
+  const art = STAKE_TIERS[Math.min(tier, STAKE_TIERS.length - 1)];
+  return (
+    <>
+      <span className={styles.tileArt} data-tier={Math.min(tier, STAKE_TIERS.length - 1)} aria-hidden="true">
+        {Array.from({ length: art.count }, (_, index) => (
+          <Image key={index} src={art.src} alt="" width={40} height={40} />
+        ))}
+      </span>
+      <span className={styles.tileValue} aria-hidden="true">{stake.toLocaleString("fr-FR")}</span>
+    </>
+  );
+}
+
+/** Sièges : le premier avatar est celui du joueur — « 2 joueurs » se lit
+    alors « toi + un », ce qui est la sémantique réelle. */
+function SeatArt({ count, userEmoji }: { count: number; userEmoji?: string }) {
+  return (
+    <>
+      <span className={styles.seatAvatars} aria-hidden="true">
+        {Array.from({ length: count }, (_, index) => (
+          <span key={index}>
+            <AvatarIllustration seed={index === 0 ? (userEmoji ?? SEAT_SEEDS[0]) : SEAT_SEEDS[index]} fluid />
+          </span>
+        ))}
+      </span>
+      <span className="nj-player-count-value" aria-hidden="true">{count}</span>
+    </>
   );
 }

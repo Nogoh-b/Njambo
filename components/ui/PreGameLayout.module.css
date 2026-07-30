@@ -109,6 +109,9 @@
   gap: clamp(10px, 2.5vw, 16px);
   padding: clamp(11px, 2vw, 16px);
   overflow: hidden;
+  /* Contexte d'empilement propre : sans lui, `.headerArt` (z-index -1)
+     passerait derrière le fond opaque du bandeau et resterait invisible. */
+  isolation: isolate;
   border: 1px solid color-mix(in srgb, var(--pre-game-accent) 34%, var(--panel-edge));
   border-radius: var(--nj-radius-lg, 22px);
   background:
@@ -127,6 +130,21 @@
   pointer-events: none;
   background: linear-gradient(90deg, transparent, var(--pre-game-accent), transparent);
   opacity: 0.68;
+}
+
+/* Illustration du mode, très en retrait derrière les dégradés du bandeau.
+   `isolation: isolate` sur `.scene` borne le z-index négatif au bandeau. */
+.headerArt {
+  z-index: -1;
+  object-fit: cover;
+  object-position: 72% center;
+  opacity: 0.17;
+  pointer-events: none;
+  user-select: none;
+}
+
+@media (prefers-reduced-transparency: reduce) {
+  .headerArt { opacity: 0.08; }
 }
 
 .backButton {
@@ -229,6 +247,75 @@
   align-items: start;
 }
 
+/* ─────────────────────────────────────────────────────────────
+   Mise en page contrainte (opt-in) — `fitPage` sur `.page`.
+
+   Par défaut la chaîne est en `flex: 1 0 auto` : rien ne peut rendre de
+   place, et `.page` n'a qu'un `min-height`, donc aucun élément n'est
+   désigné pour absorber le reste — tout excédent devient du défilement.
+   Les règles ci-dessous donnent une hauteur définie à `.page` puis
+   rendent la chaîne rétractable, à charge pour l'écran de désigner son
+   absorbeur. Les écrans qui ne posent pas `fitPage` sont inchangés.
+   ───────────────────────────────────────────────────────────── */
+.fitPage {
+  height: 100%;
+}
+
+.fitPage .headerReveal {
+  flex: 0 0 auto;
+}
+
+.fitPage .contentReveal {
+  min-height: 0;
+  flex: 1 1 auto;
+}
+
+.fitPage .content {
+  height: 100%;
+  min-height: 0;
+}
+
+/* `.workspace` est une grille : ses enfants sont des items de grille, pas
+   des items flex. C'est donc le gabarit de lignes qui désigne l'absorbeur —
+   le rail (configuration) se dimensionne sur son contenu, `.primary` prend
+   tout le reste. Suppose `railFirst` : le rail occupe la première ligne. */
+.fitPage .workspace {
+  min-height: 0;
+  flex: 1 1 auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  align-items: stretch;
+}
+
+.fitPage .primary,
+.fitPage .rail {
+  min-height: 0;
+}
+
+.fitPage .footer {
+  flex: 0 0 auto;
+}
+
+/* Écrans courts : le chrome (bandeau, pied) se resserre en premier, avant
+   que le contenu utile n'ait à céder quoi que ce soit. */
+@media (max-height: 700px) {
+  .fitPage .header {
+    padding-block: 7px;
+  }
+
+  .fitPage .icon {
+    width: 38px;
+    height: 38px;
+  }
+
+  .fitPage .heading h1 {
+    font-size: clamp(1.3rem, 5vw, 1.7rem);
+  }
+
+  .fitPage .footer {
+    padding-block: 6px;
+  }
+}
+
 .primary,
 .rail {
   min-width: 0;
@@ -326,6 +413,12 @@
     order: 0;
   }
 
+  /* Deux colonnes, une seule ligne : le gabarit à deux lignes du mode
+     contraint laisserait une piste `1fr` vide sous le contenu. */
+  .fitPage .hasRail {
+    grid-template-rows: minmax(0, 1fr);
+  }
+
   .footer {
     padding: 11px 12px;
   }
@@ -351,6 +444,27 @@
 
   .footer {
     position: static;
+  }
+}
+
+/* Paysage large : deux colonnes, mais c'est la CONFIGURATION qui reçoit la
+   part large. Un rail étroit l'obligerait à empiler ses deux groupes de
+   choix et à manger toute la hauteur, pendant que la colonne principale —
+   qui ne porte qu'une bande de salles — gaspillerait sa largeur. */
+@media (orientation: landscape) and (max-height: 620px) and (min-width: 720px) {
+  .fitPage .hasRail {
+    grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
+    grid-template-rows: minmax(0, 1fr);
+  }
+
+  .fitPage .hasRail .primary {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .fitPage .hasRail .rail {
+    grid-column: 2;
+    grid-row: 1;
   }
 }
 
