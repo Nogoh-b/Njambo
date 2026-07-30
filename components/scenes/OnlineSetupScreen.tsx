@@ -158,7 +158,7 @@ export function OnlineSetupScreen() {
           railLabel="Configuration de la table en ligne"
         >
           <div className={styles.onlineLists}>
-            <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelTeal}${publicRooms.length === 0 ? ` ${styles.widePanel}` : ""}`}>
+            {/* <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelTeal}${publicRooms.length === 0 ? ` ${styles.widePanel}` : ""}`}>
               <div className={styles.panelHeader}>
                 <div className={styles.panelHeading}>
                   <h2>Joueurs</h2>
@@ -197,7 +197,7 @@ export function OnlineSetupScreen() {
                   </HubReveal>
                 ))}
               </div>
-            </Surface>
+            </Surface> */}
 
             {publicRooms.length > 0 && (
               <Surface className={`nj-panel-pad-sm ${styles.listPanel} ${styles.panelTone} ${styles.panelPink}`}>

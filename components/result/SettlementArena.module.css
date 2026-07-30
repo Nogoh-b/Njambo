@@ -229,9 +229,10 @@
   display: inline-flex;
   align-items: center;
   gap: 3px;
-  /* Ocre soutenu : la couronne vectorielle hérite de `currentColor`, elle est
-     donc lisible sans dépendre d'un bitmap doré écrasé. */
-  color: #8a6a2f;
+  /* Ocre foncé : la couronne vectorielle hérite de `currentColor`. Mesuré à
+     5,1:1 sur l'ivoire — l'ocre plus clair d'avant tombait à 3,9:1, sous le
+     seuil pour du texte de 11 px. */
+  color: #75591f;
   font-size: 11px;
   font-weight: 900;
   font-variant-numeric: tabular-nums;

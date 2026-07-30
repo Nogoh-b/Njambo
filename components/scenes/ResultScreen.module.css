@@ -60,9 +60,16 @@
   height: 48px;
 }
 
+/* Bronze profond, PAS le doré du token. Sur le panneau ivoire, `--gold`
+   plafonnait à 1,81:1 : le titre le plus important de l'écran était quasi
+   illisible. Ce bronze tient 5,1:1 tout en restant une teinte de fête, et le
+   liseré doré ci-dessous lui rend l'éclat sans jouer sur la lisibilité. */
 .title {
   margin: 0;
-  color: var(--gold, #f2bb45);
+  color: #8a4f14;
+  text-shadow:
+    0 1px 0 rgba(255, 246, 223, 0.85),
+    0 2px 10px rgba(208, 163, 93, 0.35);
   font-family: var(--font-display), Georgia, serif;
   /* Le vh dans le clamp fait rétrécir le titre sur les écrans bas plutôt que
      de pousser l'arène hors du cadre. */
@@ -134,9 +141,11 @@
   font-weight: 950;
 }
 
+/* Encre sourde, PAS de blanc cassé : le panneau est une surface solaire
+   claire, où ces deux lignes étaient purement et simplement invisibles. */
 .gainOwner,
 .gainDetail {
-  color: rgba(255, 244, 223, 0.68);
+  color: rgba(36, 55, 47, 0.72);
   font-size: 12px;
   line-height: 1.4;
 }
@@ -145,46 +154,19 @@
   width: fit-content;
   margin: 10px auto 0;
   padding: 6px 10px;
-  color: var(--teal, #10b7a6);
-  border: 1px solid rgba(16, 183, 166, 0.34);
+  /* Vert profond mesuré à ≥ 4,5:1 sur l'ivoire ; le teal du token tombait
+     à 2,5:1 et se lisait mal. */
+  color: #1a6b5d;
+  border: 1px solid rgba(26, 107, 93, 0.34);
   border-radius: 999px;
-  background: rgba(16, 183, 166, 0.09);
+  background: rgba(26, 107, 93, 0.09);
   font-size: 12px;
   font-weight: 900;
 }
 
-.railTitle {
-  margin: 0 0 2px;
-  color: var(--gold, #f2bb45);
-  font-family: var(--font-display), Georgia, serif;
-  font-size: 18px;
-  line-height: 1.1;
-}
-
-.socialList {
-  display: grid;
-  gap: 8px;
-}
-
-.socialPlayer {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  min-width: 0;
-  padding: 8px 10px;
-  border: 1px solid var(--nj-panel-edge, rgba(184, 142, 84, 0.5));
-  border-radius: 12px;
-  background: linear-gradient(160deg, rgba(60, 37, 20, 0.5), rgba(10, 8, 6, 0.82));
-}
-
-.socialName {
-  min-width: 0;
-  overflow: hidden;
-  font-weight: 900;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
+/* Les styles du rail « Joueurs rencontrés » (.railTitle, .socialList,
+   .socialPlayer, .socialName) ont été supprimés avec lui : l'ajout en ami se
+   fait désormais depuis le siège de chaque joueur dans l'arène. */
 
 @media (max-width: 359px), (orientation: landscape) and (max-height: 620px) {
   .markStage :global(.njambo-mark-asset) {

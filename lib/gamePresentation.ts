@@ -50,7 +50,7 @@ export function getNextRoundPresentation(
   if (requested) {
     return {
       label: requiresConsensus ? "Revanche demandée" : "Préparation…",
-      short: requiresConsensus ? "En attente" : "Préparation…",
+      short: requiresConsensus ? "Envoyée" : "Préparation…",
       status: requiresConsensus
         ? "Demande envoyée. En attente de la validation des autres joueurs."
         : "Préparation de la prochaine manche.",

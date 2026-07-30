@@ -34,7 +34,7 @@ describe("présentation de fin de manche", () => {
     });
     expect(getNextRoundPresentation(true, true, true)).toEqual({
       label: "Revanche demandée",
-      short: "En attente",
+      short: "Envoyée",
       status: "Demande envoyée. En attente de la validation des autres joueurs.",
     });
   });

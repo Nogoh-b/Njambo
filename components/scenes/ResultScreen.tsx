@@ -10,7 +10,7 @@ import { ResultActions, ResultLayout } from "@/components/ui/ResultLayout";
 import { SettlementArena, type Seat } from "@/components/result/SettlementArena";
 import { useAuth } from "@/hooks/useAuth";
 import { useGame } from "@/contexts/GameContext";
-import { useLobby } from "@/contexts/LobbyContext";
+
 import { NKAP } from "@/data/mock";
 import { getNextRoundPresentation, getResultReasonLabels } from "@/lib/gamePresentation";
 import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
@@ -40,7 +40,7 @@ export function ResultScreen({
 }: ResultScreenProps) {
   const { user } = useAuth();
   const { sfx } = useGame();
-  const { currentRoom } = useLobby();
+
   const motion = useMotionProfile();
   const win = result.winner;
   const [nextRequested, setNextRequested] = useState(false);
@@ -62,12 +62,13 @@ export function ResultScreen({
     });
   }, [user?.uid]);
 
-  /* Pendant l'attente d'une revanche, le bouton porte un compteur « 2/4 »
-     plutôt qu'une phrase : c'est la seule forme qui ne casse jamais la ligne
-     tout en disant ce qui manque. */
-  const consentLabel = nextRequested && nextRequiresConsensus && currentRoom?.players?.length
-    ? `${currentRoom.players.filter((player) => player.ready).length}/${currentRoom.players.length}`
-    : null;
+  /* Pas de compteur « 2/4 » sur ce bouton. `player.ready` de la salle n'est
+     PAS un signal de consentement à la revanche fiable ici : il n'est remis à
+     zéro que par `resetRoomAfterMatch` côté serveur, si bien qu'à l'ouverture
+     du résultat il reflète encore l'état d'AVANT la manche — d'où un « 2/2 »
+     affiché alors que personne n'a validé. Tant qu'un vrai champ de
+     consentement n'existe pas (`rematch.readyUids` est déclaré dans les types
+     mais n'est écrit nulle part), mieux vaut ne rien chiffrer que mentir. */
 
   const handleAddFriend = useCallback((seat: Seat) => {
     if (!seat.uid || !user) return;
@@ -238,7 +239,7 @@ export function ResultScreen({
           disabled={!canNext || nextRequested}
           ariaLabel={nextRound.label}
         >
-          <span aria-hidden="true">↻</span> {consentLabel ?? nextRound.short}
+          <span aria-hidden="true">{nextRequested ? "✓" : "↻"}</span> {nextRound.short}
         </Btn>
         <Btn
           tone="cobalt"

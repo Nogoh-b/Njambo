@@ -133,10 +133,13 @@
   white-space: nowrap;
 }
 
+/* Ce message porte l'information d'attente d'une revanche : il était écrit en
+   blanc cassé sur le panneau ivoire, donc totalement invisible. Encre sourde,
+   mesurée bien au-dessus du seuil de lisibilité. */
 .actionStatus {
   max-width: 46ch;
   margin: 0 auto;
-  color: rgba(255, 244, 223, 0.7);
+  color: rgba(36, 55, 47, 0.75);
   font-size: 12px;
   font-weight: 750;
   line-height: 1.4;
