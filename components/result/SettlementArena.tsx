@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef } from "react";
+import { useFx } from "@gxe/react";
 import { AvatarIllustration } from "@/components/ui/Art";
 import { useGame } from "@/contexts/GameContext";
 import { NKAP } from "@/data/mock";
@@ -94,6 +95,11 @@ export function SettlementArena({
   const potAmountRef = useRef<HTMLSpanElement>(null);
   const flightRef = useRef<HTMLDivElement>(null);
   const seatRefs = useRef(new Map<number, HTMLDivElement>());
+  /* Effets GXE : le moteur ignore ce qu'est une manche ; c'est ici, au point
+     d'usage, qu'un fait de jeu (« le pot part chez le vainqueur ») devient une
+     intention d'expérience. Sans FxLayer monté, c'est un no-op silencieux. */
+  const fx = useFx();
+  const allowParticles = motion.allowParticles;
   const deltaRefs = useRef(new Map<number, HTMLSpanElement>());
   const crownRefs = useRef(new Map<number, HTMLSpanElement>());
 
@@ -269,6 +275,17 @@ export function SettlementArena({
       /* Le pot part en entier : c'est le trajet le plus dense de la scène. */
       flyTokens("coin", potCentre, centreOf(winnerNode), payOut, 26, coinBudget);
 
+      /* Célébration GXE, calée sur l'arrivée des pièces : les confettis
+         partent DU siège du vainqueur (ancrage sur l'élément réel). Le
+         réglage `allowParticles` de l'app fait foi — le moteur ne décide
+         jamais à sa place. */
+      if (allowParticles) {
+        tl.call(() => {
+          const node = seatRefs.current.get(winnerIdx);
+          if (node) fx.burst("confetti", node);
+        }, undefined, payOut + 0.45);
+      }
+
       const winnerLabel = deltaRefs.current.get(winnerIdx);
       const winnerSeat = seats.find((seat) => seat.playerIdx === winnerIdx);
       if (winnerLabel && winnerSeat) {
@@ -329,7 +346,7 @@ export function SettlementArena({
         }, seat.crownsDelta < 0 ? at : crownsAt + 0.5);
       });
     }
-  }, [scripted, seats, potTotal, showCrowns, coinBudget, winnerIdx, sfx]);
+  }, [scripted, seats, potTotal, showCrowns, coinBudget, winnerIdx, sfx, allowParticles, fx]);
 
   return (
     <div

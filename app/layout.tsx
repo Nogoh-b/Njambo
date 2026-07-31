@@ -5,6 +5,7 @@ import "./globals.css";
 import "./ter-nocturne.css";
 import "./mboa-solar.css";
 import { PwaRegistration } from "@/components/PwaRegistration";
+import { GxeRoot } from "@/components/GxeRoot";
 
 const bricolage = localFont({
   src: "./fonts/bricolage-grotesque-latin.woff2",
@@ -40,7 +41,10 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
-      <body className={`${bricolage.variable} ${manrope.variable}`}>{children}<PwaRegistration /></body>
+      <body className={`${bricolage.variable} ${manrope.variable}`}>
+        <GxeRoot>{children}</GxeRoot>
+        <PwaRegistration />
+      </body>
     </html>
   );
 }

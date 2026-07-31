@@ -226,6 +226,45 @@
   transform: translateY(1px) scale(0.985);
 }
 
+/* ─────────────────────────────────────────────────────────────────────────
+   Greffe GXE — le CTA est un <button> natif, donc équipé automatiquement
+   par la délégation (aucune modification du composant). Quand le moteur
+   tourne, il publie --gxe-press / --gxe-hover pilotés par ressort : appui
+   raide, relâchement souple, INTERRUPTIBLE en plein vol — ce qu'une
+   transition CSS ne sait pas faire.
+
+   Le :active/:hover ci-dessus reste le comportement de repli : il n'est
+   neutralisé que si le moteur est réellement actif.
+   ───────────────────────────────────────────────────────────────────────── */
+html[data-gxe-active] .cta {
+  /* `filter` est piloté par --gxe-hover : il ne DOIT pas être ici. Une
+     propriété transitionnée qui dépend d'une variable non enregistrée ne se
+     met jamais à jour quand la variable change — elle reste figée. */
+  transition: border-color var(--nj-motion-interaction) ease;
+  transform:
+    translateY(calc(-2px * var(--gxe-hover, 0) + 1px * var(--gxe-press, 0)))
+    scale(calc(1 - 0.02 * var(--gxe-press, 0)));
+  filter: brightness(calc(1 + 0.08 * var(--gxe-hover, 0)));
+}
+
+html[data-gxe-active] .cta:active {
+  transform:
+    translateY(calc(-2px * var(--gxe-hover, 0) + 1px * var(--gxe-press, 0)))
+    scale(calc(1 - 0.02 * var(--gxe-press, 0)));
+}
+
+/* NOTE : le soulèvement de la CARTE reste piloté par `:has(.cta:hover)`
+   ci-dessus. Ne pas le doubler d'une règle GXE : les variables --gxe-* sont
+   publiées sur le CTA, pas sur la carte, et une règle parente écraserait le
+   transform existant par une valeur nulle (piège de spécificité connu). */
+
+@media (prefers-reduced-motion: reduce) {
+  html[data-gxe-active] .cta,
+  html[data-gxe-active] .cta:active {
+    transform: none;
+  }
+}
+
 .lockNotice {
   max-width: 100%;
   min-height: 48px;

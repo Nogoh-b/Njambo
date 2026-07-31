@@ -6,6 +6,17 @@
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev"],
       "port": 3000
+    },
+    {
+      "name": "gxe-example",
+      "runtimeExecutable": "corepack",
+      "runtimeArgs": [
+        "pnpm",
+        "--dir",
+        "C:/Data/Projet/BySoft/gxe/examples/react-vite",
+        "dev"
+      ],
+      "port": 5199
     }
   ]
 }
