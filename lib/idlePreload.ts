@@ -1,6 +1,5 @@
 import { loadGsap } from "@/lib/motion";
 import { IDLE_PREFETCH_SCENES, preloadScene } from "@/lib/scenePreload";
-import { warmAudio } from "@/lib/sound";
 
 type IdleTask = () => void | Promise<unknown>;
 
@@ -18,7 +17,8 @@ function warmImage(src: string): void {
 }
 
 const tasks: IdleTask[] = [
-  () => warmAudio(),
+  // Plus de warmAudio() : GXE arme l'unlock de son AudioContext tout seul,
+  // sur le premier geste réel (pointerdown/keydown), sans tâche idle dédiée.
   () => loadGsap(),
   () => import("@/components/power/PowerParticles"),
   // Chunks des scènes les plus visitées depuis le home (une par tâche idle).

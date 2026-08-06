@@ -41,6 +41,14 @@ function GxeDebugBridge() {
  *
  * z-index 60 : au-dessus du plateau et des cartes, sous les modales de
  * l'app (qui montent plus haut) — les effets ne masquent jamais une action.
+ *
+ * `audio` — Njambo migre PROGRESSIVEMENT son système sonore maison
+ * (`lib/sound.ts`, 12 sons) vers ce driver (voir `lib/gxeSfx.ts` pour les
+ * sons déjà portés). Les deux contextes audio coexistent tant que la
+ * migration n'est pas terminée : chaque son n'est joué que par UN SEUL des
+ * deux systèmes, jamais les deux à la fois sur un même événement.
+ * `GameContext` branche `sfxOn`/`musicOn` sur les bus `sfx`/`music` via
+ * `useAudioMute` — le réglage de l'app fait foi pour les deux systèmes.
  */
 export function GxeRoot({ children }: { children: ReactNode }) {
   return (

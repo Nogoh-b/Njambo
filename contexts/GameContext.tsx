@@ -1,7 +1,8 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import { createSound } from "@/lib/sound";
+import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useAudioMute, useMusic } from "@gxe/react";
+import { AMBIENT_PENTA } from "@/lib/gxeSfx";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { STARTING_CAURIS } from "@/config/powerCards";
 import { DEV, devEquippedPowers } from "@/config/devConfig";
@@ -38,12 +39,13 @@ interface GameContextValue {
   profile: Profile;
   setProfile: (p: Profile | ((prev: Profile) => Profile)) => void;
 
-  /* Audio */
+  /* Audio — `sfxOn`/`musicOn` pilotent les bus `sfx`/`music` de GXE via
+     `useAudioMute` (voir plus bas) ; plus aucun composant ne lit un son
+     directement via ce contexte (tous migrés vers `useSfx()` de @gxe/react). */
   musicOn: boolean;
   setMusicOn: (v: boolean) => void;
   sfxOn: boolean;
   setSfxOn: (v: boolean) => void;
-  sfx: (fn: (s: ReturnType<typeof createSound>) => void) => void;
 
   /* Config (shortcut) */
   cfg: typeof GAME_CONFIG;
@@ -118,21 +120,21 @@ export function GameProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  /* Sound singleton + music effect */
-  const soundRef = useRef<ReturnType<typeof createSound> | null>(null);
-  const S = () => (soundRef.current ??= createSound());
-  const sfx = useCallback(
-    (fn: (s: ReturnType<typeof createSound>) => void) => {
-      if (sfxOn) fn(S());
-    },
-    [sfxOn],
-  );
-
+  /* Boucle musicale d'ambiance — MusicSystem minimal de GXE (AmbientLoop/
+     MusicTicker), remplace la boucle `setInterval` maison de `lib/sound.ts`
+     (supprimé). `musicOn` coupe la boucle ELLE-MÊME (pas seulement le son) :
+     à l'arrêt, plus aucune note n'est programmée, pas juste un bus muet. */
+  const gxeMusic = useMusic();
   useEffect(() => {
-    if (musicOn) S().startMusic();
-    else soundRef.current?.stopMusic();
-    return () => soundRef.current?.stopMusic();
-  }, [musicOn]);
+    if (musicOn) gxeMusic.start(AMBIENT_PENTA);
+    else gxeMusic.stop();
+    return () => gxeMusic.stop();
+  }, [musicOn, gxeMusic]);
+
+  /* Le réglage `sfxOn`/`musicOn` de l'app fait foi pour tous les sons GXE
+     (lib/gxeSfx.ts) — le moteur ne décide jamais seul du silence. */
+  useAudioMute("sfx", !sfxOn);
+  useAudioMute("music", !musicOn);
 
   /* Navigation — la sortie/entrée est désormais gérée par <AnimatePresence>
      dans SceneRouter (Framer Motion). On change la scène immédiatement ;
@@ -158,8 +160,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const value = useMemo<GameContextValue>(() => ({
     scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget,
     eventDetailId, setEventDetailId,
-    profile, setProfile, musicOn, setMusicOn, sfxOn, setSfxOn, sfx, cfg,
-  }), [scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget, eventDetailId, setEventDetailId, profile, setProfile, musicOn, sfxOn, sfx, cfg]);
+    profile, setProfile, musicOn, setMusicOn, sfxOn, setSfxOn, cfg,
+  }), [scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget, eventDetailId, setEventDetailId, profile, setProfile, musicOn, sfxOn, cfg]);
 
   return (
     <GameContext.Provider

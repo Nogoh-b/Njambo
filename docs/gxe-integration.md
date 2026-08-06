@@ -111,8 +111,21 @@ ressort du moteur faire le lissage.
 
 ## L'animation d'attente (respiration au repos)
 
-Activée dans `GxeRoot` via `delegate={{ idle: { periodMs: 3800 } }}` : les
+Activée dans `GxeRoot` via `delegate={{ idle: { periodMs: 2300 } }}` : les
 contrôles publient `--gxe-idle` (0→1→0) **sans aucune interaction**.
+
+La forme d'onde est `breathe`, pas une sinusoïde : montée franche, descente
+plus lente, puis une pause immobile. Une sinusoïde, symétrique et sans repos,
+se lit comme un pouls mécanique — c'est l'asymétrie **et** la pause qui font
+le souffle.
+
+```
+    ▁▁▂▂▃▄▄▅▆▆▇▇████████▇▇▇▇▆▆▆▅▅▅▄▄▃▃▃▂▂▂▁▁▁
+    inspiration 682 ms · expiration 1112 ms · pause 506 ms
+```
+
+Réglages : `periodMs` (rythme), `rise` (part montante, défaut 0.38), `rest`
+(pause, défaut 0.22) — tous trois dans `GxeRoot`.
 
 La règle d'or : **l'attente doit céder à l'intention**. Un bouton qui respire
 pendant qu'on l'appuie donne un toucher mou. D'où le facteur d'amortissement,
@@ -137,6 +150,48 @@ Coût : contrairement au reste du moteur, une attente maintient la boucle
 ```html
 <button data-gxe="off">…</button>
 ```
+
+## Audio — migration progressive de `lib/sound.ts`
+
+Njambo possédait déjà son propre système sonore (`lib/sound.ts`, 12 sons,
+contexte `AudioContext` maison, unlock au premier geste via `warmAudio()`),
+respectant un réglage `sfxOn`/`musicOn` que GXE ignorait totalement. Plutôt
+que de superposer un second son sur les mêmes événements, la décision a été
+de **migrer** vers `@gxe/driver-audio`, son par son, par tranches :
+
+| Fichier | Rôle |
+|---|---|
+| `lib/gxeSfx.ts` | presets `ToneSpec`/`ChimeSpec`/`AmbientLoopSpec` de tous les sons migrés — vocabulaire de JEU, pas du moteur |
+| `contexts/GameContext.tsx` | `useAudioMute("sfx"/"music", …)` + `useMusic()` pour la boucle d'ambiance — le réglage de l'app fait foi |
+| `components/scenes/TableScreen.tsx` | 7 sons migrés (`gxeSfxRef`, même patron d'indirection que l'ancien `sfxRef`) |
+| `components/scenes/ResultScreen.tsx`, `components/result/SettlementArena.tsx` | `win`/`lose`, `coin`/`crown` (ce dernier dans un `tl.call()` GSAP) |
+
+**Migration terminée — `lib/sound.ts` a été supprimé.** Les 10 sons
+ponctuels (`card`, `tick`, `roundStart`, `dealSweep`, `turnStart`,
+`dominance`, `win`, `lose`, `coin`, `crown`) sont sur `@gxe/driver-audio` ;
+la boucle pentatonique d'ambiance (`startMusic`/`stopMusic`) est remplacée
+par le MusicSystem minimal de GXE (`AmbientLoop`/`MusicTicker`, presets dans
+`lib/gxeSfx.ts` → `AMBIENT_PENTA`, piloté par `useMusic()` dans
+`GameContext.tsx`). `deal` n'a jamais été appelé nulle part — non migré,
+définitivement perdu (c'était déjà mort avant la migration).
+
+`sfx` a été retiré de `GameContextValue` (zéro consommateur) ; `warmAudio()`
+a été retiré d'`idlePreload.ts` (GXE arme l'unlock de son `AudioContext` tout
+seul, sur le premier geste réel — aucune tâche idle dédiée nécessaire).
+`sfxOn`/`musicOn` pilotent les bus GXE via `useAudioMute`, ET coupent
+directement la boucle générative elle-même (`musicOn=false` arrête
+`MusicTicker`, pas seulement le gain du bus — zéro note programmée, pas
+juste un bus muet).
+
+Un seul `AudioContext` reste actif désormais (celui de GXE) — la migration
+qui faisait coexister deux contextes le temps de la porter son par son est
+terminée.
+
+Nuance de timbre assumée (héritée des sons ponctuels, toujours vraie) :
+l'enveloppe de l'ancien `lib/sound.ts` démarrait instantanément et décroissait
+en exponentielle ; celle de GXE a une attaque de quelques ms et une
+chute linéaire (même discipline anti-clic que le reste du moteur). Différence
+perceptible mais mineure, non corrigée pour rester fidèle à l'original.
 
 ## Vérification
 

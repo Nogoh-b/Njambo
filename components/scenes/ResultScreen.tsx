@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { useSfx } from "@gxe/react";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
@@ -9,12 +10,12 @@ import { PlayCard } from "@/components/cards/PlayCard";
 import { ResultActions, ResultLayout } from "@/components/ui/ResultLayout";
 import { SettlementArena, type Seat } from "@/components/result/SettlementArena";
 import { useAuth } from "@/hooks/useAuth";
-import { useGame } from "@/contexts/GameContext";
 
 import { NKAP } from "@/data/mock";
 import { getNextRoundPresentation, getResultReasonLabels } from "@/lib/gamePresentation";
 import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
 import { listenFriends, sendFriendRequest } from "@/lib/socialData";
+import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
 import type { Result } from "@/types/game";
 import styles from "./ResultScreen.module.css";
 
@@ -39,7 +40,7 @@ export function ResultScreen({
   nextRequiresConsensus = false,
 }: ResultScreenProps) {
   const { user } = useAuth();
-  const { sfx } = useGame();
+  const gxeSfx = useSfx();
 
   const motion = useMotionProfile();
   const win = result.winner;
@@ -134,11 +135,8 @@ export function ResultScreen({
   }, []);
 
   useEffect(() => {
-    sfx((sound) => {
-      if (win.isYou) sound.win();
-      else sound.lose();
-    });
-  }, [sfx, win.isYou]);
+    gxeSfx.playChime(win.isYou ? WIN_SOUND : LOSE_SOUND); // migré vers GXE
+  }, [gxeSfx, win.isYou]);
 
   const handleNext = () => {
     if (!canNext || nextRequested) return;

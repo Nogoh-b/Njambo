@@ -1,6 +1,7 @@
 "use client";
 
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { useSfx } from "@gxe/react";
 
 import { PlayCard } from "@/components/cards/PlayCard";
 import { PowerCardView } from "@/components/power/PowerCardView";
@@ -28,6 +29,14 @@ import {
 } from "@/components/ui/TableLayout";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { GAME_CONFIG } from "@/config/gameConfig";
+import {
+  CARD_SOUND,
+  DEAL_SWEEP_SOUND,
+  DOMINANCE_SOUND,
+  ROUND_START_SOUND,
+  TICK_SOUND,
+  TURN_START_SOUND,
+} from "@/lib/gxeSfx";
 import { DEV, devEquippedPowers } from "@/config/devConfig";
 import { CEREMONIAL_STRIP, T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
@@ -419,7 +428,12 @@ export function TableScreen({
   }, []);
   // Metriques de rendu : couteux en prod (dispatchEvent par render). Dev only.
   useEffect(() => { if (process.env.NODE_ENV !== 'production') recordBoardRender(); });
-  const { profile, cfg, sfx } = useGame();
+  const { profile, cfg } = useGame();
+  /* Tous les sons de cet écran sont migrés vers GXE (lib/gxeSfx.ts). D'autres
+     écrans (ResultScreen, SettlementArena) utilisent encore `sfx` de
+     `useGame()` (lib/sound.ts) tant que leur propre migration n'est pas
+     faite — jamais les deux systèmes sur le même événement. */
+  const gxeSfx = useSfx();
   const motion = useMotionProfile();
   const { user: authUser } = useAuth();
   const authUid = authUser?.uid ?? "";
@@ -528,7 +542,11 @@ export function TableScreen({
   const pendingPowerStateRef = useRef<GameState | null>(null);
   const animatedPlayIdsRef = useRef<Set<string>>(new Set());
   const animationsOnRef = useRef(motion.enabled);
-  const sfxRef = useRef(sfx);
+  /* `gxeSfx.play`/`playChime` sont stables (identité fixe tant que le runtime
+     vit), mais indirectés quand même via une ref pour ne jamais ajouter
+     `gxeSfx` aux deps du gros effet de synchronisation plus bas — même motif
+     que les autres refs de ce fichier (animationsOnRef, etc.). */
+  const gxeSfxRef = useRef(gxeSfx);
   const burstTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const prevPhaseRef = useRef<Phase>("idle");
   const prevTurnIdxFxRef = useRef<number | null>(null);
@@ -605,8 +623,8 @@ export function TableScreen({
   }, [motionEnabled]);
 
   useEffect(() => {
-    sfxRef.current = sfx;
-  }, [sfx]);
+    gxeSfxRef.current = gxeSfx;
+  }, [gxeSfx]);
 
   /* ----- Fonction legalCards locale (réexport pour le dérivé) ----- */
   function legalCards(hand: { suit: string }[], led: string | null): number[] {
@@ -924,7 +942,7 @@ export function TableScreen({
     uiIndexFromUid: uiIndexFromPowerUid,
     uiIndexFromSeat,
     getPlayers: () => playersRef.current,
-    playSfx: () => sfxRef.current((sn) => sn.dominance()),
+    playSfx: () => gxeSfxRef.current.playChime(DOMINANCE_SOUND), // migré vers GXE
     impactShake,
     showTableReaction,
     launchFlight,
@@ -973,7 +991,7 @@ export function TableScreen({
       prevTurnIdxFxRef.current = null;
       if (dealSweepTimerRef.current) clearTimeout(dealSweepTimerRef.current);
       dealSweepTimerRef.current = setTimeout(() => {
-        sfxRef.current((sound) => sound.dealSweep());
+        gxeSfxRef.current.playChime(DEAL_SWEEP_SOUND); // migré vers GXE
         dealSweepTimerRef.current = null;
       }, 120);
     }
@@ -992,7 +1010,7 @@ export function TableScreen({
     // joueur précédent soit posée : sinon l'overlay démarre pendant le vol.
     const announceTurn = () => {
       if (turnIdx === 0) {
-        sfxRef.current((sound) => sound.turnStart());
+        gxeSfxRef.current.playChime(TURN_START_SOUND); // migré vers GXE
         showMomentOverlay({
           type: "yourTurn",
           title: "À TOI",
@@ -1093,7 +1111,7 @@ export function TableScreen({
         animatedPlayIds.add(playId);
       }
 
-      sfxRef.current((s) => s.card());
+      gxeSfxRef.current.play(CARD_SOUND); // migré vers GXE (lib/gxeSfx.ts)
       const handZone = zoneRegistry.hand(playerIdx);
       const from = handZone?.getCardRect(cardIdx) ?? handZone?.getRect() ?? null;
       const to = zoneRegistry.deposit(playerIdx)?.getRect() ?? null;
@@ -1150,7 +1168,7 @@ export function TableScreen({
 
       const announce = () => {
         setBanner(`${winnerName} domine le tour`);
-        sfxRef.current((sound) => sound.dominance());
+        gxeSfxRef.current.playChime(DOMINANCE_SOUND); // migré vers GXE
         showMomentOverlay({
           type: "dominance",
           title: "NJAMBO !",
@@ -1193,7 +1211,7 @@ export function TableScreen({
         return;
       }
       timerStore.set(s);
-      if (s <= 5 && playersRef.current[turnIdxRef.current]?.isYou) sfxRef.current((sn) => sn.tick());
+      if (s <= 5 && playersRef.current[turnIdxRef.current]?.isYou) gxeSfxRef.current.play(TICK_SOUND); // migré vers GXE
     });
 
     const unsubSyncStatus = sync.onSyncStatus(setSyncStatus);
@@ -1229,7 +1247,7 @@ export function TableScreen({
 
     if (animationsOnRef.current) {
       setRoundIntro(true);
-      sfxRef.current((sound) => sound.roundStart());
+      gxeSfxRef.current.playChime(ROUND_START_SOUND); // migré vers GXE
       showMomentOverlay({
         type: "roundStart",
         title: "À LA TABLE",

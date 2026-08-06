@@ -1,10 +1,10 @@
 "use client";
 
 import { useMemo, useRef } from "react";
-import { useFx } from "@gxe/react";
+import { useFx, useSfx } from "@gxe/react";
 import { AvatarIllustration } from "@/components/ui/Art";
-import { useGame } from "@/contexts/GameContext";
 import { NKAP } from "@/data/mock";
+import { COIN_SOUND, CROWN_SOUND } from "@/lib/gxeSfx";
 import { useGsapTimeline, type MotionProfile } from "@/lib/motion";
 import type { Player, ResultSettlementEntry } from "@/types/game";
 import styles from "./SettlementArena.module.css";
@@ -89,16 +89,17 @@ function bare(value: number): string {
 export function SettlementArena({
   players, settlement, winnerIdx, motion, friendUids, onAddFriend,
 }: SettlementArenaProps) {
-  const { sfx } = useGame();
+  /* Effets et sons GXE : le moteur ignore ce qu'est une manche ; c'est ici,
+     au point d'usage, qu'un fait de jeu (« le pot part chez le vainqueur »)
+     devient une intention d'expérience (confettis, tintement de pièce/
+     couronne). Sans FxLayer monté ou audio désactivé : no-op silencieux. */
+  const gxeSfx = useSfx();
+  const fx = useFx();
   const arenaRef = useRef<HTMLDivElement>(null);
   const potRef = useRef<HTMLDivElement>(null);
   const potAmountRef = useRef<HTMLSpanElement>(null);
   const flightRef = useRef<HTMLDivElement>(null);
   const seatRefs = useRef(new Map<number, HTMLDivElement>());
-  /* Effets GXE : le moteur ignore ce qu'est une manche ; c'est ici, au point
-     d'usage, qu'un fait de jeu (« le pot part chez le vainqueur ») devient une
-     intention d'expérience. Sans FxLayer monté, c'est un no-op silencieux. */
-  const fx = useFx();
   const allowParticles = motion.allowParticles;
   const deltaRefs = useRef(new Map<number, HTMLSpanElement>());
   const crownRefs = useRef(new Map<number, HTMLSpanElement>());
@@ -227,7 +228,9 @@ export function SettlementArena({
            contact qui doit s'entendre. Un seul jeton sonne par trajet, sinon
            la rafale devient une bouillie. */
         if (index === 0) {
-          tl.call(() => { sfx((sound) => (kind === "crown" ? sound.crown() : sound.coin())); }, [], delay + travel);
+          tl.call(() => {
+            gxeSfx.playChime(kind === "crown" ? CROWN_SOUND : COIN_SOUND); // migré vers GXE
+          }, [], delay + travel);
         }
       }
     };
@@ -346,7 +349,7 @@ export function SettlementArena({
         }, seat.crownsDelta < 0 ? at : crownsAt + 0.5);
       });
     }
-  }, [scripted, seats, potTotal, showCrowns, coinBudget, winnerIdx, sfx, allowParticles, fx]);
+  }, [scripted, seats, potTotal, showCrowns, coinBudget, winnerIdx, gxeSfx, allowParticles, fx]);
 
   return (
     <div
