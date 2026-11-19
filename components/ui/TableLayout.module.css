@@ -1,3 +1,7 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL ÉPURÉ — Table de jeu 3D Acajou, Laiton & Feutre Émeraude
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .root {
   position: fixed;
   inset: 0;
@@ -6,48 +10,39 @@
   overflow: hidden;
   isolation: isolate;
   overscroll-behavior: none;
-  /* Îlot nocturne. Le reste de l'app est passé au thème solaire clair, mais
-     la table garde son identité sombre. On restaure donc ici les tokens de la
-     palette nuit : les primitives partagées (.chip, .nj-surface…) rendues à
-     l'intérieur de la table s'y adaptent automatiquement, sans avoir à les
-     surcharger une par une. */
-  --text: #fff4df;
-  --nj-text: #fff4df;
-  --nj-text-muted: #b9afc4;
-  --nj-surface: rgba(12, 12, 28, 0.88);
-  --nj-surface-soft: rgba(8, 9, 22, 0.78);
-  --nj-surface-strong: rgba(10, 10, 25, 0.95);
-  --nj-border-soft: rgba(255, 236, 199, 0.12);
-  --panel-edge: #8a5a30;
+  --text: #fff8ea;
+  --nj-text: #fff8ea;
+  --nj-text-muted: #b8d3c9;
+  --nj-surface: rgba(10, 22, 18, 0.9);
+  --nj-surface-soft: rgba(8, 18, 15, 0.8);
+  --nj-surface-strong: rgba(8, 16, 14, 0.96);
+  --nj-border-soft: rgba(255, 214, 96, 0.2);
+  --panel-edge: #9b642c;
   --nj-chip-ink: var(--text);
-  --nj-chip-bg: rgba(5, 5, 12, 0.54);
-  --nj-chip-edge: rgba(255, 248, 232, 0.13);
-  color: var(--text, #fff4df);
+  --nj-chip-bg: rgba(9, 19, 16, 0.82);
+  --nj-chip-edge: rgba(255, 214, 96, 0.34);
+  color: #fff8ea;
   background:
-    linear-gradient(150deg, rgba(16, 20, 45, 0.12), rgba(5, 5, 12, 0.52)),
-    var(--nj-bg-app),
-    linear-gradient(150deg, var(--night-2, #12162f), var(--night-1, #090b1d) 58%, var(--deep, #05050c));
+    radial-gradient(ellipse 84% 72% at 50% 46%, #13392e 0%, #071914 58%, #030b09 100%);
   font-family: var(--font-sans), sans-serif;
 }
 
-/* Puces de tonalité : la version solaire (encre sombre sur fond clair) serait
-   trop lumineuse sur le feutre. On restaure l'accent clair sur fond translucide. */
 .root :global(.chip-strong) {
-  color: var(--gold, #d0a35d);
-  border-color: rgba(242, 187, 69, 0.46);
-  background: rgba(242, 187, 69, 0.12);
+  color: #fff2b2;
+  border-color: rgba(255, 207, 64, 0.56);
+  background: rgba(16, 26, 22, 0.9);
 }
 
 .root :global(.chip-teal) {
-  color: var(--teal, #559b91);
-  border-color: rgba(16, 183, 166, 0.42);
-  background: rgba(16, 183, 166, 0.1);
+  color: #78ffdf;
+  border-color: rgba(29, 228, 190, 0.52);
+  background: rgba(10, 34, 28, 0.88);
 }
 
 .root :global(.chip-pink) {
-  color: var(--pink, #ad6972);
-  border-color: rgba(216, 60, 104, 0.42);
-  background: rgba(216, 60, 104, 0.12);
+  color: #ff9cb4;
+  border-color: rgba(255, 71, 114, 0.52);
+  background: rgba(46, 12, 24, 0.88);
 }
 
 .root[data-screen-effect="lose"] {
@@ -58,28 +53,182 @@
   animation: winPulse 350ms ease both;
 }
 
-.surface {
+/* Filigrane très discret des 4 couleurs aux angles extérieurs */
+.roomWatermarks {
   position: absolute;
-  overflow: visible;
-  border-radius: 50%;
-  box-shadow: 0 26px 70px rgba(0, 0, 0, 0.62);
+  inset: 0;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
 }
 
+.roomWatermarks span {
+  position: absolute;
+  font-family: Georgia, serif;
+  font-size: clamp(56px, 12vw, 116px);
+  color: rgba(255, 236, 178, 0.04);
+  line-height: 1;
+  user-select: none;
+}
+
+.wmTL { top: 6%; left: 3%; transform: rotate(-16deg); }
+.wmTR { top: 6%; right: 3%; transform: rotate(16deg); }
+.wmBL { bottom: 6%; left: 3%; transform: rotate(14deg); }
+.wmBR { bottom: 6%; right: 3%; transform: rotate(-14deg); }
+
+/* Projecteur de tour doré qui bascule vers le joueur actif */
+.turnSpotlight {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 380ms ease;
+}
+
+.spot_bottom {
+  opacity: 1;
+  background: radial-gradient(ellipse 64% 38% at 50% 82%, rgba(255, 207, 64, 0.2), transparent 72%);
+}
+
+.spot_top {
+  opacity: 1;
+  background: radial-gradient(ellipse 62% 36% at 50% 16%, rgba(255, 207, 64, 0.16), transparent 72%);
+}
+
+.spot_left {
+  opacity: 1;
+  background: radial-gradient(ellipse 42% 52% at 14% 46%, rgba(255, 207, 64, 0.16), transparent 72%);
+}
+
+.spot_right {
+  opacity: 1;
+  background: radial-gradient(ellipse 42% 52% at 86% 46%, rgba(255, 207, 64, 0.16), transparent 72%);
+}
+
+.finalTrickScene::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  pointer-events: none;
+  box-shadow: inset 0 0 80px rgba(255, 198, 42, 0.16);
+}
+
+/* ═══ TABLE OVALE 3D SCULPTÉE EN ACAJOU, LAITON & FEUTRE ÉMERAUDE ═══ */
+.surface {
+  position: absolute;
+  z-index: 2;
+  padding: clamp(9px, 1.8vmin, 15px);
+  border-radius: 999px;
+  border: 2px solid rgba(255, 214, 96, 0.72);
+  background:
+    radial-gradient(ellipse 88% 36% at 50% 0%, rgba(255, 232, 174, 0.34), transparent 54%),
+    linear-gradient(164deg, #984c26 0%, #582611 48%, #281007 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 240, 194, 0.44),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.6),
+    0 24px 64px rgba(0, 0, 0, 0.68),
+    0 0 54px rgba(29, 228, 190, 0.16);
+  overflow: visible;
+  transition: border-color 320ms ease, box-shadow 380ms ease;
+}
+
+.surfaceFinal {
+  border-color: #ffe573;
+  box-shadow:
+    inset 0 2px 4px rgba(255, 246, 204, 0.56),
+    inset 0 -6px 12px rgba(0, 0, 0, 0.6),
+    0 24px 64px rgba(0, 0, 0, 0.7),
+    0 0 64px rgba(255, 207, 64, 0.34);
+}
+
+.railBevel {
+  position: absolute;
+  inset: 3px;
+  border-radius: inherit;
+  border: 1px solid rgba(255, 236, 172, 0.24);
+  pointer-events: none;
+}
+
+.rivet {
+  position: absolute;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff9d2, #c97f0a);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.78);
+  z-index: 4;
+  pointer-events: none;
+}
+
+.rivetTL { top: 14%; left: 15%; }
+.rivetTR { top: 14%; right: 15%; }
+.rivetBL { bottom: 14%; left: 15%; }
+.rivetBR { bottom: 14%; right: 15%; }
+
+.feltBed {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  border: 1.5px solid rgba(255, 207, 64, 0.48);
+  background:
+    radial-gradient(ellipse 74% 66% at 50% 44%, #25a37b 0%, #13684f 56%, #073326 100%);
+  box-shadow:
+    inset 0 10px 30px rgba(0, 0, 0, 0.56),
+    inset 0 0 46px rgba(255, 218, 102, 0.1);
+  overflow: hidden;
+}
+
+.feltStitch {
+  position: absolute;
+  inset: clamp(8px, 1.8vmin, 14px);
+  border-radius: inherit;
+  border: 1px dashed rgba(255, 224, 130, 0.28);
+  pointer-events: none;
+}
+
+.feltSheen {
+  position: absolute;
+  inset: -25%;
+  width: 34%;
+  background: linear-gradient(112deg, transparent, rgba(255, 248, 214, 0.08) 50%, transparent);
+  transform: translateX(-180%);
+  pointer-events: none;
+  animation: tableFeltSweep 9s ease-in-out infinite;
+}
+
+@keyframes tableFeltSweep {
+  0%, 64% { transform: translateX(-180%); }
+  96%, 100% { transform: translateX(480%); }
+}
+
+/* ═══ TOP HUD ULTRA-ÉPURÉ (BOUTON ? · CAPSULE CENTRALE · BOUTON MENU) ═══ */
 .statusBar {
   position: absolute;
   top: max(8px, env(safe-area-inset-top));
   left: max(10px, env(safe-area-inset-left));
-  z-index: 50;
-  max-width: calc(100% - max(10px, env(safe-area-inset-left)) - max(64px, env(safe-area-inset-right)));
-  display: flex;
-  flex-wrap: wrap;
+  right: max(10px, env(safe-area-inset-right));
+  z-index: 55;
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 40px;
   align-items: center;
   gap: 8px;
+  pointer-events: none;
+}
+
+.statusBar > * {
+  pointer-events: auto;
 }
 
 .statusMessage {
+  position: absolute;
+  top: calc(100% + 5px);
+  left: 50%;
+  transform: translateX(-50%);
   display: inline-flex;
-  max-width: 100%;
+  max-width: 90%;
 }
 
 .liveRegion {
@@ -93,81 +242,94 @@
 }
 
 .menuButton {
-  position: absolute;
-  top: max(8px, env(safe-area-inset-top));
-  right: max(10px, env(safe-area-inset-right));
-  z-index: 50;
-  width: var(--nj-touch-target, 44px);
-  height: var(--nj-touch-target, 44px);
-  min-width: var(--nj-touch-target, 44px);
-  min-height: var(--nj-touch-target, 44px);
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
   display: grid;
   place-items: center;
   padding: 0;
-  color: var(--text, #fff4df);
-  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: #fff6dc;
+  border: 1.5px solid rgba(255, 214, 96, 0.42);
   border-radius: 50%;
-  background: rgba(10, 6, 26, 0.7);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 214, 96, 0.18), transparent 62%),
+    rgba(10, 22, 18, 0.86);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
   cursor: pointer;
   touch-action: manipulation;
-  transition:
-    transform var(--nj-motion-press, 100ms) ease,
-    border-color var(--nj-motion-interaction, 180ms) ease,
-    background var(--nj-motion-interaction, 180ms) ease;
+  justify-self: end;
+  transition: transform 110ms ease, border-color 160ms ease, background 160ms ease;
 }
 
 .menuButton:active {
-  transform: scale(0.97);
+  transform: scale(0.94);
 }
 
+/* ═══ LIGNE TACTIQUE FINE (1 LIGNE PROPRE AU-DESSUS DU COCKPIT BAS) ═══ */
 .turnStatus {
   position: absolute;
   left: 50%;
-  bottom: calc(var(--nj-table-turn-offset, 112px) + env(safe-area-inset-bottom));
-  z-index: 45;
+  bottom: calc(var(--nj-table-turn-offset, 146px) + env(safe-area-inset-bottom));
+  z-index: 48;
   width: max-content;
-  max-width: calc(100% - max(24px, env(safe-area-inset-left)) - max(24px, env(safe-area-inset-right)));
+  max-width: calc(100% - 24px);
   transform: translateX(-50%);
   text-align: center;
-}
-
-.turnStatus :global(.chip) {
-  max-width: 100%;
-  min-height: var(--nj-touch-target, 44px);
-  padding: 7px 16px;
-  white-space: normal;
-  text-wrap: balance;
+  pointer-events: none;
 }
 
 .turnStatusMotion {
-  animation: turnStatusEnter var(--nj-motion-navigation, 250ms) cubic-bezier(0.2, 0.8, 0.25, 1) both;
+  animation: turnStatusEnter var(--nj-motion-navigation, 240ms) cubic-bezier(0.2, 0.85, 0.25, 1) both;
 }
 
+/* ═══ ÉTUI DISCRET DES CARTES POUVOIR NDOP (BAS-DROITE · BORNÉ · ZÉRO OVERLAP) ═══ */
 .powerTray {
   position: absolute;
-  left: max(10px, env(safe-area-inset-left));
-  bottom: calc(112px + env(safe-area-inset-bottom));
-  z-index: 55;
-  max-height: 46svh;
+  right: max(10px, env(safe-area-inset-right));
+  bottom: calc(var(--nj-power-tray-bottom, 108px) + env(safe-area-inset-bottom));
+  z-index: 52;
+  max-width: min(46vw, 156px);
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-x: visible;
-  overflow-y: auto;
-  padding: 4px 6px 4px 2px;
-  scrollbar-width: thin;
-  overscroll-behavior: contain;
+  flex-direction: row;
+  align-items: flex-end;
+  justify-content: flex-end;
+  gap: 0;
+  padding: 2px;
+  background: transparent;
+  border: 0;
+  --nj-power-card-compact-w: 36px;
+  --nj-power-card-compact-font: 6.5px;
 }
 
 .powerTray > button {
   flex: 0 0 auto;
-  width: 62px;
-  min-height: 82px;
   display: grid;
   place-items: center;
 }
 
+@media (min-width: 740px) {
+  .powerTray {
+    right: max(18px, env(safe-area-inset-right));
+    bottom: max(16px, env(safe-area-inset-bottom));
+    max-width: 220px;
+    --nj-power-card-compact-w: 48px;
+    --nj-power-card-compact-font: 7.5px;
+  }
+}
+
+@media (orientation: landscape) and (max-height: 620px) {
+  .powerTray {
+    right: max(10px, env(safe-area-inset-right));
+    bottom: max(10px, env(safe-area-inset-bottom));
+    max-width: 170px;
+    --nj-power-card-compact-w: 36px;
+    --nj-power-card-compact-font: 6.5px;
+  }
+}
+
 .root[data-motion-level="lite"] .turnStatusMotion,
+.root[data-motion-level="lite"] .feltSheen,
 .root[data-motion-level="lite"] :global(.nj-turn-prompt)::before,
 .root[data-motion-level="lite"] :global(.playcard-clickable) {
   animation: none !important;
@@ -188,39 +350,15 @@
 
 @media (hover: hover) and (pointer: fine) {
   .menuButton:hover {
-    border-color: rgba(242, 187, 69, 0.58);
-    background: rgba(242, 187, 69, 0.13);
-  }
-}
-
-@media (orientation: landscape) and (max-height: 620px) {
-  .powerTray {
-    right: auto;
-    bottom: max(8px, env(safe-area-inset-bottom));
-    width: auto;
-    max-width: min(calc(50vw - 128px), 296px);
-    max-height: none;
-    flex-direction: row;
-    overflow-x: auto;
-    overflow-y: visible;
-    padding: 4px 8px 4px 2px;
-  }
-}
-
-@media (max-width: 359px) and (orientation: portrait) {
-  .root:has(.powerTray) .turnStatus {
-    left: calc(50% + 24px);
-  }
-
-  .powerTray > button {
-    width: 56px;
-    min-height: 76px;
+    border-color: #ffe573;
+    background: rgba(255, 207, 64, 0.18);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .root,
   .turnStatusMotion,
+  .feltSheen,
   .menuButton {
     animation: none;
     transition: none;
@@ -239,10 +377,10 @@
 @keyframes turnStatusEnter {
   from {
     opacity: 0;
-    transform: translateX(-50%) scale(0.92);
+    transform: translateX(-50%) translateY(4px) scale(0.95);
   }
   to {
     opacity: 1;
-    transform: translateX(-50%) scale(1);
+    transform: translateX(-50%) translateY(0) scale(1);
   }
 }

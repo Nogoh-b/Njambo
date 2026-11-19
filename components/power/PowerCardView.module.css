@@ -1,0 +1,237 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   PowerCardView — Carte Pouvoir unifiée sans bordure (Grand Motif Ndop coloré
+   par type + architecture ornementale par rareté), utilisée en partie, dans
+   les cinématiques et les aperçus.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.card {
+  position: relative;
+  width: 100%;
+  min-width: 152px;
+  max-width: 184px;
+  margin-inline: auto;
+  aspect-ratio: 3 / 4.25;
+  border-radius: 17px;
+  border: 0 !important;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(ellipse 90% 65% at 50% 82%, color-mix(in srgb, var(--c-primary) 30%, transparent), transparent 72%),
+    linear-gradient(172deg, var(--c-top, #1a1628) 0%, var(--c-bot, #090a12) 100%);
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.65),
+    0 0 24px color-mix(in srgb, var(--c-glow) 46%, transparent);
+  color: #fffaf0;
+  text-align: center;
+  isolation: isolate;
+}
+
+.compact {
+  min-width: 0;
+  max-width: none;
+  margin-inline: 0;
+  width: var(--nj-power-card-compact-w, 58px);
+  height: auto;
+  min-height: 0;
+  aspect-ratio: 3 / 4.25;
+  border-radius: 11px;
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.58),
+    0 0 14px color-mix(in srgb, var(--c-glow) 38%, transparent);
+}
+
+.selected {
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.72),
+    0 0 32px var(--c-glow);
+  transform: translateY(-3px);
+}
+
+.disabled {
+  filter: grayscale(0.42) brightness(0.76);
+  opacity: 0.62;
+}
+
+/* Artwork fondu organiquement dans la carte (zéro cadre) */
+.artMask {
+  position: absolute;
+  inset: 0 0 34% 0;
+  z-index: 1;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.24) 0%, #000 18%, #000 58%, transparent 100%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.24) 0%, #000 18%, #000 58%, transparent 100%);
+}
+
+.artImg {
+  object-fit: cover;
+  object-position: center 22%;
+}
+
+/* Grand motif Ndop plein-cadre coloré par type + rareté */
+.motifSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 0 7px var(--c-glow));
+}
+
+.motifSvg :global(.nj-motif-sunburst) {
+  animation: pcvSunSpin 24s linear infinite;
+}
+
+@keyframes pcvSunSpin {
+  to { transform: rotate(360deg); }
+}
+
+.rCommon {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.62), 0 0 14px color-mix(in srgb, var(--c-glow) 28%, transparent);
+}
+
+.rRare {
+  box-shadow: 0 14px 28px rgba(0, 0, 0, 0.65), 0 0 24px rgba(150, 212, 255, 0.42), inset 0 0 16px rgba(185, 224, 255, 0.14);
+}
+.rRare .motifSvg { filter: drop-shadow(0 0 8px rgba(164, 218, 255, 0.6)); }
+
+.rEpic {
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.7), 0 0 28px color-mix(in srgb, var(--c-glow) 60%, rgba(255, 214, 110, 0.48)), inset 0 0 20px rgba(255, 217, 114, 0.18);
+}
+.rEpic .motifSvg { filter: drop-shadow(0 0 10px rgba(255, 214, 110, 0.68)); }
+
+.rLegendary {
+  box-shadow: 0 18px 36px rgba(0, 0, 0, 0.78), 0 0 36px rgba(255, 224, 90, 0.68), inset 0 0 28px rgba(255, 224, 90, 0.24);
+}
+.rLegendary .motifSvg { filter: drop-shadow(0 0 13px rgba(255, 226, 92, 0.88)); }
+
+.sheen {
+  position: absolute;
+  inset: -45%;
+  width: 34%;
+  background: linear-gradient(112deg, transparent, rgba(255, 250, 224, 0.18) 50%, transparent);
+  transform: translateX(-180%);
+  animation: pcvHolo 5.2s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.rLegendary .sheen {
+  background: linear-gradient(112deg, transparent, rgba(255, 234, 128, 0.42) 46%, rgba(255, 255, 238, 0.56) 52%, transparent);
+  animation-duration: 3.5s;
+}
+
+@keyframes pcvHolo {
+  0%, 64% { transform: translateX(-180%); }
+  94%, 100% { transform: translateX(460%); }
+}
+
+.topRow {
+  position: relative;
+  z-index: 5;
+  padding: 7px 8px 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.compact .topRow {
+  padding: 3px 4px 0;
+}
+
+.stars {
+  color: var(--c-secondary, #ffe573);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
+}
+
+.compact .stars {
+  font-size: 6.5px;
+}
+
+.rarityText {
+  color: var(--c-secondary, #ffe573);
+  font-size: 8.5px;
+  font-weight: 950;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
+}
+
+.qtyBadge {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(8, 10, 18, 0.88);
+  color: #fff0a8;
+  font-size: 9.5px;
+  font-weight: 950;
+}
+
+.bottomInfo {
+  position: relative;
+  z-index: 5;
+  padding: 4px 8px 13px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: linear-gradient(180deg, transparent 0%, rgba(6, 7, 12, 0.72) 55%, rgba(6, 7, 12, 0.9) 100%);
+}
+
+.compact .bottomInfo {
+  padding: 2px 3px 6px;
+  gap: 1px;
+}
+
+.iconHalo {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 18, 28, 0.94), rgba(6, 8, 14, 0.98));
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.78), 0 0 12px var(--c-glow);
+  margin-bottom: 1px;
+}
+
+.compact .iconHalo {
+  width: 17px;
+  height: 17px;
+  margin-bottom: 0;
+}
+
+.typeLabel {
+  color: var(--c-secondary, #ffe573);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.title {
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1.08;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+}
+
+.compact .title {
+  font-size: var(--nj-power-card-compact-font, 8.5px);
+  line-height: 1.06;
+  -webkit-line-clamp: 2;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sheen,
+  .motifSvg :global(.nj-motif-sunburst) { animation: none; }
+}

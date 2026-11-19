@@ -18,7 +18,7 @@ interface ResultLayoutProps {
   main: ReactNode;
   rail?: ReactNode;
   panelRef?: Ref<HTMLElement>;
-  /** Pilote l'ambiance (halo, teintes) : chaude en victoire, froide en défaite. */
+  /** Pilote l'ambiance (halo, teintes) : dorée en victoire, émeraude nocturne en défaite. */
   outcome?: "win" | "loss";
 }
 
@@ -28,9 +28,9 @@ interface ResultActionsProps {
 }
 
 /**
- * Shell commun des fins de manche. Il porte le dialogue, les safe areas et le
- * passage une colonne -> contenu + rail, tandis que ResultScreen garde les
- * décisions de partie et les callbacks existants.
+ * Shell Salon Royal commun à toutes les fins de manche (Solo IA, En ligne,
+ * Entre amis, Événements). Strictement verrouillé sur 100dvh sans défilement
+ * externe, avec cadre acajou-émeraude et laiton gravé.
  */
 export const ResultLayout = forwardRef<HTMLDivElement, ResultLayoutProps>(function ResultLayout(
   {
@@ -58,7 +58,7 @@ export const ResultLayout = forwardRef<HTMLDivElement, ResultLayoutProps>(functi
       {decoration}
       <section
         ref={panelRef}
-        className={`${styles.panel} nj-surface nj-result-panel`}
+        className={`${styles.panel} nj-result-panel`}
         data-has-rail={Boolean(rail)}
         data-scripted-motion={scriptedMotion || undefined}
         role="dialog"
@@ -67,6 +67,12 @@ export const ResultLayout = forwardRef<HTMLDivElement, ResultLayoutProps>(functi
         aria-describedby={descriptionId}
         tabIndex={-1}
       >
+        {/* Rivets laiton discrets aux quatre coins (signature Salon Royal) */}
+        <span className={`${styles.rivet} ${styles.rivetTl}`} aria-hidden="true" />
+        <span className={`${styles.rivet} ${styles.rivetTr}`} aria-hidden="true" />
+        <span className={`${styles.rivet} ${styles.rivetBl}`} aria-hidden="true" />
+        <span className={`${styles.rivet} ${styles.rivetBr}`} aria-hidden="true" />
+
         <div className={styles.workspace}>
           <div className={styles.main}>{main}</div>
           {rail && (

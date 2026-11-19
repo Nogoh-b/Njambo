@@ -1,9 +1,11 @@
 "use client";
 
 import { doc, onSnapshot, type DocumentSnapshot, type Unsubscribe } from "@/lib/firestoreClient";
+import { generateSecureId } from "@/lib/cryptoUtils";
 import { db } from "@/lib/firebase";
 import { backendCallable } from "@/lib/backendCallable";
 import { GAME_CONFIG } from "@/config/gameConfig";
+import { legalCards } from "@/engine/rules";
 import type { PowerChoices } from "@/engine/power";
 import type {
   Card, GameState, GameSyncActions, Player, PowerCardActivation, PowerCardId, Profile,
@@ -106,6 +108,12 @@ export class AuthoritativeGameSync implements GameSyncActions {
   /** Coup local en attente : ma main est déjà finale quand l'événement play
    *  est émis — on garde l'index cliqué pour que le vol parte du bon slot. */
   private pendingPlay: { cardId: string; cardIdx: number } | null = null;
+  /** Carte déjà lancée en vol optimiste (0 ms) côté client en attente de l'écho serveur. */
+  private optimisticCardId: string | null = null;
+  /** Matchs ayant déjà joué leur chorégraphie de donne (1 seule fois par matchId). */
+  private dealtMatchIds = new Set<string>();
+  /** Si true, le premier doc match contient déjà des coups d'ouverture à rejouer après la donne. */
+  private pendingOpeningReplay = false;
 
   private stateListeners = new Set<(state: GameState) => void>();
   private playListeners = new Set<PlayListener>();
@@ -141,7 +149,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     try {
       const call = backendCallable<Record<string, unknown>, ServerState | MatchmakingState>("startMatch");
       const response = await call({
-        idempotencyKey: `start_${crypto.randomUUID()}`,
+        idempotencyKey: `start_${generateSecureId(24)}`,
         mode: this.opts.mode,
         stake: this.opts.mode === "friends" ? 0 : this.opts.stake,
         botCount: this.opts.botCount,
@@ -152,7 +160,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
         this.status("connecting", `File du Ter : ${response.data.playersFound}/${response.data.playersRequired} joueurs`);
         return;
       }
-      this.beginDealingWindow(response.data.match);
+      this.beginDealingWindow(response.data.match, true);
       this.applyServerState(response.data);
       this.subscribe(response.data.matchId);
     } catch (cause) {
@@ -174,7 +182,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
         if (this.consumedMatchId) {
           this.status("connecting", "En attente de l'hôte…");
           const ready = backendCallable<Record<string, unknown>, { roomId: string; ready: boolean }>("setRoomReady");
-          void ready({ idempotencyKey: `ready_${crypto.randomUUID()}`, roomId: this.opts.roomId, ready: true })
+          void ready({ idempotencyKey: `ready_${generateSecureId(24)}`, roomId: this.opts.roomId, ready: true })
             .catch((cause) => this.status("error", cause instanceof Error ? cause.message : "Impossible de se déclarer prêt"));
         }
         return;
@@ -187,7 +195,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
         this.subscribeRoom();
         const ready = backendCallable<Record<string, unknown>, { roomId: string; ready: boolean }>("setRoomReady");
         try {
-          await ready({ idempotencyKey: `ready_${crypto.randomUUID()}`, roomId: this.opts.roomId, ready: true });
+          await ready({ idempotencyKey: `ready_${generateSecureId(24)}`, roomId: this.opts.roomId, ready: true });
         } catch (cause) {
           this.status("error", cause instanceof Error ? cause.message : "Impossible de valider la revanche");
           return;
@@ -249,7 +257,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.rematchPending = true;
     try {
       const start = backendCallable<Record<string, unknown>, { roomId: string; status: string }>("startGame");
-      await start({ idempotencyKey: `rematch_${crypto.randomUUID()}`, roomId: this.opts.roomId });
+      await start({ idempotencyKey: `rematch_${generateSecureId(24)}`, roomId: this.opts.roomId });
       await this.requestStart();
     } catch (cause) {
       this.status("error", cause instanceof Error ? cause.message : "Relance impossible");
@@ -261,7 +269,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private async reconnect(matchId: string) {
     try {
       const call = backendCallable<Record<string, unknown>, ServerState>("reconnectMatch");
-      const response = await call({ idempotencyKey: `reconnect_${crypto.randomUUID()}`, matchId });
+      const response = await call({ idempotencyKey: `reconnect_${generateSecureId(24)}`, matchId });
       // Reprise en cours de partie : état appliqué directement, AUCUN replay
       // des vols du dernier batch (le passage par le seed d'ingestMatch
       // marque les playIds existants comme déjà émis).
@@ -271,7 +279,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
       // Un match FRAIS reçu par ce chemin (invité qui rejoint, revanche) a
       // droit à sa chorégraphie de donne — le critère "fresh" de
       // beginDealingWindow écarte les vraies reprises en cours de partie.
-      this.beginDealingWindow(response.data.match);
+      this.beginDealingWindow(response.data.match, true);
       this.applyServerState(response.data);
       this.subscribe(matchId);
     } catch (cause) { this.status("error", cause instanceof Error ? cause.message : "Reconnexion refusée"); }
@@ -290,7 +298,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
       if (!snapshot.exists()) return;
       this.hand = (snapshot.get("hand") ?? []) as Card[];
       this.equippedPowers = (snapshot.get("equippedPowers") ?? this.equippedPowers) as PowerCardId[];
-      this.emitState();
+      // Éviter un repaint intermédiaire pendant qu'un coup optimiste est encore en vol.
+      if (!this.optimisticCardId) this.emitState();
     });
     this.timer = setInterval(() => {
       // Décompte SYNCHRONE entre tous les clients : dérivé de la deadline
@@ -298,11 +307,18 @@ export class AuthoritativeGameSync implements GameSyncActions {
       // turnSeconds garde l'anneau plein pendant le replay et la donne).
       const source = this.targetMatch ?? this.match;
       const animationsPending = this.dealing || this.replaying || this.replayQueue.length > 0;
+      if (this.destroyed || this.emittedResult || (source && source.status !== "playing" && !animationsPending)) {
+        if (this.timer) {
+          clearInterval(this.timer);
+          this.timer = null;
+        }
+        return;
+      }
       const seconds = animationsPending
         ? GAME_CONFIG.turnSeconds
         : source?.status === "playing"
         ? Math.max(0, Math.min(GAME_CONFIG.turnSeconds, Math.ceil((source.actionDeadlineAt - Date.now()) / 1_000)))
-        : 0;
+        : GAME_CONFIG.turnSeconds;
       this.timerListeners.forEach((listener) => listener(seconds));
     }, 1_000);
     this.status("live");
@@ -320,6 +336,12 @@ export class AuthoritativeGameSync implements GameSyncActions {
    *  cible (targetMatch) et appende ses nouveaux coups. */
   private ingestMatch(match: ServerMatch) {
     if (this.destroyed) return;
+    // Match déjà réglé et écran de résultat ouvert : figer définitivement la partie.
+    if (this.emittedResult && match.id === this.matchId && match.status === "settled") {
+      this.match = match;
+      this.targetMatch = match;
+      return;
+    }
     // Les abandons ordinaires restent en playing/settled : seuls un forfait
     // d'événement ou une annulation technique passent dans cette branche.
     if (match.status === "cancelled" || match.status === "forfeit") {
@@ -332,15 +354,41 @@ export class AuthoritativeGameSync implements GameSyncActions {
     }
     this.targetMatch = match;
 
-    // Premier doc (démarrage frais ou reconnexion) : seed sans replay.
+    // Premier doc (démarrage frais ou reconnexion).
     if (!this.match) {
-      this.match = match;
-      for (const action of match.recentActions ?? []) if (action?.playId) this.emittedActions.add(action.playId);
-      for (const activation of match.recentPowerActivations ?? []) if (activation?.playId) this.emittedPowerIds.add(activation.playId);
-      this.simTrickPlays = match.trickPlays.map((play) => ({ uid: play.uid, card: play.card }));
-      this.emitState();
-      this.maybeEmitResult();
-      return;
+      if (this.pendingOpeningReplay && (match.recentActions ?? []).length > 0) {
+        // Match neuf où un bot/adversaire a déjà ouvert le 1er pli côté serveur :
+        // on affiche d'abord la donne complète (5 cartes chacun), puis on enfile
+        // ces coups d'ouverture pour qu'ils volent vers les dépôts juste après la donne.
+        this.pendingOpeningReplay = false;
+        const prePlayMatch: ServerMatch = {
+          ...match,
+          trickPlays: [],
+          deposits: Object.fromEntries(match.participants.map((p) => [p.uid, []])),
+          handCounts: Object.fromEntries(match.participants.map((p) => [p.uid, GAME_CONFIG.cardsPerPlayer])),
+          turnIndex: match.leaderIndex,
+          recentActions: [],
+          recentPowerActivations: [],
+        };
+        this.match = prePlayMatch;
+        this.displayMatch = {
+          ...prePlayMatch,
+          trickPlays: [],
+          deposits: Object.fromEntries(match.participants.map((p) => [p.uid, []])),
+          handCounts: { ...prePlayMatch.handCounts },
+        };
+        this.simTrickPlays = [];
+        this.emitState();
+      } else {
+        this.pendingOpeningReplay = false;
+        this.match = match;
+        for (const action of match.recentActions ?? []) if (action?.playId) this.emittedActions.add(action.playId);
+        for (const activation of match.recentPowerActivations ?? []) if (activation?.playId) this.emittedPowerIds.add(activation.playId);
+        this.simTrickPlays = match.trickPlays.map((play) => ({ uid: play.uid, card: play.card }));
+        this.emitState();
+        this.maybeEmitResult();
+        return;
+      }
     }
 
     // Activations de pouvoir ADVERSES : enfilées comme les coups pour que
@@ -356,12 +404,21 @@ export class AuthoritativeGameSync implements GameSyncActions {
     for (const action of match.recentActions ?? []) {
       if (!action?.playId || this.emittedActions.has(action.playId)) continue;
       this.emittedActions.add(action.playId);
-      // Mon propre coup en tête de file part immédiatement (le vol répond au
-      // clic) ; les coups adverses "réfléchissent" comme les bots locaux.
-      const immediate = action.uid === this.opts.uid && this.replayQueue.length === 0 && !this.replaying;
-      const { replayBotThinkMin, replayBotThinkMax } = GAME_CONFIG.anim;
-      const delayBefore = immediate ? 0 : replayBotThinkMin + Math.random() * (replayBotThinkMax - replayBotThinkMin);
-      this.replayQueue.push({ kind: "play", action, delayBefore });
+
+      // Si mon coup vient déjà de voler en optimiste (0 ms) et d'être posé sur
+      // `displayMatch`, on évite tout double vol et toute double écriture.
+      const isOptimisticEcho = action.uid === this.opts.uid && this.optimisticCardId === action.card.id;
+      if (isOptimisticEcho) {
+        this.optimisticCardId = null;
+        this.pendingPlay = null;
+      } else {
+        // Mon propre coup en tête de file part immédiatement ; les coups adverses
+        // respectent une cadence naturelle et fluide.
+        const immediate = action.uid === this.opts.uid && this.replayQueue.length === 0 && !this.replaying;
+        const { replayBotThinkMin, replayBotThinkMax } = GAME_CONFIG.anim;
+        const delayBefore = immediate ? 0 : replayBotThinkMin + Math.random() * (replayBotThinkMax - replayBotThinkMin);
+        this.replayQueue.push({ kind: "play", action, delayBefore });
+      }
       this.simTrickPlays.push({ uid: action.uid, card: action.card });
       const activeCount = match.participants.filter((participant) => !(match.eliminatedUids ?? []).includes(participant.uid)).length;
       if (this.simTrickPlays.length === activeCount) {
@@ -447,13 +504,17 @@ export class AuthoritativeGameSync implements GameSyncActions {
     if (!match) return;
     const serverIndex = match.participants.findIndex((participant) => participant.uid === action.uid);
     const playerIdx = this.localIndex(serverIndex);
+    if (playerIdx < 0) return;
     let cardIdx: number;
     if (playerIdx === 0 && this.pendingPlay?.cardId === action.card.id) {
       cardIdx = this.pendingPlay.cardIdx;
       this.pendingPlay = null;
+    } else if (playerIdx === 0) {
+      cardIdx = Math.max(0, this.hand.findIndex((card) => card.id === action.card.id));
     } else {
-      const currentHand = playerIdx === 0 ? this.hand : [];
-      cardIdx = Math.max(0, currentHand.findIndex((card) => card.id === action.card.id));
+      // Adversaires (Solo & Multijoueur) : la carte quitte le centre de leur éventail.
+      const remaining = Number(match.handCounts?.[action.uid] ?? 3);
+      cardIdx = Math.floor(Math.max(0, remaining - 1) / 2);
     }
     this.playListeners.forEach((listener) => listener({ playerIdx, cardIdx, card: action.card, playId: action.playId }));
   }
@@ -503,18 +564,25 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.targetMatch = null;
     this.simTrickPlays = [];
     this.pendingPlay = null;
+    this.optimisticCardId = null;
+    this.pendingOpeningReplay = false;
   }
 
-  /** Démarre la fenêtre "dealing" si le match vient d'être créé (jamais lors
-   *  d'un reconnect : la partie est déjà en cours). Pendant cette fenêtre,
-   *  emitState publie phase "dealing" (→ animation dealFly du Fan) et les
-   *  événements dérivés sont différés jusqu'à la fin de la chorégraphie. */
-  private beginDealingWindow(match: ServerMatch) {
-    if (this.destroyed || match.status !== "playing") return;
-    const fresh = match.trickNumber === 0 && match.trickPlays.length === 0 && (match.recentActions ?? []).length === 0;
+  /** Démarre la fenêtre "dealing" dès qu'un match neuf commence (y compris en
+   *  multijoueur pour les invités ou quand un bot ouvre le 1er pli côté serveur). */
+  private beginDealingWindow(match: ServerMatch, allowOpeningReplay = false) {
+    if (this.destroyed || match.status !== "playing" || this.dealtMatchIds.has(match.id)) return;
+    const actionCount = (match.recentActions ?? []).length;
+    const fresh = match.trickNumber === 0 && (
+      allowOpeningReplay
+        ? actionCount < match.participants.length
+        : match.trickPlays.length === 0 && actionCount === 0
+    );
     if (!fresh) return;
+    this.dealtMatchIds.add(match.id);
+    this.pendingOpeningReplay = allowOpeningReplay && actionCount > 0;
     const { dealPerCard, dealFlight } = GAME_CONFIG.anim;
-    const dealTime = match.participants.length * GAME_CONFIG.cardsPerPlayer * dealPerCard + dealFlight + 350;
+    const dealTime = match.participants.length * GAME_CONFIG.cardsPerPlayer * dealPerCard + dealFlight + 200;
     this.dealing = true;
     if (this.dealTimer) clearTimeout(this.dealTimer);
     this.dealTimer = setTimeout(() => {
@@ -522,7 +590,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
       this.dealing = false;
       if (this.destroyed) return;
       this.emitState();
-      // Des coups ont pu être enfilés pendant la donne (adversaire rapide).
+      // Des coups d'ouverture ou adverses enfilés pendant la donne démarrent maintenant.
       if (this.replayQueue.length > 0 && !this.replaying) this.pump();
     }, dealTime);
   }
@@ -571,16 +639,39 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private emitState() {
     const match = this.viewMatch();
     if (!match) return;
+    const mappedTrickPlays = match.trickPlays
+      .map((play) => ({
+        playerIdx: this.localIndex(match.participants.findIndex((participant) => participant.uid === play.uid)),
+        card: play.card,
+      }))
+      .filter((play) => play.playerIdx >= 0);
+
+    let dominantIdx: number | null = null;
+    if (mappedTrickPlays.length > 0) {
+      const led = mappedTrickPlays[0].card.suit;
+      let best = mappedTrickPlays[0];
+      for (const play of mappedTrickPlays) {
+        const suit = play.card.effectiveSuit ?? play.card.suit;
+        const val = play.card.effectiveValue ?? play.card.value;
+        const bestSuit = best.card.effectiveSuit ?? best.card.suit;
+        const bestVal = best.card.effectiveValue ?? best.card.value;
+        if (suit === led && (bestSuit !== led || val > bestVal)) best = play;
+      }
+      dominantIdx = best.playerIdx;
+    } else if (match.status === "settled" && match.result?.winnerUid) {
+      const serverWinner = match.participants.findIndex((participant) => participant.uid === match.result!.winnerUid);
+      const localWinner = this.localIndex(serverWinner);
+      if (localWinner >= 0) dominantIdx = localWinner;
+    }
+
     const state: GameState = {
       phase: match.status === "settled" ? "result" : this.dealing ? "dealing" : "turns",
       trickNo: match.trickNumber + 1,
-      trickPlays: match.trickPlays.map((play) => ({
-        playerIdx: this.localIndex(match.participants.findIndex((participant) => participant.uid === play.uid)), card: play.card,
-      })),
-      leaderIdx: this.localIndex(match.leaderIndex),
-      turnIdx: this.localIndex(match.turnIndex),
+      trickPlays: mappedTrickPlays,
+      leaderIdx: Math.max(0, this.localIndex(match.leaderIndex)),
+      turnIdx: Math.max(0, this.localIndex(match.turnIndex)),
       pot: match.potNkap,
-      dominantIdx: null,
+      dominantIdx,
       banner: "",
       players: this.players(),
     };
@@ -591,8 +682,17 @@ export class AuthoritativeGameSync implements GameSyncActions {
     const match = this.match;
     if (!match?.result || this.emittedResult) return;
     this.emittedResult = true;
+
+    // Arrêter immédiatement toute horloge, donne ou file de replay dès que le match est réglé.
+    if (this.timer) {
+      clearInterval(this.timer);
+      this.timer = null;
+    }
+    this.stopDealing();
+    this.stopReplay();
+
     const serverWinner = match.participants.findIndex((participant) => participant.uid === match.result!.winnerUid);
-    const winnerIdx = this.localIndex(serverWinner);
+    const winnerIdx = Math.max(0, this.localIndex(serverWinner));
     const players = this.players();
     const lastCard = match.recentActions?.at(-1)?.card ?? ({ id: "result", rank: "3", value: 3, suit: "♠", color: "#1e1e1e" } as Card);
     /* Le serveur indexe le règlement par uid ; l'UI raisonne en sièges locaux. */
@@ -600,8 +700,10 @@ export class AuthoritativeGameSync implements GameSyncActions {
       ?.map((entry) => {
         const serverIdx = match.participants.findIndex((participant) => participant.uid === entry.uid);
         if (serverIdx < 0) return null;
+        const localIdx = this.localIndex(serverIdx);
+        if (localIdx < 0) return null;
         return {
-          playerIdx: this.localIndex(serverIdx),
+          playerIdx: localIdx,
           uid: entry.uid,
           bot: entry.bot ?? match.participants[serverIdx]?.bot,
           contributed: entry.contributed,
@@ -621,17 +723,41 @@ export class AuthoritativeGameSync implements GameSyncActions {
   }
 
   playCard = (cardIdx: number) => {
-    // Pendant un replay, this.match (et son turnId) est en retard sur le
-    // serveur → un envoi produirait un STALE_TURN parasite. Le tour du
-    // joueur n'est de toute façon affiché qu'au flush.
-    if (!this.matchId || !this.match || this.match.status !== "playing" || this.dealing || this.replaying) return;
+    // Pendant un replay ou un coup optimiste déjà parti, ignorer les doubles clics.
+    if (!this.matchId || !this.match || this.match.status !== "playing" || this.dealing || this.replaying || this.optimisticCardId) return;
+    if (this.localIndex(this.match.turnIndex) !== 0) return;
     const card = this.hand[cardIdx];
     if (!card) return;
+    const led = this.match.trickPlays[0]?.card.suit ?? null;
+    if (!legalCards(this.hand, led).includes(cardIdx)) return;
+
+    // Vol optimiste immédiat (0 ms de latence ressentie en solo serveur & multijoueur) :
+    // la carte quitte tout de suite son emplacement vers le dépôt et s'y pose
+    // dès l'atterrissage (sans scintillement même sur réseau lent).
+    const prevHand = [...this.hand];
     this.pendingPlay = { cardId: card.id, cardIdx };
+    this.optimisticCardId = card.id;
+    this.playListeners.forEach((listener) => listener({
+      playerIdx: 0,
+      cardIdx,
+      card,
+      playId: `opt:${this.matchId}:${card.id}`,
+    }));
+    this.hand = this.hand.filter((_, i) => i !== cardIdx);
+    this.applyPlayToDisplay({ uid: this.opts.uid, card, playId: `opt:${card.id}`, automatic: false });
+    this.emitState();
+
     const call = backendCallable<Record<string, unknown>, ServerState>("submitGameAction");
-    void call({ idempotencyKey: `play_${crypto.randomUUID()}`, matchId: this.matchId, turnId: this.match.turnId, cardId: card.id })
+    void call({ idempotencyKey: `play_${generateSecureId(24)}`, matchId: this.matchId, turnId: this.match.turnId, cardId: card.id })
       .then((response) => this.applyServerState(response.data))
-      .catch((cause) => this.status("error", cause instanceof Error ? cause.message : "Action refusée"));
+      .catch((cause) => {
+        this.hand = prevHand;
+        this.displayMatch = null;
+        this.optimisticCardId = null;
+        this.pendingPlay = null;
+        this.emitState();
+        this.status("error", cause instanceof Error ? cause.message : "Action refusée");
+      });
   };
 
   usePowerCard = (cardId: PowerCardId, targetIdx?: number, choices?: PowerChoices) => {
@@ -645,7 +771,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.powerPending = true;
     const call = backendCallable<Record<string, unknown>, { state: ServerState; activation: PowerCardActivation }>("usePowerCard");
     void call({
-      idempotencyKey: `power_${crypto.randomUUID()}`,
+      idempotencyKey: `power_${generateSecureId(24)}`,
       matchId: this.matchId,
       cardId,
       targetUid: targetUid ?? null,
@@ -677,7 +803,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
   abandon = async () => {
     if (!this.matchId || this.match?.status !== "playing") return;
     const call = backendCallable<Record<string, unknown>, { matchId: string; status: string }>("abandonMatch");
-    await call({ idempotencyKey: `abandon_${crypto.randomUUID()}`, matchId: this.matchId });
+    await call({ idempotencyKey: `abandon_${generateSecureId(24)}`, matchId: this.matchId });
   };
 
   onStateUpdate = (cb: (state: GameState) => void) => { this.stateListeners.add(cb); return () => this.stateListeners.delete(cb); };
@@ -703,7 +829,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
   destroy = () => {
     if (this.opts.mode === "event" && this.opts.eventRunId && !this.matchId) {
       const leave = backendCallable<Record<string, unknown>, { ticketReturned: boolean }>("leaveEvent");
-      void leave({ idempotencyKey: `leave_${crypto.randomUUID()}`, runId: this.opts.eventRunId });
+      void leave({ idempotencyKey: `leave_${generateSecureId(24)}`, runId: this.opts.eventRunId });
     }
     this.destroyed = true;
     this.stopSnapshots();

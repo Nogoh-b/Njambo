@@ -7,6 +7,7 @@
 
 import { memo } from "react";
 import { Avatar } from "@/components/table/Avatar";
+import { PowerCardView } from "@/components/power/PowerCardView";
 import { displayFont } from "@/components/ui/Shell";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { T } from "@/config/theme";
@@ -30,6 +31,7 @@ export const PowerTargetModal = memo(function PowerTargetModal({
   onPick,
   onCancel,
 }: PowerTargetModalProps) {
+  const cardDef = POWER_CARDS_BY_ID[cardId];
   return (
     <div
       onClick={onCancel}
@@ -37,7 +39,8 @@ export const PowerTargetModal = memo(function PowerTargetModal({
         position: "fixed",
         inset: 0,
         zIndex: 70,
-        background: "rgba(5,5,12,.72)",
+        background: "rgba(3, 10, 8, 0.78)",
+        backdropFilter: "blur(4px)",
         display: "grid",
         placeItems: "center",
         padding: 20,
@@ -46,17 +49,23 @@ export const PowerTargetModal = memo(function PowerTargetModal({
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          background: `linear-gradient(160deg, ${T.night3}, ${T.night1})`,
-          border: `1.5px solid ${T.gold}55`,
-          borderRadius: 18,
+          background: "radial-gradient(ellipse 85% 42% at 50% 0%, rgba(255, 207, 64, 0.14), transparent 62%), linear-gradient(168deg, #1b2d26 0%, #0d1814 58%, #09110e 100%)",
+          border: "1.5px solid rgba(255, 214, 96, 0.48)",
+          borderRadius: 22,
           padding: 18,
           maxWidth: 320,
           width: "100%",
           textAlign: "center",
+          boxShadow: "0 24px 54px rgba(0, 0, 0, 0.68), 0 0 28px rgba(255, 207, 64, 0.16)",
         }}
       >
+        {cardDef && (
+          <div style={{ display: "flex", justifyContent: "center", marginBottom: 10 }}>
+            <PowerCardView card={cardDef} compact showMeta={false} />
+          </div>
+        )}
         <div style={{ ...displayFont, fontWeight: 900, fontSize: 18, marginBottom: 2 }}>
-          {POWER_CARDS_BY_ID[cardId]?.name}
+          {cardDef?.name}
         </div>
         <div className="nj-subtle" style={{ fontSize: 13, marginBottom: 14 }}>Choisis une cible</div>
         <div style={{ display: "grid", gap: 8 }}>

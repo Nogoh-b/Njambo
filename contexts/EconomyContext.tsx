@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { doc, onSnapshot } from "@/lib/firestoreClient";
 import { calculateEnergy, rankTier, type PlayerEconomy } from "@/domain";
+import { generateSecureId } from "@/lib/cryptoUtils";
 import { db } from "@/lib/firebase";
 import { backendCallable } from "@/lib/backendCallable";
 import { useAuth } from "@/hooks/useAuth";
@@ -45,7 +46,7 @@ const EconomyContext = createContext<EconomyContextValue | null>(null);
 const InventoryContext = createContext<InventoryState | null>(null);
 
 function idempotencyKey(prefix: string) {
-  return `${prefix}_${crypto.randomUUID()}`;
+  return `${prefix}_${generateSecureId(24)}`;
 }
 
 export function EconomyProvider({ children }: { children: ReactNode }) {

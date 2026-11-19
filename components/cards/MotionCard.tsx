@@ -2,7 +2,7 @@
 
 import { forwardRef, type CSSProperties } from "react";
 import { motion, type MotionProps } from "motion/react";
-import { PlayCard, type PlayCardProps } from "@/components/cards/PlayCard";
+import { PlayCard, type DealOrigin, type PlayCardProps } from "@/components/cards/PlayCard";
 
 /* ═══════════════ FILE: components/cards/MotionCard.tsx ═══════════════
    Brique commune animée : un `motion.div` qui enveloppe le rendu visuel de
@@ -21,6 +21,7 @@ interface MotionCardProps {
   glow?: boolean;
   onClick?: () => void;
   dealDelay?: number | null;
+  dealOrigin?: DealOrigin | null;
   /* Comportement Framer Motion (drag, layout, whileHover, transition, style…) */
   anim?: MotionProps;
   className?: string;
@@ -28,7 +29,7 @@ interface MotionCardProps {
 }
 
 export const MotionCard = forwardRef<HTMLDivElement, MotionCardProps>(function MotionCard(
-  { card, hidden, w, rot, lift, dim, glow, onClick, dealDelay, anim, className, style },
+  { card, hidden, w, rot, lift, dim, glow, onClick, dealDelay, dealOrigin, anim, className, style },
   ref,
 ) {
   const playCard = (
@@ -42,6 +43,7 @@ export const MotionCard = forwardRef<HTMLDivElement, MotionCardProps>(function M
       glow={glow}
       onClick={onClick}
       dealDelay={dealDelay}
+      dealOrigin={dealOrigin}
     />
   );
 

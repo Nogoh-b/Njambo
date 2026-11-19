@@ -1,0 +1,1154 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Cartes Pouvoir sans bordure · Grand Motif Coloré par Type
+   Emplacements deck 3:4.25 exacts · Drag & Drop fluide Souris + Mobile Touch
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.scene {
+  color: var(--sr-ivory, #fff8ea);
+}
+
+.isDragging {
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grabbing !important;
+}
+
+.frame {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: hidden;
+}
+
+/* ═══ 1. HUD HAUT ═══ */
+.hudBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 17px;
+  border: 1.5px solid rgba(255, 207, 64, 0.48);
+  background:
+    radial-gradient(circle at 14% 50%, rgba(192, 110, 255, 0.24), transparent 52%),
+    linear-gradient(120deg, rgba(34, 24, 52, 0.96), rgba(14, 12, 20, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.22), 0 4px 0 #0d0916, 0 10px 22px rgba(0, 0, 0, 0.44);
+}
+
+.hudLeft { min-width: 0; display: flex; align-items: center; gap: 10px; }
+
+.backBtn {
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1.5px solid #ffe89e;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe06b 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 3px 0 #703903;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.hudCopy { min-width: 0; display: grid; gap: 1px; }
+.hudKicker { color: #ffe573; font-size: 9.5px; font-weight: 900; letter-spacing: 0.13em; text-transform: uppercase; line-height: 1; }
+.hudCopy h1 { margin: 0; color: #fffaf0; font-family: var(--font-display), sans-serif; font-size: clamp(16px, 3.8vw, 22px); font-weight: 900; line-height: 1.05; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.hudRight { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; }
+
+.deckCounter {
+  height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 207, 64, 0.48);
+  background: rgba(14, 14, 24, 0.9);
+  color: #d7e4de;
+  font-size: 11.5px;
+  font-weight: 850;
+}
+.deckCounter strong { color: #ffe573; font-weight: 950; }
+
+.shopShortcut {
+  height: 34px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 11px;
+  border: 1.5px solid #fff0a8;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe370, #f0a81b 60%, #c97308);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.65), 0 3px 0 #703903;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.feedbackToast {
+  flex: 0 0 auto;
+  padding: 6px 12px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 207, 64, 0.56);
+  background: rgba(58, 38, 12, 0.94);
+  color: #fff2be;
+  font-size: 12px;
+  font-weight: 850;
+  text-align: center;
+}
+
+/* ═══ 2. GRILLE DECK BUILDER ═══ */
+.builderGrid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  overflow: hidden;
+}
+
+.deckColumn {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+/* ── TAPIS FEUTRE DES 3 EMPLACEMENTS (VRAIES DIMENSIONS DE CARTES 3:4.25 !) ── */
+.feltDeckTray {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 12px 12px;
+  border-radius: 20px;
+  border: 2px solid rgba(255, 212, 92, 0.58);
+  background:
+    radial-gradient(ellipse 78% 72% at 50% 50%, #1f8e6c 0%, #0e5440 62%, #072c22 100%);
+  box-shadow:
+    inset 0 5px 18px rgba(0, 0, 0, 0.54),
+    0 0 0 3.5px #49200f,
+    0 12px 26px rgba(0, 0, 0, 0.48);
+  transition: box-shadow 180ms ease, border-color 180ms ease;
+}
+
+.trayMagnetOn {
+  border-color: #fff2a8;
+  box-shadow:
+    inset 0 5px 18px rgba(0, 0, 0, 0.48),
+    0 0 0 4px #6b3116,
+    0 0 34px rgba(255, 207, 64, 0.52),
+    0 14px 28px rgba(0, 0, 0, 0.52);
+}
+
+.trayStitch {
+  position: absolute;
+  inset: 5px;
+  border-radius: 15px;
+  border: 1px dashed rgba(255, 214, 96, 0.34);
+  pointer-events: none;
+}
+
+.trayHeader {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.trayHeading { display: flex; align-items: baseline; gap: 6px; }
+.trayKicker { color: #ffe573; font-size: 9px; font-weight: 950; letter-spacing: 0.13em; text-transform: uppercase; }
+.trayHeading strong { color: #fffaf0; font-family: var(--font-display), sans-serif; font-size: 13px; font-weight: 900; }
+
+.dragTip {
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(8, 20, 16, 0.8);
+  border: 1px solid rgba(255, 212, 92, 0.42);
+  color: #fff0b8;
+  font-size: 9.5px;
+  font-weight: 850;
+}
+
+/* 3 cartes verticales centrées avec VRAIE proportion 3 : 4.25 (JAMAIS écrasées en carrés !) */
+.deckSlotsRow {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(10px, 3vw, 18px);
+}
+
+.deckSlotZone {
+  position: relative;
+  flex: 0 0 auto;
+  width: clamp(68px, 20vw, 84px);
+  aspect-ratio: 3 / 4.25;
+  border-radius: 13px;
+  transition: transform 160ms cubic-bezier(0.2, 0.9, 0.25, 1.15);
+}
+
+.slotHoverTarget { transform: scale(1.08) translateY(-4px); }
+.slotDraggingOut { opacity: 0.32; }
+.slotSnapBurst { animation: slotPop 420ms cubic-bezier(0.2, 0.9, 0.25, 1.3); }
+
+@keyframes slotPop {
+  0% { transform: scale(0.86); }
+  50% { transform: scale(1.1); }
+  100% { transform: scale(1); }
+}
+
+.snapShockwave {
+  position: absolute;
+  inset: -6px;
+  border-radius: 17px;
+  border: 2.5px solid #ffe573;
+  animation: shockwaveOut 560ms ease-out forwards;
+  pointer-events: none;
+  z-index: 6;
+}
+
+@keyframes shockwaveOut {
+  0% { transform: scale(0.92); opacity: 1; }
+  100% { transform: scale(1.26); opacity: 0; }
+}
+
+.emptyDeckSlot {
+  width: 100%;
+  height: 100%;
+  border-radius: 13px;
+  border: 2px dashed rgba(255, 214, 96, 0.56);
+  background: radial-gradient(circle at 50% 45%, rgba(16, 48, 38, 0.8), rgba(6, 20, 16, 0.84));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  color: rgba(255, 240, 188, 0.88);
+  animation: slotInviteBreath 3.2s ease-in-out infinite;
+  transition: border-color 140ms ease, background 140ms ease;
+}
+
+@keyframes slotInviteBreath {
+  0%, 100% { border-color: rgba(255, 214, 96, 0.44); }
+  50% { border-color: rgba(255, 236, 148, 0.88); }
+}
+
+.slotHoverTarget .emptyDeckSlot {
+  border-color: #fff4b8;
+  border-style: solid;
+  background: rgba(255, 207, 64, 0.28);
+  box-shadow: 0 0 24px rgba(255, 207, 64, 0.65);
+}
+
+.emptyRoman {
+  position: absolute;
+  top: 5px;
+  left: 7px;
+  font-family: var(--font-display), serif;
+  font-size: 9.5px;
+  font-weight: 900;
+  color: #ffe573;
+}
+
+.emptyPlus { font-size: 20px; font-weight: 900; line-height: 1; }
+.emptyDeckSlot small { font-size: 8.5px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.05em; }
+
+/* Carte équipée dans un slot (sans bordure plastique, motif coloré par type) */
+.slottedCard {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 13px;
+  background: linear-gradient(170deg, var(--c-top, #1a1626), var(--c-bot, #0a0b14));
+  overflow: hidden;
+  cursor: grab;
+  touch-action: none;
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.58), 0 0 18px var(--c-glow, rgba(255, 207, 64, 0.4));
+}
+
+.slottedSelected {
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.65), 0 0 26px var(--c-glow);
+  transform: translateY(-2px);
+}
+
+.slottedArtWrap {
+  position: absolute;
+  inset: 0 0 34% 0;
+  -webkit-mask-image: linear-gradient(180deg, #000 52%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 52%, transparent 100%);
+}
+
+.slotArt { object-fit: cover; object-position: center 22%; }
+
+.slotMotifSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 2;
+}
+
+.slotName {
+  position: absolute;
+  bottom: 5px;
+  left: 4px;
+  right: 4px;
+  z-index: 4;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 9px;
+  font-weight: 950;
+  text-align: center;
+  line-height: 1.06;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.slotRemoveBtn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 6;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 0;
+  background: rgba(168, 18, 52, 0.94);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+.dropActionTag {
+  position: absolute;
+  bottom: -10px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 8;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe573, #ea9d10);
+  color: #241203;
+  font-size: 9.5px;
+  font-weight: 950;
+  white-space: nowrap;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.58);
+}
+
+/* ═══ INSPECTEUR 3D EN DIRECT (DESKTOP UNIQUEMENT) ═══ */
+.desktopInspector { display: none; }
+
+/* ═══ COLONNE CLASSEUR ═══ */
+.binderColumn {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 9px 10px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 212, 92, 0.24);
+  background:
+    radial-gradient(ellipse 80% 34% at 50% 0%, rgba(192, 110, 255, 0.12), transparent 62%),
+    linear-gradient(168deg, rgba(24, 20, 30, 0.95), rgba(10, 11, 16, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.14), 0 16px 32px rgba(0, 0, 0, 0.48);
+  overflow: hidden;
+  transition: box-shadow 160ms ease, border-color 160ms ease;
+}
+
+.binderRemoveZone {
+  border-color: #ff4772;
+  box-shadow: inset 0 0 32px rgba(255, 71, 114, 0.34), 0 16px 32px rgba(0, 0, 0, 0.5);
+}
+
+.filterStrip {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.filterStrip::-webkit-scrollbar { display: none; }
+
+.filterPill {
+  flex: 0 0 auto;
+  height: 30px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 240, 190, 0.2);
+  background: rgba(14, 16, 24, 0.9);
+  color: #c8dad2;
+  font-size: 11px;
+  font-weight: 850;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: transform 120ms ease, background 140ms ease;
+}
+
+.filterSwatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  transform: rotate(45deg);
+  background: var(--pill-color, #ffcf40);
+  box-shadow: 0 0 6px var(--pill-color, #ffcf40);
+}
+
+.filterCount {
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.36);
+  font-size: 9.5px;
+  font-weight: 900;
+  display: inline-grid;
+  place-items: center;
+}
+
+.filterPillActive {
+  color: #1e1103;
+  border-color: transparent;
+  background: linear-gradient(180deg, #ffe573, #ee9e12);
+  box-shadow: 0 3px 0 #703903;
+}
+
+.filterPillActive .filterSwatch {
+  background: #1e1103;
+  box-shadow: none;
+}
+
+.binderScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 4px 4px 10px 2px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.45) transparent;
+}
+
+.binderScrollLocked {
+  overflow-y: hidden !important;
+  touch-action: none !important;
+}
+
+/* Grille compacte : 3/ligne mobile, 4 tablette, 4–6 desktop */
+.cardGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 9px;
+}
+
+@media (min-width: 580px) {
+  .cardGrid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 11px;
+  }
+}
+
+@media (min-width: 900px) {
+  .cardGrid {
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
+  }
+}
+
+@media (min-width: 1280px) {
+  .cardGrid {
+    grid-template-columns: repeat(auto-fill, minmax(128px, 1fr));
+    gap: 13px;
+  }
+}
+
+.gridItemWrap { min-width: 0; }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   LA CARTE POUVOIR SANS BORDURE · GRAND MOTIF COLORÉ DIRECTEMENT PAR TYPE
+   ═══════════════════════════════════════════════════════════════════════════ */
+.artifactCard {
+  position: relative;
+  aspect-ratio: 3 / 4.25;
+  border-radius: 16px;
+  border: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(ellipse 90% 65% at 50% 82%, color-mix(in srgb, var(--c-primary) 28%, transparent), transparent 72%),
+    linear-gradient(172deg, var(--c-top, #1a1628) 0%, var(--c-bot, #090a12) 100%);
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.62),
+    0 0 18px color-mix(in srgb, var(--c-glow) 34%, transparent);
+  cursor: pointer;
+  transition: box-shadow 200ms ease, filter 180ms ease;
+}
+
+.cardOwned { cursor: grab; }
+.cardOwned:hover {
+  box-shadow:
+    0 18px 34px rgba(0, 0, 0, 0.7),
+    0 0 32px var(--c-glow);
+}
+
+.cardLocked {
+  filter: saturate(0.76) brightness(0.9);
+}
+.cardLocked:hover {
+  filter: saturate(1) brightness(1.04);
+}
+
+.cardEquipped {
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.68),
+    0 0 28px var(--c-glow);
+}
+
+.cardSelected {
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.74),
+    0 0 34px var(--c-glow);
+}
+
+.cardGhostOrigin { opacity: 0.28; }
+
+/* Artwork fondu organiquement dans la carte (ZERO bordure autour de l'image) */
+.artCanvas {
+  position: absolute;
+  inset: 0 0 34% 0;
+  z-index: 1;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.22) 0%, #000 18%, #000 58%, transparent 100%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.22) 0%, #000 18%, #000 58%, transparent 100%);
+}
+
+.cardArtImg {
+  object-fit: cover;
+  object-position: center 22%;
+  animation: artBreath 7.5s ease-in-out infinite;
+  animation-delay: var(--sheen-delay, 0s);
+  transition: transform 280ms ease;
+}
+
+@keyframes artBreath {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.05); }
+}
+
+.artifactCard:hover .cardArtImg {
+  animation-play-state: paused;
+  transform: scale(1.1);
+}
+
+/* GRAND MOTIF NDOP COLORÉ PLEIN-CADRE (HÉROS DE LA CARTE !) */
+.cardMotifSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px var(--c-glow));
+  animation: motifGlowPulse 4.2s ease-in-out infinite;
+  animation-delay: var(--sheen-delay, 0s);
+  transition: filter 200ms ease, transform 220ms ease;
+}
+
+.rCommon {
+  box-shadow:
+    0 10px 20px rgba(0, 0, 0, 0.6),
+    0 0 12px color-mix(in srgb, var(--c-glow) 22%, transparent);
+}
+
+.rRare {
+  box-shadow:
+    0 12px 24px rgba(0, 0, 0, 0.64),
+    0 0 22px rgba(150, 212, 255, 0.34),
+    inset 0 0 16px rgba(185, 224, 255, 0.12);
+}
+
+.rEpic {
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.68),
+    0 0 26px color-mix(in srgb, var(--c-glow) 56%, rgba(255, 214, 110, 0.44)),
+    inset 0 0 20px rgba(255, 217, 114, 0.16);
+}
+
+.rLegendary {
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.76),
+    0 0 34px rgba(255, 224, 90, 0.64),
+    inset 0 0 26px rgba(255, 224, 90, 0.22);
+}
+
+.rRare .cardMotifSvg {
+  filter: drop-shadow(0 0 7px rgba(164, 218, 255, 0.56));
+}
+
+.rEpic .cardMotifSvg {
+  filter: drop-shadow(0 0 9px rgba(255, 214, 110, 0.65));
+  animation-duration: 3.4s;
+}
+
+.rLegendary .cardMotifSvg {
+  filter: drop-shadow(0 0 12px rgba(255, 226, 92, 0.84));
+  animation-duration: 2.6s;
+}
+
+.cardMotifSvg :global(.nj-motif-sunburst),
+.slotMotifSvg :global(.nj-motif-sunburst),
+.heroMotifSvg :global(.nj-motif-sunburst) {
+  animation: motifSunSpin 24s linear infinite;
+}
+
+@keyframes motifSunSpin {
+  to { transform: rotate(360deg); }
+}
+
+.artifactCard:hover .cardMotifSvg {
+  filter: brightness(1.32) drop-shadow(0 0 12px var(--c-glow));
+}
+
+@keyframes motifGlowPulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 1; filter: brightness(1.18) drop-shadow(0 0 10px var(--c-glow)); }
+}
+
+/* Balayage holographique glissant sur le motif */
+.cardHoloSweep {
+  position: absolute;
+  inset: -45%;
+  width: 34%;
+  background: linear-gradient(112deg, transparent, rgba(255, 250, 224, 0.12) 50%, transparent);
+  transform: translateX(-180%);
+  animation: ndopHolo 6.2s ease-in-out infinite;
+  animation-delay: var(--sheen-delay, 0s);
+  pointer-events: none;
+  z-index: 3;
+}
+
+.rRare .cardHoloSweep {
+  background: linear-gradient(112deg, transparent, rgba(214, 236, 255, 0.28) 50%, transparent);
+  animation-duration: 5.2s;
+}
+
+.rEpic .cardHoloSweep {
+  background: linear-gradient(112deg, transparent, rgba(255, 224, 132, 0.32) 48%, rgba(255, 246, 218, 0.38) 52%, transparent);
+  animation-duration: 4.4s;
+}
+
+.rLegendary .cardHoloSweep {
+  background: linear-gradient(112deg, transparent, rgba(255, 232, 118, 0.42) 46%, rgba(255, 255, 235, 0.56) 52%, transparent);
+  animation-duration: 3.4s;
+}
+
+@keyframes ndopHolo {
+  0%, 66% { transform: translateX(-180%); }
+  94%, 100% { transform: translateX(460%); }
+}
+
+/* Haut de carte épuré (laisse le grand blason central 100% dégagé) */
+.cardTopMeta {
+  position: relative;
+  z-index: 5;
+  padding: 5px 5px 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+
+.rarityStars {
+  color: var(--c-secondary, #ffe573);
+  font-size: 8.5px;
+  font-weight: 950;
+  letter-spacing: 0.04em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.92), 0 0 8px var(--c-glow);
+}
+
+.equippedDot {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #4df5d8, #14b596);
+  color: #04221c;
+  font-size: 11px;
+  font-weight: 950;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.65);
+}
+
+/* Grande poignée tactile pouce-friendly pour drag immédiat sur mobile (touch-action: none !) */
+.dragHandleTouch {
+  width: 28px;
+  height: 24px;
+  border-radius: 8px;
+  background: rgba(8, 10, 18, 0.84);
+  color: var(--c-secondary, #ffe573);
+  font-size: 12px;
+  font-weight: 950;
+  display: grid;
+  place-items: center;
+  touch-action: none;
+  cursor: grab;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.6);
+}
+
+.lockMark {
+  font-size: 11px;
+  opacity: 0.9;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.85));
+}
+
+/* Bas de carte flottant sur le grand motif coloré */
+.cardBottomInfo {
+  position: relative;
+  z-index: 5;
+  padding: 0 7px 11px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  background: linear-gradient(180deg, transparent 0%, rgba(6, 7, 12, 0.72) 55%, rgba(6, 7, 12, 0.88) 100%);
+}
+
+.typeEmblem {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 18, 28, 0.92), rgba(6, 8, 14, 0.96));
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.75), 0 0 12px var(--c-glow);
+  margin-bottom: 1px;
+}
+
+.cardTypeName {
+  color: var(--c-secondary, #ffe573);
+  font-size: 8px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
+}
+
+.cardTitle {
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(10.5px, 2.4vw, 12.5px);
+  font-weight: 950;
+  line-height: 1.08;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.98);
+}
+
+/* ═══ CARTE FANTÔME PENDANT DRAG & DROP ═══ */
+.dragGhost {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 9999;
+  width: 96px;
+  aspect-ratio: 3 / 4.25;
+  border-radius: 15px;
+  background: linear-gradient(170deg, var(--c-top, #1a1626), var(--c-bot, #0a0b14));
+  overflow: hidden;
+  pointer-events: none;
+  box-shadow: 0 26px 52px rgba(0, 0, 0, 0.78), 0 0 40px var(--c-glow, rgba(255, 207, 64, 0.7));
+  will-change: transform;
+}
+
+.ghostTitle {
+  position: absolute;
+  bottom: 8px;
+  left: 6px;
+  right: 6px;
+  z-index: 4;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 10.5px;
+  font-weight: 950;
+  text-align: center;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+}
+
+/* ═══ GRANDE CARTE HÉROS INSPECTEUR 3D (SANS BORDURE, GRAND MOTIF COLORÉ) ═══ */
+.inspectorStage {
+  position: relative;
+  display: grid;
+  place-items: center;
+  padding: 4px 0;
+  perspective: 900px;
+}
+
+.inspectorSunburst {
+  position: absolute;
+  width: 224px;
+  height: 224px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--c-primary, #ffcf40) 26%, transparent) 0deg 12deg,
+    transparent 12deg 28deg
+  );
+  animation: slowSpin 18s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes slowSpin {
+  to { transform: rotate(360deg); }
+}
+
+.tiltCardShell {
+  position: relative;
+  z-index: 2;
+  transform: rotateX(var(--rx, 0deg)) rotateY(var(--ry, 0deg));
+  transition: transform 120ms ease-out;
+}
+
+.heroArtifactCard {
+  position: relative;
+  width: 162px;
+  aspect-ratio: 3 / 4.25;
+  border-radius: 20px;
+  border: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  background:
+    radial-gradient(ellipse 90% 65% at 50% 82%, color-mix(in srgb, var(--c-primary) 32%, transparent), transparent 72%),
+    linear-gradient(172deg, var(--c-top, #1a1628) 0%, var(--c-bot, #090a12) 100%);
+  box-shadow:
+    0 22px 44px rgba(0, 0, 0, 0.72),
+    0 0 38px var(--c-glow);
+}
+
+.heroArtMask {
+  position: absolute;
+  inset: 0 0 34% 0;
+  z-index: 1;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.26) 0%, #000 18%, #000 58%, transparent 100%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.26) 0%, #000 18%, #000 58%, transparent 100%);
+}
+
+.heroArtImg { object-fit: cover; object-position: center 22%; }
+
+.heroMotifSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 0 9px var(--c-glow));
+}
+
+.specularGlare {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at var(--gx, 50%) var(--gy, 35%), rgba(255, 250, 228, 0.28), transparent 54%);
+  pointer-events: none;
+  z-index: 6;
+}
+
+.heroTopRow {
+  position: relative;
+  z-index: 5;
+  padding: 9px 10px 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.heroStars {
+  color: var(--c-secondary, #ffe573);
+  font-size: 10px;
+  font-weight: 950;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
+}
+
+.heroRarityLabel {
+  color: var(--c-secondary, #ffe573);
+  font-size: 9px;
+  font-weight: 950;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95);
+}
+
+.heroBottomInfo {
+  position: relative;
+  z-index: 5;
+  padding: 6px 10px 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 2px;
+  background: linear-gradient(180deg, transparent 0%, rgba(6, 7, 12, 0.72) 55%, rgba(6, 7, 12, 0.9) 100%);
+}
+
+.heroIconHalo {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(16, 18, 28, 0.94), rgba(6, 8, 14, 0.98));
+  display: grid;
+  place-items: center;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.8), 0 0 16px var(--c-glow);
+  margin-bottom: 2px;
+}
+
+.heroCatLabel {
+  color: var(--c-secondary, #ffe573);
+  font-size: 9px;
+  font-weight: 950;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.heroBottomInfo strong {
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 14.5px;
+  font-weight: 950;
+  line-height: 1.08;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, 0.95);
+}
+
+/* Boutons d'action 3D inspecteur */
+.inspectorCta {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 44px;
+  border-radius: 14px;
+  font-family: var(--font-display), sans-serif;
+  font-size: 14px;
+  font-weight: 950;
+  cursor: pointer;
+  transition: transform 110ms ease, filter 140ms ease;
+}
+
+.inspectorCta:hover { filter: brightness(1.07); transform: translateY(-1px); }
+.inspectorCta:active { transform: translateY(2px); }
+
+.ctaEquip {
+  border: 1.5px solid #96ffec;
+  background: linear-gradient(180deg, #4df5d8, #16c9a8 60%, #0b9179);
+  color: #04221c;
+  box-shadow: 0 4px 0 #055748;
+}
+
+.ctaRemove {
+  border: 1.5px solid #ff9eb5;
+  background: linear-gradient(180deg, #ff668c, #d92652);
+  color: #fff;
+  box-shadow: 0 4px 0 #7a102b;
+}
+
+.ctaShop {
+  border: 1.5px solid #fff2b2;
+  background: linear-gradient(180deg, #ffe370, #f0a81b 60%, #c97308);
+  color: #241203;
+  box-shadow: 0 4px 0 #703903;
+}
+
+.ctaSheen {
+  position: absolute;
+  inset: 0;
+  width: 34%;
+  background: linear-gradient(108deg, transparent, rgba(255, 255, 255, 0.48) 50%, transparent);
+  transform: translateX(-160%);
+  animation: btnSweep 4.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes btnSweep {
+  0%, 64% { transform: translateX(-160%); }
+  92%, 100% { transform: translateX(380%); }
+}
+
+.statusOwned { color: #56f7d6; font-size: 11px; font-weight: 900; }
+.statusLocked { color: #ffe573; font-size: 11px; font-weight: 850; }
+
+/* État vide */
+.emptyBinder {
+  height: 100%;
+  min-height: 200px;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 8px;
+  text-align: center;
+  padding: 20px;
+}
+.emptyBinder p { margin: 0; max-width: 280px; color: #b0cdc2; font-size: 12.5px; }
+.emptyShopBtn {
+  margin-top: 6px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: 13px;
+  border: 1.5px solid #fff2b2;
+  background: linear-gradient(180deg, #ffe370, #f0a81b);
+  color: #241203;
+  font-family: var(--font-display), sans-serif;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 4px 0 #703903;
+}
+
+/* Modale mobile */
+.mobileInspectorBody {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+.mobileInspectDesc { margin: 0; color: #f4ebd8; font-size: 13.5px; line-height: 1.48; }
+
+/* ═══ DESKTOP (>= 900px) ═══ */
+@media (min-width: 900px) {
+  .builderGrid {
+    display: grid;
+    grid-template-columns: minmax(282px, 326px) minmax(0, 1fr);
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .deckColumn { min-height: 0; overflow: hidden; }
+
+  .feltDeckTray {
+    flex: 0 0 auto;
+    padding: 10px 12px 13px;
+  }
+
+  .deckSlotsRow {
+    gap: 12px;
+  }
+
+  .deckSlotZone {
+    width: 82px;
+  }
+
+  .desktopInspector {
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 12px 14px;
+    border-radius: 22px;
+    border: 1px solid rgba(255, 212, 92, 0.28);
+    background:
+      radial-gradient(ellipse 80% 48% at 50% 24%, rgba(255, 207, 64, 0.14), transparent 64%),
+      linear-gradient(168deg, rgba(28, 22, 34, 0.96), rgba(10, 11, 16, 0.98));
+    box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.14), 0 14px 30px rgba(0, 0, 0, 0.48);
+    overflow: hidden;
+  }
+
+  .inspectorCopy { display: grid; gap: 7px; }
+
+  .inspectorHeadLine {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+  }
+
+  .inspectorTypeLabel {
+    font-size: 11px;
+    font-weight: 950;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+  }
+
+  .inspectorDesc {
+    margin: 0;
+    color: #e4f0ea;
+    font-size: 12px;
+    line-height: 1.42;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+}
+
+@media (min-width: 900px) and (max-height: 760px) {
+  .deckSlotZone { width: 70px; }
+  .heroArtifactCard { width: 136px; }
+  .inspectorSunburst { width: 184px; height: 184px; }
+  .desktopInspector { padding: 10px 12px; gap: 6px; }
+}
+
+/* Respect du réglage animations */
+.motionReduced .cardHoloSweep,
+.motionReduced .inspectorSunburst,
+.motionReduced .ctaSheen,
+.motionReduced .cardMotifSvg,
+.motionReduced .cardMotifSvg :global(.nj-motif-sunburst),
+.motionReduced .slotMotifSvg :global(.nj-motif-sunburst),
+.motionReduced .heroMotifSvg :global(.nj-motif-sunburst),
+.motionReduced .cardArtImg,
+.motionReduced .emptyDeckSlot {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cardHoloSweep,
+  .inspectorSunburst,
+  .ctaSheen,
+  .cardMotifSvg,
+  .cardMotifSvg :global(.nj-motif-sunburst),
+  .slotMotifSvg :global(.nj-motif-sunburst),
+  .heroMotifSvg :global(.nj-motif-sunburst),
+  .cardArtImg,
+  .emptyDeckSlot {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 540px) {
+  .backLabel { display: none; }
+  .backBtn { width: 36px; padding: 0; justify-content: center; }
+  .feltDeckTray { padding: 8px 10px 10px; gap: 6px; }
+  .deckSlotZone { width: clamp(64px, 21vw, 78px); }
+  .dragTip { font-size: 9px; padding: 2px 7px; }
+  .cardTopMeta { padding: 5px 5px 0; }
+  .cardBottomInfo { padding: 0 5px 9px; }
+  .typeEmblem { width: 22px; height: 22px; }
+}

@@ -7,6 +7,9 @@
 
 import { initializeApp, getApps } from "firebase/app";
 import { getAuth } from "firebase/auth";
+import { ensureRandomUUIDPolyfill } from "@/lib/cryptoUtils";
+
+ensureRandomUUIDPolyfill();
 
 /* ── Config Firebase (variables d'environnement) ── */
 const firebaseConfig = {

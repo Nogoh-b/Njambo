@@ -5,9 +5,15 @@
    Même forme de retour ({ data }) pour minimiser le diff des appelants.
    Un idempotencyKey est ajouté automatiquement s'il n'est pas fourni. */
 
+import { generateSecureId } from "@/lib/cryptoUtils";
 import { auth } from "@/lib/firebase";
 
-export const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? "http://localhost:8081").replace(/\/$/, "");
+const defaultLocalBackend =
+  typeof window !== "undefined" && window.location.hostname
+    ? `http://${window.location.hostname}:8081`
+    : "http://localhost:8081";
+
+export const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? defaultLocalBackend).replace(/\/$/, "");
 
 export class BackendError extends Error {
   constructor(readonly code: string, message: string) {
@@ -23,7 +29,7 @@ export async function callBackend<T = unknown>(name: string, payload: Record<str
   const response = await fetch(`${BACKEND_URL}/api/${name}`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ idempotencyKey: `${name}_${crypto.randomUUID()}`, ...payload }),
+    body: JSON.stringify({ idempotencyKey: `${name}_${generateSecureId(24)}`, ...payload }),
   });
   if (!response.ok) {
     const body = await response.json().catch(() => ({} as Record<string, unknown>));

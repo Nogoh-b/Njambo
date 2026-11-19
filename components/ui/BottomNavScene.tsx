@@ -18,20 +18,26 @@ interface BottomNavSceneProps {
    * doublon et sa réserve de hauteur est la plus chère de l'écran.
    */
   dock?: boolean;
+  /**
+   * Autorise le scroll global du contenu. À passer à `false` sur les écrans
+   * de jeu verrouillés au viewport (seules les listes internes défilent).
+   */
+  scroll?: boolean;
   className?: string;
   contentClassName?: string;
 }
 
 /**
  * Scène de base pour tous les écrans avec navigation principale.
- * Elle occupe exactement le viewport : seul le contenu défile, le dock reste
- * fixé au viewport et son espace est réservé jusque dans la safe area.
+ * Elle occupe exactement le viewport : le dock reste fixé au viewport
+ * et son espace est réservé jusque dans la safe area.
  */
 export function BottomNavScene({
   children,
   active,
   narrow = false,
-  dock = true,
+  dock = false,
+  scroll = false,
   className,
   contentClassName,
 }: BottomNavSceneProps) {
@@ -40,8 +46,8 @@ export function BottomNavScene({
 
   return (
     <Shell>
-      <div className={`nj-safe nj-bottom-nav-scene ${styles.scene}${narrow ? ` nj-bottom-nav-scene--narrow ${styles.narrow}` : ""}${dock ? "" : ` ${styles.noDock}`}${className ? ` ${className}` : ""}`}>
-        <div className={`nj-bottom-nav-scene-scroll ${styles.scroll}${contentClassName ? ` ${contentClassName}` : ""}`}>
+      <div className={`nj-safe nj-bottom-nav-scene ${styles.scene}${narrow ? ` nj-bottom-nav-scene--narrow ${styles.narrow}` : ""}${dock ? "" : ` ${styles.noDock}`}${scroll ? "" : ` ${styles.locked}`}${className ? ` ${className}` : ""}`}>
+        <div className={`nj-bottom-nav-scene-scroll ${styles.scroll}${scroll ? "" : ` ${styles.scrollLocked}`}${contentClassName ? ` ${contentClassName}` : ""}`}>
           {children}
         </div>
         {dock && <BottomNav active={resolvedActive} />}

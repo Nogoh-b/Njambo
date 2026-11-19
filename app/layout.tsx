@@ -4,6 +4,7 @@ import "./layout-tokens.css";
 import "./globals.css";
 import "./ter-nocturne.css";
 import "./mboa-solar.css";
+import "./salon-royal.css";
 import { PwaRegistration } from "@/components/PwaRegistration";
 import { GxeRoot } from "@/components/GxeRoot";
 
@@ -31,7 +32,7 @@ export const viewport: Viewport = {
   initialScale: 1,
   viewportFit: "cover",
   userScalable: true,
-  themeColor: "#fff8e8",
+  themeColor: "#061b16",
 };
 
 export default function RootLayout({

@@ -1,16 +1,15 @@
 "use client";
 
-/* ═══════════════ DeckZone — pioche + pot + tendance ═══════════════
-   Extraction du « pot-cluster » inline de TableScreen. Expose deux handles :
-   - "deck" : rect de la pioche + pulse (échanges Vent du Nord/Marché de Nuit) ;
+/* ═══════════════ DeckZone — pioche 3D discrète + médaillon Pot ═══════════════
+   Version épurée « Salon Royal » : libère le centre du tapis tout en exposant
+   exactement les deux handles du ZoneRegistry :
+   - "deck" : rect de la pioche + pulse (échanges Vent du Nord / Marché de Nuit) ;
    - "pot"  : rect du pot + flash avec label (« +200 », « ×2 »…). */
 
 import { memo, useRef, useState } from "react";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { NjamboIcon } from "@/components/ui/Art";
-import { Chip } from "@/components/ui/Chip";
 import { displayFont } from "@/components/ui/Shell";
-import { T } from "@/config/theme";
 import { NKAP } from "@/data/mock";
 import { useRegisterZone } from "./ZoneRegistry";
 
@@ -24,17 +23,17 @@ interface DeckZoneProps {
   motionEnabled: boolean;
   premiumFxAllowed: boolean;
   liteMotion: boolean;
+  portrait?: boolean;
 }
 
 export const DeckZone = memo(function DeckZone({
   deckW,
   pot,
-  ledSuit,
-  ledColor,
   dealing,
   motionEnabled,
   premiumFxAllowed,
   liteMotion,
+  portrait = false,
 }: DeckZoneProps) {
   const deckRef = useRef<HTMLDivElement>(null);
   const potRef = useRef<HTMLDivElement>(null);
@@ -61,53 +60,80 @@ export const DeckZone = memo(function DeckZone({
     },
   });
 
+  const visualDeckW = Math.round(deckW * (portrait ? 0.78 : 0.88));
+
   return (
     <div
       className={motionEnabled && !liteMotion && dealing ? "nj-pot-cluster nj-pot-cluster-ready" : "nj-pot-cluster"}
       style={{
         position: "absolute",
-        top: "45%",
+        top: portrait ? "45.5%" : "45%",
         left: "50%",
         transform: "translate(-50%,-50%)",
         display: "flex",
         alignItems: "center",
-        gap: 14,
+        gap: portrait ? 8 : 12,
         zIndex: 5,
+        pointerEvents: "none",
       }}
     >
+      {/* Pioche 3D empilée (3 épaisseurs subtiles — pulse pendant la donne) */}
       <div
         ref={deckRef}
         style={{
           position: "relative",
+          transform: "rotate(-6deg)",
           animation:
-            motionEnabled && ((premiumFxAllowed && dealing) || pulsing)
-              ? "deckDeal .26s infinite"
+            motionEnabled && (dealing || pulsing)
+              ? "deckDeal .22s ease-in-out infinite"
               : "none",
+          willChange: dealing || pulsing ? "transform" : undefined,
         }}
       >
-        <div style={{ position: "absolute", top: -3, left: 3, zIndex: -1 }}>
-          <PlayCard hidden w={deckW} />
+        <div style={{ position: "absolute", top: -4, left: 4, zIndex: -2, opacity: 0.72 }}>
+          <PlayCard hidden w={visualDeckW} />
         </div>
-        <PlayCard hidden w={deckW} />
+        <div style={{ position: "absolute", top: -2, left: 2, zIndex: -1, opacity: 0.88 }}>
+          <PlayCard hidden w={visualDeckW} />
+        </div>
+        <div style={{ borderRadius: Math.max(8, visualDeckW * 0.14), boxShadow: "0 10px 18px rgba(0, 0, 0, 0.58)" }}>
+          <PlayCard hidden w={visualDeckW} />
+        </div>
       </div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 6, alignItems: "flex-start" }}>
-        <div ref={potRef} style={{ position: "relative" }}>
-          <Chip strong style={{ fontSize: 13 }}>
-            <NjamboIcon name="coin" tone="gold" size={16} />
-            <span style={{ ...displayFont, fontWeight: 900, color: T.gold }}>{NKAP(pot)}</span>
-          </Chip>
-          {potFlash && (
-            <div key={potFlash.key} className="nj-pot-flash" aria-hidden="true">
-              {potFlash.label ?? ""}
-            </div>
-          )}
-        </div>
-        <Chip style={{ fontSize: 15 }}>
-          <span style={{ opacity: 0.6, fontSize: 10, letterSpacing: ".1em" }}>TENDANCE&nbsp;</span>
-          <span style={{ color: ledColor === "#c1292e" ? T.bad : "#fff", fontWeight: 900 }}>
-            {ledSuit ?? "—"}
+
+      {/* Médaillon Pot épuré posé sur le feutre (ancre des effets de pot) */}
+      <div ref={potRef} style={{ position: "relative" }}>
+        <div
+          style={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 5,
+            padding: portrait ? "4px 9px 4px 6px" : "5px 11px 5px 7px",
+            borderRadius: 999,
+            border: "1px solid rgba(255, 214, 96, 0.44)",
+            background: "rgba(6, 20, 16, 0.76)",
+            boxShadow: "inset 0 1px 0 rgba(255, 244, 200, 0.2), 0 6px 14px rgba(0, 0, 0, 0.42)",
+          }}
+        >
+          <NjamboIcon name="coin" tone="gold" size={portrait ? 14 : 16} />
+          <span
+            style={{
+              ...displayFont,
+              fontWeight: 900,
+              fontSize: portrait ? 11.5 : 13,
+              color: "#ffe88a",
+              letterSpacing: "0.02em",
+              fontVariantNumeric: "tabular-nums",
+            }}
+          >
+            {NKAP(pot)}
           </span>
-        </Chip>
+        </div>
+        {potFlash && (
+          <div key={potFlash.key} className="nj-pot-flash" aria-hidden="true">
+            {potFlash.label ?? ""}
+          </div>
+        )}
       </div>
     </div>
   );

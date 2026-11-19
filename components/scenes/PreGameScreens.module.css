@@ -13,29 +13,28 @@
   overflow: visible;
 }
 
-/* Même palette que les trois cartes rapides de l'accueil, panachée entre les
-   blocs au lieu de teinter tout un écran avec une seule couleur. */
+/* Panneaux Salon Royal Vibrant teintés par l'accent de la section. */
 .panelTone.panelTone {
-  --panel-tone: var(--nj-solar-yellow, #f5c344);
-  --panel-ink: color-mix(in srgb, var(--nj-solar-yellow-deep, #a9680c) 72%, var(--nj-solar-ink, #24372f) 28%);
-  border-color: color-mix(in srgb, var(--panel-tone) 52%, var(--nj-solar-outline, #b88e54));
+  --panel-tone: var(--sr-gold, #ffcf40);
+  --panel-ink: var(--sr-gold-bright, #fff0a8);
+  border-color: color-mix(in srgb, var(--panel-tone) 54%, rgba(255, 212, 92, 0.34));
   background:
-    radial-gradient(circle at 90% 4%, color-mix(in srgb, var(--panel-tone) 25%, transparent), transparent 38%),
-    linear-gradient(145deg, color-mix(in srgb, var(--panel-tone) 7%, #f7ead0), color-mix(in srgb, var(--panel-tone) 11%, #f2e2c1));
+    radial-gradient(circle at 90% 4%, color-mix(in srgb, var(--panel-tone) 24%, transparent), transparent 44%),
+    linear-gradient(162deg, rgba(44, 29, 21, 0.94), rgba(19, 14, 12, 0.96) 62%, rgba(10, 23, 19, 0.96));
   box-shadow:
-    inset 0 1px 0 rgba(255, 250, 232, 0.72),
-    0 10px 24px color-mix(in srgb, var(--panel-tone) 13%, rgba(35, 31, 18, 0.2));
+    inset 0 1px 0 rgba(255, 248, 224, 0.18),
+    0 12px 26px rgba(0, 0, 0, 0.44);
 }
 
 .panelTone.panelTone::before {
   background:
-    repeating-linear-gradient(135deg, transparent 0 24px, color-mix(in srgb, var(--panel-tone) 8%, transparent) 24px 26px, transparent 26px 50px);
-  opacity: 0.7;
+    repeating-linear-gradient(135deg, transparent 0 24px, color-mix(in srgb, var(--panel-tone) 7%, transparent) 24px 26px, transparent 26px 50px);
+  opacity: 0.45;
 }
 
-.panelTone.panelTeal { --panel-tone: var(--nj-solar-green, #199b68); --panel-ink: var(--nj-solar-green-deep, #116345); }
-.panelTone.panelGold { --panel-tone: var(--nj-solar-yellow, #f5c344); --panel-ink: color-mix(in srgb, var(--nj-solar-yellow-deep, #a9680c) 72%, var(--nj-solar-ink, #24372f) 28%); }
-.panelTone.panelPink { --panel-tone: var(--nj-solar-red, #e45145); --panel-ink: var(--nj-solar-red-deep, #a92f2a); }
+.panelTone.panelTeal { --panel-tone: var(--sr-teal, #1de4be); --panel-ink: #88ffea; }
+.panelTone.panelGold { --panel-tone: var(--sr-gold, #ffcf40); --panel-ink: #fff0a8; }
+.panelTone.panelPink { --panel-tone: var(--sr-pink, #ff4772); --panel-ink: #ffa3b9; }
 
 .authPanel.authPanel {
   width: min(100%, 520px);
@@ -152,21 +151,21 @@
 }
 
 .notice {
-  color: var(--nj-solar-ink, #24372f);
-  border: 1px solid rgba(242, 187, 69, 0.44);
-  background: color-mix(in srgb, var(--nj-solar-yellow, #f5c344) 16%, rgba(255, 253, 246, 0.9));
+  color: #fff2be;
+  border: 1px solid rgba(255, 207, 64, 0.48);
+  background: rgba(68, 46, 12, 0.72);
 }
 
 .error {
-  color: var(--nj-solar-red-deep, #a92f2a);
-  border: 1px solid color-mix(in srgb, var(--bad, #ff8f98) 34%, transparent);
-  background: color-mix(in srgb, var(--bad, #ff8f98) 10%, transparent);
+  color: #ffd0dc;
+  border: 1px solid rgba(255, 71, 114, 0.52);
+  background: rgba(96, 16, 36, 0.76);
 }
 
 .status {
-  color: var(--nj-text-muted, #66756d);
-  border: 1px solid rgba(118, 80, 51, 0.2);
-  background: rgba(255, 253, 246, 0.7);
+  color: var(--sr-muted, #b0cdc2);
+  border: 1px solid rgba(255, 212, 92, 0.24);
+  background: rgba(14, 24, 20, 0.78);
 }
 
 .listBody {
@@ -196,15 +195,15 @@
 
 .playerCard.playerCard,
 .roomCard.roomCard {
-  --player-card-tone: var(--panel-tone, var(--pre-game-accent, #f5c344));
+  --player-card-tone: var(--panel-tone, var(--pre-game-accent, #ffcf40));
   position: relative;
   overflow: hidden;
-  color: var(--nj-solar-ink, #24372f);
-  border-color: color-mix(in srgb, var(--player-card-tone) 48%, var(--nj-solar-outline, #b88e54));
+  color: var(--sr-ivory, #fff8ea);
+  border-color: color-mix(in srgb, var(--player-card-tone) 54%, rgba(255, 212, 92, 0.32));
   background:
-    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--player-card-tone) 18%, transparent), transparent 40%),
-    linear-gradient(145deg, rgba(255, 253, 246, 0.96), color-mix(in srgb, var(--player-card-tone) 7%, #f2e2c1));
-  box-shadow: inset 0 1px 0 white, 0 7px 16px rgba(35, 31, 18, 0.15);
+    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--player-card-tone) 22%, transparent), transparent 44%),
+    linear-gradient(155deg, rgba(44, 29, 21, 0.94), rgba(16, 13, 11, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.16), 0 8px 18px rgba(0, 0, 0, 0.38);
 }
 
 .playerCard.playerCard::before,
@@ -238,25 +237,25 @@
 
 .playerCard.playerCard:global(.is-active),
 .roomCard.roomCard:global(.is-active) {
-  border-color: color-mix(in srgb, var(--player-card-tone) 72%, var(--nj-solar-outline, #b88e54));
+  border-color: color-mix(in srgb, var(--player-card-tone) 82%, #fff0b8);
   background:
-    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--player-card-tone) 24%, transparent), transparent 42%),
-    linear-gradient(145deg, rgba(255, 253, 246, 0.98), color-mix(in srgb, var(--player-card-tone) 10%, #f2e2c1));
-  box-shadow: inset 0 1px 0 white, 0 9px 20px color-mix(in srgb, var(--player-card-tone) 15%, rgba(35, 31, 18, 0.16));
+    radial-gradient(circle at 92% 4%, color-mix(in srgb, var(--player-card-tone) 34%, transparent), transparent 46%),
+    linear-gradient(155deg, color-mix(in srgb, var(--player-card-tone) 24%, #2b1d16), rgba(16, 13, 11, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.24), 0 10px 22px rgba(0, 0, 0, 0.44);
 }
 
 .playerCard.playerCard:hover:not(:disabled),
 .roomCard.roomCard:hover:not(:disabled) {
-  border-color: color-mix(in srgb, var(--player-card-tone) 70%, var(--nj-solar-outline, #b88e54));
-  box-shadow: inset 0 1px 0 white, 0 11px 22px color-mix(in srgb, var(--player-card-tone) 16%, rgba(35, 31, 18, 0.18));
+  border-color: color-mix(in srgb, var(--player-card-tone) 78%, #fff0b8);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.22), 0 12px 24px rgba(0, 0, 0, 0.46);
 }
 
 .playerCard.playerCard:disabled,
 .roomCard.roomCard:disabled {
-  opacity: 0.58;
-  filter: saturate(0.58);
+  opacity: 0.52;
+  filter: saturate(0.5);
   cursor: not-allowed;
-  box-shadow: inset 0 1px 0 white, 0 5px 11px rgba(35, 31, 18, 0.12);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.08), 0 5px 11px rgba(0, 0, 0, 0.3);
 }
 
 .playerCard {
@@ -327,10 +326,10 @@
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  border: 1px solid rgba(169, 104, 12, 0.3);
+  border: 1px solid rgba(255, 207, 64, 0.42);
   border-radius: 12px;
-  background: rgba(255, 255, 255, 0.68);
-  box-shadow: 0 5px 12px rgba(76, 61, 34, 0.12);
+  background: rgba(16, 24, 21, 0.85);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.36);
 }
 
 .joinCopy {
@@ -340,8 +339,8 @@
 }
 
 .joinCopy small {
-  color: var(--nj-solar-muted, #66756d);
-  font-size: 0.7rem;
+  color: var(--sr-muted, #b0cdc2);
+  font-size: 0.72rem;
 }
 
 .joinControls {
@@ -360,12 +359,10 @@
   letter-spacing: 0.1em;
   text-align: center;
   text-transform: uppercase;
-  color: var(--nj-solar-ink, #24372f);
-  border-color: rgba(169, 104, 12, 0.36);
-  background:
-    repeating-linear-gradient(90deg, transparent 0 24px, rgba(245, 195, 68, 0.055) 24px 26px),
-    rgba(255, 253, 246, 0.92);
-  box-shadow: inset 0 1px 0 white;
+  color: var(--sr-gold-bright, #fff0a8);
+  border-color: rgba(255, 207, 64, 0.45);
+  background: rgba(8, 18, 15, 0.86);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
 }
 
 .summaryRow,
@@ -443,24 +440,24 @@
   display: grid;
   flex: 0 0 auto;
   place-items: center;
-  border: 2px solid color-mix(in srgb, var(--player-card-tone, var(--nj-solar-red, #e45145)) 42%, var(--nj-solar-outline, #b88e54));
+  border: 2px solid color-mix(in srgb, var(--player-card-tone, var(--sr-pink, #ff4772)) 58%, rgba(255, 212, 92, 0.4));
   border-radius: 9px;
-  background: rgba(255, 253, 246, 0.82);
+  background: rgba(10, 18, 15, 0.76);
 }
 
 .selectMarkActive {
-  border-color: var(--panel-ink, var(--nj-solar-red-deep, #a92f2a));
-  background: var(--panel-ink, var(--nj-solar-red-deep, #a92f2a));
+  border-color: #ffa3b9;
+  background: var(--sr-pink, #ff4772);
 }
 
 .roomCode {
   min-width: 0;
   padding: 9px 13px;
   overflow: hidden;
-  color: var(--nj-solar-yellow-deep, #a9680c);
-  border: 1px solid rgba(118, 80, 51, 0.24);
+  color: var(--sr-gold-bright, #fff0a8);
+  border: 1.5px solid rgba(255, 207, 64, 0.46);
   border-radius: var(--nj-radius-md, 16px);
-  background: rgba(255, 253, 246, 0.8);
+  background: rgba(8, 18, 15, 0.86);
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: clamp(1rem, 4vw, 1.35rem);
   font-weight: 900;
@@ -853,23 +850,21 @@
   justify-content: center;
   gap: 9px;
   padding: 10px 14px;
-  color: var(--nj-text-muted, #66756d);
-  border: 1px dashed color-mix(in srgb, var(--panel-tone, #e45145) 42%, var(--nj-solar-outline, #b88e54));
+  color: var(--sr-muted, #b0cdc2);
+  border: 1px dashed color-mix(in srgb, var(--panel-tone, #ff4772) 52%, rgba(255, 212, 92, 0.34));
   border-radius: 13px;
-  background: color-mix(in srgb, var(--panel-tone, #e45145) 6%, rgba(255, 253, 246, 0.7));
+  background: rgba(10, 18, 15, 0.72);
   font-size: 0.8rem;
   text-align: left;
 }
 
-/* Élément réel plutôt qu'un `mask-image` sur le défileur : un masque
-   rognerait les anneaux de focus des tuiles. */
 .stripFade {
   position: absolute;
   inset-block: 0;
   right: 0;
   width: 26px;
   pointer-events: none;
-  background: linear-gradient(90deg, transparent, color-mix(in srgb, var(--panel-tone, #e45145) 8%, #f2e2c1));
+  background: linear-gradient(90deg, transparent, rgba(16, 13, 11, 0.94));
 }
 
 @media (max-height: 700px) {

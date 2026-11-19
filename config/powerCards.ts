@@ -1,6 +1,7 @@
 import type { PowerCardDef, PowerCardId } from "../types/game";
 import { POWER_MODULES } from "./powers";
 
+
 /**
  * Les définitions vivent désormais dans `config/powers/<id>.ts` (un module
  * par carte : def + script déclaratif). Ce fichier reste le point d'entrée

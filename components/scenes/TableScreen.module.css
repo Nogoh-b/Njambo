@@ -1,0 +1,578 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   TableScreen — HUD « Salon Royal Épuré » (Capsule haute, Ligne tactique,
+   Réactions rétractables et Modales émeraude/acajou/laiton)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.helpBtn {
+  width: 40px;
+  height: 40px;
+  min-width: 40px;
+  min-height: 40px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 214, 96, 0.36);
+  background:
+    radial-gradient(circle at 50% 18%, rgba(255, 214, 96, 0.16), transparent 62%),
+    rgba(10, 22, 18, 0.86);
+  color: #fff4d6;
+  font-family: var(--font-display), sans-serif;
+  font-size: 16px;
+  font-weight: 950;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.45);
+  transition: transform 110ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.helpBtnNew {
+  border-color: #ffe573;
+  color: #ffe573;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.48), 0 0 16px rgba(255, 207, 64, 0.44);
+}
+
+.helpBtn:hover {
+  border-color: #ffe573;
+  background: rgba(255, 207, 64, 0.18);
+}
+
+.helpBtn:active {
+  transform: scale(0.94);
+}
+
+/* ── CAPSULE CENTRALE UNIFIÉE (5 billes de tours + Ngata · Pot · Tendance) ── */
+.royalCapsule {
+  justify-self: center;
+  max-width: 100%;
+  height: 38px;
+  padding: 0 12px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 214, 96, 0.48);
+  background:
+    radial-gradient(ellipse 80% 90% at 50% 0%, rgba(255, 214, 96, 0.14), transparent 64%),
+    rgba(8, 20, 16, 0.88);
+  backdrop-filter: blur(8px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.2),
+    0 8px 22px rgba(0, 0, 0, 0.5);
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  white-space: nowrap;
+  overflow: hidden;
+  transition: border-color 280ms ease, box-shadow 280ms ease;
+}
+
+.royalCapsuleFinal {
+  border-color: #ffe573;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.35),
+    0 8px 22px rgba(0, 0, 0, 0.55),
+    0 0 22px rgba(255, 207, 64, 0.36);
+}
+
+.trickDots {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.trickDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.18);
+  transition: transform 220ms ease, background 220ms ease, box-shadow 220ms ease;
+}
+
+.trickDotDone {
+  background: #1de4be;
+  box-shadow: 0 0 7px rgba(29, 228, 190, 0.62);
+}
+
+.trickDotNow {
+  width: 9px;
+  height: 9px;
+  background: #ffcf40;
+  box-shadow: 0 0 0 2.5px rgba(255, 207, 64, 0.32), 0 0 10px rgba(255, 207, 64, 0.85);
+}
+
+.trickCrown {
+  display: inline-grid;
+  place-items: center;
+  opacity: 0.45;
+  transform: scale(0.92);
+  transition: opacity 220ms ease, transform 220ms ease, filter 220ms ease;
+}
+
+.trickCrownLive {
+  opacity: 1;
+  transform: scale(1.16);
+  filter: drop-shadow(0 0 8px rgba(255, 207, 64, 0.85));
+}
+
+.capsuleSep {
+  width: 1px;
+  height: 16px;
+  background: rgba(255, 232, 168, 0.22);
+  flex: 0 0 auto;
+}
+
+.capsulePot {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(11.5px, 3vw, 13.5px);
+  font-weight: 950;
+  color: #ffe88a;
+  font-variant-numeric: tabular-nums;
+}
+
+.capsuleSuit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 24px;
+  height: 24px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 240, 190, 0.22);
+  color: #fffaf0;
+  font-size: 14px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+.capsuleSuitRed {
+  color: #ff6279;
+  border-color: rgba(255, 98, 121, 0.42);
+  background: rgba(255, 71, 114, 0.14);
+}
+
+.capsuleSuitEmpty {
+  color: rgba(255, 248, 234, 0.44);
+  font-size: 11px;
+}
+
+/* ── LIGNE TACTIQUE FINE (1 SEULE LIGNE PROPRE) ── */
+.turnPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 13px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 214, 96, 0.62);
+  background: rgba(8, 20, 16, 0.9);
+  backdrop-filter: blur(6px);
+  color: #fff9e6;
+  font-size: clamp(11px, 2.9vw, 12.5px);
+  font-weight: 850;
+  letter-spacing: 0.01em;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.52),
+    0 0 18px rgba(255, 207, 64, 0.24);
+  white-space: nowrap;
+}
+
+.turnPillFinal {
+  border-color: #ffe573;
+  background: linear-gradient(125deg, rgba(64, 34, 10, 0.94), rgba(14, 24, 18, 0.94));
+  color: #fff4be;
+  box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.56),
+    0 0 24px rgba(255, 207, 64, 0.42);
+}
+
+.turnDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #1de4be;
+  box-shadow: 0 0 8px #1de4be;
+  flex: 0 0 auto;
+}
+
+.turnPillFinal .turnDot {
+  background: #ffcf40;
+  box-shadow: 0 0 10px #ffcf40;
+}
+
+.suitRed { color: #ff6b80; font-weight: 950; }
+.suitLight { color: #ffffff; font-weight: 950; }
+.beatTag { color: #ffe573; font-weight: 950; }
+
+/* ── RÉACTIONS ÉMOJI RÉTRACTABLES (EN LIGNE / AMIS) ── */
+.reactionDock {
+  position: absolute;
+  left: max(10px, env(safe-area-inset-left));
+  top: calc(54px + env(safe-area-inset-top));
+  z-index: 54;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.reactionToggle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 214, 96, 0.36);
+  background: rgba(10, 22, 18, 0.84);
+  font-size: 17px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.44);
+  transition: transform 120ms ease, border-color 150ms ease;
+}
+
+.reactionToggle:hover {
+  border-color: #ffe573;
+  transform: scale(1.06);
+}
+
+.reactionPopover {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 5px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 96, 0.45);
+  background: rgba(8, 20, 16, 0.94);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.56);
+}
+
+.reactionEmojiBtn {
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  font-size: 17px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 110ms ease, background 120ms ease;
+}
+
+.reactionEmojiBtn:hover,
+.reactionEmojiBtn:active {
+  transform: scale(1.22);
+  background: rgba(255, 207, 64, 0.16);
+}
+
+/* ── MODALES SALON ROYAL EN PARTIE (APERÇU POUVOIR · QUITTER · RÈGLES) ── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 84;
+  background: rgba(3, 10, 8, 0.78);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  padding: 18px;
+}
+
+.modalCard {
+  background:
+    radial-gradient(ellipse 85% 42% at 50% 0%, rgba(255, 207, 64, 0.14), transparent 62%),
+    linear-gradient(168deg, #1b2d26 0%, #0d1814 58%, #09110e 100%);
+  border: 1.5px solid rgba(255, 214, 96, 0.46);
+  border-radius: 22px;
+  padding: 20px 18px;
+  max-width: 360px;
+  width: 100%;
+  max-height: 86vh;
+  overflow-y: auto;
+  box-shadow: 0 24px 54px rgba(0, 0, 0, 0.68), 0 0 30px rgba(255, 207, 64, 0.16);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+  color: #fff8ea;
+}
+
+.modalTitle {
+  font-family: var(--font-display), sans-serif;
+  font-weight: 950;
+  font-size: 18px;
+  color: #fff2b2;
+  margin: 0;
+}
+
+.modalSub {
+  font-size: 13px;
+  line-height: 1.48;
+  color: #cce2d9;
+  margin: 0;
+}
+
+.ruleCard {
+  width: 100%;
+  text-align: left;
+  background: rgba(255, 250, 234, 0.05);
+  border: 1px solid rgba(255, 214, 96, 0.2);
+  border-radius: 13px;
+  padding: 10px 12px;
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: #dfeee7;
+}
+
+.ruleCardGold {
+  background: rgba(255, 207, 64, 0.1);
+  border-color: rgba(255, 207, 64, 0.44);
+}
+
+.ruleHeadingGold { color: #ffe573; }
+.ruleHeadingTeal { color: #6ef7dc; }
+.ruleHeadingPink { color: #ff8aa8; }
+
+.powerUsedOverlay {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  background: rgba(4, 12, 10, 0.45);
+  border-radius: 11px;
+}
+
+/* ── ÉVENTAIL MINIATURE DISCRET EN PRODUCTION (1–3 CARTES POUVOIR À DROITE) ── */
+.prodPowerBtn {
+  position: relative;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  border-radius: 9px;
+  cursor: pointer;
+  transform: rotate(var(--fan-rot, 0deg)) translateY(var(--fan-y, 0px));
+  margin-left: var(--fan-ml, 0px);
+  transition: transform 170ms cubic-bezier(0.2, 0.9, 0.25, 1.25), opacity 150ms ease, filter 150ms ease;
+}
+
+.prodPowerBtn:hover,
+.prodPowerBtnActive {
+  z-index: 6;
+  transform: rotate(0deg) translateY(-10px) scale(1.12);
+}
+
+/* ── BOUTON COMPACT MODE TEST (QUAND > 3 CARTES / DEV ALL POWERS) ── */
+.testTriggerBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 10px 5px 7px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 214, 96, 0.62);
+  background:
+    radial-gradient(circle at 20% 50%, rgba(255, 207, 64, 0.24), transparent 62%),
+    rgba(10, 22, 18, 0.92);
+  backdrop-filter: blur(8px);
+  color: #fff6d2;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.56), 0 0 18px rgba(255, 207, 64, 0.28);
+  transition: transform 130ms ease, border-color 150ms ease, filter 150ms ease;
+}
+
+.testTriggerBtn:hover {
+  border-color: #ffe573;
+  filter: brightness(1.1);
+  transform: translateY(-2px);
+}
+
+.testTriggerBtn:active {
+  transform: scale(0.96);
+}
+
+.testTriggerFan {
+  display: inline-flex;
+  align-items: center;
+}
+
+.testTriggerMini {
+  width: 14px;
+  height: 20px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 214, 96, 0.65);
+  background: linear-gradient(165deg, #2d1b44, #11091c);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.5);
+}
+
+.testTriggerMini:first-child { transform: rotate(-11deg); margin-right: -6px; }
+.testTriggerMini:nth-child(2) { z-index: 2; transform: translateY(-1px); background: linear-gradient(165deg, #10382e, #061713); }
+.testTriggerMini:last-child { transform: rotate(11deg); margin-left: -6px; background: linear-gradient(165deg, #3b141a, #17080a); }
+
+.testTriggerCopy {
+  display: grid;
+  text-align: left;
+  line-height: 1.05;
+}
+
+.testTriggerCopy small {
+  font-size: 8px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #78ffdf;
+}
+
+.testTriggerCopy strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 12px;
+  font-weight: 950;
+  color: #ffe88a;
+}
+
+/* ── TIROIR FLOTTANT MODE TEST (TOUTES LES 21 CARTES NDOP SCROLLABLES) ── */
+.testDrawerBackdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 74;
+  background: rgba(3, 10, 8, 0.56);
+  backdrop-filter: blur(3px);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 10px 10px max(12px, env(safe-area-inset-bottom));
+}
+
+.testPowerDrawer {
+  width: 100%;
+  max-width: 560px;
+  max-height: 62svh;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border-radius: 22px;
+  border: 1.5px solid rgba(255, 214, 96, 0.52);
+  background:
+    radial-gradient(ellipse 85% 38% at 50% 0%, rgba(255, 207, 64, 0.14), transparent 64%),
+    linear-gradient(170deg, rgba(16, 32, 26, 0.97), rgba(7, 15, 13, 0.99));
+  box-shadow: 0 22px 52px rgba(0, 0, 0, 0.72), 0 0 32px rgba(255, 207, 64, 0.16);
+  overflow: hidden;
+}
+
+.testDrawerHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.testDrawerTitle {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-display), sans-serif;
+  font-size: 14px;
+  font-weight: 950;
+  color: #fff2b2;
+}
+
+.testBadge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(29, 228, 190, 0.18);
+  border: 1px solid rgba(29, 228, 190, 0.55);
+  color: #78ffdf;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.testDrawerClose {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 214, 96, 0.36);
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff6dc;
+  font-size: 17px;
+  font-weight: 900;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.testFilterRow {
+  display: flex;
+  gap: 5px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.testFilterRow::-webkit-scrollbar { display: none; }
+
+.testFilterPill {
+  flex: 0 0 auto;
+  height: 26px;
+  padding: 0 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 240, 190, 0.2);
+  background: rgba(10, 18, 16, 0.86);
+  color: #c4ddd4;
+  font-size: 10.5px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.testFilterActive {
+  border-color: transparent;
+  background: linear-gradient(180deg, #ffe573, #eb9a10);
+  color: #241203;
+}
+
+.testCardGrid {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding: 2px 2px 6px;
+  --nj-power-card-compact-w: 100%;
+  --nj-power-card-compact-font: 9px;
+}
+
+@media (min-width: 560px) {
+  .testCardGrid {
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+  }
+}
+
+.testCardCell {
+  position: relative;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  cursor: pointer;
+  width: 100%;
+  transition: transform 130ms ease;
+}
+
+.testCardCell:hover {
+  transform: translateY(-3px);
+}
+
+:global(.nj-opp-power-motif) {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+@media (max-width: 360px) {
+  .royalCapsule {
+    padding: 0 9px;
+    gap: 6px;
+  }
+  .trickDots { gap: 3px; }
+  .capsulePot { font-size: 11px; }
+}

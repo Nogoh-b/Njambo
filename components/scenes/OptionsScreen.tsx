@@ -1,21 +1,22 @@
 "use client";
 
 import { useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useSettings, type MotionQualityPreference } from "@/contexts/SettingsContext";
 import { NjamboIcon } from "@/components/ui/Art";
-import { BottomNavScene } from "@/components/ui/BottomNavScene";
-import { Btn } from "@/components/ui/Btn";
+import { GameShell } from "@/components/ui/GameShell";
 import { Toggle } from "@/components/ui/Toggle";
-import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Surface } from "@/components/ui/Shell";
+import styles from "./OptionsScreen.module.css";
 
-const LANGUAGES = ["Français", "English", "Duala"];
+const LANGUAGES = [
+  { id: "Français", badge: "FR" },
+  { id: "English", badge: "EN" },
+  { id: "Duala", badge: "DLA" },
+];
 
 const QUALITY_OPTIONS: Array<{ id: MotionQualityPreference; label: string }> = [
   { id: "auto", label: "Auto" },
-  { id: "performance", label: "Performance" },
+  { id: "performance", label: "Perf." },
   { id: "balanced", label: "Équilibré" },
   { id: "quality", label: "Qualité" },
 ];
@@ -26,78 +27,140 @@ export function OptionsScreen() {
   const [language, setLanguage] = useState("Français");
 
   return (
-    <BottomNavScene narrow>
-        <div className="nj-phone">
-          <ScreenHeader title="Options" kicker="Réglages" icon="settings" tone="cobalt" onBack={() => navigateTo("menu")} backLabel="Retour" />
+    <GameShell dock={false} scroll={false} contentClassName={styles.optionsShell}>
+      {/* ═══ TOP HUD ═══ */}
+      <header className={styles.hud}>
+        <button data-nj-skin="none" type="button" className="nj-sr-back" onClick={() => navigateTo("menu")}>
+          <span className="nj-sr-back-arrow" aria-hidden="true">←</span>
+          <span>Salon</span>
+        </button>
 
-          <div className="nj-stack">
-            <Surface>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <NjamboIcon name="sound" tone="gold" size={24} />
-                <div style={{ fontWeight: 900 }}>Son</div>
-              </div>
-              <div className="nj-stack" style={{ gap: 10 }}>
-                <Toggle label="Musique" caption="Ambiance légère de table" on={musicOn} onChange={setMusicOn} />
-                <Toggle label="Effets sonores" caption="Cartes, timer, victoire" on={sfxOn} onChange={setSfxOn} />
-              </div>
-            </Surface>
-
-            <Surface>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <NjamboIcon name="spark" tone="pink" size={24} />
-                <div style={{ fontWeight: 900 }}>Interface</div>
-              </div>
-              <Toggle label="Animations" caption="Distribution, confettis et feedbacks" on={animationsOn} onChange={setAnimationsOn} />
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 8, marginTop: 10 }}>
-                {QUALITY_OPTIONS.map((option) => (
-                  <Btn key={option.id} variant={motionQuality === option.id ? "pink" : "ghost"} onClick={() => setMotionQuality(option.id)} style={{ paddingInline: 8 }}>
-                    {option.label}
-                  </Btn>
-                ))}
-              </div>
-            </Surface>
-
-            <Surface>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <NjamboIcon name="language" tone="teal" size={24} />
-                <div style={{ fontWeight: 900 }}>Langue</div>
-              </div>
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 8 }}>
-                {LANGUAGES.map((l) => (
-                  <Btn key={l} variant={language === l ? "gold" : "ghost"} ariaPressed={language === l} onClick={() => setLanguage(l)} style={{ paddingInline: 8, fontSize: 12 }}>
-                    {l}
-                  </Btn>
-                ))}
-              </div>
-              <div className="nj-subtle" style={{ marginTop: 10 }}>
-                Les textes restent en français pour ce prototype, le sélecteur prépare l&apos;intégration multilingue.
-              </div>
-            </Surface>
-
-            <Surface>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 12 }}>
-                <NjamboIcon name="cards" tone="gold" size={24} />
-                <div style={{ fontWeight: 900 }}>Jeu</div>
-              </div>
-              <Btn variant="ghost" onClick={() => navigateTo("rules")} style={{ width: "100%" }}>
-                Règles du jeu — Comment jouer
-              </Btn>
-            </Surface>
-
-            <Surface>
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "flex-start" }}>
-                <div>
-                  <div style={{ fontWeight: 900, marginBottom: 6 }}>À propos</div>
-                  <p className="nj-subtle">
-                    Njambo est un prototype de jeu de cartes camerounais, pensé pour mobile, tablette et web.
-                  </p>
-                </div>
-                <Chip strong>v1.0.0</Chip>
-              </div>
-              <div style={{ color: T.gold, fontSize: 12, fontWeight: 900, marginTop: 12 }}>BiSoft</div>
-            </Surface>
-          </div>
+        <div className={styles.hudCenter}>
+          <span className={styles.hudKicker}>PRÉFÉRENCES DU SALON</span>
+          <h1 className={styles.hudTitle}>Options</h1>
         </div>
-    </BottomNavScene>
+
+        <span className={styles.versionBadge}>v1.0</span>
+      </header>
+
+      {/* ═══ GRILLE DE RÉGLAGES (bornée, 2 colonnes sur desktop) ═══ */}
+      <div className={styles.boardBody}>
+        <div className={styles.cardsGrid}>
+          {/* AUDIO DE TABLE */}
+          <section className={`${styles.card} ${styles.cardGold}`} aria-label="Audio de table">
+            <div className={styles.cardHead}>
+              <span className={styles.cardIcon}>
+                <NjamboIcon name="sound" tone="gold" size={22} />
+              </span>
+              <div>
+                <h2>Audio de table</h2>
+                <p>Ambiance sonore et effets de jeu</p>
+              </div>
+            </div>
+            <div className={styles.togglesStack}>
+              <Toggle label="Musique" caption="Ambiance légère de table" on={musicOn} onChange={setMusicOn} />
+              <Toggle label="Effets sonores" caption="Cartes, timer et victoires" on={sfxOn} onChange={setSfxOn} />
+            </div>
+          </section>
+
+          {/* ANIMATIONS & FLUIDITÉ */}
+          <section className={`${styles.card} ${styles.cardPink}`} aria-label="Animations et fluidité">
+            <div className={styles.cardHead}>
+              <span className={styles.cardIcon}>
+                <NjamboIcon name="spark" tone="pink" size={22} />
+              </span>
+              <div>
+                <h2>Animations &amp; fluidité</h2>
+                <p>Distribution, confettis et rythme visuel</p>
+              </div>
+            </div>
+
+            <Toggle
+              label="Animations"
+              caption="Mouvements de cartes et effets"
+              on={animationsOn}
+              onChange={setAnimationsOn}
+            />
+
+            <div className={styles.pillRow4} role="radiogroup" aria-label="Qualité des animations">
+              {QUALITY_OPTIONS.map((option) => {
+                const active = motionQuality === option.id;
+                return (
+                  <button
+                    key={option.id}
+                    data-nj-skin="none"
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    className={`${styles.choicePill} ${styles.choicePink}${active ? ` ${styles.choiceActive}` : ""}`}
+                    onClick={() => setMotionQuality(option.id)}
+                  >
+                    {option.label}
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* LANGUE DU SALON */}
+          <section className={`${styles.card} ${styles.cardTeal}`} aria-label="Langue">
+            <div className={styles.cardHead}>
+              <span className={styles.cardIcon}>
+                <NjamboIcon name="language" tone="teal" size={22} />
+              </span>
+              <div>
+                <h2>Langue du salon</h2>
+                <p>Textes d&apos;interface et annonces</p>
+              </div>
+            </div>
+
+            <div className={styles.pillRow3} role="radiogroup" aria-label="Choisir la langue">
+              {LANGUAGES.map((l) => {
+                const active = language === l.id;
+                return (
+                  <button
+                    key={l.id}
+                    data-nj-skin="none"
+                    type="button"
+                    role="radio"
+                    aria-checked={active}
+                    className={`${styles.choicePill} ${styles.choiceTeal}${active ? ` ${styles.choiceActive}` : ""}`}
+                    onClick={() => setLanguage(l.id)}
+                  >
+                    <span className={styles.langCode}>{l.badge}</span>
+                    <span>{l.id}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
+
+          {/* À PROPOS & RÈGLES */}
+          <section className={`${styles.card} ${styles.cardCobalt}`} aria-label="À propos de Njambo">
+            <div className={styles.cardHead}>
+              <span className={styles.cardIcon}>
+                <NjamboIcon name="cards" tone="gold" size={22} />
+              </span>
+              <div>
+                <h2>Njambo · BiSoft</h2>
+                <p>Le jeu de cartes royal du quartier</p>
+              </div>
+            </div>
+
+            <div className={styles.aboutActions}>
+              <button
+                data-nj-skin="none"
+                type="button"
+                className={styles.rulesBtn}
+                onClick={() => navigateTo("rules")}
+              >
+                <NjamboIcon name="cards" tone="gold" size={18} />
+                <span>Ouvrir le guide des règles</span>
+              </button>
+            </div>
+          </section>
+        </div>
+      </div>
+    </GameShell>
   );
 }

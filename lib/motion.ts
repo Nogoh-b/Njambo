@@ -100,25 +100,37 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
     }
     if (!mounted || !animationsOn) return;
     let animationFrame = 0;
-    const startedAt = performance.now();
-    let previous = startedAt;
-    let total = 0;
-    let slow = 0;
-    const sample = (now: number) => {
-      const delta = now - previous;
-      previous = now;
-      if (total > 0 && delta > 25) slow += 1;
-      total += 1;
-      if (now - startedAt >= 3_000) {
-        if (shouldDegradeMotion(total, slow)) {
-          setRuntimeLevel((current) => lowerMotionLevel(current ?? selectedLevelRef.current));
+    let warmupTimer: ReturnType<typeof setTimeout> | null = null;
+    warmupTimer = setTimeout(() => {
+      warmupTimer = null;
+      const startedAt = performance.now();
+      let previous = startedAt;
+      let total = 0;
+      let slow = 0;
+      const sample = (now: number) => {
+        const delta = now - previous;
+        previous = now;
+        // Ignorer les sauts d'arrière-plan (>250ms) ; compter uniquement les vraies chutes (<30fps).
+        if (total > 0 && delta > 34 && delta < 250 && document.visibilityState === "visible") {
+          slow += 1;
         }
-        return;
-      }
+        if (delta < 250) {
+          total += 1;
+        }
+        if (now - startedAt >= 3_000) {
+          if (shouldDegradeMotion(total, slow)) {
+            setRuntimeLevel((current) => lowerMotionLevel(current ?? selectedLevelRef.current));
+          }
+          return;
+        }
+        animationFrame = requestAnimationFrame(sample);
+      };
       animationFrame = requestAnimationFrame(sample);
+    }, 1_500);
+    return () => {
+      if (warmupTimer) clearTimeout(warmupTimer);
+      cancelAnimationFrame(animationFrame);
     };
-    animationFrame = requestAnimationFrame(sample);
-    return () => cancelAnimationFrame(animationFrame);
   // selectedLevel absent des deps: le sampler tourne une seule fois par
   // session, pas a chaque resize. Valeur courante lue via selectedLevelRef.
   }, [animationsOn, motionQuality, mounted]);

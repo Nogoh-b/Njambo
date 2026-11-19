@@ -1,0 +1,360 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Classement : Podium Royal #2 / #1 / #3 + Liste
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.scene {
+  color: var(--sr-ivory, #fff8ea);
+}
+
+.frame {
+  width: min(100%, 820px);
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+  margin-inline: auto;
+}
+
+.hudBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255, 207, 64, 0.5);
+  background:
+    radial-gradient(circle at 14% 50%, rgba(255, 207, 64, 0.22), transparent 52%),
+    linear-gradient(120deg, rgba(58, 34, 18, 0.94), rgba(18, 13, 10, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.22), 0 4px 0 #140a04, 0 10px 22px rgba(0, 0, 0, 0.42);
+}
+
+.hudLeft {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backBtn {
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1.5px solid #ffe89e;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe06b 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 3px 0 #703903;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.hudCopy { display: grid; gap: 1px; }
+.hudKicker { color: #ffcf40; font-size: 9.5px; font-weight: 900; letter-spacing: 0.13em; text-transform: uppercase; line-height: 1; }
+.hudCopy h1 { margin: 0; color: #fffaf0; font-family: var(--font-display), sans-serif; font-size: clamp(16px, 4vw, 22px); font-weight: 900; line-height: 1.05; }
+
+.seasonPill {
+  height: 34px;
+  padding: 0 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 207, 64, 0.46);
+  background: rgba(14, 22, 19, 0.86);
+  color: #fff0a8;
+  font-size: 11.5px;
+  font-weight: 900;
+}
+
+/* État vide ou chargement */
+.emptyStage {
+  flex: 1 1 auto;
+  display: grid;
+  place-content: center;
+  justify-items: center;
+  gap: 10px;
+  text-align: center;
+  padding: 24px;
+  border-radius: 24px;
+  border: 1.5px solid rgba(255, 212, 92, 0.34);
+  background: radial-gradient(circle at 50% 30%, rgba(255, 207, 64, 0.14), rgba(16, 14, 12, 0.92));
+}
+
+.emptyStage strong { font-family: var(--font-display), sans-serif; font-size: 20px; color: #fffaf0; }
+.emptyStage p { margin: 0; max-width: 300px; color: var(--sr-muted, #b0cdc2); font-size: 13px; line-height: 1.45; }
+
+.playNowBtn {
+  margin-top: 6px;
+  height: 44px;
+  padding: 0 20px;
+  border-radius: 14px;
+  border: 1.5px solid #fff2b2;
+  background: linear-gradient(180deg, #ffe370, #f0a81b 60%, #c97308);
+  color: #241203;
+  font-family: var(--font-display), sans-serif;
+  font-size: 14px;
+  font-weight: 900;
+  box-shadow: 0 4px 0 #703903;
+  cursor: pointer;
+}
+
+/* Corps Podium + Liste */
+.boardBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  overflow: hidden;
+}
+
+/* ═══ PODIUM ROYAL ═══ */
+.podiumStage {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: end;
+  gap: clamp(8px, 2vw, 16px);
+  padding: 18px 10px 0;
+  border-radius: 24px;
+  border: 1.5px solid rgba(255, 212, 92, 0.4);
+  background:
+    radial-gradient(ellipse 68% 72% at 50% 18%, rgba(255, 207, 64, 0.26), transparent 66%),
+    linear-gradient(175deg, rgba(46, 30, 19, 0.92), rgba(12, 26, 21, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.2), 0 16px 32px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+}
+
+.podiumCol {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.podiumAvatarWrap {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.winnerCrown {
+  position: absolute;
+  top: -22px;
+  font-size: 22px;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.55));
+}
+
+.podiumRing {
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  padding: 3px;
+  background: var(--pod-rim, #c7d4e0);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.48), 0 0 20px var(--pod-glow, transparent);
+}
+
+.podiumRankBadge {
+  position: absolute;
+  right: -5px;
+  bottom: -4px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #18110d;
+  border: 1.5px solid var(--pod-rim, #ffcf40);
+  display: grid;
+  place-items: center;
+}
+
+.podiumName {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(12px, 3vw, 15px);
+  font-weight: 900;
+}
+
+.podiumCrowns {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: #fff0a8;
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.pedestal {
+  width: 100%;
+  margin-top: 4px;
+  padding: 10px 6px 12px;
+  border-radius: 16px 16px 0 0;
+  border: 1.5px solid var(--pod-rim);
+  border-bottom: 0;
+  background: var(--pod-bg);
+  color: var(--pod-ink);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  box-shadow: inset 0 2px 0 rgba(255, 255, 255, 0.5);
+}
+
+.pedestalNum {
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(18px, 4.4vw, 24px);
+  font-weight: 950;
+  line-height: 1;
+}
+
+.pedestal small {
+  font-size: 9.5px;
+  font-weight: 850;
+  text-align: center;
+  opacity: 0.86;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.place_1 {
+  --pod-rim: #fff2a8;
+  --pod-glow: rgba(255, 207, 64, 0.55);
+  --pod-bg: linear-gradient(180deg, #ffe573 0%, #f0a81b 65%, #b56506 100%);
+  --pod-ink: #241203;
+}
+.place_1 .pedestal { min-height: 88px; }
+
+.place_2 {
+  --pod-rim: #e4eef7;
+  --pod-glow: rgba(186, 212, 236, 0.35);
+  --pod-bg: linear-gradient(180deg, #dbe7f2 0%, #98aec2 68%, #5f7487 100%);
+  --pod-ink: #12202b;
+}
+.place_2 .pedestal { min-height: 66px; }
+
+.place_3 {
+  --pod-rim: #f7c399;
+  --pod-glow: rgba(232, 134, 72, 0.35);
+  --pod-bg: linear-gradient(180deg, #f0ab78 0%, #bf6c38 68%, #7d3c16 100%);
+  --pod-ink: #261004;
+}
+.place_3 .pedestal { min-height: 54px; }
+
+/* ═══ SUITE DU CLASSEMENT (#4+ scrollable) ═══ */
+.rankListCard {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 10px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255, 212, 92, 0.3);
+  background: linear-gradient(168deg, rgba(40, 27, 20, 0.94), rgba(16, 13, 11, 0.96));
+}
+
+.rankListScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-right: 3px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.44) transparent;
+}
+
+.rankRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 212, 92, 0.2);
+  background: rgba(12, 22, 19, 0.82);
+}
+
+.rankRowYou {
+  border-color: rgba(255, 207, 64, 0.72);
+  background: linear-gradient(120deg, rgba(255, 207, 64, 0.2), rgba(14, 24, 20, 0.9));
+}
+
+.rowPos {
+  width: 28px;
+  text-align: center;
+  font-family: var(--font-display), sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  color: #fff0a8;
+}
+
+.rowMeta {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+}
+
+.rowMeta strong {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #fffaf0;
+  font-size: 13.5px;
+  font-weight: 850;
+}
+
+.youTag {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: #ffcf40;
+  color: #241203;
+  font-size: 9.5px;
+  font-weight: 950;
+}
+
+.rowMeta small {
+  color: var(--sr-muted, #b0cdc2);
+  font-size: 11px;
+}
+
+.rowCrowns {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  color: #fff0a8;
+  font-family: var(--font-display), sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+}
+
+.fewPlayersNote {
+  padding: 18px;
+  text-align: center;
+  color: var(--sr-muted, #b0cdc2);
+  font-size: 12.5px;
+}
+
+@media (max-width: 460px) {
+  .backLabel { display: none; }
+  .backBtn { width: 38px; padding: 0; justify-content: center; }
+}

@@ -33,7 +33,7 @@ export function PlayersScreen() {
   return (
     <BottomNavScene active="players" narrow>
         <div className="nj-phone">
-          <ScreenHeader title="Joueurs" kicker="Decouverte" icon="search" tone="teal" onBack={() => navigateTo("menu")} backLabel="Retour" />
+          <ScreenHeader title="Joueurs" kicker="Découverte" icon="search" tone="teal" onBack={() => navigateTo("menu")} backLabel="Salon" />
           <Surface scrollable>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
               <span className="nj-title-icon" style={{ width: 42, height: 42, borderRadius: 14 }}>

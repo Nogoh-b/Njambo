@@ -1,0 +1,564 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Design System global du jeu de cartes Njambo
+   Tapis émeraude lumineux · acajou & or brillant · badges émaillés 3D · cartes ivoire
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+:root {
+  /* Tapis émeraude joyau */
+  --sr-felt-bright: #1e8263;
+  --sr-felt-mid: #0f523f;
+  --sr-felt-deep: #072c22;
+  --sr-felt-void: #041712;
+
+  /* Bois acajou / ébène chaud */
+  --sr-wood-light: #6d361b;
+  --sr-wood-mid: #3d1d0f;
+  --sr-ebony-1: #281913;
+  --sr-ebony-2: #19100d;
+  --sr-ebony-3: #0f0a08;
+  --sr-wood-edge: rgba(255, 212, 92, 0.42);
+
+  /* Métaux précieux & ivoire lumineux */
+  --sr-gold: #ffcf40;
+  --sr-gold-bright: #fff0a8;
+  --sr-gold-deep: #a85e08;
+  --sr-brass: #e4b144;
+  --sr-ivory: #fff8ea;
+  --sr-ivory-soft: #f2e4c7;
+  --sr-muted: #b0cdc2;
+
+  /* Accents émaillés vifs */
+  --sr-teal: #1de4be;
+  --sr-teal-deep: #087a65;
+  --sr-pink: #ff4772;
+  --sr-pink-deep: #9e163a;
+  --sr-palm: #3ce078;
+  --sr-palm-deep: #157d3c;
+  --sr-purple: #986bff;
+  --sr-purple-deep: #4e22b8;
+  --sr-cobalt: #4b8eff;
+  --sr-cobalt-deep: #1b46a8;
+  --sr-orange: #ff8629;
+  --sr-orange-deep: #a64106;
+  --sr-red: #f24c44;
+  --sr-red-deep: #9c1f19;
+
+  /* Rayons & ombres jeu de cartes */
+  --sr-radius-card: 22px;
+  --sr-radius-pill: 999px;
+  --sr-shadow-elevated: 0 20px 44px rgba(0, 0, 0, 0.5), 0 4px 12px rgba(0, 0, 0, 0.34);
+  --sr-shadow-card: 0 14px 28px rgba(0, 0, 0, 0.44), 0 3px 8px rgba(0, 0, 0, 0.28);
+
+  /* ═══ Remappage global des tokens hérités vers Salon Royal Vibrant ═══
+     Tous les hubs, pré-parties et écrans secondaires héritent d'un coup
+     de surfaces sombres acajou/émeraude et d'encres ivoire très lisibles. */
+  --nj-solar-surface-strong: #261a14;
+  --nj-solar-surface: rgba(25, 18, 15, 0.92);
+  --nj-solar-ivory: #1a120f;
+  --nj-solar-sand: #10201b;
+  --nj-solar-ink: #fff8ea;
+  --nj-solar-muted: #b0cdc2;
+  --nj-solar-green: #1de4be;
+  --nj-solar-green-deep: #78ffe5;
+  --nj-solar-red: #ff4772;
+  --nj-solar-red-deep: #ffa3b9;
+  --nj-solar-yellow: #ffcf40;
+  --nj-solar-yellow-deep: #fff0a8;
+  --nj-solar-outline: rgba(255, 212, 92, 0.38);
+  --nj-solar-card-edge: rgba(255, 212, 92, 0.48);
+  --nj-solar-felt: #0f523f;
+  --nj-solar-shadow: 0 16px 34px rgba(0, 0, 0, 0.48);
+
+  --nj-text: var(--sr-ivory);
+  --nj-text-muted: var(--sr-muted);
+  --nj-gold: var(--sr-gold);
+  --nj-teal: var(--sr-teal);
+  --nj-pink: var(--sr-pink);
+  --nj-cobalt: var(--sr-cobalt);
+  --nj-surface: rgba(26, 19, 15, 0.92);
+  --nj-surface-soft: rgba(14, 27, 22, 0.86);
+  --nj-surface-strong: #281b15;
+  --nj-panel-edge: rgba(255, 212, 92, 0.4);
+  --nj-border-soft: rgba(255, 212, 92, 0.22);
+  --nj-border-brass: rgba(255, 212, 92, 0.52);
+  --nj-panel-grain:
+    radial-gradient(ellipse 90% 45% at 50% 0%, rgba(255, 212, 92, 0.08), transparent 60%),
+    linear-gradient(162deg, rgba(44, 29, 21, 0.95), rgba(22, 16, 13, 0.96) 56%, rgba(11, 24, 20, 0.96));
+  --nj-surface-deep: linear-gradient(160deg, #251914, #140f0d 62%, #0c1d18);
+  --nj-surface-indigo: linear-gradient(155deg, rgba(24, 34, 62, 0.94), rgba(14, 19, 36, 0.96));
+
+  /* Tons vifs pour le système de boutons .njb */
+  --nj-tone-gold: #ffcf40;
+  --nj-tone-teal: #1de4be;
+  --nj-tone-pink: #ff4772;
+  --nj-tone-cobalt: #4b8eff;
+  --nj-tone-blue: #3a6bff;
+  --nj-tone-orange: #ff8629;
+  --nj-tone-palm: #3ce078;
+  --nj-tone-red: #f24c44;
+
+  /* Alias dock */
+  --nj-nav-gold: var(--sr-gold);
+  --nj-nav-teal: var(--sr-teal);
+  --nj-nav-pink: var(--sr-pink);
+  --nj-nav-cobalt: var(--sr-cobalt);
+  --nj-nav-palm: var(--sr-palm);
+}
+
+/* ═══ Socle viewport Salon Royal Vibrant : tapis émeraude illuminé ═══ */
+body {
+  background: var(--sr-felt-void);
+  color: var(--sr-ivory);
+}
+
+.nj-shell {
+  color: var(--sr-ivory);
+  --text: var(--sr-ivory);
+  --panel-1: #291c16;
+  --panel-2: #1c1310;
+  --panel-3: #10211b;
+  --panel-edge: rgba(255, 212, 92, 0.42);
+  --brass: var(--sr-gold);
+  --brass-deep: var(--sr-gold-bright);
+  --panel-grain: var(--nj-panel-grain);
+  background:
+    radial-gradient(ellipse 74% 52% at 50% 42%, rgba(255, 212, 84, 0.16), transparent 66%),
+    radial-gradient(ellipse 92% 60% at 50% 10%, rgba(44, 216, 168, 0.28), transparent 65%),
+    radial-gradient(ellipse 118% 106% at 50% 50%, transparent 50%, rgba(2, 16, 12, 0.72) 100%),
+    repeating-linear-gradient(45deg, rgba(255, 246, 224, 0.022) 0 1px, transparent 1px 12px),
+    repeating-linear-gradient(-45deg, rgba(0, 0, 0, 0.05) 0 1px, transparent 1px 12px),
+    radial-gradient(circle at 50% 38%, var(--sr-felt-bright) 0%, var(--sr-felt-mid) 48%, var(--sr-felt-deep) 84%, var(--sr-felt-void) 100%);
+}
+
+/* Liseré or brillant en haut de l'écran */
+.nj-shell::before {
+  opacity: 1;
+  inset: 0;
+  background:
+    linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 210, 82, 0.5) 22%,
+      rgba(255, 240, 170, 0.85) 50%,
+      rgba(255, 210, 82, 0.5) 78%,
+      transparent
+    ) top / 100% 2px no-repeat;
+  mask-image: none;
+}
+
+/* Liseré discret aux couleurs vives en pied d'écran */
+.nj-shell::after {
+  height: 3px;
+  opacity: 0.72;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--sr-teal) 20%,
+    var(--sr-gold) 50%,
+    var(--sr-pink) 80%,
+    transparent 100%
+  );
+}
+
+/* ═══ Barres de défilement fines (listes internes uniquement) ═══ */
+.nj-surface-scroll,
+[data-sr-scroll="true"] {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.45) rgba(0, 0, 0, 0.18);
+  overscroll-behavior: contain;
+}
+
+.nj-surface-scroll::-webkit-scrollbar,
+[data-sr-scroll="true"]::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.nj-surface-scroll::-webkit-scrollbar-track,
+[data-sr-scroll="true"]::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.18);
+  border-radius: 999px;
+}
+
+.nj-surface-scroll::-webkit-scrollbar-thumb,
+[data-sr-scroll="true"]::-webkit-scrollbar-thumb {
+  background: rgba(255, 207, 64, 0.46);
+  border-radius: 999px;
+}
+
+/* ═══ HUD Haut compact pour tous les écrans secondaires (ScreenHeader) ═══ */
+.nj-safe {
+  height: 100dvh;
+  padding: max(10px, env(safe-area-inset-top)) max(12px, env(safe-area-inset-right)) max(12px, env(safe-area-inset-bottom)) max(12px, env(safe-area-inset-left));
+  gap: 10px;
+}
+
+.nj-phone {
+  width: min(100%, 620px);
+  height: 100%;
+  min-height: 0;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+.nj-phone > .nj-surface-scroll,
+.nj-phone .nj-surface-scroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+@media (min-width: 600px) {
+  .nj-safe {
+    padding: max(14px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+    gap: 12px;
+  }
+}
+
+.nj-topbar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255, 212, 92, 0.42);
+  background:
+    radial-gradient(circle at 14% 50%, rgba(255, 207, 64, 0.16), transparent 50%),
+    linear-gradient(120deg, rgba(56, 30, 18, 0.94), rgba(18, 13, 11, 0.95));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.22),
+    0 4px 0 #090604,
+    0 10px 22px rgba(0, 0, 0, 0.38);
+}
+
+.nj-sr-back {
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1.5px solid #ffe89e;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe06b 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+    0 3px 0 #703903;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 105ms ease, filter 150ms ease;
+}
+
+.nj-sr-back:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.nj-sr-back:active {
+  transform: translateY(2px);
+}
+
+.nj-title-row {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.nj-title-icon {
+  flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 212, 92, 0.42);
+  background: radial-gradient(circle at 50% 25%, rgba(255, 207, 64, 0.26), rgba(18, 12, 10, 0.9));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.24), 0 4px 10px rgba(0, 0, 0, 0.36);
+}
+
+.nj-kicker {
+  color: var(--sr-gold, #ffcf40);
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.nj-heading {
+  color: #fffaf0 !important;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(16px, 4vw, 22px);
+  font-weight: 850;
+  line-height: 1.06;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ═══ Panneaux, Cartes de liste & Champs Salon Royal ═══ */
+.nj-surface {
+  color: var(--sr-ivory);
+  border: 1.5px solid rgba(255, 212, 92, 0.32);
+  border-radius: 20px;
+  background:
+    radial-gradient(ellipse 85% 40% at 50% 0%, rgba(255, 212, 92, 0.08), transparent 62%),
+    linear-gradient(168deg, rgba(40, 27, 20, 0.94), rgba(19, 14, 12, 0.96) 62%, rgba(10, 23, 19, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.16),
+    0 14px 30px rgba(0, 0, 0, 0.44);
+}
+
+.nj-list-card {
+  color: var(--sr-ivory);
+  border: 1px solid rgba(255, 212, 92, 0.24);
+  background:
+    linear-gradient(155deg, rgba(46, 31, 23, 0.88), rgba(17, 13, 11, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.14),
+    0 8px 18px rgba(0, 0, 0, 0.34);
+}
+
+.nj-list-card:hover:not(:disabled) {
+  border-color: rgba(255, 207, 64, 0.62);
+}
+
+.nj-subtle {
+  color: var(--sr-muted);
+}
+
+.nj-input {
+  color: var(--sr-ivory);
+  border: 1.5px solid rgba(255, 212, 92, 0.38);
+  background: rgba(8, 18, 15, 0.84);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.nj-input::placeholder {
+  color: rgba(176, 205, 194, 0.62);
+}
+
+.nj-input:focus {
+  border-color: var(--sr-gold);
+  box-shadow: 0 0 0 3px rgba(255, 207, 64, 0.22), inset 0 2px 6px rgba(0, 0, 0, 0.4);
+}
+
+.nj-choice {
+  color: var(--sr-ivory);
+  border: 1.5px solid rgba(255, 212, 92, 0.34);
+  background: linear-gradient(170deg, rgba(44, 30, 22, 0.92), rgba(18, 13, 11, 0.95));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.16), 0 3px 0 #090605;
+}
+
+.nj-choice[aria-pressed="true"],
+.nj-choice.active {
+  color: #241203;
+  border-color: #fff0ad;
+  background: linear-gradient(180deg, #ffe070, #f0a81b 60%, #c97308);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 3px 0 #6e3702;
+}
+
+.nj-chip {
+  color: var(--sr-ivory);
+  border-color: rgba(255, 212, 92, 0.36);
+  background: rgba(15, 26, 22, 0.88);
+}
+
+.nj-power-card-view.is-solar {
+  color: var(--sr-ivory);
+  border-color: color-mix(in srgb, var(--power-tone, var(--sr-gold)) 68%, #fff0b8);
+  background:
+    radial-gradient(circle at 80% 6%, color-mix(in srgb, var(--power-tone, var(--sr-gold)) 30%, transparent), transparent 46%),
+    linear-gradient(160deg, #2b1d16, #140e0c 68%, #0d1f1a);
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.24), 0 10px 22px rgba(0, 0, 0, 0.46);
+}
+
+.nj-power-card-view.is-solar .nj-power-card-art {
+  border-color: color-mix(in srgb, var(--power-tone, var(--sr-gold)) 52%, rgba(255, 248, 234, 0.2));
+  background: rgba(10, 14, 13, 0.72);
+}
+
+.nj-power-card-view.is-solar strong {
+  color: color-mix(in srgb, var(--power-tone, var(--sr-gold)) 42%, #fff8ea);
+}
+
+/* ═══ Système de boutons .njb — Salon Royal Vibrant 3D ═══ */
+.njb--gold {
+  --nj-btn-accent: var(--sr-gold);
+  --nj-btn-ink: #ffe896;
+  --nj-btn-solid: var(--sr-gold);
+  --nj-btn-on-solid: #241203;
+}
+
+.njb--palm {
+  --nj-btn-accent: var(--sr-palm);
+  --nj-btn-ink: #9effbf;
+  --nj-btn-solid: var(--sr-palm);
+  --nj-btn-on-solid: #052210;
+}
+
+.njb--teal {
+  --nj-btn-accent: var(--sr-teal);
+  --nj-btn-ink: #88ffea;
+  --nj-btn-solid: var(--sr-teal);
+  --nj-btn-on-solid: #04221c;
+}
+
+.njb--cobalt {
+  --nj-btn-accent: var(--sr-cobalt);
+  --nj-btn-ink: #a8c9ff;
+  --nj-btn-solid: var(--sr-cobalt);
+  --nj-btn-on-solid: #ffffff;
+}
+
+.njb--blue {
+  --nj-btn-accent: var(--nj-tone-blue);
+  --nj-btn-ink: #b2c8ff;
+  --nj-btn-solid: var(--nj-tone-blue);
+  --nj-btn-on-solid: #ffffff;
+}
+
+.njb--pink {
+  --nj-btn-accent: var(--sr-pink);
+  --nj-btn-ink: #ff9db6;
+  --nj-btn-solid: var(--sr-pink);
+  --nj-btn-on-solid: #fff9fa;
+}
+
+.njb--red {
+  --nj-btn-accent: var(--sr-red);
+  --nj-btn-ink: #ffa8a3;
+  --nj-btn-solid: var(--sr-red);
+  --nj-btn-on-solid: #fff9f9;
+}
+
+.njb--orange {
+  --nj-btn-accent: var(--sr-orange);
+  --nj-btn-ink: #ffc288;
+  --nj-btn-solid: var(--sr-orange);
+  --nj-btn-on-solid: #261003;
+}
+
+.njb.njb--solid {
+  color: var(--nj-btn-on-solid);
+  border-width: 1.5px;
+  border-color: color-mix(in srgb, var(--nj-btn-solid) 66%, #ffffff);
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 0%, rgba(255, 255, 255, 0.42), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--nj-btn-solid) 86%, #ffffff), var(--nj-btn-solid) 58%, color-mix(in srgb, var(--nj-btn-solid) 80%, #000000));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.52),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+    0 4px 0 color-mix(in srgb, var(--nj-btn-solid) 46%, #090605),
+    0 12px 24px rgba(0, 0, 0, 0.44);
+  transition:
+    transform var(--nj-motion-press, 105ms) cubic-bezier(0.2, 0.85, 0.3, 1),
+    box-shadow var(--nj-motion-press, 105ms) ease,
+    filter var(--nj-motion-interaction, 180ms) ease;
+}
+
+.njb.njb--solid:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.6),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.2),
+    0 5px 0 color-mix(in srgb, var(--nj-btn-solid) 46%, #090605),
+    0 16px 30px rgba(0, 0, 0, 0.5);
+}
+
+.njb.njb--solid:active:not(:disabled) {
+  transform: translateY(3px) scale(0.99);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 1px 0 color-mix(in srgb, var(--nj-btn-solid) 46%, #090605),
+    0 4px 10px rgba(0, 0, 0, 0.38);
+}
+
+.njb.njb--soft {
+  color: var(--nj-btn-ink);
+  border-color: color-mix(in srgb, var(--nj-btn-accent) 62%, rgba(255, 248, 234, 0.16));
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--nj-btn-accent) 32%, transparent), transparent 64%),
+    linear-gradient(175deg, color-mix(in srgb, var(--nj-btn-accent) 24%, #241914), rgba(14, 18, 16, 0.94));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.22),
+    0 3px 0 color-mix(in srgb, var(--nj-btn-accent) 32%, #080605),
+    0 8px 16px rgba(0, 0, 0, 0.36);
+}
+
+.njb.njb--soft:hover:not(:disabled) {
+  filter: brightness(1.12);
+  border-color: color-mix(in srgb, var(--nj-btn-accent) 85%, #ffffff);
+}
+
+.njb.njb--outline {
+  color: var(--nj-btn-ink);
+  border-color: color-mix(in srgb, var(--nj-btn-accent) 58%, rgba(255, 248, 234, 0.18));
+  background: color-mix(in srgb, var(--nj-btn-accent) 12%, rgba(12, 18, 16, 0.65));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14);
+}
+
+.njb.njb--outline:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--nj-btn-accent) 85%, #ffffff);
+  background: color-mix(in srgb, var(--nj-btn-accent) 22%, rgba(12, 18, 16, 0.78));
+}
+
+.btn.btn-ghost {
+  color: var(--sr-ivory);
+  border: 1px solid rgba(255, 212, 92, 0.36);
+  background: linear-gradient(175deg, rgba(44, 30, 22, 0.9), rgba(18, 13, 11, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.16), 0 3px 0 #090605;
+}
+
+/* Interrupteurs tactiles (Options) : bouton brillant bien visible */
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  flex: 0 0 auto;
+  width: 54px;
+  height: 30px;
+  padding: 3px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 212, 92, 0.34);
+  background: rgba(8, 18, 15, 0.88);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.55);
+}
+
+.toggle-on {
+  border-color: #96ffec;
+  background: linear-gradient(90deg, #10a88b, #1de4be);
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.35), 0 0 14px rgba(29, 228, 190, 0.42);
+}
+
+.toggle-knob {
+  display: block;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: linear-gradient(180deg, #ffffff, #e8dcc0);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.48);
+  transform: translateX(0);
+  transition: transform 180ms cubic-bezier(0.2, 0.85, 0.25, 1.15);
+}
+
+.toggle-on .toggle-knob {
+  transform: translateX(23px);
+  background: linear-gradient(180deg, #ffffff, #fff2b2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .njb.njb--solid,
+  .nj-sr-back {
+    transition: none;
+  }
+}

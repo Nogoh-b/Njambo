@@ -1,0 +1,868 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Profil : Carte de Joueur Holographique + Palmarès
+   100dvh strict · Carte collectible 3D, jauge SVG animée & trésor 2,5D
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.scene { color: var(--sr-ivory, #fff8ea); }
+
+.frame {
+  width: min(100%, 1020px);
+  height: 100%;
+  min-height: 0;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* ═══ 1. HUD HAUT ═══ */
+.hudBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 6px 10px;
+  border-radius: 17px;
+  border: 1.5px solid rgba(255, 207, 64, 0.5);
+  background:
+    radial-gradient(circle at 14% 50%, rgba(255, 207, 64, 0.24), transparent 52%),
+    linear-gradient(120deg, rgba(58, 34, 18, 0.95), rgba(18, 13, 10, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.22), 0 4px 0 #140a04, 0 10px 22px rgba(0, 0, 0, 0.42);
+}
+
+.hudLeft { min-width: 0; display: flex; align-items: center; gap: 10px; }
+
+.backBtn {
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1.5px solid #ffe89e;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe06b 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 3px 0 #703903;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.hudCopy { display: grid; gap: 1px; }
+.hudKicker { color: #ffcf40; font-size: 9.5px; font-weight: 900; letter-spacing: 0.14em; text-transform: uppercase; line-height: 1; }
+.hudCopy h1 { margin: 0; color: #fffaf0; font-family: var(--font-display), sans-serif; font-size: clamp(16px, 3.8vw, 22px); font-weight: 900; line-height: 1.05; }
+
+.hudRight { flex: 0 0 auto; display: flex; align-items: center; gap: 7px; }
+
+.connectHudBtn {
+  height: 34px;
+  padding: 0 11px;
+  border-radius: 11px;
+  border: 1.5px solid #96ffec;
+  background: linear-gradient(180deg, #42f7d6, #16c9a8);
+  color: #04221c;
+  font-size: 11.5px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #055748;
+}
+
+.walletBtn {
+  height: 34px;
+  padding: 0 11px 0 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 11px;
+  border: 1.5px solid rgba(255, 207, 64, 0.58);
+  background: rgba(12, 18, 16, 0.88);
+  color: #fff0a8;
+  font-size: 12.5px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+/* ═══ 2. CONTENEUR PRINCIPAL ═══ */
+.scrollBody {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 3px 8px 1px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.44) transparent;
+}
+
+.passGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  perspective: 1100px;
+}
+
+@media (min-width: 820px) {
+  .scrollBody {
+    display: flex;
+    align-items: center;
+  }
+
+  .passGrid {
+    width: 100%;
+    grid-template-columns: minmax(300px, 360px) minmax(0, 1fr);
+    gap: 18px;
+    align-items: stretch;
+  }
+}
+
+/* ═══ CARTE FOIL COLLECTIBLE DU JOUEUR ═══ */
+.vipCard {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 11px;
+  padding: 18px 18px 16px;
+  border-radius: 26px;
+  border: 2px solid rgba(255, 214, 96, 0.78);
+  background:
+    radial-gradient(ellipse 86% 48% at 50% 10%, rgba(255, 207, 64, 0.28), transparent 64%),
+    radial-gradient(ellipse 80% 45% at 50% 96%, rgba(29, 228, 190, 0.16), transparent 64%),
+    linear-gradient(168deg, #2e1e15 0%, #16100d 56%, #0b221b 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 250, 224, 0.28),
+    0 22px 44px rgba(0, 0, 0, 0.56),
+    0 0 36px rgba(255, 207, 64, 0.22);
+  overflow: hidden;
+  isolation: isolate;
+  transition: transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.1), box-shadow 220ms ease;
+}
+
+.vipCard:hover {
+  transform: translateY(-3px);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 250, 224, 0.34),
+    0 26px 52px rgba(0, 0, 0, 0.62),
+    0 0 44px rgba(255, 207, 64, 0.32);
+}
+
+.vipTrim {
+  position: absolute;
+  inset: 7px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 214, 96, 0.3);
+  pointer-events: none;
+  z-index: 2;
+}
+
+.vipHoloSweep {
+  position: absolute;
+  inset: -40%;
+  width: 36%;
+  background: linear-gradient(112deg, transparent, rgba(255, 248, 214, 0.16) 50%, transparent);
+  transform: translateX(-180%);
+  animation: vipHolo 5.6s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 3;
+}
+
+@keyframes vipHolo {
+  0%, 64% { transform: translateX(-180%); }
+  94%, 100% { transform: translateX(460%); }
+}
+
+.cornerSuitTop,
+.cornerSuitBot {
+  position: absolute;
+  font-size: 16px;
+  color: rgba(255, 214, 96, 0.26);
+  pointer-events: none;
+  z-index: 1;
+}
+.cornerSuitTop { top: 12px; left: 13px; }
+.cornerSuitBot { bottom: 12px; right: 13px; transform: rotate(180deg); }
+
+.vipTop {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.vipRankPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 11px 4px 6px;
+  border-radius: 999px;
+  background: rgba(12, 18, 16, 0.9);
+  border: 1px solid rgba(255, 207, 64, 0.55);
+  color: #fff0a8;
+  font-size: 11.5px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.vipLevelPill {
+  padding: 4px 11px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe573, #e69210);
+  color: #241203;
+  font-size: 11.5px;
+  font-weight: 950;
+  box-shadow: 0 3px 10px rgba(0, 0, 0, 0.4);
+}
+
+.vipGuestPill {
+  background: linear-gradient(180deg, #4df5d8, #14b898);
+  color: #04221c;
+}
+
+/* Scène Avatar avec rayons solaires tournants */
+.vipAvatarStage {
+  position: relative;
+  z-index: 4;
+  width: 146px;
+  height: 136px;
+  display: grid;
+  place-items: center;
+}
+
+.avatarSunburst {
+  position: absolute;
+  width: 186px;
+  height: 186px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 207, 64, 0.16) 0deg 12deg,
+    transparent 12deg 28deg
+  );
+  animation: spinSlow 24s linear infinite;
+  pointer-events: none;
+}
+
+@keyframes spinSlow {
+  to { transform: rotate(360deg); }
+}
+
+.avatarMedallion {
+  position: relative;
+  display: grid;
+  place-items: center;
+}
+
+.vipAvatarRing {
+  padding: 4px;
+  border-radius: 50%;
+  background: linear-gradient(145deg, #fff5be, #e69210 60%, #8a4b06);
+  box-shadow: 0 12px 26px rgba(0, 0, 0, 0.56), 0 0 28px rgba(255, 207, 64, 0.42);
+}
+
+.avatarEditBadge {
+  position: absolute;
+  right: -2px;
+  bottom: 2px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  border: 2px solid #16100d;
+  background: linear-gradient(180deg, #ffe573, #e69210);
+  color: #241203;
+  font-size: 14px;
+  font-weight: 950;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  transition: transform 130ms ease;
+}
+
+.avatarEditBadge:hover { transform: scale(1.12); }
+
+/* Pseudo */
+.nameRow {
+  position: relative;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.nameRow h2 {
+  margin: 0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 25px;
+  font-weight: 950;
+  color: #fffaf0;
+  text-shadow: 0 3px 12px rgba(0, 0, 0, 0.52);
+}
+
+.editIconBtn {
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 207, 64, 0.48);
+  background: rgba(255, 207, 64, 0.14);
+  color: #fff0a8;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.nameEditRow {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  display: flex;
+  gap: 8px;
+}
+
+.nameInput {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(255, 207, 64, 0.62);
+  background: rgba(8, 16, 14, 0.9);
+  color: #fffaf0;
+  font: inherit;
+  font-weight: 800;
+  outline: none;
+}
+
+.saveNameBtn {
+  padding: 0 15px;
+  border-radius: 12px;
+  border: 1.5px solid #fff2b2;
+  background: linear-gradient(180deg, #ffe370, #f0a81b);
+  color: #241203;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.accountBadgeLine {
+  position: relative;
+  z-index: 4;
+  margin-top: -6px;
+  font-size: 11px;
+  font-weight: 750;
+  color: #a9c6bc;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Barre XP */
+.xpBox { position: relative; z-index: 4; width: 100%; display: grid; gap: 5px; }
+.xpHead { display: flex; justify-content: space-between; font-size: 11.5px; color: #b8d3c9; font-weight: 800; }
+.xpHead strong { color: #56f7d6; font-variant-numeric: tabular-nums; }
+
+.xpTrack {
+  width: 100%;
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.48);
+  border: 1px solid rgba(255, 212, 92, 0.22);
+  overflow: hidden;
+}
+
+.xpTrack span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #16c7a8, #ffcf40);
+  box-shadow: 0 0 12px rgba(255, 207, 64, 0.6);
+}
+
+/* Mini-deck 3 cartes Pouvoir intégré dans la carte joueur */
+.cardDeckTray {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 15px;
+  border: 1px solid rgba(152, 107, 255, 0.52);
+  background:
+    radial-gradient(circle at 86% 50%, rgba(152, 107, 255, 0.24), transparent 56%),
+    rgba(12, 15, 22, 0.88);
+  color: #fffaf0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  transition: transform 140ms ease, border-color 140ms ease;
+}
+
+.cardDeckTray:hover {
+  transform: translateY(-2px);
+  border-color: #d6c2ff;
+}
+
+.deckTrayLeft { display: grid; text-align: left; line-height: 1.1; }
+.deckTrayLeft small { color: #c7b0ff; font-size: 9.5px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+.deckTrayLeft strong { font-size: 13px; font-weight: 900; color: #fffaf0; }
+
+.deckMiniFan { display: flex; align-items: center; }
+
+.deckSlot {
+  position: relative;
+  width: 30px;
+  height: 42px;
+  border-radius: 6px;
+  border: 1.5px dashed rgba(214, 194, 255, 0.56);
+  background: rgba(24, 18, 40, 0.92);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #d6c2ff;
+  font-weight: 900;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  isolation: isolate;
+}
+
+.deckSlotOn {
+  border: 0;
+  background:
+    radial-gradient(ellipse 90% 65% at 50% 80%, color-mix(in srgb, var(--c-primary) 30%, transparent), transparent 72%),
+    linear-gradient(172deg, var(--c-top, #1a1628) 0%, var(--c-bot, #090a12) 100%);
+  box-shadow:
+    0 5px 10px rgba(0, 0, 0, 0.62),
+    0 0 11px color-mix(in srgb, var(--c-glow) 50%, transparent);
+}
+.ds_0 { transform: rotate(-10deg) translateY(2px); margin-right: -8px; }
+.ds_1 { z-index: 2; transform: translateY(-2px); }
+.ds_2 { transform: rotate(10deg) translateY(2px); margin-left: -8px; }
+
+.deckSlotArtMask {
+  position: absolute;
+  inset: 0 0 34% 0;
+  z-index: 1;
+  -webkit-mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, #000 24%, transparent 100%);
+  mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.3) 0%, #000 24%, transparent 100%);
+}
+
+.deckSlotImg { object-fit: cover; object-position: center 22%; }
+
+.deckSlotMotif {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 2;
+  pointer-events: none;
+  filter: drop-shadow(0 0 3px var(--c-glow));
+}
+
+.errBox {
+  position: relative;
+  z-index: 4;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 10px;
+  background: rgba(102, 16, 36, 0.85);
+  color: #ffd4df;
+  font-size: 12px;
+  text-align: center;
+}
+
+/* ═══ COLONNE DROITE : PALMARÈS + TRÉSOR + COMPTE ═══ */
+.statsColumn {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+}
+
+/* Bannière douce pour sauvegarder son compte en invité */
+.guestSaveCard {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 11px 13px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(29, 228, 190, 0.54);
+  background:
+    radial-gradient(circle at 12% 50%, rgba(29, 228, 190, 0.22), transparent 54%),
+    linear-gradient(155deg, rgba(16, 44, 38, 0.94), rgba(10, 20, 18, 0.96));
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.42);
+}
+
+.guestSaveIcon {
+  flex: 0 0 auto;
+  width: 42px;
+  height: 42px;
+  border-radius: 13px;
+  background: rgba(255, 207, 64, 0.16);
+  border: 1px solid rgba(255, 207, 64, 0.44);
+  display: grid;
+  place-items: center;
+}
+
+.guestSaveCopy {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.guestSaveCopy strong { color: #fffaf0; font-size: 13.5px; font-weight: 900; }
+.guestSaveCopy small { color: #b8d8ce; font-size: 11.5px; line-height: 1.3; }
+
+.guestSaveCta {
+  position: relative;
+  overflow: hidden;
+  flex: 0 0 auto;
+  height: 40px;
+  padding: 0 15px;
+  border-radius: 12px;
+  border: 1.5px solid #c2fff4;
+  background: linear-gradient(180deg, #56fce0, #14c2a2);
+  color: #03221c;
+  font-family: var(--font-display), sans-serif;
+  font-size: 12.5px;
+  font-weight: 950;
+  cursor: pointer;
+  box-shadow: 0 3.5px 0 #055c4b;
+}
+
+.btnSheen {
+  position: absolute;
+  inset: 0;
+  width: 34%;
+  background: linear-gradient(108deg, transparent, rgba(255, 255, 255, 0.5) 50%, transparent);
+  transform: translateX(-160%);
+  animation: btnSweep 4.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes btnSweep {
+  0%, 64% { transform: translateX(-160%); }
+  92%, 100% { transform: translateX(380%); }
+}
+
+/* CARTE PALMARÈS + JAUGE CIRCULAIRE SVG */
+.winGaugeCard {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 13px 16px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(255, 212, 92, 0.42);
+  background:
+    radial-gradient(circle at 14% 50%, rgba(29, 228, 190, 0.18), transparent 52%),
+    linear-gradient(160deg, rgba(44, 29, 21, 0.95), rgba(14, 22, 19, 0.97));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.16), 0 12px 26px rgba(0, 0, 0, 0.44);
+}
+
+.gaugeVisual {
+  position: relative;
+  flex: 0 0 auto;
+  width: 82px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+}
+
+.gaugeSvg {
+  width: 100%;
+  height: 100%;
+  transform: rotate(-90deg);
+}
+
+.gaugeBg {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.12);
+  stroke-width: 7;
+}
+
+.gaugeFill {
+  fill: none;
+  stroke-width: 7;
+  stroke-linecap: round;
+  filter: drop-shadow(0 0 6px rgba(77, 245, 216, 0.55));
+}
+
+.gaugeCenter {
+  position: absolute;
+  display: grid;
+  text-align: center;
+  line-height: 1;
+}
+
+.gaugeCenter strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 18px;
+  font-weight: 950;
+  color: #fffaf0;
+}
+
+.gaugeCenter small {
+  font-size: 8.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #82ffea;
+  margin-top: 2px;
+}
+
+.palmaresCounters {
+  flex: 1 1 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pCounter {
+  padding: 8px 6px;
+  border-radius: 13px;
+  border: 1px solid rgba(255, 240, 190, 0.14);
+  background: rgba(10, 18, 16, 0.72);
+  display: grid;
+  text-align: center;
+  gap: 2px;
+}
+
+.pCounter small {
+  color: #a9c6bc;
+  font-size: 9.5px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.pCounter strong {
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(14px, 3vw, 18px);
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pWinNum { color: #62f295 !important; }
+.pGoldNum { color: #ffe573 !important; }
+
+/* 4 TUILES TRÉSOR 2,5D */
+.statsGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.statTile {
+  --st-tone: #ffcf40;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 12px 13px;
+  border-radius: 18px;
+  border: 1.5px solid color-mix(in srgb, var(--st-tone) 48%, rgba(255, 248, 234, 0.14));
+  background:
+    radial-gradient(circle at 14% 50%, color-mix(in srgb, var(--st-tone) 24%, transparent), transparent 58%),
+    linear-gradient(160deg, rgba(44, 29, 21, 0.94), rgba(14, 22, 19, 0.97));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.16), 0 10px 22px rgba(0, 0, 0, 0.42);
+  text-align: left;
+  cursor: pointer;
+}
+
+.stGold { --st-tone: #ffcf40; }
+.stPink { --st-tone: #ff4772; }
+.stTeal { --st-tone: #1de4be; }
+.stBlue { --st-tone: #4b8eff; }
+
+.statIconWrap {
+  flex: 0 0 auto;
+  width: 44px;
+  height: 44px;
+  border-radius: 13px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--st-tone) 28%, transparent), rgba(10, 16, 14, 0.85));
+  border: 1px solid color-mix(in srgb, var(--st-tone) 44%, transparent);
+  display: grid;
+  place-items: center;
+}
+
+.statIconImg {
+  object-fit: contain;
+  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.5));
+  animation: iconBob 3.6s ease-in-out infinite;
+  animation-delay: var(--float-delay, 0s);
+}
+
+@keyframes iconBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+.statText { flex: 1 1 auto; min-width: 0; display: grid; gap: 2px; }
+.statText small { color: color-mix(in srgb, var(--st-tone) 76%, #d6ebe2); font-size: 10px; font-weight: 900; text-transform: uppercase; letter-spacing: 0.07em; }
+.statText strong { color: #fffaf0; font-family: var(--font-display), sans-serif; font-size: clamp(15px, 3.4vw, 19px); font-weight: 950; line-height: 1.08; font-variant-numeric: tabular-nums; }
+
+.miniEnergyBar {
+  width: 100%;
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  margin-top: 2px;
+}
+
+.miniEnergyBar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #16c7a8, #70ffe3);
+}
+
+/* Raccourcis rapides */
+.quickNavRow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.quickNavBtn {
+  height: 42px;
+  padding: 0 10px;
+  border-radius: 13px;
+  border: 1.5px solid rgba(255, 212, 92, 0.28);
+  background: linear-gradient(175deg, rgba(36, 25, 20, 0.92), rgba(14, 18, 16, 0.95));
+  color: #fff6e0;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #090605;
+  transition: transform 120ms ease, border-color 140ms ease;
+}
+
+.quickNavBtn:hover { transform: translateY(-1px); border-color: #ffcf40; }
+
+/* Pied compte permanent : Tranche d'âge + Déconnexion */
+.accountFooterCard {
+  margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 14px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 212, 92, 0.34);
+  background: rgba(18, 14, 12, 0.9);
+}
+
+.ageRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.ageCopy { display: grid; gap: 2px; }
+.ageCopy strong { font-size: 13px; color: #fffaf0; }
+.ageCopy small { font-size: 11px; color: #a9c6bc; }
+
+.ageBtns { display: flex; gap: 7px; }
+
+.ageBtn {
+  height: 34px;
+  padding: 0 12px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 212, 92, 0.38);
+  background: rgba(14, 22, 19, 0.88);
+  color: #d7e4de;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.ageBtnActive {
+  color: #241203;
+  border-color: #fff2b2;
+  background: linear-gradient(180deg, #ffe370, #f0a81b);
+  box-shadow: 0 3px 0 #703903;
+}
+
+.logoutBtn {
+  align-self: flex-end;
+  height: 36px;
+  padding: 0 16px;
+  border-radius: 11px;
+  border: 1.5px solid #ff9eb5;
+  background: linear-gradient(180deg, #ff5b82, #cc1e48);
+  color: #ffffff;
+  font-family: var(--font-display), sans-serif;
+  font-size: 12.5px;
+  font-weight: 900;
+  box-shadow: 0 3px 0 #750d28;
+  cursor: pointer;
+}
+
+/* Modale avatars */
+.avatarGrid {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.avatarChoice {
+  aspect-ratio: 1;
+  border-radius: 16px;
+  border: 1.5px solid rgba(255, 212, 92, 0.3);
+  background: rgba(12, 22, 19, 0.88);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+
+.avatarChoiceActive {
+  border-color: #fff2b2;
+  background: rgba(255, 207, 64, 0.24);
+  box-shadow: 0 0 18px rgba(255, 207, 64, 0.46);
+}
+
+.authDone { padding: 16px; text-align: center; color: #79f5a8; font-weight: 850; }
+
+/* Respect du réglage animations */
+.motionReduced .vipHoloSweep,
+.motionReduced .avatarSunburst,
+.motionReduced .statIconImg,
+.motionReduced .btnSheen {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .vipHoloSweep,
+  .avatarSunburst,
+  .statIconImg,
+  .btnSheen {
+    animation: none !important;
+  }
+}
+
+@media (max-width: 520px) {
+  .backLabel { display: none; }
+  .backBtn { width: 36px; padding: 0; justify-content: center; }
+  .guestSaveCard { flex-wrap: wrap; }
+  .guestSaveCta { width: 100%; }
+  .winGaugeCard { gap: 11px; padding: 11px 12px; }
+  .gaugeVisual { width: 70px; height: 70px; }
+}

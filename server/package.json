@@ -8,15 +8,14 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "node dist/server/src/index.js",
-    "dev": "npm run build && node dist/server/src/index.js"
+    "start": "node --env-file=.env dist/server/src/index.js",
+    "dev": "node --env-file=.env dist/server/src/index.js"
   },
   "dependencies": {
     "cors": "^2.8.5",
     "express": "^4.21.2",
     "firebase-admin": "^13.4.0",
     "firebase-functions": "^6.4.0",
-    "njambo-app": "file:..",
     "node-cron": "^3.0.3",
     "pg": "^8.22.0",
     "ws": "^8.21.1"

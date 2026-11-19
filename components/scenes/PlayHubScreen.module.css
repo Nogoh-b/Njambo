@@ -1,26 +1,278 @@
-.modeGrid {
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Écran Jouer Plein Écran (Zéro Dock · Zéro Scroll)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.playScene {
+  color: var(--sr-ivory, #fff8ea);
+}
+
+.playFrame {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: clamp(8px, 1.5vh, 14px);
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* ═══ HUD HAUT COMPACT & ÉMAILLÉ ═══ */
+.hudBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255, 212, 92, 0.42);
+  background:
+    radial-gradient(circle at 12% 50%, rgba(29, 228, 190, 0.16), transparent 48%),
+    linear-gradient(120deg, rgba(56, 30, 18, 0.94), rgba(18, 13, 11, 0.95));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.22),
+    0 4px 0 #090604,
+    0 10px 22px rgba(0, 0, 0, 0.38);
+}
+
+.hudLeft {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backBtn {
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1.5px solid #ffe89e;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe06b 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+    0 3px 0 #703903;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 105ms ease, filter 150ms ease;
+}
+
+.backBtn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.backBtn:active {
+  transform: translateY(2px);
+}
+
+.backLabel {
+  line-height: 1;
+}
+
+.hudCopy {
   min-width: 0;
   display: grid;
-  grid-template-columns: minmax(0, 1fr);
-  gap: var(--nj-layout-gap);
+  gap: 1px;
 }
 
-@media (min-width: 600px) {
-  .modeGrid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+.hudKicker {
+  color: var(--sr-teal, #1de4be);
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.hudCopy h1 {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(15.5px, 4vw, 22px);
+  font-weight: 850;
+  line-height: 1.05;
+}
+
+.hudWallet {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.miniPill {
+  height: 36px;
+  padding: 0 10px 0 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 11px;
+  border: 1.5px solid rgba(255, 207, 64, 0.44);
+  background: rgba(12, 19, 17, 0.85);
+  color: #fffaf0;
+  font-size: 12.5px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.16), 0 3px 0 #07120f;
+  cursor: pointer;
+  transition: transform 110ms ease, filter 150ms ease;
+}
+
+.miniTeal { border-color: rgba(29, 228, 190, 0.56); }
+.miniGold { border-color: rgba(255, 207, 64, 0.58); }
+
+.miniPill:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.1);
+}
+
+/* ═══ ONGLETS DE SÉLECTION MOBILE ÉMAILLÉS ═══ */
+.mobileTabs {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.mobileTab {
+  --tab-tone: var(--sr-teal);
+  --tab-deep: #064d40;
+  position: relative;
+  height: 40px;
+  padding: 0 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  border-radius: 13px;
+  border: 1.5px solid rgba(255, 248, 234, 0.16);
+  background: rgba(16, 22, 20, 0.78);
+  color: #bfd6cc;
+  font-size: 12px;
+  font-weight: 850;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 150ms ease, color 150ms ease, background 150ms ease;
+}
+
+.tab_teal { --tab-tone: var(--sr-teal, #1de4be); --tab-deep: #065748; }
+.tab_gold { --tab-tone: var(--sr-gold, #ffcf40); --tab-deep: #754406; }
+.tab_pink { --tab-tone: var(--sr-pink, #ff4772); --tab-deep: #7a102b; }
+
+.mobileTab span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.mobileTabActive {
+  color: #fffdf7;
+  border-color: color-mix(in srgb, var(--tab-tone) 82%, #ffffff);
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--tab-tone) 48%, transparent), transparent 68%),
+    linear-gradient(175deg, color-mix(in srgb, var(--tab-tone) 44%, #261a14), color-mix(in srgb, var(--tab-tone) 22%, #110c0a));
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.36),
+    0 3px 0 var(--tab-deep),
+    0 0 18px color-mix(in srgb, var(--tab-tone) 34%, transparent);
+}
+
+.tabLockDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--sr-gold, #ffcf40);
+}
+
+/* ═══ SCÈNE DE CARTES DE MODE ═══ */
+.deckStage {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+  overflow: visible;
+}
+
+.tableHalo {
+  position: absolute;
+  width: min(94%, 760px);
+  height: min(88%, 460px);
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 212, 92, 0.28);
+  background: radial-gradient(ellipse at center, rgba(29, 228, 190, 0.2), rgba(255, 207, 64, 0.06) 54%, transparent 74%);
+  pointer-events: none;
+}
+
+.cardSpread {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  place-items: center;
+}
+
+.swipeDots {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  gap: 8px;
+  padding-bottom: 2px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+  border: 0;
+  background: rgba(255, 248, 234, 0.28);
+  cursor: pointer;
+  transition: width 200ms ease, background 200ms ease;
+}
+
+.dotActive {
+  width: 26px;
+  background: var(--sr-gold, #ffcf40);
+  box-shadow: 0 0 12px rgba(255, 207, 64, 0.65);
+}
+
+@media (max-width: 420px) {
+  .backLabel {
+    display: none;
+  }
+
+  .backBtn {
+    width: 38px;
+    padding: 0;
+    justify-content: center;
   }
 }
 
-@media (min-width: 960px) {
-  .modeGrid {
-    grid-template-columns: minmax(0, 1.72fr) minmax(280px, 0.82fr);
-    grid-template-rows: repeat(2, minmax(250px, 1fr));
+/* ═══ TABLETTE & DESKTOP : les 3 grandes cartes côte à côte ═══ */
+@media (min-width: 760px) {
+  .mobileTabs,
+  .swipeDots {
+    display: none;
   }
-}
 
-@media (orientation: landscape) and (max-height: 620px) and (min-width: 600px) and (max-width: 959px) {
-  .modeGrid {
-    grid-template-columns: minmax(0, 1.5fr) minmax(250px, 0.8fr);
-    grid-template-rows: repeat(2, minmax(230px, 1fr));
+  .cardSpread {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    align-items: center;
+    gap: clamp(14px, 2.2vw, 24px);
+    max-width: 1040px;
+    padding: 8px 6px;
   }
 }

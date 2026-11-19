@@ -2,9 +2,10 @@
 
 import { useId, type ReactNode } from "react";
 import type { BottomNavKey } from "@/components/ui/BottomNav";
-import { NjamboFriendlyIcon, type NjamboFriendlyIconName } from "@/components/ui/Art";
+import { NjamboIcon, type NjamboIconName, type NjamboIconTone } from "@/components/ui/Art";
 import { GameShell } from "@/components/ui/GameShell";
 import type { GameTone } from "@/components/ui/GamePrimitives";
+import { useGame } from "@/contexts/GameContext";
 import styles from "./GameHubLayout.module.css";
 
 export type GameHubTone = GameTone | "home" | "play" | "events" | "shop" | "wallet" | "social";
@@ -20,6 +21,9 @@ export interface GameHubLayoutProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
+  /** Retour personnalisé (par défaut : retour au Salon d'accueil). */
+  onBack?: () => void;
+  backLabel?: string;
 }
 
 const TONE_CLASS: Record<GameHubTone, string> = {
@@ -35,17 +39,17 @@ const TONE_CLASS: Record<GameHubTone, string> = {
   social: styles.tonePalm,
 };
 
-const TONE_ICON: Record<GameHubTone, NjamboFriendlyIconName> = {
-  gold: "home",
-  teal: "play",
-  pink: "events",
-  cobalt: "shop",
-  home: "home",
-  play: "play",
-  events: "events",
-  shop: "shop",
-  wallet: "shop",
-  social: "social",
+const TONE_ICON: Record<GameHubTone, { icon: NjamboIconName; tone: NjamboIconTone }> = {
+  gold: { icon: "coin", tone: "gold" },
+  teal: { icon: "play", tone: "teal" },
+  pink: { icon: "trophy", tone: "pink" },
+  cobalt: { icon: "sparkle", tone: "cobalt" },
+  home: { icon: "home", tone: "gold" },
+  play: { icon: "cards", tone: "teal" },
+  events: { icon: "trophy", tone: "pink" },
+  shop: { icon: "coin", tone: "gold" },
+  wallet: { icon: "coin", tone: "gold" },
+  social: { icon: "users", tone: "palm" },
 };
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -53,8 +57,9 @@ function cx(...classes: Array<string | false | null | undefined>) {
 }
 
 /**
- * Cadre commun des hubs de premier niveau. La navigation principale tient lieu
- * de retour : aucun bouton Accueil redondant n'est rendu dans l'en-tête.
+ * Cadre commun Salon Royal Vibrant des hubs (Boutique, Événements, Social, Portefeuille).
+ * Verrouillé à 100dvh, sans barre de navigation basse : un bouton 3D « ← Salon »
+ * ancre le retour dans le HUD compact, et seules les listes internes défilent.
  */
 export function GameHubLayout({
   tone = "gold",
@@ -67,33 +72,48 @@ export function GameHubLayout({
   children,
   className,
   contentClassName,
+  onBack,
+  backLabel = "Salon",
 }: GameHubLayoutProps) {
   const titleId = `game-hub-${useId().replaceAll(":", "")}`;
+  const { navigateTo } = useGame();
+  const emblem = TONE_ICON[tone];
 
   return (
     <GameShell
       active={active}
-      className={cx(styles.scene, "nj-mboa-solar-hub", TONE_CLASS[tone], className)}
-      contentClassName={cx(styles.scroll, contentClassName)}
+      dock={false}
+      scroll={false}
+      className={cx(styles.scene, TONE_CLASS[tone], className)}
+      contentClassName={cx(styles.frame, contentClassName)}
     >
       <header className={styles.header}>
-        <div className={styles.headerMain}>
+        <div className={styles.headerLeft}>
+          <button
+            data-nj-skin="none"
+            type="button"
+            className={styles.backBtn}
+            onClick={onBack ?? (() => navigateTo("menu"))}
+            aria-label={`Retour à ${backLabel}`}
+          >
+            <span aria-hidden="true">←</span>
+            <span className={styles.backLabel}>{backLabel}</span>
+          </button>
+
           <span className={styles.headerMedallion} aria-hidden="true">
-            <NjamboFriendlyIcon name={TONE_ICON[tone]} size={36} />
+            <NjamboIcon name={emblem.icon} tone={emblem.tone} size={23} />
           </span>
+
           <div className={styles.heading}>
-            {kicker !== undefined && (
-              <div className={styles.kicker}>
-                <span aria-hidden="true" />
-                <span>{kicker}</span>
-              </div>
-            )}
+            {kicker !== undefined && <span className={styles.kicker}>{kicker}</span>}
             <h1 id={titleId}>{title}</h1>
-            {subtitle !== undefined && <p>{subtitle}</p>}
+            {subtitle !== undefined && <p className={styles.subtitle}>{subtitle}</p>}
           </div>
         </div>
+
         {headerAction !== undefined && <div className={styles.headerAction}>{headerAction}</div>}
       </header>
+
       <div className={cx(styles.body, secondaryRail !== undefined && styles.hasSecondary)}>
         <div className={styles.content} role="region" aria-labelledby={titleId}>
           {children}

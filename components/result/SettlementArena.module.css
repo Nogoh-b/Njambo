@@ -1,200 +1,312 @@
-/* Arène de fin de manche : les joueurs occupent une position propre autour
-   d'un pot central, et les NKAP traversent réellement l'écran. La distance
-   parcourue EST l'effet — d'où une scène large plutôt qu'une liste. */
+/* ═══════════════ SettlementArena — Table Miniature Salon Royal & Pluie de Nkap ═══════════════ */
 
 .arena {
   position: relative;
-  /* La scène remplit la hauteur que son conteneur lui laisse (`.arenaSlot`,
-     seul élément extensible de la colonne) et en déduit sa largeur via le
-     ratio. Elle ne peut donc structurellement pas pousser l'écran : plus
-     besoin d'estimer la place occupée par le reste, ni d'ajuster au pixel
-     média-requête par média-requête. */
-  /* Se cale sur la plus contraignante des deux dimensions du conteneur. Un
-     simple `height:100%` + `max-width:100%` ne suffit pas : la largeur déduite
-     du ratio ignore le plafond et la scène débordait de l'écran en portrait
-     large. Ici la contrainte est explicite sur les deux axes. */
   width: min(100cqw, calc(100cqh / var(--arena-ratio)));
   max-width: 100%;
   margin-inline: auto;
-  /* Un peu plus haute que large : c'est ce qui donne aux sièges du haut et du
-     bas la place de tenir dans le cadre sans mordre sur le texte voisin. */
-  --arena-ratio: 1.1;
+  --arena-ratio: 1.06;
   aspect-ratio: 1 / var(--arena-ratio);
   container-type: inline-size;
   container-name: njarena;
-  /* Rayons de la couronne de sièges. Le JS ne fournit que la direction
-     (--ux/--uy) ; c'est ici qu'on décide de la forme. */
-  --arena-rx: 32cqi;
-  --arena-ry: 31cqi;
+  --arena-rx: 33cqi;
+  --arena-ry: 32cqi;
 }
 
-/* À quatre joueurs, on écarte la couronne (et le pot se resserre plus bas). */
 .arena[data-dense] {
-  --arena-rx: 35cqi;
+  --arena-rx: 36cqi;
   --arena-ry: 37cqi;
 }
 
-/* ── Pot central ───────────────────────────────────────────────────────── */
+/* ── Table ovale miniature acajou / laiton / feutre émeraude ────────────── */
 
-/* La natte : le sol de la scène. Elle épouse la couronne de sièges via les
-   mêmes rayons, donc elle suit automatiquement le passage en paysage. C'est
-   elle qui relie les joueurs entre eux et pose le pot dans un lieu, au lieu
-   de le laisser flotter au milieu du vide. */
 .mat {
   position: absolute;
   top: 50%;
   left: 50%;
-  width: calc(var(--arena-rx) * 2 + 22cqi);
-  height: calc(var(--arena-ry) * 2 + 22cqi);
-  max-width: 100%;
-  max-height: 100%;
+  width: calc(var(--arena-rx) * 2 + 16cqi);
+  height: calc(var(--arena-ry) * 2 + 16cqi);
+  max-width: 96%;
+  max-height: 96%;
   border-radius: 50%;
   transform: translate(-50%, -50%);
   background:
-    radial-gradient(closest-side, rgba(255, 252, 244, 0.75), rgba(233, 214, 178, 0.34) 66%, rgba(169, 98, 67, 0.08));
-  border: 1px solid rgba(169, 98, 67, 0.16);
-  box-shadow: inset 0 1px 0 rgba(255, 253, 246, 0.8);
+    radial-gradient(ellipse 66% 58% at 50% 42%, rgba(30, 152, 114, 0.56), rgba(14, 82, 60, 0.72) 58%, rgba(7, 38, 28, 0.92) 100%);
+  border: 4px solid #4c2914;
+  box-shadow:
+    0 0 0 1.5px rgba(242, 187, 69, 0.44),
+    0 12px 30px rgba(0, 0, 0, 0.54),
+    inset 0 0 0 1.5px rgba(255, 224, 140, 0.28),
+    inset 0 14px 28px rgba(0, 0, 0, 0.34);
   pointer-events: none;
 }
 
-/* Pot volontairement PETIT : c'est le point de convergence, pas le sujet.
-   Palette claire, comme le panneau ivoire qui l'accueille — la version
-   précédente était un disque nocturne posé sur une carte crème. */
+/* Ligne de couture dorée sur le feutre */
+.mat::before {
+  content: "";
+  position: absolute;
+  inset: 10px;
+  border-radius: 50%;
+  border: 1px dashed rgba(255, 224, 140, 0.24);
+}
+
+/* Lueur douce de lustre au centre du feutre */
+.mat::after {
+  content: "";
+  position: absolute;
+  inset: 18%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 214, 102, 0.16), transparent 72%);
+}
+
+/* ── Coffre central Nkap ───────────────────────────────────────────────── */
+
 .pot {
   position: absolute;
   top: 50%;
   left: 50%;
   z-index: 2;
-  display: grid;
-  place-items: center;
-  width: 21%;
+  width: 24%;
+  min-width: 64px;
+  max-width: 88px;
   aspect-ratio: 1;
-  border-radius: 50%;
   transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 38% 30%, #fff6df, var(--gold, #d0a35d) 62%, var(--copper, #a96243));
-  border: 1px solid rgba(255, 246, 223, 0.9);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 252, 240, 0.9),
-    0 3px 10px rgba(84, 52, 24, 0.26),
-    0 0 0 5px rgba(208, 163, 93, 0.13);
 }
 
 .arena[data-dense] .pot {
-  width: 19%;
+  width: 21.5%;
+  min-width: 60px;
 }
 
-.arena[data-dense] .seat {
-  width: 27%;
-  min-width: 70px;
+.potInner {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 4px;
+  background:
+    radial-gradient(circle at 34% 26%, #4e2f12 0%, #261408 66%, #140a04 100%);
+  border: 2px solid rgba(255, 214, 96, 0.85);
+  box-shadow:
+    0 8px 20px rgba(0, 0, 0, 0.58),
+    0 0 22px rgba(255, 207, 64, 0.34),
+    0 0 0 5px rgba(255, 207, 64, 0.12),
+    inset 0 1px 0 rgba(255, 246, 206, 0.45);
+}
+
+.potInnerHonor {
+  background:
+    radial-gradient(circle at 36% 28%, #215946 0%, #0f3227 68%, #091d17 100%);
+  border-color: rgba(255, 214, 96, 0.65);
+}
+
+.potCoinImg {
+  width: clamp(20px, 7.2cqi, 28px);
+  height: clamp(20px, 7.2cqi, 28px);
+  object-fit: contain;
+  filter: drop-shadow(0 2px 5px rgba(0, 0, 0, 0.65));
+  pointer-events: none;
+}
+
+.potHonorCrown {
+  color: #ffd86b;
+  filter: drop-shadow(0 0 8px rgba(255, 207, 64, 0.55));
 }
 
 .potAmount {
-  color: #3d2708;
+  color: #ffe88e;
   font-family: var(--font-display), Georgia, serif;
-  font-size: clamp(10px, 3.6cqi, 15px);
+  font-size: clamp(10.5px, 3.8cqi, 15px);
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   line-height: 1;
   white-space: nowrap;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.7);
 }
 
-/* ── Sièges ────────────────────────────────────────────────────────────── */
+.potUnit {
+  color: rgba(255, 224, 146, 0.72);
+  font-size: 7.5px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  line-height: 1;
+}
+
+/* ── Sièges joueurs ────────────────────────────────────────────────────── */
 
 .seat {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  display: grid;
-  justify-items: center;
-  gap: 2px;
-  width: 30%;
-  min-width: 76px;
-  padding: 6px 4px;
-  border-radius: 14px;
-  /* Direction (JS) × rayon (CSS) : c'est ce découplage qui permet de passer
-     d'une couronne haute en portrait à une ellipse large en paysage. */
-  transform: translate(-50%, -50%)
-    translate(calc(var(--ux) * var(--arena-rx)), calc(var(--uy) * var(--arena-ry)));
+  left: calc(50% + var(--ux) * var(--arena-rx));
+  top: calc(50% + var(--uy) * var(--arena-ry));
+  z-index: 3;
+  width: 31%;
+  min-width: 78px;
+  max-width: 118px;
+  transform: translate(-50%, -50%);
   text-align: center;
 }
 
-/* Le vainqueur est la seule position chaude et cerclée : le contraste porte
-   l'information avant même que les compteurs ne bougent. */
-.seat {
-  z-index: 3;
-  /* Ancre le bouton d'ajout en ami, positionné en absolu sur le coin. */
-  position: absolute;
+.arena[data-dense] .seat {
+  width: 28%;
+  min-width: 72px;
+}
+
+.seatInner {
+  position: relative;
+  display: grid;
+  justify-items: center;
+  gap: 3px;
+  padding: 4px 2px;
 }
 
 .seatWinner {
-  background: radial-gradient(circle at 50% 32%, rgba(208, 163, 93, 0.3), transparent 72%);
+  z-index: 4;
 }
 
 .avatarWrap {
   position: relative;
   display: grid;
   place-items: center;
+  border-radius: 50%;
 }
 
 .seatWinner .avatarWrap::after {
   content: "";
   position: absolute;
-  inset: -5px;
+  inset: -4px;
   border-radius: 50%;
-  border: 2px solid rgba(208, 163, 93, 0.95);
-  box-shadow: 0 0 14px rgba(208, 163, 93, 0.45);
+  border: 2px solid #ffd86b;
+  box-shadow:
+    0 0 16px rgba(255, 207, 64, 0.65),
+    inset 0 0 10px rgba(255, 224, 128, 0.35);
+  pointer-events: none;
+}
+
+/* Onde de choc dorée déclenchée à l'arrivée des pièces Nkap sur le vainqueur */
+.winnerRipple {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2.5px solid #ffe578;
+  box-shadow: 0 0 22px rgba(255, 214, 96, 0.8);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
 }
 
 .crownMark {
   position: absolute;
-  top: -12px;
+  top: -15px;
   left: 50%;
   transform: translateX(-50%);
-  filter: drop-shadow(0 1px 3px rgba(84, 52, 24, 0.45));
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  color: #ffe27a;
+  background: radial-gradient(circle at 35% 28%, #4d2c12, #201006 78%);
+  border: 1.5px solid #ffd86b;
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.7),
+    0 0 12px rgba(255, 207, 64, 0.65);
+  animation: seatCrownFloat 2.4s ease-in-out infinite;
 }
 
-/* Encre sombre : le panneau de résultat est une surface solaire CLAIRE. */
-.name {
+.namePill {
   max-width: 100%;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(6, 20, 16, 0.84);
+  border: 1px solid rgba(255, 232, 168, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.seatWinner .namePill {
+  background: linear-gradient(180deg, rgba(64, 42, 14, 0.92), rgba(34, 21, 7, 0.94));
+  border-color: rgba(255, 214, 96, 0.62);
+}
+
+.name {
+  display: block;
+  max-width: 84px;
   overflow: hidden;
-  color: var(--nj-solar-ink, #24372f);
-  font-size: 11px;
-  font-weight: 900;
+  color: #f6efe0;
+  font-size: 10.5px;
+  font-weight: 850;
   text-overflow: ellipsis;
   white-space: nowrap;
+  line-height: 1.2;
 }
 
 .seatWinner .name {
-  color: #8f4f33;
+  color: #ffe88e;
 }
 
-.delta {
-  font-size: 12px;
+/* Pilule Nkap réelle (icône Nkap + delta animé) */
+.nkapPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px 2px 4px;
+  border-radius: 999px;
+  font-size: 11px;
   font-weight: 950;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
   white-space: nowrap;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.42);
 }
 
-/* Teintes assombries par rapport aux tokens bruts : sur ivoire, le teal et le
-   rose clairs d'origine tombaient sous le seuil de lisibilité (1,26:1 !).
-   Ces valeurs sont mesurées à ≥ 4,5:1 contre --nj-solar-surface, le minimum
-   pour du texte de 10 à 12 px. */
-.deltaUp {
-  color: #1a6b5d;
+.nkapPillUp {
+  color: #fff6cf;
+  background: linear-gradient(135deg, rgba(212, 148, 28, 0.92), rgba(140, 88, 12, 0.94));
+  border: 1px solid rgba(255, 232, 148, 0.78);
+  box-shadow: 0 2px 10px rgba(242, 187, 69, 0.35);
 }
 
-.deltaDown {
-  color: #8f4f33;
+.nkapPillDown {
+  color: #ffb8c6;
+  background: rgba(58, 18, 26, 0.86);
+  border: 1px solid rgba(255, 130, 156, 0.38);
 }
 
-.deltaFlat {
-  color: rgba(36, 55, 47, 0.45);
+.nkapMiniIcon {
+  width: 14px;
+  height: 14px;
+  object-fit: contain;
+  flex-shrink: 0;
+  filter: drop-shadow(0 1px 2px rgba(0, 0, 0, 0.5));
 }
 
-/* Ajout en ami : pastille posée sur le coin du siège, hors du flux vertical
-   pour ne pas allonger une colonne déjà dense. Elle n'apparaît que sur les
-   joueurs réellement ajoutables. */
+.balanceHint {
+  color: rgba(210, 234, 224, 0.78);
+  font-size: 9.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.01em;
+  line-height: 1.1;
+  white-space: nowrap;
+}
+
+.crowns {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(12, 34, 28, 0.82);
+  border: 1px solid rgba(255, 214, 96, 0.32);
+  color: #ffe578;
+  font-size: 10px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
 .addFriend {
   position: absolute;
   top: -2px;
@@ -205,172 +317,172 @@
   height: 22px;
   padding: 0;
   border-radius: 50%;
-  border: 1px solid rgba(255, 250, 235, 0.95);
-  background: linear-gradient(160deg, #7fb8ae, #3f7d72);
+  border: 1.5px solid rgba(255, 238, 186, 0.88);
+  background: linear-gradient(155deg, #22b698, #0f6e5c);
   color: #fffdf6;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 950;
   line-height: 1;
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(30, 48, 42, 0.35);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.45);
   transition: transform 0.16s ease, filter 0.16s ease;
 }
 
 .addFriend:hover {
-  transform: scale(1.1);
-  filter: brightness(1.08);
+  transform: scale(1.12);
+  filter: brightness(1.1);
 }
 
 .addFriend:active {
   transform: scale(0.94);
 }
 
-.crowns {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  /* Ocre foncé : la couronne vectorielle hérite de `currentColor`. Mesuré à
-     5,1:1 sur l'ivoire — l'ocre plus clair d'avant tombait à 3,9:1, sous le
-     seuil pour du texte de 11 px. */
-  color: #75591f;
-  font-size: 11px;
-  font-weight: 900;
-  font-variant-numeric: tabular-nums;
-}
-
-/* ── Couche de vol ─────────────────────────────────────────────────────── */
+/* ── Couche de vol : vraies pièces Nkap + étincelles dorées ────────────── */
 
 .flightLayer {
   position: absolute;
   inset: 0;
-  z-index: 4;
+  z-index: 8;
   overflow: visible;
   pointer-events: none;
 }
 
-/* Jeton de couronne : même mécanique de vol que la pièce, mais glyphe et
-   teinte distincts — on doit voir d'un coup d'œil que ce n'est pas de l'argent
-   qui circule, mais du classement. */
+.nkapCoin {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 22px;
+  height: 22px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  opacity: 0;
+  will-change: transform, opacity;
+  filter:
+    drop-shadow(0 3px 6px rgba(0, 0, 0, 0.6))
+    drop-shadow(0 0 8px rgba(255, 207, 64, 0.62));
+}
+
+.nkapCoinHero {
+  width: 26px;
+  height: 26px;
+  filter:
+    drop-shadow(0 4px 8px rgba(0, 0, 0, 0.65))
+    drop-shadow(0 0 12px rgba(255, 214, 96, 0.82));
+}
+
+.nkapCoinImg {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.coinSpark {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fffbe2 0%, #ffd86b 48%, rgba(255, 190, 46, 0) 100%);
+  box-shadow: 0 0 10px rgba(255, 218, 102, 0.9);
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
 .crownToken {
   position: absolute;
   top: 0;
   left: 0;
   display: grid;
   place-items: center;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, #fffaf0, #e8d5a8 58%, #b9925a);
-  border: 1px solid rgba(255, 250, 235, 0.95);
-  box-shadow: 0 2px 6px rgba(84, 52, 24, 0.36);
-  color: #6d4a1c;
-  font-size: 11px;
+  background: radial-gradient(circle at 36% 28%, #fff8d4, #f0bd4d 58%, #9b6412);
+  border: 1.5px solid #fff4bf;
+  box-shadow:
+    0 3px 8px rgba(0, 0, 0, 0.52),
+    0 0 12px rgba(255, 214, 96, 0.68);
+  color: #3a2006;
+  font-size: 12px;
   line-height: 1;
   opacity: 0;
   will-change: transform, opacity;
 }
 
-/* Jetons panachés : quatre teintes qui se relaient, comme des jetons de
-   valeurs différentes. La grappe se lit mieux qu'un aplat uniformément doré,
-   et la densité — proportionnelle au montant — devient perceptible. */
-.coin {
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 16px;
-  height: 16px;
-  border-radius: 50%;
-  background: radial-gradient(circle at 36% 30%, #fff6df, var(--coin-a) 58%, var(--coin-b));
-  border: 1px solid rgba(255, 250, 235, 0.92);
-  box-shadow: 0 2px 5px rgba(84, 52, 24, 0.38);
-  opacity: 0;
-  will-change: transform, opacity;
-  --coin-a: #d0a35d;
-  --coin-b: #a96243;
+@keyframes seatCrownFloat {
+  0%, 100% { transform: translateX(-50%) translateY(0); }
+  50% { transform: translateX(-50%) translateY(-3px); }
 }
 
-.coinGold {
-  --coin-a: #e0b767;
-  --coin-b: #a97c2e;
-}
+/* ── Paysage bas ───────────────────────────────────────────────────────── */
 
-.coinCopper {
-  --coin-a: #d08c5d;
-  --coin-b: #8f4f33;
-}
-
-.coinTeal {
-  --coin-a: #7fc0b4;
-  --coin-b: #2f6f66;
-}
-
-.coinPalm {
-  --coin-a: #b9c97e;
-  --coin-b: #5f7434;
-}
-
-/* ── Paysage bas ───────────────────────────────────────────────────────────
-   La hauteur manque mais la largeur abonde : la couronne s'aplatit en ellipse
-   large. Sans cela l'arène tombait sur sa largeur minimale et les sièges se
-   chevauchaient. */
 @media (orientation: landscape) and (max-height: 560px) {
   .arena {
-    /* Ellipse large : la hauteur manque, la largeur abonde. */
-    --arena-ratio: 0.385;
+    --arena-ratio: 0.4;
     --arena-rx: 37cqi;
-    --arena-ry: 8.5cqi;
+    --arena-ry: 9cqi;
   }
 
   .arena[data-dense] {
     --arena-rx: 39cqi;
-    --arena-ry: 9cqi;
+    --arena-ry: 9.5cqi;
   }
 
   .pot,
   .arena[data-dense] .pot {
-    width: 19%;
+    width: 17%;
+    min-width: 54px;
   }
 
   .seat,
   .arena[data-dense] .seat {
-    width: 22%;
-    min-width: 64px;
-    gap: 0;
+    width: 23%;
+    min-width: 66px;
+  }
+
+  .seatInner {
+    gap: 1px;
     padding: 2px;
   }
 
-  /* Sièges plus courts : c'est leur hauteur, pas leur largeur, qui débordait
-     de l'ellipse aplatie. La taille de l'avatar est posée en style inline par
-     AvatarIllustration, d'où le !important. */
   .seat .avatarWrap :global(.avatar-illu) {
     width: 32px !important;
     height: 32px !important;
   }
 
   .crownMark {
-    top: -8px;
+    top: -11px;
+    width: 20px;
+    height: 20px;
   }
 
   .name {
-    font-size: 10px;
+    font-size: 9.5px;
   }
 
-  .delta {
-    font-size: 11px;
+  .nkapPill {
+    font-size: 10px;
+    padding: 1px 6px 1px 3px;
+  }
+
+  .balanceHint {
+    display: none;
   }
 }
 
-@container njarena (max-width: 300px) {
+@container njarena (max-width: 280px) {
   .seat {
-    min-width: 66px;
-    padding: 4px 2px;
+    min-width: 68px;
   }
 
   .name {
-    font-size: 10px;
+    font-size: 9.5px;
   }
 
-  .delta {
-    font-size: 11px;
+  .nkapPill {
+    font-size: 10px;
   }
 }

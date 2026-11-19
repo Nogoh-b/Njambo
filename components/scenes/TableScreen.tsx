@@ -3,11 +3,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useSfx } from "@gxe/react";
 
+
 import { PlayCard } from "@/components/cards/PlayCard";
 import { PowerCardView } from "@/components/power/PowerCardView";
-import { PowerTargetModal } from "@/components/power/PowerTargetModal";
 import { usePowerFxOrchestrator } from "@/components/power/PowerFxOrchestrator";
-import { Avatar } from "@/components/table/Avatar";
+import { PowerTargetModal } from "@/components/power/PowerTargetModal";
+import { Avatar, type OpponentPowerSlot } from "@/components/table/Avatar";
 import { DepositZone } from "@/components/table/DepositZone";
 import { Fan } from "@/components/table/Fan";
 import { FlyingCard } from "@/components/table/FlyingCard";
@@ -27,22 +28,15 @@ import {
   TableSurface,
   TableTurnStatus,
 } from "@/components/ui/TableLayout";
-import { POWER_CARDS_BY_ID } from "@/config/powerCards";
-import { GAME_CONFIG } from "@/config/gameConfig";
-import {
-  CARD_SOUND,
-  DEAL_SWEEP_SOUND,
-  DOMINANCE_SOUND,
-  ROUND_START_SOUND,
-  TICK_SOUND,
-  TURN_START_SOUND,
-} from "@/lib/gxeSfx";
 import { DEV, devEquippedPowers } from "@/config/devConfig";
-import { CEREMONIAL_STRIP, T } from "@/config/theme";
-import { useGame } from "@/contexts/GameContext";
-import { useInventory } from "@/contexts/EconomyContext";
-import { BOTS, NKAP } from "@/data/mock";
+import { GAME_CONFIG } from "@/config/gameConfig";
+import { MAX_EQUIPPED_POWERS, POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { powerRequiresTarget as requiresTarget, powerScriptOf } from "@/config/powers";
+import { T } from "@/config/theme";
+import styles from "./TableScreen.module.css";
+import { useInventory } from "@/contexts/EconomyContext";
+import { useGame } from "@/contexts/GameContext";
+import { BOTS, NKAP } from "@/data/mock";
 import { selectInHand } from "@/engine/power/selectors";
 import type {
   ChoiceRequest,
@@ -54,11 +48,19 @@ import type {
 import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
 import { formatGameAnnouncement, getSyncStatusPresentation } from "@/lib/gamePresentation";
+import {
+  CARD_SOUND,
+  DEAL_SWEEP_SOUND,
+  DOMINANCE_SOUND,
+  ROUND_START_SOUND,
+  TICK_SOUND,
+  TURN_START_SOUND,
+} from "@/lib/gxeSfx";
 import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
-import { markPerformance, recordBoardRender } from "@/lib/performanceMetrics";
+import { markPerformance } from "@/lib/performanceMetrics";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
-import { LocalGameSync } from "@/sync/LocalGameSync";
 import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
+import { LocalGameSync } from "@/sync/LocalGameSync";
 import { stabilizeGameState } from "@/sync/stateIdentity";
 import type {
   BotDifficulty,
@@ -69,11 +71,13 @@ import type {
   Phase,
   Player,
   PowerCardId,
+  PowerCategory,
   Result,
   RoomPlayer,
   Suit,
   SyncStatus,
 } from "@/types/game";
+
 
 /* ═══════════════ TableScreen — la table de jeu ═══════════════
    Rendu pur de la table + animations.
@@ -153,6 +157,16 @@ class TurnTimerStore {
   }
 }
 
+const TEST_FILTER_CATEGORIES: Array<{ id: "all" | PowerCategory; label: string }> = [
+  { id: "all", label: "Toutes" },
+  { id: "offensive", label: "Attaque" },
+  { id: "defense", label: "Défense" },
+  { id: "tactical", label: "Tactique" },
+  { id: "perturbation", label: "Bluff" },
+  { id: "score", label: "Score" },
+  { id: "economy", label: "Nkap" },
+];
+
 interface TimerAvatarProps {
   store: TurnTimerStore;
   player: Player;
@@ -163,6 +177,9 @@ interface TimerAvatarProps {
   className: string;
   style: CSSProperties;
   motionEnabled: boolean;
+  compactHorizontal?: boolean;
+  unlimitedTime?: boolean;
+  opponentPowers?: OpponentPowerSlot[];
 }
 
 const TimerAvatar = memo(function TimerAvatar({
@@ -175,11 +192,14 @@ const TimerAvatar = memo(function TimerAvatar({
   className,
   style,
   motionEnabled,
+  compactHorizontal = false,
+  unlimitedTime = false,
+  opponentPowers,
 }: TimerAvatarProps) {
   const seconds = useSyncExternalStore(store.subscribe, store.getSnapshot, store.getSnapshot);
   return (
     <div
-      className={`${className}${motionEnabled && active && seconds <= 5 ? " nj-avatar-seat-urgent" : ""}`}
+      className={`${className}${motionEnabled && active && !unlimitedTime && seconds <= 5 ? " nj-avatar-seat-urgent" : ""}`}
       style={style}
     >
       <Avatar
@@ -189,6 +209,9 @@ const TimerAvatar = memo(function TimerAvatar({
         seconds={active ? seconds : turnSeconds}
         turnSeconds={turnSeconds}
         size={size}
+        compactHorizontal={compactHorizontal}
+        unlimitedTime={unlimitedTime}
+        opponentPowers={opponentPowers}
       />
     </div>
   );
@@ -255,7 +278,7 @@ const TransientAnimationLayer = memo(function TransientAnimationLayer({
   return (
     <>
       {flights.map((flight) => (
-        <FlyingCard key={flight.key} f={flight} effects={motionEnabled && !liteMotion} balanced={balancedMotion} />
+        <FlyingCard key={flight.key} f={flight} effects={motionEnabled} balanced={balancedMotion || liteMotion} />
       ))}
       {motionEnabled && !liteMotion && cardBursts.map((burst) => (
         <div
@@ -426,8 +449,6 @@ export function TableScreen({
     markPerformance("table:mount");
     return () => markPerformance("table:unmount");
   }, []);
-  // Metriques de rendu : couteux en prod (dispatchEvent par render). Dev only.
-  useEffect(() => { if (process.env.NODE_ENV !== 'production') recordBoardRender(); });
   const { profile, cfg } = useGame();
   /* Tous les sons de cet écran sont migrés vers GXE (lib/gxeSfx.ts). D'autres
      écrans (ResultScreen, SettlementArena) utilisent encore `sfx` de
@@ -455,17 +476,18 @@ export function TableScreen({
   const vp = useViewport();
   const portrait = vp.portrait;
   const vmin = Math.min(vp.w, vp.h);
-  const youW = Math.round(Math.max(48, Math.min(78, vmin * 0.165)));
-  const botW = Math.round(youW * 0.66);
-  const depW = Math.round(Math.max(38, youW * 0.78));
-  const deckW = Math.round(youW * 0.7);
+  const youW = Math.round(Math.max(50, Math.min(78, vmin * 0.168)));
+  const botW = Math.round(youW * (portrait ? 0.58 : 0.64));
+  const depW = Math.round(Math.max(38, youW * 0.76));
+  const deckW = Math.round(youW * 0.66);
   const fanHy = youW * 1.45;
   const fanHb = botW * 1.45;
+  const cockpitBottom = Math.round(fanHy * 1.06) + 8;
   const tableInset = portrait
-    ? "5% -8% 7% -8%"
+    ? "7.5% 4% 13.5% 4%"
     : vp.h <= 620
-      ? "10% 8% 12% 8%"
-      : "8% 4% 10% 4%";
+      ? "11% 8% 13% 8%"
+      : "9% 5.5% 13% 5.5%";
 
   /* ----- État synchronisé (provenant du sync adapter) ----- */
   const [gameState, setGameState] = useState<GameState>({
@@ -503,6 +525,31 @@ export function TableScreen({
   } | null>(null);
   /* Confirmation avant de quitter une partie EN COURS (abandon + retour menu). */
   const [confirmQuit, setConfirmQuit] = useState(false);
+  /* Aide rapide en cours de manche & aperçu tactile des cartes pouvoir */
+  const [showQuickHelp, setShowQuickHelp] = useState(false);
+  const [hasSeenQuickHelp, setHasSeenQuickHelp] = useState<boolean>(() => {
+    if (typeof window === "undefined") return true;
+    try {
+      return window.localStorage.getItem("njambo:onboarding-seen:v1") === "1";
+    } catch {
+      return true;
+    }
+  });
+  const [previewPowerCard, setPreviewPowerCard] = useState<PowerCardId | null>(null);
+  const [reactionsOpen, setReactionsOpen] = useState(false);
+  const [testDrawerOpen, setTestDrawerOpen] = useState(false);
+  const [testCategoryFilter, setTestCategoryFilter] = useState<"all" | PowerCategory>("all");
+  const [opponentPowerUses, setOpponentPowerUses] = useState<Record<number, PowerCardId[]>>({});
+  const [isDraggingCard, setIsDraggingCard] = useState(false);
+  const openQuickHelp = useCallback(() => {
+    setShowQuickHelp(true);
+    setHasSeenQuickHelp(true);
+    try {
+      window.localStorage.setItem("njambo:onboarding-seen:v1", "1");
+    } catch {
+      /* ignore storage errors */
+    }
+  }, []);
   const timerStoreRef = useRef<TurnTimerStore | null>(null);
   if (!timerStoreRef.current) timerStoreRef.current = new TurnTimerStore(cfg.turnSeconds);
   const timerStore = timerStoreRef.current;
@@ -559,7 +606,32 @@ export function TableScreen({
   const roundRestartPendingRef = useRef(false);
 
   /* ----- Dérivés de l'état ----- */
-  const { players, phase, trickNo, trickPlays, turnIdx, pot, dominantIdx } = gameState;
+  const { players, phase, trickNo, trickPlays, leaderIdx, turnIdx, pot, dominantIdx } = gameState;
+  const isGameEnded = paused || phase === "result";
+  const pausedRef = useRef(isGameEnded);
+  pausedRef.current = isGameEnded;
+
+  /** Leader courant du pli en direct (tous modes : Solo IA local, serveur, en ligne, amis, événement). */
+  const liveDominantIdx = useMemo<number | null>(() => {
+    if (phase === "dealing" || phase === "idle") return null;
+    if (trickPlays.length > 0) {
+      const led = trickPlays[0].card.suit;
+      let best = trickPlays[0];
+      for (const tp of trickPlays) {
+        const suit = tp.card.effectiveSuit ?? tp.card.suit;
+        const val = tp.card.effectiveValue ?? tp.card.value;
+        const bestSuit = best.card.effectiveSuit ?? best.card.suit;
+        const bestVal = best.card.effectiveValue ?? best.card.value;
+        if (suit === led && (bestSuit !== led || val > bestVal)) best = tp;
+      }
+      return best.playerIdx;
+    }
+    if (dominantIdx !== null) return dominantIdx;
+    // Entre deux plis (dès le 2e tour), le vainqueur du pli précédent conserve la couronne sur son dépôt.
+    if (trickNo > 1 && players[leaderIdx]?.deposit?.length) return leaderIdx;
+    return null;
+  }, [dominantIdx, leaderIdx, phase, players, trickNo, trickPlays]);
+
   useEffect(() => {
     if (phase === "dealing") markPerformance("distribution:start");
     if (phase === "turns") markPerformance("distribution:ready");
@@ -577,7 +649,7 @@ export function TableScreen({
     : devEquippedPowers(authoritativePowers);
   const ledSuit: string | null = trickPlays[0]?.card.suit ?? null;
   const ledInfo: Suit | undefined = ledSuit ? cfg.suits.find((s) => s.s === ledSuit) : undefined;
-  const isYourTurn = phase === "turns" && turnIdx === 0;
+  const isYourTurn = !isGameEnded && phase === "turns" && turnIdx === 0;
   const yourLegal = useMemo(
     () => yourHand && isYourTurn ? legalCards(yourHand, ledSuit) : null,
     [isYourTurn, ledSuit, yourHand],
@@ -604,9 +676,14 @@ export function TableScreen({
   const liteMotion = isLiteMotion(motionLevel);
   const balancedMotion = isBalancedMotion(motionLevel);
   const premiumFxAllowed = motionLevel === "full";
-  const baseTableFx = roundIntro || phase === "dealing" || !!momentOverlay || !!tableReaction;
+  const baseTableFx = roundIntro || phase === "dealing" || !!momentOverlay;
   const connectionStatus = getSyncStatusPresentation(syncStatus);
   const getYourDropRect = useCallback(() => registryRef.current?.deposit(0)?.getRect() ?? null, []);
+  const getDeckRect = useCallback(() => registryRef.current?.deck()?.getRect() ?? null, []);
+
+  useEffect(() => {
+    if (!isYourTurn || isGameEnded) setIsDraggingCard(false);
+  }, [isYourTurn, isGameEnded]);
 
   useEffect(() => {
     playersRef.current = players;
@@ -649,21 +726,25 @@ export function TableScreen({
   };
 
   const fanAnchor = (edge: "bottom" | "left" | "top" | "right") => {
-    const bleedY = fanHy * 0.62;
-    const bleedB = fanHb * 0.28;
+    const bleedY = fanHy * 0.56;
+    const bleedB = fanHb * 0.24;
     switch (edge) {
       case "bottom":
         return {
           left: "50%",
-          top: `calc(100% - ${bleedY}px - env(safe-area-inset-bottom))`,
+          top: `calc(100% - ${Math.round(bleedY)}px - env(safe-area-inset-bottom))`,
           angle: 0,
         };
       case "top":
-        return { left: "50%", top: `${bleedB}px`, angle: 180 };
+        return {
+          left: "50%",
+          top: `calc(${portrait ? 54 : 50}px + env(safe-area-inset-top))`,
+          angle: 180,
+        };
       case "left":
-        return { left: `${bleedB}px`, top: portrait ? "42%" : "44%", angle: 90 };
+        return { left: `${Math.round(bleedB)}px`, top: portrait ? "50%" : "46%", angle: 90 };
       case "right":
-        return { left: `calc(100% - ${bleedB}px)`, top: portrait ? "42%" : "44%", angle: 270 };
+        return { left: `calc(100% - ${Math.round(bleedB)}px)`, top: portrait ? "50%" : "46%", angle: 270 };
       default:
         return { left: "50%", top: "50%", angle: 0 };
     }
@@ -671,13 +752,13 @@ export function TableScreen({
   const depositPos = (edge: "bottom" | "left" | "top" | "right") => {
     switch (edge) {
       case "bottom":
-        return { left: "50%", top: portrait ? "63%" : "66%" };
+        return { left: "50%", top: portrait ? "58.5%" : "61%" };
       case "top":
-        return { left: "50%", top: portrait ? "27%" : "24%" };
+        return { left: "50%", top: portrait ? "32%" : "27%" };
       case "left":
-        return { left: portrait ? "29%" : "33%", top: "45%" };
+        return { left: portrait ? "29%" : "33%", top: portrait ? "47%" : "45%" };
       case "right":
-        return { left: portrait ? "71%" : "67%", top: "45%" };
+        return { left: portrait ? "71%" : "67%", top: portrait ? "47%" : "45%" };
       default:
         return { left: "50%", top: "50%" };
     }
@@ -685,20 +766,31 @@ export function TableScreen({
   const avatarPos = (edge: "bottom" | "left" | "top" | "right"): React.CSSProperties => {
     switch (edge) {
       case "bottom":
+        return portrait
+          ? {
+              left: "max(10px, env(safe-area-inset-left))",
+              bottom: `calc(${cockpitBottom}px + env(safe-area-inset-bottom))`,
+            }
+          : {
+              left: "max(18px, env(safe-area-inset-left))",
+              bottom: "max(16px, env(safe-area-inset-bottom))",
+            };
+      case "top":
         return {
-          right: "max(10px, env(safe-area-inset-right))",
-          bottom: "max(12px, env(safe-area-inset-bottom))",
+          left: "50%",
+          top: `calc(${portrait ? 60 : 54}px + env(safe-area-inset-top))`,
+          transform: "translateX(-50%)",
         };
-      case "top": {
-        // 2 joueurs = centré, 3+ joueurs = décalé gauche mais plafonné à 15% du viewport
-        const rawOffset = n <= 2 ? 0 : botW * 3.2;
-        const offset = Math.max(0, Math.min(vp.w * 0.15, rawOffset));
-        return { left: "50%", top: 8, transform: `translateX(calc(-50% - ${offset}px))` };
-      }
       case "left":
-        return { left: 10, top: portrait ? "17%" : "10%" };
+        return {
+          left: "max(6px, env(safe-area-inset-left))",
+          top: portrait ? "33%" : "19%",
+        };
       case "right":
-        return { right: 10, top: portrait ? "17%" : "10%" };
+        return {
+          right: "max(6px, env(safe-area-inset-right))",
+          top: portrait ? "33%" : "19%",
+        };
       default:
         return {};
     }
@@ -729,6 +821,7 @@ export function TableScreen({
      PERF: repeat reduit a 5/6 pour limiter la concurrence avec la
      timeline GSAP de l'overlay (duree ~330/385ms au lieu de 770ms). */
   const impactShake = useCallback((intensity = 8, repeat = 5) => {
+    if (pausedRef.current) return;
     const g = gsapRef.current;
     const el = tableRootRef.current;
     if (!g || !el || !animationsOnRef.current) return;
@@ -793,7 +886,7 @@ export function TableScreen({
   }, [authUid, roomPlayers]);
 
   const playNextMomentOverlay = useCallback(() => {
-    if (!animationsOnRef.current) {
+    if (pausedRef.current || !animationsOnRef.current) {
       momentOverlayQueueRef.current = [];
       momentOverlayActiveRef.current = false;
       setMomentOverlay(null);
@@ -833,6 +926,7 @@ export function TableScreen({
     moment: Omit<MomentOverlay, "key">,
     duration = MOMENT_DEFAULT_MS,
   ) => {
+    if (pausedRef.current) return;
     setTableAnnouncement(formatGameAnnouncement(moment.title, moment.subtitle));
     if (!animationsOnRef.current) return;
     momentOverlayQueueRef.current.push({ moment, duration });
@@ -840,6 +934,7 @@ export function TableScreen({
   }, [playNextMomentOverlay]);
 
   const showTableReaction = useCallback((label: string, tone: ReactionTone = "gold", detail?: string) => {
+    if (pausedRef.current) return;
     setTableAnnouncement(formatGameAnnouncement(label, detail));
     if (!animationsOnRef.current) return;
     if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
@@ -999,8 +1094,55 @@ export function TableScreen({
     prevPhaseRef.current = phase;
   }, [motionEnabled, phase]);
 
+  /* Fin de manche / écran de résultat ouvert : figer et stopper intégralement
+     la table (timers, overlays, vols, réactions, sons différés et modales). */
   useEffect(() => {
-    if (phase !== "turns") return;
+    if (!isGameEnded) return;
+    if (delayedStateTimerRef.current) {
+      clearTimeout(delayedStateTimerRef.current);
+      delayedStateTimerRef.current = null;
+    }
+    if (roundIntroTimerRef.current) {
+      clearTimeout(roundIntroTimerRef.current);
+      roundIntroTimerRef.current = null;
+    }
+    if (dealSweepTimerRef.current) {
+      clearTimeout(dealSweepTimerRef.current);
+      dealSweepTimerRef.current = null;
+    }
+    if (reactionTimerRef.current) {
+      clearTimeout(reactionTimerRef.current);
+      reactionTimerRef.current = null;
+    }
+    if (momentOverlayTimerRef.current) {
+      clearTimeout(momentOverlayTimerRef.current);
+      momentOverlayTimerRef.current = null;
+    }
+    burstTimersRef.current.forEach((timer) => clearTimeout(timer));
+    burstTimersRef.current = [];
+    momentOverlayQueueRef.current = [];
+    momentOverlayActiveRef.current = false;
+    animatingRef.current = false;
+    powerTransitionDepthRef.current = 0;
+    pendingPowerStateRef.current = null;
+    transientStore.clear();
+    clearAurasRef.current();
+    setRoundIntro(false);
+    setMomentOverlay(null);
+    setTableReaction(null);
+    setBanner("");
+    setGoldFlash(false);
+    setConfirmQuit(false);
+    setPreviewPowerCard(null);
+    setTargetingCard(null);
+    setTestDrawerOpen(false);
+    setShowQuickHelp(false);
+    setReactionsOpen(false);
+    setPowerChoiceConfirm(null);
+  }, [isGameEnded, transientStore]);
+
+  useEffect(() => {
+    if (isGameEnded || phase !== "turns") return;
     if (prevTurnIdxFxRef.current === turnIdx) return;
     prevTurnIdxFxRef.current = turnIdx;
 
@@ -1008,16 +1150,26 @@ export function TableScreen({
 
     // Annonce du tour (À TOI / réaction) DIFFÉRÉE jusqu'à ce que la carte du
     // joueur précédent soit posée : sinon l'overlay démarre pendant le vol.
+    // On privilégie une pilule de réaction fluide et non-bloquante plutôt qu'un
+    // overlay plein écran à chaque tour qui cassait le rythme de jeu.
     const announceTurn = () => {
+      if (pausedRef.current || gameStateRef.current?.phase !== "turns") return;
       if (turnIdx === 0) {
         gxeSfxRef.current.playChime(TURN_START_SOUND); // migré vers GXE
-        showMomentOverlay({
-          type: "yourTurn",
-          title: "À TOI",
-          subtitle: ledSuit ? `Suis ${ledSuit}` : "Donne la tendance",
-          tone: "teal",
-          asset: "cards",
-        }, MOMENT_DEFAULT_MS);
+        const isLastTrick = trickNo >= cfg.cardsPerPlayer;
+        if (isLastTrick) {
+          showTableReaction(
+            "DERNIER TOUR 🔥",
+            "gold",
+            ledSuit ? `Suis ${ledSuit} — Le gagnant rafle le pot !` : "Pose ta carte maîtresse pour le pot !",
+          );
+        } else {
+          showTableReaction(
+            "À TOI DE JOUER",
+            "teal",
+            ledSuit ? `Suis la tendance ${ledSuit}` : "Donne la tendance",
+          );
+        }
       } else if (motionEnabled && activePlayer) {
         showTableReaction("Tour en cours", "gold", activePlayer.name);
       }
@@ -1030,7 +1182,7 @@ export function TableScreen({
     }
     const t = setTimeout(announceTurn, landDelay);
     return () => clearTimeout(t);
-  }, [A.landSettle, motionEnabled, ledSuit, phase, players, showMomentOverlay, showTableReaction, turnIdx]);
+  }, [A.landSettle, cfg.cardsPerPlayer, isGameEnded, motionEnabled, ledSuit, phase, players, showTableReaction, trickNo, turnIdx]);
 
   /* ----- Initialiser le sync adapter ----- */
   useEffect(() => {
@@ -1079,12 +1231,24 @@ export function TableScreen({
       setGameState((prev) => stabilizeGameState(prev, state));
       if (roundRestartPendingRef.current && (state.phase === "dealing" || state.phase === "turns")) {
         roundRestartPendingRef.current = false;
+        pausedRef.current = false;
         onRoundRestart();
       }
     };
 
     const unsubState = sync.onStateUpdate((state) => {
       setBanner("");
+      if (state.phase === "result") {
+        if (delayedStateTimerRef.current) {
+          clearTimeout(delayedStateTimerRef.current);
+          delayedStateTimerRef.current = null;
+        }
+        pendingPowerStateRef.current = null;
+        powerTransitionDepthRef.current = 0;
+        animatingRef.current = false;
+        applyIncomingState(state);
+        return;
+      }
       if (powerTransitionDepthRef.current > 0) {
         pendingPowerStateRef.current = state;
         return;
@@ -1105,6 +1269,7 @@ export function TableScreen({
     });
 
     const unsubPlay = sync.onPlayCard(({ playerIdx, cardIdx, card, playId }) => {
+      if (pausedRef.current) return;
       markPerformance("card:play");
       if (playId) {
         if (animatedPlayIds.has(playId)) return;
@@ -1120,12 +1285,13 @@ export function TableScreen({
         animatingRef.current = true;
         timerStore.set(cfg.turnSeconds);
         animationEndsAtRef.current = Date.now() + A.dropFlight;
-        const dropRot = Math.random() * 18 - 9;
+        const dropRot = Math.random() * 14 - 7;
+        const flightKey = `${card.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         handZone?.setHiddenCard(cardIdx);
         setFlights((f) => [
           ...f,
           {
-            key: card.id + "-" + Date.now(),
+            key: flightKey,
             card,
             from,
             to,
@@ -1137,9 +1303,10 @@ export function TableScreen({
         ]);
         const landingTimer = setTimeout(() => {
           animatingRef.current = false;
-          setFlights((f) => f.slice(1));
+          setFlights((f) => f.filter((item) => item.key !== flightKey));
           handZone?.setHiddenCard(null);
-          if (animationsOnRef.current) {
+          if (pausedRef.current) return;
+          if (animationsOnRef.current && premiumFxAllowed) {
             const burstKey = `${card.id}-burst-${Date.now()}`;
             setCardBursts((items) => [
               ...items,
@@ -1152,7 +1319,7 @@ export function TableScreen({
             ]);
             const cleanupTimer = setTimeout(() => {
               setCardBursts((items) => items.filter((item) => item.key !== burstKey));
-            }, 620);
+            }, 460);
             burstTimersRef.current.push(cleanupTimer);
           }
         }, A.dropFlight);
@@ -1161,30 +1328,23 @@ export function TableScreen({
     });
 
     const unsubTrickEnd = sync.onTrickEnd((winnerIdx) => {
+      if (pausedRef.current) return;
       const winnerName = playersRef.current[winnerIdx]?.name ?? "Joueur";
-      // On attend que la carte décisive soit POSÉE (+ un beat de settle) avant
-      // d'annoncer le gagnant : sinon « NJAMBO ! » couvre une carte encore en vol.
       const landDelay = Math.max(0, animationEndsAtRef.current - Date.now()) + A.landSettle;
 
       const announce = () => {
-        setBanner(`${winnerName} domine le tour`);
-        gxeSfxRef.current.playChime(DOMINANCE_SOUND); // migré vers GXE
-        showMomentOverlay({
-          type: "dominance",
-          title: "NJAMBO !",
-          subtitle: winnerIdx === 0 ? "Tu domines le tour" : winnerName,
-          tone: winnerIdx === 0 ? "teal" : "gold",
-          asset: "crown",
-        }, MOMENT_DEFAULT_MS + 200);
+        if (pausedRef.current || gameStateRef.current?.phase === "result") return;
+        // Annonce légère non-bloquante : garde la table fluide (0 lag) et laisse
+        // la couronne dorée sur la carte dominante 100% visible !
+        setBanner(winnerIdx === 0 ? "Tu domines le tour !" : `${winnerName} domine le tour`);
+        gxeSfxRef.current.playChime(DOMINANCE_SOUND);
         if (animationsOnRef.current) {
-          setGoldFlash(false);
-          const goldTimer = setTimeout(() => setGoldFlash(true), 200);
-          burstTimersRef.current.push(goldTimer);
+          setGoldFlash(true);
         }
         const bannerTimer = setTimeout(() => {
           setBanner("");
           setGoldFlash(false);
-        }, Math.max(700, A.trickPause - landDelay));
+        }, Math.max(620, A.trickPause - landDelay));
         burstTimersRef.current.push(bannerTimer);
       };
 
@@ -1195,28 +1355,42 @@ export function TableScreen({
       }
     });
 
-    const unsubRoundEnd = sync.onRoundEnd((result) => {
-      showMomentOverlay({
-        type: result.doubles ? "doubleWin" : "win",
-        title: result.doubles ? "X2" : "NGATA GAGNÉ",
-        subtitle: result.winner.isYou ? "Tu prends la caisse" : `${result.winner.name} prend la caisse`,
-        tone: result.winner.isYou ? "gold" : "pink",
-        asset: result.doubles ? "coin" : result.winner.isYou ? "trophy" : "crown",
-      }, result.doubles ? MOMENT_DEFAULT_MS + 600 : MOMENT_DEFAULT_MS + 350);
+    const unsubRoundEnd = sync.onRoundEnd(() => {
+      // L'écran de fin de match (ResultScreen) prend immédiatement le relais :
+      // on fige la table et on coupe tout overlay/son résiduel de la table.
+      pausedRef.current = true;
+      momentOverlayQueueRef.current = [];
+      momentOverlayActiveRef.current = false;
+      if (momentOverlayTimerRef.current) {
+        clearTimeout(momentOverlayTimerRef.current);
+        momentOverlayTimerRef.current = null;
+      }
+      if (reactionTimerRef.current) {
+        clearTimeout(reactionTimerRef.current);
+        reactionTimerRef.current = null;
+      }
+      burstTimersRef.current.forEach((timer) => clearTimeout(timer));
+      burstTimersRef.current = [];
+      setMomentOverlay(null);
+      setTableReaction(null);
+      setBanner("");
+      setGoldFlash(false);
     });
 
     const unsubTimer = sync.onTimerTick((s) => {
+      if (pausedRef.current || gameStateRef.current?.phase !== "turns") return;
       if (animatingRef.current || powerTransitionDepthRef.current > 0) {
         timerStore.set(cfg.turnSeconds);
         return;
       }
       timerStore.set(s);
-      if (s <= 5 && playersRef.current[turnIdxRef.current]?.isYou) gxeSfxRef.current.play(TICK_SOUND); // migré vers GXE
+      if (s > 0 && s <= 5 && playersRef.current[turnIdxRef.current]?.isYou) gxeSfxRef.current.play(TICK_SOUND); // migré vers GXE
     });
 
     const unsubSyncStatus = sync.onSyncStatus(setSyncStatus);
 
     const unsubPower = sync.onPowerActivated((activation) => {
+      if (pausedRef.current) return;
       markPerformance("power:activate");
       const mine = activation.activatedByUid === "local" || activation.activatedByUid === authUid;
       // `activation.used` peut être FAUX si la carte n'a eu aucun effet (ex :
@@ -1229,6 +1403,15 @@ export function TableScreen({
           return next;
         });
         consumeConfirmedPowerInventory(activation.consumedCardIds ?? [activation.cardId]);
+      } else if (!mine && activation.used) {
+        const actorIdx = uiIndexFromPowerUid(activation.activatedByUid);
+        if (actorIdx !== null && actorIdx > 0) {
+          setOpponentPowerUses((prev) => {
+            const list = prev[actorIdx] ?? [];
+            if (list.includes(activation.cardId)) return prev;
+            return { ...prev, [actorIdx]: [...list, activation.cardId] };
+          });
+        }
       }
       // Toute l'animation est GÉNÉRIQUE : l'orchestrateur rejoue le script de
       // la carte (config/powers) depuis activation.resolved — zéro branche
@@ -1236,7 +1419,8 @@ export function TableScreen({
       orchestratorRunRef.current(activation);
     });
 
-    // Démarrer la partie
+    // Démarrer la partie : en multijoueur / serveur, la connexion part immédiatement
+    // en parallèle de la courte intro pour éliminer toute attente inutile.
     let gameStarted = false;
     const startSync = () => {
       if (gameStarted) return;
@@ -1245,9 +1429,9 @@ export function TableScreen({
       sync.start();
     };
 
-    if (animationsOnRef.current) {
+    if (animationsOnRef.current && isLocalSync) {
       setRoundIntro(true);
-      gxeSfxRef.current.playChime(ROUND_START_SOUND); // migré vers GXE
+      gxeSfxRef.current.playChime(ROUND_START_SOUND);
       showMomentOverlay({
         type: "roundStart",
         title: "À LA TABLE",
@@ -1261,6 +1445,7 @@ export function TableScreen({
         startSync();
       }, ROUND_INTRO_MS);
     } else {
+      if (animationsOnRef.current) gxeSfxRef.current.playChime(ROUND_START_SOUND);
       startSync();
     }
 
@@ -1327,7 +1512,11 @@ export function TableScreen({
       setConfirmQuit(false);
       timerStore.set(cfg.turnSeconds);
       setUsedPowers(new Set());
+      setOpponentPowerUses({});
       setTargetingCard(null);
+      setPreviewPowerCard(null);
+      setTestDrawerOpen(false);
+      setShowQuickHelp(false);
       roundRestartPendingRef.current = true;
       syncRef.current?.nextRound();
     };
@@ -1337,7 +1526,7 @@ export function TableScreen({
 
   /* ----- Jouer une carte (clic humain) ----- */
   const handleCardClick = useCallback((cardIdx: number) => {
-    if (!syncRef.current || animatingRef.current) return;
+    if (pausedRef.current || !syncRef.current || animatingRef.current) return;
     syncRef.current.playCard(cardIdx);
   }, []);
 
@@ -1517,7 +1706,19 @@ export function TableScreen({
     return () => { timers.forEach((t) => clearTimeout(t)); };
   }, []);
 
-  /* ═══════════════ RENDU TABLE ═══════════════ */
+  /* ═══════════════ RENDU TABLE — SALON ROYAL ÉPURÉ ═══════════════ */
+  const isFinalTrick = trickNo >= cfg.cardsPerPlayer;
+  const activeTurnEdge = phase === "turns" && players[turnIdx] ? seatEdge(turnIdx) : null;
+  const suitIsRed = ledInfo?.color === "#c1292e";
+  const hasPowersOnTable = equippedPowers.length > 0 && players.length > 0 && !roundIntro;
+  const isTestPowerMode = equippedPowers.length > MAX_EQUIPPED_POWERS;
+  const turnStatusBottom = portrait
+    ? cockpitBottom + (hasPowersOnTable && !isTestPowerMode ? 64 : 54)
+    : Math.round(fanHy * 1.24);
+  const filteredTestPowers = useMemo(() => {
+    if (testCategoryFilter === "all") return equippedPowers;
+    return equippedPowers.filter((id) => POWER_CARDS_BY_ID[id]?.category === testCategoryFilter);
+  }, [equippedPowers, testCategoryFilter]);
 
   return (
     <ZoneRegistryProvider registry={zoneRegistry}>
@@ -1527,30 +1728,15 @@ export function TableScreen({
       paused={paused}
       motionMode={motion.mode}
       screenEffect={motionEnabled ? screenEffect : null}
+      turnEdge={activeTurnEdge}
+      finalTrick={isFinalTrick}
     >
-      {/* Feutre : grande ellipse teal */}
+      {/* Table Ovale 3D sculptée en acajou, laiton & feutre émeraude */}
       <TableSurface
         inset={tableInset}
         ceremony={motionEnabled && premiumFxAllowed && roundIntro}
+        finalTrick={isFinalTrick}
       >
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            borderRadius: "50%",
-            opacity: 0.04,
-            background: CEREMONIAL_STRIP,
-          }}
-        />
-        <div
-          style={{
-            position: "absolute",
-            inset: "6%",
-            borderRadius: "50%",
-            border: "1.5px solid rgba(255,255,255,.14)",
-          }}
-        />
-
         {/* Gold Flash sur le feutre quand un joueur domine */}
         {goldFlash && motionEnabled && !liteMotion && (
           <div
@@ -1558,24 +1744,85 @@ export function TableScreen({
             style={{
               position: "absolute",
               inset: 0,
-              borderRadius: "50%",
+              borderRadius: "inherit",
             }}
           />
         )}
       </TableSurface>
 
-      {/* Chips d'état */}
+      {/* ═══ TOP HUD ULTRA-ÉPURÉ : ? · CAPSULE UNIFIÉE (5 TOURS · POT · TENDANCE) · MENU ═══ */}
       <TableStatusBar>
-        <Chip strong>
-          Tour {Math.min(trickNo, cfg.cardsPerPlayer)}/{cfg.cardsPerPlayer}
-        </Chip>
-        <Chip>Mise {NKAP(mise)}</Chip>
+        <button
+          data-nj-skin="none"
+          type="button"
+          onClick={openQuickHelp}
+          aria-label="Aide et mémo des règles"
+          className={`${styles.helpBtn}${hasSeenQuickHelp ? "" : ` ${styles.helpBtnNew}`}`}
+        >
+          ?
+        </button>
+
+        <div
+          className={`${styles.royalCapsule}${isFinalTrick ? ` ${styles.royalCapsuleFinal}` : ""}`}
+          aria-label={`Tour ${Math.min(trickNo, cfg.cardsPerPlayer)} sur ${cfg.cardsPerPlayer}, pot ${NKAP(displayedPot)}, tendance ${ledSuit ?? "libre"}`}
+        >
+          {/* Progression visuelle des 5 plis (la 5e = couronne Ngata) */}
+          <span className={styles.trickDots} title={`Tour ${Math.min(trickNo, cfg.cardsPerPlayer)}/${cfg.cardsPerPlayer}${isFinalTrick ? " · Décisif (Ngata)" : ""}`}>
+            {Array.from({ length: cfg.cardsPerPlayer }, (_, idx) => {
+              const step = idx + 1;
+              const isLast = step === cfg.cardsPerPlayer;
+              const done = step < trickNo;
+              const now = step === Math.min(trickNo, cfg.cardsPerPlayer);
+              if (isLast) {
+                return (
+                  <span
+                    key={step}
+                    className={`${styles.trickCrown}${now ? ` ${styles.trickCrownLive}` : ""}`}
+                    aria-hidden="true"
+                  >
+                    <NjamboIcon name="crown" tone="gold" size={14} />
+                  </span>
+                );
+              }
+              return (
+                <span
+                  key={step}
+                  className={`${styles.trickDot}${done ? ` ${styles.trickDotDone}` : now ? ` ${styles.trickDotNow}` : ""}`}
+                  aria-hidden="true"
+                />
+              );
+            })}
+          </span>
+
+          <span className={styles.capsuleSep} aria-hidden="true" />
+
+          {/* Pot en direct */}
+          <span className={styles.capsulePot}>
+            <NjamboIcon name="coin" tone="gold" size={15} />
+            <span>{NKAP(displayedPot)}</span>
+          </span>
+
+          <span className={styles.capsuleSep} aria-hidden="true" />
+
+          {/* Tendance ultra-lisible */}
+          <span
+            className={`${styles.capsuleSuit}${!ledSuit ? ` ${styles.capsuleSuitEmpty}` : suitIsRed ? ` ${styles.capsuleSuitRed}` : ""}`}
+            title={ledSuit ? `Tendance : ${ledSuit}` : "Tendance libre"}
+          >
+            {ledSuit ?? "—"}
+          </span>
+        </div>
+
+        <TableMenuButton onClick={handleMenuTap} label="Retour au menu">
+          <NjamboIcon name="home" tone="light" size={20} />
+        </TableMenuButton>
+
         {gameMode !== "bot" && connectionStatus && (
           <TableStatusMessage urgent={connectionStatus.urgent}>
             <Chip
               strong
               tone={connectionStatus.urgent ? "pink" : "gold"}
-              style={{ fontSize: 11, padding: "5px 9px" }}
+              style={{ fontSize: 10.5, padding: "4px 9px" }}
             >
               {connectionStatus.label}
             </Chip>
@@ -1583,14 +1830,8 @@ export function TableScreen({
         )}
       </TableStatusBar>
       <TableLiveRegion message={tableAnnouncement} />
-      <TableMenuButton
-        onClick={handleMenuTap}
-        label="Retour au menu"
-      >
-        <NjamboIcon name="home" tone="light" size={22} />
-      </TableMenuButton>
 
-      {/* Centre : deck + pot + tendance (zone enregistrée : handles "deck" et "pot") */}
+      {/* Centre : pioche 3D discrète + médaillon Pot (handles "deck" et "pot") */}
       <DeckZone
         deckW={deckW}
         pot={displayedPot}
@@ -1600,17 +1841,18 @@ export function TableScreen({
         motionEnabled={motionEnabled}
         premiumFxAllowed={premiumFxAllowed}
         liteMotion={liteMotion}
+        portrait={portrait}
       />
 
       {/* Bannière discrète */}
-      {banner && (
+      {!isGameEnded && banner && (
         <div
           role="status"
           aria-live="polite"
           aria-atomic="true"
           style={{
             position: "absolute",
-            top: "30%",
+            top: portrait ? "21%" : "20%",
             left: "50%",
             transform: "translateX(-50%)",
             zIndex: 60,
@@ -1628,8 +1870,9 @@ export function TableScreen({
         const edge = seatEdge(i);
         const dp = depositPos(edge);
         const active = trickPlays.some((tp) => tp.playerIdx === i);
+        const isLeaderDeposit = liveDominantIdx === i;
         const depositClass = motionEnabled
-          ? dominantIdx === i
+          ? isLeaderDeposit
             ? "nj-deposit-seat nj-deposit-seat-dominant"
             : active
               ? "nj-deposit-seat nj-deposit-seat-active"
@@ -1644,7 +1887,7 @@ export function TableScreen({
               left: dp.left,
               top: dp.top,
               transform: "translate(-50%,-50%)",
-              zIndex: 10,
+              zIndex: isLeaderDeposit ? 18 : 10,
             }}
           >
             <DepositZone
@@ -1652,8 +1895,9 @@ export function TableScreen({
               deposit={p.deposit}
               w={depW}
               active={active}
-              isDominant={dominantIdx === i}
-              effects={motionEnabled && !liteMotion}
+              isDominant={isLeaderDeposit}
+              dropReady={p.isYou && isYourTurn && isDraggingCard}
+              effects={motionEnabled}
             />
           </div>
         );
@@ -1683,12 +1927,15 @@ export function TableScreen({
               w={p.isYou ? youW : botW}
               faceUp={p.isYou}
               seatIdx={i}
+              seatAngle={a.angle}
               playerCount={n}
               dealing={motionEnabled && phase === "dealing"}
               legal={p.isYou ? yourLegal : null}
               onCardClick={handleCardClick}
-              motionOn={p.isYou ? motionEnabled && !activeTableFx : motionEnabled}
+              motionOn={motionEnabled}
               getDropRect={p.isYou ? getYourDropRect : undefined}
+              getDeckRect={getDeckRect}
+              onDragActive={p.isYou ? setIsDraggingCard : undefined}
             />
           </div>
         );
@@ -1697,7 +1944,7 @@ export function TableScreen({
       {/* Avatars */}
       {players.map((p, i) => {
         const edge = seatEdge(i);
-        const active = phase === "turns" && turnIdx === i;
+        const active = !isGameEnded && phase === "turns" && turnIdx === i;
         const avatarClassName = [
           "nj-avatar-seat",
           motionEnabled && active ? "nj-avatar-seat-active" : "",
@@ -1709,6 +1956,20 @@ export function TableScreen({
           "--seat-delay": `${i * 110}ms`,
           ...avatarPos(edge),
         } as CSSProperties;
+        const opponentPowers: OpponentPowerSlot[] | undefined = p.isYou
+          ? undefined
+          : (() => {
+              const played = opponentPowerUses[i] ?? [];
+              const total =
+                p.equippedPowers !== undefined
+                  ? Math.max(p.equippedPowers.length, played.length)
+                  : Math.max(MAX_EQUIPPED_POWERS, played.length);
+              if (total <= 0) return undefined;
+              return Array.from({ length: total }, (_, idx) =>
+                played[idx] ? { revealedCardId: played[idx], used: true } : { used: false },
+              );
+            })();
+
         return (
           <TimerAvatar
             key={"av" + p.name}
@@ -1717,7 +1978,10 @@ export function TableScreen({
             seatIdx={i}
             active={active}
             turnSeconds={cfg.turnSeconds}
-            size={p.isYou ? 58 : 50}
+            size={p.isYou ? 44 : portrait ? 44 : 50}
+            compactHorizontal={p.isYou}
+            unlimitedTime={isLocalSync && DEV.unlimitedTime}
+            opponentPowers={opponentPowers}
             className={avatarClassName}
             style={avatarStyle}
             motionEnabled={motionEnabled}
@@ -1725,29 +1989,65 @@ export function TableScreen({
         );
       })}
 
-      {/* Indication de tour */}
-      {isYourTurn && (
-        <TableTurnStatus bottomOffset={fanHy * 1.45} motionEnabled={motionEnabled}>
-          <Chip strong style={{ fontSize: 13 }}>
-            {ledSuit ? (
-              <>
-                À toi — suis{" "}
-                <b style={{ color: ledInfo?.color === "#c1292e" ? T.bad : "#fff" }}>{ledSuit}</b>
-              </>
-            ) : (
-              <>À toi — tu donnes la tendance</>
-            )}
-          </Chip>
-        </TableTurnStatus>
-      )}
+      {/* Ligne tactique ultra-fine 1 ligne (Salon Royal Épuré) */}
+      {isYourTurn && (() => {
+        const dominantPlay =
+          liveDominantIdx !== null
+            ? trickPlays.find((tp) => tp.playerIdx === liveDominantIdx) ?? trickPlays[0]
+            : trickPlays[0];
+        const hasLedSuit = Boolean(ledSuit && yourHand?.some((c) => c.suit === ledSuit));
+        const canBeatDominant = Boolean(
+          ledSuit &&
+            hasLedSuit &&
+            dominantPlay &&
+            yourHand?.some((c) => c.suit === ledSuit && c.value > (dominantPlay.card.effectiveValue ?? dominantPlay.card.value)),
+        );
+        const suitClass = suitIsRed ? styles.suitRed : styles.suitLight;
 
-      {motionEnabled && momentOverlay && <GameMomentOverlay key={momentOverlay.key} moment={momentOverlay} motionLevel={motionLevel} />}
+        return (
+          <TableTurnStatus bottomOffset={turnStatusBottom} motionEnabled={motionEnabled}>
+            <div className={`${styles.turnPill}${isFinalTrick ? ` ${styles.turnPillFinal}` : ""}`}>
+              <span className={styles.turnDot} aria-hidden="true" />
+              {!ledSuit ? (
+                isFinalTrick ? (
+                  <span>🔥 Ngata (5e tour) · Donne la tendance !</span>
+                ) : (
+                  <span>À toi · Donne la tendance</span>
+                )
+              ) : hasLedSuit ? (
+                <span>
+                  À toi · Suis <b className={suitClass}>{ledSuit}</b>
+                  {dominantPlay ? (
+                    canBeatDominant ? (
+                      <>
+                        {" "}· Bats{" "}
+                        <b className={styles.beatTag}>
+                          {dominantPlay.card.rank}
+                          <span className={suitClass}>{dominantPlay.card.suit}</span>
+                        </b>
+                      </>
+                    ) : (
+                      <> · Joue petit</>
+                    )
+                  ) : null}
+                </span>
+              ) : (
+                <span>
+                  Hors <b className={suitClass}>{ledSuit}</b> · Défausse libre
+                </span>
+              )}
+            </div>
+          </TableTurnStatus>
+        );
+      })()}
+
+      {!isGameEnded && motionEnabled && momentOverlay && <GameMomentOverlay key={momentOverlay.key} moment={momentOverlay} motionLevel={motionLevel} />}
 
       {/* Effets d'activation des cartes pouvoir (flash, particules, overlay
           d'activation) — rendus et séquencés par l'orchestrateur générique. */}
-      {orchestrator.element}
+      {!isGameEnded && orchestrator.element}
 
-      {motionEnabled && !liteMotion && tableReaction && (
+      {!isGameEnded && motionEnabled && !liteMotion && tableReaction && (
         <div
           key={tableReaction.key}
           className={`nj-table-reaction nj-table-reaction-${tableReaction.tone}`}
@@ -1772,37 +2072,13 @@ export function TableScreen({
         </div>
       )}
 
-      {/* Confirmation de sortie — même facture que PowerTargetModal (thème nuit/or). */}
+      {/* Confirmation de sortie — Salon Royal */}
       {confirmQuit && (
-        <div
-          onClick={() => setConfirmQuit(false)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            zIndex: 80,
-            background: "rgba(5,5,12,.72)",
-            display: "grid",
-            placeItems: "center",
-            padding: 20,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: `linear-gradient(160deg, ${T.night3}, ${T.night1})`,
-              border: `1.5px solid ${T.gold}55`,
-              borderRadius: 18,
-              padding: 20,
-              maxWidth: 320,
-              width: "100%",
-              textAlign: "center",
-            }}
-          >
+        <div className={styles.modalBackdrop} onClick={() => setConfirmQuit(false)}>
+          <div className={styles.modalCard} style={{ maxWidth: 320 }} onClick={(e) => e.stopPropagation()}>
             <NjamboMark size={44} />
-            <div style={{ fontWeight: 900, fontSize: 18, margin: "10px 0 4px", color: T.text }}>
-              Quitter la partie ?
-            </div>
-            <div className="nj-subtle" style={{ fontSize: 13, marginBottom: 16 }}>
+            <h2 className={styles.modalTitle}>Quitter la partie ?</h2>
+            <p className={styles.modalSub}>
               {isLocalSync
                 ? "La manche en cours sera perdue."
                 : gameMode === "event"
@@ -1810,13 +2086,12 @@ export function TableScreen({
                   : players.length <= 2
                     ? "Abandonner compte comme une défaite et donne la victoire à l'adversaire."
                     : "Vous serez éliminé de cette partie. Les autres joueurs continueront."}
-            </div>
-            <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
-              <Btn tone="teal" fill="soft" size="md" onClick={() => setConfirmQuit(false)} style={{ paddingInline: 18 }}>
+            </p>
+            <div style={{ display: "flex", gap: 10, justifyContent: "center", width: "100%", marginTop: 4 }}>
+              <Btn tone="teal" fill="soft" size="md" onClick={() => setConfirmQuit(false)} style={{ flex: 1 }}>
                 Rester
               </Btn>
-              {/* Abandonner la partie en cours : action destructive → rouge plein. */}
-              <Btn tone="red" fill="solid" size="md" onClick={handleQuitConfirm} style={{ paddingInline: 18 }}>
+              <Btn tone="red" fill="solid" size="md" onClick={handleQuitConfirm} style={{ flex: 1 }}>
                 Quitter
               </Btn>
             </div>
@@ -1833,61 +2108,291 @@ export function TableScreen({
         reactionPosition={(uiIdx) => depositPos(seatEdge(uiIdx))}
       />
 
-      {/* Réactions émoji entrantes — bulle flottante près du dépôt de l'auteur */}
-      {/* Barre d'émojis — parties en ligne / entre amis */}
+      {/* Bulle d'émojis rétractable — parties en ligne / entre amis */}
       {isOnline && (
-        <div className="nj-reaction-bar" aria-label="Réactions">
-          {REACTION_EMOJIS.map((em) => (
-            <button data-nj-skin="icon" key={em} type="button" onClick={() => handleSendReaction(em)} aria-label={`Réaction ${em}`}>
-              {em}
-            </button>
-          ))}
+        <div className={styles.reactionDock} aria-label="Réactions">
+          <button
+            data-nj-skin="none"
+            type="button"
+            className={styles.reactionToggle}
+            onClick={() => setReactionsOpen((v) => !v)}
+            aria-expanded={reactionsOpen}
+            aria-label={reactionsOpen ? "Fermer les réactions" : "Envoyer une réaction"}
+          >
+            {reactionsOpen ? "×" : "😊"}
+          </button>
+          {reactionsOpen && (
+            <div className={styles.reactionPopover}>
+              {REACTION_EMOJIS.map((em) => (
+                <button
+                  data-nj-skin="none"
+                  key={em}
+                  type="button"
+                  className={styles.reactionEmojiBtn}
+                  onClick={() => {
+                    handleSendReaction(em);
+                    setReactionsOpen(false);
+                  }}
+                  aria-label={`Réaction ${em}`}
+                >
+                  {em}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
-      {/* ═══ Barre de cartes pouvoir ═══ */}
-      {equippedPowers.length > 0 && players.length > 0 && !roundIntro && (
-        <TablePowerTray>
-          {equippedPowers.map((cardId) => {
-            const def = POWER_CARDS_BY_ID[cardId];
-            if (!def) return null;
-            // Dev : usage illimité → jamais marqué « utilisé ».
-            const used = !DEV.unlimitedPowers && usedPowers.has(cardId);
-            const disabled = used || !isYourTurn;
-            const active = targetingCard === cardId;
-            const tint = def.tone === "gold" ? T.gold : def.tone === "teal" ? T.teal : def.tone === "pink" ? T.pink : T.cobalt;
-            return (
-              <button data-nj-skin={def.tone === "cobalt" ? "dark" : def.tone}
-                key={cardId}
-                type="button"
-                onClick={() => handlePowerTap(cardId)}
-                disabled={disabled}
-                aria-label={def.name}
-                aria-pressed={active}
-                title={`${def.name} — ${def.description}`}
-                style={{
-                  borderRadius: 12,
-                  border: `2px solid ${active ? tint : `${tint}88`}`,
-                  background: used
-                    ? "rgba(10,6,26,.5)"
-                    : `radial-gradient(circle at 40% 30%, ${tint}44, rgba(10,6,26,.85))`,
-                  cursor: disabled ? "not-allowed" : "pointer",
-                  opacity: used ? 0.4 : isYourTurn ? 1 : 0.6,
-                  boxShadow: active ? `0 0 0 3px ${tint}55, 0 6px 18px rgba(0,0,0,.5)` : "0 6px 16px rgba(0,0,0,.4)",
-                  position: "relative",
-                  transition: "opacity var(--nj-motion-interaction) ease, box-shadow var(--nj-motion-interaction) ease",
-                }}
-              >
-                <PowerCardView card={def} compact showMeta={false} selected={active} disabled={used} />
-                {used && (
-                  <span style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center" }}>
-                    <NjamboIcon name="check" tone="light" size={22} />
-                  </span>
-                )}
-              </button>
-            );
-          })}
+      {/* ═══ Cartes Pouvoir : discret à droite en prod (≤3), tiroir complet en mode test (>3) ═══ */}
+      {hasPowersOnTable && (
+        <TablePowerTray bottomOffset={portrait ? cockpitBottom : undefined}>
+          {isTestPowerMode ? (
+            <button
+              data-nj-skin="none"
+              type="button"
+              className={styles.testTriggerBtn}
+              onClick={() => setTestDrawerOpen((open) => !open)}
+              aria-expanded={testDrawerOpen}
+              aria-label={`Ouvrir le tiroir de test des ${equippedPowers.length} cartes pouvoir`}
+            >
+              <span className={styles.testTriggerFan} aria-hidden="true">
+                <span className={styles.testTriggerMini} />
+                <span className={styles.testTriggerMini} />
+                <span className={styles.testTriggerMini} />
+              </span>
+              <span className={styles.testTriggerCopy}>
+                <small>Mode test</small>
+                <strong>{equippedPowers.length} pouvoirs</strong>
+              </span>
+            </button>
+          ) : (
+            equippedPowers.map((cardId, idx) => {
+              const def = POWER_CARDS_BY_ID[cardId];
+              if (!def) return null;
+              const used = !DEV.unlimitedPowers && usedPowers.has(cardId);
+              const active = targetingCard === cardId || previewPowerCard === cardId;
+              const mid = (equippedPowers.length - 1) / 2;
+              const rot = (idx - mid) * 7;
+              const yShift = Math.abs(idx - mid) * 3;
+              return (
+                <button
+                  data-nj-skin="none"
+                  key={cardId}
+                  type="button"
+                  className={`${styles.prodPowerBtn}${active ? ` ${styles.prodPowerBtnActive}` : ""}`}
+                  onClick={() => {
+                    if (targetingCard === cardId) {
+                      setTargetingCard(null);
+                      return;
+                    }
+                    setPreviewPowerCard(cardId);
+                  }}
+                  aria-label={`${def.name} — voir l'effet`}
+                  aria-pressed={active}
+                  title={`${def.name} — ${def.description}`}
+                  style={
+                    {
+                      "--fan-rot": `${rot}deg`,
+                      "--fan-y": `${yShift}px`,
+                      "--fan-ml": idx === 0 ? "0px" : "-7px",
+                      opacity: used ? 0.44 : isYourTurn ? 1 : 0.84,
+                    } as CSSProperties
+                  }
+                >
+                  <PowerCardView card={def} compact showMeta={false} selected={active} disabled={used} />
+                  {used && (
+                    <span className={styles.powerUsedOverlay}>
+                      <NjamboIcon name="check" tone="light" size={16} />
+                    </span>
+                  )}
+                </button>
+              );
+            })
+          )}
         </TablePowerTray>
+      )}
+
+      {/* Tiroir flottant de test (quand > 3 cartes en mode test/dev) */}
+      {isTestPowerMode && testDrawerOpen && (
+        <div className={styles.testDrawerBackdrop} onClick={() => setTestDrawerOpen(false)}>
+          <div
+            className={styles.testPowerDrawer}
+            role="dialog"
+            aria-label="Grimoire de test des cartes pouvoir"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className={styles.testDrawerHead}>
+              <div className={styles.testDrawerTitle}>
+                <span className={styles.testBadge}>Mode test</span>
+                <span>{filteredTestPowers.length} / {equippedPowers.length} cartes</span>
+              </div>
+              <button
+                data-nj-skin="none"
+                type="button"
+                className={styles.testDrawerClose}
+                onClick={() => setTestDrawerOpen(false)}
+                aria-label="Fermer le tiroir des pouvoirs"
+              >
+                ×
+              </button>
+            </div>
+
+            <div className={styles.testFilterRow} role="tablist" aria-label="Filtrer par catégorie">
+              {TEST_FILTER_CATEGORIES.map((cat) => (
+                <button
+                  key={cat.id}
+                  data-nj-skin="none"
+                  type="button"
+                  role="tab"
+                  aria-selected={testCategoryFilter === cat.id}
+                  className={`${styles.testFilterPill}${testCategoryFilter === cat.id ? ` ${styles.testFilterActive}` : ""}`}
+                  onClick={() => setTestCategoryFilter(cat.id)}
+                >
+                  {cat.label}
+                </button>
+              ))}
+            </div>
+
+            <div className={styles.testCardGrid}>
+              {filteredTestPowers.map((cardId) => {
+                const def = POWER_CARDS_BY_ID[cardId];
+                if (!def) return null;
+                const used = !DEV.unlimitedPowers && usedPowers.has(cardId);
+                const active = targetingCard === cardId || previewPowerCard === cardId;
+                return (
+                  <button
+                    key={cardId}
+                    data-nj-skin="none"
+                    type="button"
+                    className={styles.testCardCell}
+                    onClick={() => {
+                      setTestDrawerOpen(false);
+                      if (targetingCard === cardId) {
+                        setTargetingCard(null);
+                        return;
+                      }
+                      setPreviewPowerCard(cardId);
+                    }}
+                    aria-label={`${def.name} — voir et activer`}
+                    style={{ opacity: used ? 0.48 : 1 }}
+                  >
+                    <PowerCardView card={def} compact showMeta={false} selected={active} disabled={used} />
+                    {used && (
+                      <span className={styles.powerUsedOverlay}>
+                        <NjamboIcon name="check" tone="light" size={18} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Aperçu tactile d'une carte pouvoir (explication claire + activation) */}
+      {previewPowerCard && (() => {
+        const def = POWER_CARDS_BY_ID[previewPowerCard];
+        if (!def) return null;
+        const used = !DEV.unlimitedPowers && usedPowers.has(previewPowerCard);
+        const canActivateNow = isYourTurn && !used && !animatingRef.current;
+        return (
+          <div className={styles.modalBackdrop} onClick={() => setPreviewPowerCard(null)}>
+            <div className={styles.modalCard} style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>
+              <PowerCardView card={def} showMeta />
+              <p className={styles.modalSub}>{def.description}</p>
+              <Chip
+                strong
+                tone={canActivateNow ? "teal" : used ? "pink" : "gold"}
+                style={{ fontSize: 11.5, padding: "5px 12px" }}
+              >
+                {used
+                  ? "Déjà utilisée durant cette manche"
+                  : isYourTurn
+                    ? "Prête — activable gratuitement pendant ton tour"
+                    : "Activable uniquement quand c'est ton tour"}
+              </Chip>
+              <div style={{ display: "flex", gap: 10, justifyContent: "center", width: "100%", marginTop: 4 }}>
+                <Btn
+                  tone="teal"
+                  fill="soft"
+                  size="md"
+                  onClick={() => setPreviewPowerCard(null)}
+                  style={{ flex: 1 }}
+                >
+                  Fermer
+                </Btn>
+                {canActivateNow && (
+                  <Btn
+                    tone="gold"
+                    fill="solid"
+                    size="md"
+                    onClick={() => {
+                      const id = previewPowerCard;
+                      setPreviewPowerCard(null);
+                      handlePowerTap(id);
+                    }}
+                    style={{ flex: 1 }}
+                  >
+                    Activer
+                  </Btn>
+                )}
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* Mémo rapide des règles en pleine partie (sans quitter la table) */}
+      {showQuickHelp && (
+        <div className={styles.modalBackdrop} onClick={() => setShowQuickHelp(false)}>
+          <div className={styles.modalCard} onClick={(e) => e.stopPropagation()}>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, width: "100%" }}>
+              <h2 className={styles.modalTitle}>Comment gagner au Njambo ?</h2>
+              <Chip strong tone="gold" style={{ fontSize: 10.5 }}>
+                Mémo
+              </Chip>
+            </div>
+
+            <div className={styles.ruleCard}>
+              <strong className={styles.ruleHeadingGold}>1. Suivre la tendance (couleur)</strong>
+              <div style={{ marginTop: 3, opacity: 0.85 }}>
+                Le 1er joueur pose une couleur (♠ ♥ ♦ ♣). Si tu en as, tu <b>dois</b> la jouer. La plus forte carte dans la tendance gagne le pli et lance le tour suivant.
+              </div>
+            </div>
+
+            <div className={styles.ruleCard}>
+              <strong className={styles.ruleHeadingTeal}>2. Défausser intelligemment</strong>
+              <div style={{ marginTop: 3, opacity: 0.85 }}>
+                Si tu n&apos;as pas la couleur demandée, tu peux poser n&apos;importe quelle carte, mais <b>elle ne peut jamais gagner le pli</b>. Garde tes grosses cartes pour plus tard !
+              </div>
+            </div>
+
+            <div className={`${styles.ruleCard} ${styles.ruleCardGold}`}>
+              <strong className={styles.ruleHeadingGold}>3. Seul le 5e tour (Ngata) donne le pot !</strong>
+              <div style={{ marginTop: 3, opacity: 0.88 }}>
+                Les 4 premiers plis servent à prendre ou garder la main. Le joueur qui remporte le <b>5e et dernier pli</b> rafle tout le pot ! Gagner ce 5e pli avec un <b>3 double les gains (×2)</b>.
+              </div>
+            </div>
+
+            <div className={styles.ruleCard}>
+              <strong className={styles.ruleHeadingPink}>4. Victoires instantanées & Pouvoirs</strong>
+              <div style={{ marginTop: 3, opacity: 0.85 }}>
+                Dès la donne, une main dont la somme est <b>&lt; 21</b>, <b>= 21 (×2)</b> ou <b>5 cartes de même couleur (×2)</b> gagne immédiatement. Touche tes cartes pouvoir en bas à droite pour voir leur effet.
+              </div>
+            </div>
+
+            <Btn
+              tone="gold"
+              fill="solid"
+              size="md"
+              onClick={() => setShowQuickHelp(false)}
+              style={{ width: "100%", marginTop: 4 }}
+            >
+              J&apos;ai compris, reprendre la manche
+            </Btn>
+          </div>
+        </div>
       )}
 
       {/* Sélection de cible pour une carte pouvoir (pilotée par TargetSpec) */}

@@ -37,7 +37,7 @@ export function PublicProfileScreen() {
     <BottomNavScene narrow>
         <div className="nj-phone">
           <ScreenHeader title="Profil joueur" kicker="Public" icon="profile" tone="gold" onBack={() => navigateTo("players")} backLabel="Joueurs" />
-          <Surface style={{ textAlign: "center" }}>
+          <Surface scrollable style={{ textAlign: "center" }}>
             {loading && <div className="nj-subtle" style={{ padding: 20 }}>Chargement...</div>}
             {!loading && !player && <div className="nj-subtle" style={{ padding: 20 }}>Joueur introuvable.</div>}
             {player && (() => {

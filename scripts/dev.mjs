@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import os from "node:os";
 import process from "node:process";
 
 const root = process.cwd();
@@ -7,6 +8,20 @@ const npmCli = process.env.npm_execpath;
 if (!npmCli) {
   throw new Error("npm_execpath absent : lance ce script avec `npm run dev`.");
 }
+
+function printMobileWifiUrls() {
+  const nets = os.networkInterfaces();
+  for (const [name, entries] of Object.entries(nets)) {
+    if (/vmware|vmnet|vbox|vethernet|loopback/i.test(name)) continue;
+    for (const entry of entries ?? []) {
+      if (entry.family === "IPv4" && !entry.internal && !entry.address.startsWith("169.254.")) {
+        console.log(`\n📱 Test sur téléphone (${name}) : http://${entry.address}:3000 (ou :3001)\n`);
+      }
+    }
+  }
+}
+
+printMobileWifiUrls();
 
 const processes = [
   spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev"], {

@@ -12,13 +12,13 @@
   gap: 11px;
   padding: 10px 13px;
   overflow: hidden;
-  color: var(--nj-solar-ink, #24372f);
-  border: 1px solid color-mix(in srgb, var(--equipped-tone) 54%, var(--nj-solar-outline, #b88e54));
+  color: var(--sr-ivory, #fff8ea);
+  border: 1.5px solid color-mix(in srgb, var(--equipped-tone) 56%, rgba(255, 212, 92, 0.34));
   border-radius: 16px;
   background:
-    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--equipped-tone) 20%, transparent), transparent 42%),
-    linear-gradient(145deg, rgba(255, 253, 246, 0.96), color-mix(in srgb, var(--equipped-tone) 7%, #f2e2c1));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.8), 0 9px 20px rgba(35, 31, 18, 0.16);
+    radial-gradient(circle at 92% 8%, color-mix(in srgb, var(--equipped-tone) 24%, transparent), transparent 44%),
+    linear-gradient(155deg, rgba(44, 29, 21, 0.94), rgba(16, 13, 11, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.18), 0 10px 22px rgba(0, 0, 0, 0.4);
   font: inherit;
   cursor: pointer;
   isolation: isolate;
@@ -74,14 +74,15 @@
   flex: 0 0 auto;
   place-items: center;
   overflow: hidden;
-  border: 1px dashed color-mix(in srgb, var(--equipped-tone) 48%, var(--nj-solar-outline, #b88e54));
+  border: 1px dashed color-mix(in srgb, var(--equipped-tone) 58%, rgba(255, 212, 92, 0.36));
   border-radius: 13px;
-  background: color-mix(in srgb, var(--equipped-tone) 8%, rgba(255, 255, 255, 0.76));
+  background: color-mix(in srgb, var(--equipped-tone) 12%, rgba(8, 16, 14, 0.72));
 }
 
 .slotFilled {
-  border-style: solid;
+  border: 0;
   background: transparent;
+  overflow: visible;
 }
 
 .emptySlot {
@@ -90,8 +91,8 @@
   display: grid;
   place-items: center;
   border-radius: 11px;
-  background: color-mix(in srgb, var(--equipped-tone) 15%, white);
-  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--equipped-tone) 32%, transparent);
+  background: color-mix(in srgb, var(--equipped-tone) 20%, rgba(20, 14, 12, 0.9));
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--equipped-tone) 42%, transparent);
 }
 
 .copy {

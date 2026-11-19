@@ -2,6 +2,9 @@
 
 import { useCallback, useEffect, useRef, useState, type ComponentType } from "react";
 import { SplashScreen } from "@/components/scenes/SplashScreen";
+import { ensureRandomUUIDPolyfill } from "@/lib/cryptoUtils";
+
+ensureRandomUUIDPolyfill();
 
 const SPLASH_SESSION_KEY = "njambo-splash-seen";
 
@@ -15,8 +18,12 @@ export default function AppBootstrap() {
   useEffect(() => {
     cancelledRef.current = false;
     if (showSplashRef.current === null) {
-      showSplashRef.current = sessionStorage.getItem(SPLASH_SESSION_KEY) !== "1";
-      if (showSplashRef.current) sessionStorage.setItem(SPLASH_SESSION_KEY, "1");
+      try {
+        showSplashRef.current = sessionStorage.getItem(SPLASH_SESSION_KEY) !== "1";
+        if (showSplashRef.current) sessionStorage.setItem(SPLASH_SESSION_KEY, "1");
+      } catch {
+        showSplashRef.current = true;
+      }
     }
 
     const showSplash = showSplashRef.current;

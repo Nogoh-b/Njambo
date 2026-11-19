@@ -10,6 +10,8 @@ export interface GameShellProps {
   compact?: boolean;
   /** Voir `BottomNavScene` : `false` sur les sous-écrans qui ont leur propre retour. */
   dock?: boolean;
+  /** Voir `BottomNavScene` : `false` sur les écrans de jeu verrouillés sans scroll global. */
+  scroll?: boolean;
   className?: string;
   contentClassName?: string;
 }
@@ -22,7 +24,8 @@ export function GameShell({
   children,
   active,
   compact = false,
-  dock = true,
+  dock = false,
+  scroll = false,
   className,
   contentClassName,
 }: GameShellProps) {
@@ -31,6 +34,7 @@ export function GameShell({
       active={active}
       narrow={compact}
       dock={dock}
+      scroll={scroll}
       className={className}
       contentClassName={contentClassName}
     >

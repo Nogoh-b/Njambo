@@ -1,0 +1,631 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Contre l'IA : Aperçu Table 3D Live + Console Tactile
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.scene {
+  color: var(--sr-ivory, #fff8ea);
+}
+
+.frame {
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(8px, 1.5vh, 14px);
+  overflow: hidden;
+}
+
+/* ═══ HUD HAUT COMPACT ═══ */
+.hudBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 7px 10px;
+  border-radius: 18px;
+  border: 1.5px solid rgba(255, 212, 92, 0.44);
+  background:
+    radial-gradient(circle at 12% 50%, rgba(255, 207, 64, 0.2), transparent 48%),
+    linear-gradient(120deg, rgba(56, 30, 18, 0.94), rgba(18, 13, 11, 0.95));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.22), 0 4px 0 #090604, 0 10px 22px rgba(0, 0, 0, 0.38);
+}
+
+.hudLeft {
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backBtn {
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1.5px solid #ffe89e;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe06b 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 3px 0 #703903;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 105ms ease, filter 150ms ease;
+}
+
+.backBtn:hover { filter: brightness(1.08); transform: translateY(-1px); }
+.backBtn:active { transform: translateY(2px); }
+
+.hudCopy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.hudKicker {
+  color: var(--sr-gold, #ffcf40);
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.hudCopy h1 {
+  margin: 0;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(16px, 4vw, 22px);
+  font-weight: 900;
+  line-height: 1.05;
+}
+
+.hudWallet {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.miniPill {
+  height: 34px;
+  padding: 0 10px 0 7px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 11px;
+  border: 1.5px solid rgba(255, 207, 64, 0.44);
+  background: rgba(12, 19, 17, 0.85);
+  color: #fffaf0;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.pillTeal { border-color: rgba(29, 228, 190, 0.56); }
+.pillGold { border-color: rgba(255, 207, 64, 0.56); }
+
+/* ═══ STAGE PRINCIPAL : TABLE LIVE + CONSOLE ═══ */
+.stageGrid {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: clamp(10px, 1.8vh, 16px);
+  overflow: hidden;
+}
+
+/* ═══ APERÇU TABLE DE JEU 3D MINIATURE ═══ */
+.tablePreview {
+  --diff-glow: rgba(255, 207, 64, 0.34);
+  --diff-color: #ffcf40;
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 190px;
+  padding: clamp(10px, 2vh, 18px) 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 24px;
+  border: 1.5px solid color-mix(in srgb, var(--diff-color) 48%, rgba(255, 212, 92, 0.3));
+  background:
+    radial-gradient(ellipse 75% 60% at 50% 48%, var(--diff-glow), transparent 68%),
+    linear-gradient(170deg, rgba(19, 44, 36, 0.88), rgba(9, 22, 18, 0.94));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.16), 0 18px 36px rgba(0, 0, 0, 0.46);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.diffEasy { --diff-glow: rgba(60, 224, 120, 0.28); --diff-color: #3ce078; }
+.diffNormal { --diff-glow: rgba(255, 207, 64, 0.28); --diff-color: #ffcf40; }
+.diffHard { --diff-glow: rgba(255, 71, 114, 0.34); --diff-color: #ff4772; }
+
+.tableAura {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at 50% 10%, var(--diff-glow), transparent 58%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.botRow {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: clamp(12px, 4vw, 28px);
+  width: 100%;
+}
+
+.seatCard {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  animation: seatPop 220ms cubic-bezier(0.2, 0.9, 0.25, 1.15) both;
+}
+
+@keyframes seatPop {
+  from { opacity: 0; transform: translateY(-6px) scale(0.88); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.seatAvatar {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 2px var(--diff-color),
+    0 0 16px var(--diff-glow),
+    0 6px 14px rgba(0, 0, 0, 0.46);
+}
+
+.diffStars {
+  position: absolute;
+  bottom: -6px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 1px 6px;
+  border-radius: 999px;
+  border: 1px solid #1a100a;
+  background: var(--diff-color);
+  color: #1f0e03;
+  font-size: 8.5px;
+  font-weight: 900;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.seatName {
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: #fffaf0;
+  font-size: 11px;
+  font-weight: 850;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.65);
+}
+
+/* Table ovale acajou & feutre au centre de l'aperçu */
+.miniTableOval {
+  position: relative;
+  z-index: 1;
+  width: min(94%, 360px);
+  flex: 1 1 auto;
+  min-height: 92px;
+  max-height: 168px;
+  padding: 9px;
+  border-radius: 999px;
+  border: 2px solid rgba(255, 214, 96, 0.62);
+  background: linear-gradient(160deg, #874322 0%, #522411 52%, #2e1309 100%);
+  box-shadow:
+    inset 0 2px 3px rgba(255, 234, 178, 0.4),
+    0 16px 32px rgba(0, 0, 0, 0.54);
+}
+
+.miniTableFelt {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 207, 64, 0.42);
+  background: radial-gradient(ellipse 76% 68% at 50% 45%, #249b76 0%, #13684f 58%, #093b2e 100%);
+  box-shadow: inset 0 6px 20px rgba(0, 0, 0, 0.55);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  overflow: hidden;
+}
+
+.feltCardBackLeft,
+.feltCardBackRight {
+  position: absolute;
+  width: 38px;
+  height: 54px;
+  border-radius: 7px;
+  border: 1px solid rgba(255, 212, 92, 0.55);
+  background: url("/assets/njambo/books/card-back-128.webp") center / cover no-repeat;
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.48);
+  opacity: 0.78;
+}
+
+.feltCardBackLeft { left: 16px; transform: rotate(-16deg); }
+.feltCardBackRight { right: 16px; transform: rotate(16deg); }
+
+.potMedallion {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 14px 6px 10px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(255, 214, 96, 0.56);
+  background: rgba(12, 22, 18, 0.76);
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.42);
+}
+
+.potMeta {
+  display: grid;
+  text-align: left;
+  line-height: 1.05;
+}
+
+.potMeta small {
+  color: var(--sr-muted, #b0cdc2);
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+
+.potMeta strong {
+  color: #fff0a8;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(14px, 3.6vw, 18px);
+  font-weight: 900;
+}
+
+.tableModeBadge {
+  position: relative;
+  z-index: 2;
+  color: #d7f5ea;
+  font-size: 10.5px;
+  font-weight: 850;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.playerSeat {
+  position: relative;
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 5px 12px 5px 6px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 212, 92, 0.42);
+  background: rgba(20, 14, 11, 0.86);
+}
+
+.playerSeatAvatar {
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 0 2px var(--sr-teal, #1de4be);
+}
+
+.playerSeatMeta {
+  display: grid;
+  line-height: 1.1;
+}
+
+.playerSeatMeta strong {
+  font-size: 12px;
+  font-weight: 900;
+  color: #fffaf0;
+}
+
+.playerSeatMeta small {
+  font-size: 10px;
+  color: var(--sr-muted, #b0cdc2);
+  font-weight: 700;
+}
+
+/* ═══ CONSOLE DE CONTRÔLES TACTILES ═══ */
+.controlsPane {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: clamp(11px, 2vw, 16px);
+  border-radius: 22px;
+  border: 1.5px solid rgba(255, 212, 92, 0.36);
+  background:
+    radial-gradient(ellipse 85% 45% at 50% 0%, rgba(255, 207, 64, 0.1), transparent 62%),
+    linear-gradient(168deg, rgba(44, 29, 21, 0.95), rgba(18, 13, 11, 0.97));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.18), 0 16px 34px rgba(0, 0, 0, 0.46);
+}
+
+.controlBlock {
+  display: grid;
+  gap: 6px;
+}
+
+.blockHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.blockTitle {
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.blockHint {
+  color: var(--sr-gold-bright, #fff0a8);
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.chipRow3 {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.pokerChip {
+  --c-tone: var(--sr-gold);
+  --c-deep: #6b3d06;
+  --c-ink: #241203;
+  min-height: 46px;
+  padding: 5px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  border-radius: 14px;
+  border: 1.5px solid color-mix(in srgb, var(--c-tone) 34%, rgba(255, 248, 234, 0.14));
+  background: linear-gradient(175deg, rgba(36, 25, 20, 0.92), rgba(14, 18, 16, 0.95));
+  color: #e9f2ee;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 3px 0 #090605;
+  cursor: pointer;
+  transition: transform 105ms ease, border-color 150ms ease, background 150ms ease;
+}
+
+.chipTeal { --c-tone: var(--sr-teal, #1de4be); --c-deep: #065748; --c-ink: #04221c; }
+.chipGold { --c-tone: var(--sr-gold, #ffcf40); --c-deep: #7a4204; --c-ink: #241203; }
+.chipPalm { --c-tone: var(--sr-palm, #3ce078); --c-deep: #0f5c2c; --c-ink: #042210; }
+.chipPink { --c-tone: var(--sr-pink, #ff4772); --c-deep: #7a102b; --c-ink: #fff8fa; }
+
+.pokerChip strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 14.5px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.pokerChip small {
+  font-size: 9.5px;
+  font-weight: 750;
+  opacity: 0.82;
+  line-height: 1;
+}
+
+.chipStars {
+  font-size: 10px;
+  line-height: 1;
+  color: var(--c-tone);
+}
+
+.pokerChip:hover {
+  border-color: var(--c-tone);
+  transform: translateY(-1px);
+}
+
+.pokerChip:active {
+  transform: translateY(2px);
+}
+
+.chipActive {
+  color: var(--c-ink);
+  border-color: color-mix(in srgb, var(--c-tone) 72%, #ffffff);
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 0%, rgba(255, 255, 255, 0.5), transparent 60%),
+    linear-gradient(180deg, color-mix(in srgb, var(--c-tone) 82%, #ffffff), var(--c-tone) 58%, color-mix(in srgb, var(--c-tone) 82%, #000000));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.65),
+    0 4px 0 var(--c-deep),
+    0 10px 20px color-mix(in srgb, var(--c-tone) 30%, rgba(0, 0, 0, 0.4));
+}
+
+.chipActive .chipStars {
+  color: var(--c-ink);
+}
+
+.chipShort {
+  opacity: 0.62;
+}
+
+.guestNote {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 207, 64, 0.36);
+  background: rgba(255, 207, 64, 0.1);
+  color: #fff2be;
+  font-size: 11.5px;
+  font-weight: 750;
+  line-height: 1.3;
+}
+
+.powersWrap {
+  min-width: 0;
+}
+
+.errorPill {
+  padding: 7px 10px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 71, 114, 0.55);
+  background: rgba(98, 16, 36, 0.8);
+  color: #ffd4df;
+  font-size: 12px;
+  font-weight: 800;
+  text-align: center;
+}
+
+/* ═══ GROS BOUTON 3D LANCEMENT ═══ */
+.launchBtn {
+  position: relative;
+  width: 100%;
+  min-height: 56px;
+  padding: 8px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 2px solid #fff6bf;
+  color: #261202;
+  background:
+    radial-gradient(ellipse 80% 75% at 50% 0%, rgba(255, 255, 255, 0.6), transparent 58%),
+    linear-gradient(180deg, #ffe573 0%, #ffbe26 52%, #e0820a 100%);
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.78),
+    0 5px 0 #7f3e03,
+    0 14px 28px rgba(0, 0, 0, 0.48),
+    0 0 28px rgba(255, 198, 42, 0.36);
+  cursor: pointer;
+  transition: transform 105ms ease, filter 150ms ease;
+}
+
+.launchBtn:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+
+.launchBtn:active:not(:disabled) {
+  transform: translateY(4px);
+}
+
+.launchBtn:disabled {
+  opacity: 0.48;
+  filter: grayscale(0.45);
+  cursor: not-allowed;
+}
+
+.launchSheen {
+  position: absolute;
+  inset: 0;
+  width: 36%;
+  background: linear-gradient(108deg, transparent, rgba(255, 255, 255, 0.52) 50%, transparent);
+  transform: translateX(-140%);
+  animation: launchSweep 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes launchSweep {
+  0%, 60% { transform: translateX(-140%); }
+  88%, 100% { transform: translateX(350%); }
+}
+
+.launchIcon {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(38, 18, 2, 0.22);
+}
+
+.launchCopy {
+  flex: 1 1 auto;
+  display: grid;
+  text-align: left;
+  line-height: 1.05;
+}
+
+.launchCopy strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.launchCopy small {
+  font-size: 11px;
+  font-weight: 800;
+  opacity: 0.85;
+}
+
+.launchArrow {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(38, 18, 2, 0.18);
+  font-size: 18px;
+  font-weight: 900;
+}
+
+/* ═══ DESKTOP / TABLETTE : Aperçu table à gauche, Console à droite ═══ */
+@media (min-width: 820px) {
+  .stageGrid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(340px, 420px);
+    gap: 18px;
+    align-items: stretch;
+  }
+
+  .tablePreview {
+    padding: 24px 20px;
+  }
+
+  .miniTableOval {
+    max-width: 440px;
+    max-height: 230px;
+    padding: 13px;
+  }
+
+  .controlsPane {
+    justify-content: center;
+    gap: 14px;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 440px) {
+  .backLabel { display: none; }
+  .backBtn { width: 38px; padding: 0; justify-content: center; }
+}
+
+@media (max-height: 680px) {
+  .playerSeat { display: none; }
+  .pokerChip { min-height: 40px; }
+  .launchBtn { min-height: 48px; }
+}

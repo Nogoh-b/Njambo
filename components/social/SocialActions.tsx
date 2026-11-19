@@ -5,30 +5,48 @@ import { useGame } from "@/contexts/GameContext";
 import { useLobby } from "@/contexts/LobbyContext";
 import { useAuth } from "@/hooks/useAuth";
 import { sendFriendRequest, sendRoomInvite } from "@/lib/socialData";
-import { Btn } from "@/components/ui/Btn";
 import { NjamboIcon } from "@/components/ui/Art";
 import type { PublicPlayerProfile, SocialUserLite } from "@/types/game";
+import styles from "./SocialActions.module.css";
 
 interface SocialActionsProps {
   player: PublicPlayerProfile | SocialUserLite;
   compact?: boolean;
   showProfile?: boolean;
   showInvite?: boolean;
+  /** Masque « Ajouter » lorsque le joueur fait déjà partie du cercle d'amis. */
+  isFriend?: boolean;
+  /** Affiche un état « Envoyé » si une demande est déjà en attente. */
+  requestSent?: boolean;
   tone?: "gold" | "teal" | "pink" | "cobalt";
+  onFeedback?: (message: string, tone?: "gold" | "emerald" | "ruby") => void;
 }
 
 function toLite(player: PublicPlayerProfile | SocialUserLite): SocialUserLite {
   return { uid: player.uid, name: player.name, emoji: player.emoji };
 }
 
-export function SocialActions({ player, compact = false, showProfile = true, showInvite = true, tone }: SocialActionsProps) {
+export function SocialActions({
+  player,
+  compact = false,
+  showProfile = true,
+  showInvite = true,
+  isFriend = false,
+  requestSent = false,
+  tone,
+  onFeedback,
+}: SocialActionsProps) {
   const { user } = useAuth();
   const { navigateTo, setSocialTarget, cfg } = useGame();
   const { currentRoom, createRoom } = useLobby();
-  const [busy, setBusy] = useState<string | null>(null);
+  const [busy, setBusy] = useState<"friend" | "invite" | null>(null);
+  const [sentFriend, setSentFriend] = useState(false);
+  const [sentInvite, setSentInvite] = useState(false);
+
   const isSelf = !user || user.uid === player.uid;
   const me = user ? { uid: user.uid, name: user.name, emoji: user.emoji } : null;
   const target = toLite(player);
+  const alreadyRequested = requestSent || sentFriend;
 
   const openProfile = () => {
     setSocialTarget({ playerUid: player.uid, peerUid: player.uid, peerName: player.name, peerEmoji: player.emoji });
@@ -41,10 +59,12 @@ export function SocialActions({ player, compact = false, showProfile = true, sho
   };
 
   const addFriend = async () => {
-    if (!me || isSelf) return;
+    if (!me || isSelf || alreadyRequested) return;
     setBusy("friend");
     try {
       await sendFriendRequest(me, target);
+      setSentFriend(true);
+      onFeedback?.(`Demande envoyée à ${player.name}`, "gold");
     } finally {
       setBusy(null);
     }
@@ -56,41 +76,91 @@ export function SocialActions({ player, compact = false, showProfile = true, sho
     try {
       const roomId = currentRoom?.id ?? await createRoom(cfg.stakes[1], 2, "friends");
       await sendRoomInvite(me, target, roomId);
+      setSentInvite(true);
+      onFeedback?.(`Invitation de table envoyée à ${player.name}`, "emerald");
       if (!currentRoom?.id) navigateTo("lobby");
     } finally {
       setBusy(null);
     }
   };
 
-  const pad = compact ? { paddingInline: 9, fontSize: 11 } : undefined;
-  // Le nouveau système est désormais inconditionnel : chaque action porte sa
-  // propre couleur au lieu de retomber sur l'ancien skin raster incolore.
-  // `tone` ne pilote plus que l'action secondaire « Profil ».
-  const size = compact ? ("sm" as const) : ("md" as const);
-  const profileTone = tone ?? "cobalt";
-  const iconSize = compact ? 16 : 18;
+  const iconSize = compact ? 15 : 17;
+  const profileTone = tone ?? "gold";
+  const sizeClass = compact ? ` ${styles.compact}` : "";
 
   return (
     <div
       role="group"
       aria-label={`Actions pour ${player.name}`}
-      style={{ display: "flex", gap: 6, flexWrap: "wrap", justifyContent: "flex-end" }}
+      className={styles.group}
     >
       {showProfile && (
-        <Btn tone={profileTone} fill="outline" size={size} ariaLabel={`Voir le profil de ${player.name}`} onClick={openProfile} style={pad} icon={<NjamboIcon name="profile" tone={profileTone} size={iconSize} />}>
-          {compact ? "" : "Profil"}
-        </Btn>
+        <button
+          data-nj-skin="none"
+          type="button"
+          className={`${styles.btn} ${styles.profile}${sizeClass}`}
+          aria-label={`Voir le profil de ${player.name}`}
+          title={`Profil de ${player.name}`}
+          onClick={openProfile}
+        >
+          <NjamboIcon name="profile" tone={profileTone} size={iconSize} />
+          {!compact && <span>Profil</span>}
+        </button>
       )}
-      <Btn tone="gold" fill="solid" size={size} ariaLabel={`Ajouter ${player.name} aux amis`} onClick={addFriend} disabled={isSelf || busy === "friend"} style={pad} icon={<NjamboIcon name="plus" tone="gold" size={iconSize} />}>
-        {compact ? "" : busy === "friend" ? "..." : "Ajouter"}
-      </Btn>
-      <Btn tone="teal" fill="soft" size={size} ariaLabel={`Écrire à ${player.name}`} onClick={openChat} disabled={isSelf} style={pad} icon={<NjamboIcon name="message" tone="teal" size={iconSize} />}>
-        {compact ? "" : "Message"}
-      </Btn>
+
+      {!isFriend && (
+        <button
+          data-nj-skin="none"
+          type="button"
+          className={`${styles.btn} ${alreadyRequested ? styles.addDone : styles.add}${sizeClass}`}
+          aria-label={alreadyRequested ? `Demande déjà envoyée à ${player.name}` : `Ajouter ${player.name} aux amis`}
+          title={alreadyRequested ? "Demande envoyée" : "Ajouter aux amis"}
+          onClick={addFriend}
+          disabled={isSelf || busy === "friend" || alreadyRequested}
+        >
+          {alreadyRequested ? (
+            <span className={styles.checkMark} aria-hidden="true">✓</span>
+          ) : (
+            <NjamboIcon name="plus" tone="gold" size={iconSize} />
+          )}
+          {!compact && (
+            <span>{busy === "friend" ? "…" : alreadyRequested ? "Envoyée" : "Ajouter"}</span>
+          )}
+        </button>
+      )}
+
+      <button
+        data-nj-skin="none"
+        type="button"
+        className={`${styles.btn} ${styles.message}${sizeClass}`}
+        aria-label={`Écrire à ${player.name}`}
+        title={`Écrire à ${player.name}`}
+        onClick={openChat}
+        disabled={isSelf}
+      >
+        <NjamboIcon name="message" tone="teal" size={iconSize} />
+        {!compact && <span>Message</span>}
+      </button>
+
       {showInvite && (
-        <Btn tone="pink" fill="solid" size={size} ariaLabel={`Inviter ${player.name} à une table`} onClick={invite} disabled={isSelf || busy === "invite"} style={pad} icon={<NjamboIcon name="online" tone="light" size={iconSize} />}>
-          {compact ? "" : busy === "invite" ? "..." : "Inviter"}
-        </Btn>
+        <button
+          data-nj-skin="none"
+          type="button"
+          className={`${styles.btn} ${sentInvite ? styles.inviteDone : styles.invite}${sizeClass}`}
+          aria-label={`Inviter ${player.name} à une table`}
+          title={`Inviter ${player.name} à une table`}
+          onClick={invite}
+          disabled={isSelf || busy === "invite"}
+        >
+          {sentInvite ? (
+            <span className={styles.checkMark} aria-hidden="true">✓</span>
+          ) : (
+            <NjamboIcon name="cards" tone="light" size={iconSize} />
+          )}
+          {!compact && (
+            <span>{busy === "invite" ? "…" : sentInvite ? "Invité" : "Inviter"}</span>
+          )}
+        </button>
       )}
     </div>
   );

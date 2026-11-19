@@ -33,8 +33,38 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Mode jeu de cartes : aucun scroll global, la scène remplit exactement 100% du viewport. */
+.locked.locked {
+  padding-top: max(10px, env(safe-area-inset-top));
+  padding-left: max(12px, env(safe-area-inset-left));
+  padding-right: max(12px, env(safe-area-inset-right));
+  padding-bottom: calc(var(--nj-dock-content-height) + env(safe-area-inset-bottom) + 6px);
+}
+
+.locked.noDock {
+  padding-bottom: max(12px, env(safe-area-inset-bottom));
+}
+
+.scrollLocked {
+  overflow: hidden;
+  scrollbar-gutter: auto;
+  height: 100%;
+}
+
+@media (min-width: 600px) {
+  .locked.locked {
+    padding-top: max(14px, env(safe-area-inset-top));
+    padding-left: max(20px, env(safe-area-inset-left));
+    padding-right: max(20px, env(safe-area-inset-right));
+  }
+
+  .locked.noDock {
+    padding-bottom: max(16px, env(safe-area-inset-bottom));
+  }
+}
+
 .narrow .scroll {
-  width: min(100%, 500px);
+  width: min(100%, 620px);
   margin-inline: auto;
 }
 

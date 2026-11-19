@@ -1,8 +1,6 @@
 "use client";
 
 import type { CSSProperties, ReactNode } from "react";
-import { T } from "@/config/theme";
-import { Btn } from "@/components/ui/Btn";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 
 export const shellBg: CSSProperties = {
@@ -44,28 +42,37 @@ export function ScreenHeader({
   tone = "gold",
   badge,
   onBack,
-  backLabel = "Menu",
+  backLabel = "Salon",
 }: ScreenHeaderProps) {
+  const resolvedBackLabel = backLabel === "Menu" ? "Salon" : backLabel;
+
   return (
-    <div className="nj-topbar">
+    <header className="nj-topbar">
+      {onBack && (
+        <button
+          data-nj-skin="none"
+          type="button"
+          className="nj-sr-back"
+          onClick={onBack}
+          aria-label={`Retour à ${resolvedBackLabel}`}
+        >
+          <span aria-hidden="true">←</span>
+          <span>{resolvedBackLabel}</span>
+        </button>
+      )}
       <div className="nj-title-row">
         <span className="nj-title-icon">
-          <NjamboIcon name={icon} tone={tone} size={30} />
+          <NjamboIcon name={icon} tone={tone} size={24} />
         </span>
-        <span style={{ minWidth: 0 }}>
+        <span style={{ minWidth: 0, display: "grid", gap: 1 }}>
           {kicker && <span className="nj-kicker">{kicker}</span>}
-          <span className="nj-heading" style={{ display: "block", color: tone === "gold" ? T.text : undefined }}>
+          <span className="nj-heading" style={{ display: "block" }}>
             {title}
           </span>
         </span>
-        {badge}
       </div>
-      {onBack && (
-        <Btn variant="ghost" onClick={onBack} style={{ flex: "0 0 auto" }}>
-          ← {backLabel}
-        </Btn>
-      )}
-    </div>
+      {badge && <div style={{ flex: "0 0 auto" }}>{badge}</div>}
+    </header>
   );
 }
 

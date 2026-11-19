@@ -58,7 +58,7 @@ export function ChatScreen() {
     <BottomNavScene active="social" narrow>
         <div className="nj-phone">
           <ScreenHeader title={peer.name} kicker="Message prive" icon="message" tone="teal" onBack={() => navigateTo("messages")} backLabel="Messages" />
-          <Surface style={{ minHeight: "60svh", display: "flex", flexDirection: "column", gap: 12 }}>
+          <Surface style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
             {/* La présence du correspondant n'est pas connue depuis le chat :
                 pas de pastille plutôt qu'une pastille toujours verte. */}
             <PlayerCard

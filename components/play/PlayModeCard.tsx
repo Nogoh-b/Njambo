@@ -1,8 +1,7 @@
 "use client";
 
+import Image from "next/image";
 import { useId } from "react";
-import { GameModeCard } from "@/components/ui/GamePrimitives";
-import { HubReveal } from "@/components/ui/HubReveal";
 import { NjamboIcon } from "@/components/ui/Art";
 import type { GameModeCatalogEntry } from "@/lib/gameModeCatalog";
 import { resolveGameModeDestination } from "@/lib/gameModeCatalog";
@@ -13,69 +12,118 @@ interface PlayModeCardProps {
   mode: GameModeCatalogEntry;
   guest: boolean;
   order: number;
+  offset?: number;
+  selected?: boolean;
+  onFocusCard?: () => void;
 }
 
-export function PlayModeCard({ mode, guest, order }: PlayModeCardProps) {
+export function PlayModeCard({
+  mode,
+  guest,
+  offset = 0,
+  selected = true,
+  onFocusCard,
+}: PlayModeCardProps) {
   const { navigateTo } = useGame();
   const headingId = `play-mode-${useId().replaceAll(":", "")}`;
   const locked = guest && !mode.guestAllowed;
-  const slotClass = mode.primary ? styles.primarySlot : styles.secondarySlot;
+
+  const handleOpen = () => {
+    navigateTo(resolveGameModeDestination(mode, guest));
+  };
+
+  const posClass =
+    offset === 0
+      ? styles.pos_center
+      : offset === -1
+        ? styles.pos_left
+        : offset === 1
+          ? styles.pos_right
+          : offset < -1
+            ? styles.pos_farLeft
+            : styles.pos_farRight;
 
   return (
-    <HubReveal className={`${styles.slot} ${slotClass}`} order={order}>
-      <GameModeCard
-        image={mode.art}
-        imageClassName={styles.art}
-        shadeClassName={styles.shade}
-        variant={mode.primary ? "primary" : "secondary"}
-        tone={mode.tone}
-        locked={locked}
-        priority={mode.primary}
-        sizes={mode.primary
-          ? "(min-width: 960px) 68vw, 100vw"
-          : "(min-width: 960px) 32vw, (min-width: 600px) 50vw, 100vw"}
-        className={`${styles.card} ${mode.primary ? styles.primaryCard : styles.secondaryCard} ${styles[`tone_${mode.tone}`]}${locked ? ` ${styles.locked}` : ""}`}
-      >
-        <div className={styles.body}>
-          {locked && mode.primary && (
-            <div className={styles.lockNotice} aria-hidden="true">
-              <span className={styles.lockIcon}><NjamboIcon name="profile" tone="gold" size={22} /></span>
-              <span>
-                <strong>Compte permanent requis</strong>
-                <small>Ta progression et tes gains seront sauvegardés.</small>
-              </span>
-            </div>
-          )}
+    <article
+      className={[
+        styles.card,
+        styles[`tone_${mode.tone}`],
+        posClass,
+        mode.primary ? styles.primaryCard : "",
+        selected ? styles.selectedCard : styles.sideCard,
+        locked ? styles.locked : "",
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      onClick={!selected && onFocusCard ? onFocusCard : undefined}
+      aria-labelledby={headingId}
+    >
+      {/* Cadre doré intérieur façon carte de collection */}
+      <span className={styles.goldTrim} aria-hidden="true" />
 
+      {/* Partie haute : Illustration plein cadre + badge de mode */}
+      <div className={styles.artStage}>
+        <Image
+          src={mode.art}
+          alt=""
+          fill
+          priority={mode.primary}
+          sizes="(min-width: 760px) 32vw, 84vw"
+          className={styles.artImg}
+        />
+        <span className={styles.artVignette} aria-hidden="true" />
+
+        <div className={styles.artTopRow}>
           <span className={styles.eyebrow}>{mode.eyebrow}</span>
-          <div className={styles.titleRow}>
-            <span className={styles.icon} aria-hidden="true">
-              <NjamboIcon name={mode.icon} tone={mode.tone} size={mode.primary ? 32 : 27} />
-            </span>
-            <h2 id={headingId}>{mode.title}</h2>
-          </div>
-          <p>{mode.description}</p>
-          <ul className={styles.conditions} aria-label={`Conditions pour ${mode.title}`}>
-            {mode.chips.map((chip) => (
-              <li key={chip.label}>
-                <NjamboIcon name={chip.icon} tone={mode.tone} size={15} />
-                <span>{chip.label}</span>
-              </li>
-            ))}
-          </ul>
-          <button
-            data-nj-skin="none"
-            className={styles.cta}
-            type="button"
-            onClick={() => navigateTo(resolveGameModeDestination(mode, guest))}
-            aria-label={`${locked ? "Créer un compte pour jouer à" : "Jouer à"} ${mode.title}`}
-          >
-            <span>{locked ? "Créer un compte" : mode.primary ? "Trouver une table" : "Choisir cette table"}</span>
-            <NjamboIcon name={locked ? "profile" : "play"} tone={mode.tone} size={20} />
-          </button>
+          {mode.primary && <span className={styles.featuredBadge}>★ Populaire</span>}
         </div>
 
-      </GameModeCard>
-    </HubReveal>
+        <span className={styles.modeMedallion} aria-hidden="true">
+          <NjamboIcon name={mode.icon} tone={mode.tone} size={28} />
+        </span>
+      </div>
+
+      {/* Partie basse : Infos compactes + conditions + bouton 3D */}
+      <div className={styles.body}>
+        <div className={styles.titleBlock}>
+          <h2 id={headingId}>{mode.title}</h2>
+          <p>{mode.description}</p>
+        </div>
+
+        {locked && (
+          <div className={styles.lockPill}>
+            <NjamboIcon name="profile" tone="gold" size={14} />
+            <span>Compte permanent requis</span>
+          </div>
+        )}
+
+        <ul className={styles.chips} aria-label={`Conditions pour ${mode.title}`}>
+          {mode.chips.map((chip) => (
+            <li key={chip.label}>
+              <NjamboIcon name={chip.icon} tone={mode.tone} size={13} />
+              <span>{chip.label}</span>
+            </li>
+          ))}
+        </ul>
+
+        <button
+          data-nj-skin="none"
+          type="button"
+          className={styles.ctaBtn}
+          onClick={(event) => {
+            event.stopPropagation();
+            if (!selected && onFocusCard) {
+              onFocusCard();
+              return;
+            }
+            handleOpen();
+          }}
+          aria-label={`${locked ? "Créer un compte pour jouer à" : "Jouer à"} ${mode.title}`}
+        >
+          <span>{locked ? "Créer un compte" : mode.primary ? "Trouver une table" : "Choisir cette table"}</span>
+          <span className={styles.ctaArrow} aria-hidden="true">→</span>
+        </button>
+      </div>
+    </article>
   );
 }

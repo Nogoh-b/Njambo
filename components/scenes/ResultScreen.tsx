@@ -1,11 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useId, useRef, useState } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
 import { useSfx } from "@gxe/react";
-import { Btn } from "@/components/ui/Btn";
-import { Chip } from "@/components/ui/Chip";
-import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
+import { NjamboIcon } from "@/components/ui/Art";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { ResultActions, ResultLayout } from "@/components/ui/ResultLayout";
 import { SettlementArena, type Seat } from "@/components/result/SettlementArena";
@@ -16,14 +14,17 @@ import { getNextRoundPresentation, getResultReasonLabels } from "@/lib/gamePrese
 import { useGsapTimeline, useMotionProfile } from "@/lib/motion";
 import { listenFriends, sendFriendRequest } from "@/lib/socialData";
 import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
-import type { Result } from "@/types/game";
+import type { GameMode, Result, ResultSettlementEntry } from "@/types/game";
 import styles from "./ResultScreen.module.css";
 
 /* Particules tsparticles chargées en lazy, client uniquement (jamais au SSR). */
 const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
 
+const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
+
 export interface ResultScreenProps {
   result: Result;
+  gameMode?: GameMode;
   mise: number;
   onNext: () => void;
   onMenu: () => void;
@@ -31,8 +32,24 @@ export interface ResultScreenProps {
   nextRequiresConsensus?: boolean;
 }
 
+function getModeLabel(mode: GameMode | undefined, hasCrowns: boolean): string | null {
+  switch (mode) {
+    case "bot":
+      return "Solo IA";
+    case "online":
+      return hasCrowns ? "En ligne · Classé" : "En ligne";
+    case "friends":
+      return "Entre amis";
+    case "event":
+      return "Événement";
+    default:
+      return null;
+  }
+}
+
 export function ResultScreen({
   result,
+  gameMode,
   mise,
   onNext,
   onMenu,
@@ -51,9 +68,6 @@ export function ResultScreen({
   const scriptedMotion = motion.enabled && motion.allowEntranceCascade;
   const reasonLabels = getResultReasonLabels(result);
   const nextRound = getNextRoundPresentation(canNext, nextRequiresConsensus, nextRequested);
-  /* Relations connues, pour n'proposer l'ajout qu'aux joueurs qui n'en font
-     pas déjà partie. Les uid ajoutés localement s'y greffent aussitôt : la
-     pastille disparaît sans attendre l'aller-retour serveur. */
   const [friendUids, setFriendUids] = useState<ReadonlySet<string>>(new Set());
 
   useEffect(() => {
@@ -62,14 +76,6 @@ export function ResultScreen({
       setFriendUids(new Set(friends.map((friend) => friend.uid)));
     });
   }, [user?.uid]);
-
-  /* Pas de compteur « 2/4 » sur ce bouton. `player.ready` de la salle n'est
-     PAS un signal de consentement à la revanche fiable ici : il n'est remis à
-     zéro que par `resetRoomAfterMatch` côté serveur, si bien qu'à l'ouverture
-     du résultat il reflète encore l'état d'AVANT la manche — d'où un « 2/2 »
-     affiché alors que personne n'a validé. Tant qu'un vrai champ de
-     consentement n'existe pas (`rematch.readyUids` est déclaré dans les types
-     mais n'est écrit nulle part), mieux vaut ne rien chiffrer que mentir. */
 
   const handleAddFriend = useCallback((seat: Seat) => {
     if (!seat.uid || !user) return;
@@ -80,48 +86,60 @@ export function ResultScreen({
     );
   }, [user]);
 
+  /* Garantit l'affichage de l'arène Nkap dans TOUS les modes dès que les joueurs
+     de la manche sont connus, même si un serveur/replay n'a pas fourni `settlement`. */
+  const effectiveSettlement = useMemo<ResultSettlementEntry[] | null>(() => {
+    if (!result.players?.length) return null;
+    if (result.settlement && result.settlement.length > 0) return result.settlement;
+    return result.players.map((_player, index) => ({
+      playerIdx: index,
+      contributed: mise,
+      nkapDelta: index === result.winnerIdx ? Math.max(0, totalGain - mise) : -mise,
+    }));
+  }, [mise, result.players, result.settlement, result.winnerIdx, totalGain]);
+
+  const hasCrowns = Boolean(effectiveSettlement?.some((entry) => entry.crownsBefore !== undefined));
+  const modeLabel = getModeLabel(gameMode, hasCrowns);
+
   const rootRef = useRef<HTMLDivElement>(null);
   const panelRef = useRef<HTMLElement>(null);
-  const markRef = useRef<HTMLSpanElement>(null);
-  const gainRef = useRef<HTMLDivElement>(null);
+  const crestRef = useRef<HTMLDivElement>(null);
+  const gainRef = useRef<HTMLSpanElement>(null);
 
-  /* Séquence scénarisée réservée aux profils full/balanced. Le profil lite
-     reçoit le contenu final immédiatement, sans 3D, rotation ni compteur. */
   useGsapTimeline(scriptedMotion, rootRef, (gsap) => {
-    const introDuration = motion.allowFilterFx ? 0.5 : 0.4;
-    const markDuration = motion.allowFilterFx ? 0.6 : 0.48;
+    const introDuration = motion.allowFilterFx ? 0.46 : 0.36;
     const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
     if (panelRef.current) {
       tl.fromTo(
         panelRef.current,
-        { opacity: 0, y: 16, scale: 0.985 },
+        { opacity: 0, y: 18, scale: 0.97 },
         { opacity: 1, y: 0, scale: 1, duration: introDuration },
         0,
       );
     }
-    if (markRef.current) {
+    if (crestRef.current) {
       tl.fromTo(
-        markRef.current,
-        { opacity: 0, scale: 0.72, rotate: -8 },
-        { opacity: 1, scale: 1, rotate: 0, duration: markDuration, ease: "back.out(2.1)" },
-        0.1,
+        crestRef.current,
+        { opacity: 0, scale: 0.65, rotate: -10 },
+        { opacity: 1, scale: 1, rotate: 0, duration: 0.56, ease: "back.out(2.1)" },
+        0.08,
       );
     }
-    if (gainRef.current) {
-      const gain = gainRef.current;
+    if (gainRef.current && totalGain > 0) {
+      const gainEl = gainRef.current;
       const counter = { value: 0 };
-      gsap.set(gain, { opacity: 0, scale: 0.78 });
-      tl.to(gain, { opacity: 1, scale: 1, duration: introDuration, ease: "back.out(2)" }, 0.24)
-        .to(counter, {
-          value: totalGain,
-          duration: motion.allowLongCascade ? 0.85 : 0.68,
-          ease: "power2.out",
-          onUpdate: () => { gain.textContent = `+ ${NKAP(Math.round(counter.value))}`; },
-          onComplete: () => { gain.textContent = `+ ${NKAP(totalGain)}`; },
-        }, 0.24);
+      const prefix = win.isYou ? "+ " : "Pot · ";
+      gainEl.textContent = `${prefix}${NKAP(0)}`;
+      tl.to(counter, {
+        value: totalGain,
+        duration: motion.allowLongCascade ? 0.9 : 0.68,
+        ease: "power2.out",
+        onUpdate: () => { gainEl.textContent = `${prefix}${NKAP(Math.round(counter.value))}`; },
+        onComplete: () => { gainEl.textContent = `${prefix}${NKAP(totalGain)}`; },
+      }, 0.42);
     }
-  }, [scriptedMotion, totalGain]);
+  }, [scriptedMotion, totalGain, win.isYou]);
 
   useEffect(() => {
     const frame = requestAnimationFrame(() => panelRef.current?.focus({ preventScroll: true }));
@@ -135,7 +153,7 @@ export function ResultScreen({
   }, []);
 
   useEffect(() => {
-    gxeSfx.playChime(win.isYou ? WIN_SOUND : LOSE_SOUND); // migré vers GXE
+    gxeSfx.playChime(win.isYou ? WIN_SOUND : LOSE_SOUND);
   }, [gxeSfx, win.isYou]);
 
   const handleNext = () => {
@@ -144,12 +162,10 @@ export function ResultScreen({
     onNext();
   };
 
-  /* Rendue seulement si le règlement a été transmis : les anciennes parties
-     rejouées depuis l'historique n'en ont pas et gardent l'affichage simple. */
-  const arena = result.players && result.settlement && result.settlement.length > 0 ? (
+  const arena = result.players && effectiveSettlement && effectiveSettlement.length > 0 ? (
     <SettlementArena
       players={result.players}
-      settlement={result.settlement}
+      settlement={effectiveSettlement}
       winnerIdx={result.winnerIdx}
       motion={motion}
       friendUids={friendUids}
@@ -157,24 +173,44 @@ export function ResultScreen({
     />
   ) : null;
 
+  const summaryText = totalGain > 0
+    ? (result.doubles ? "Pot et pénalités doublés (×2)" : "Le pot Nkap revient au vainqueur")
+    : gameMode === "friends"
+      ? "Partie amicale terminée"
+      : gameMode === "event"
+        ? (win.isYou ? "Étape d'événement validée" : "Manche d'événement terminée")
+        : "Manche terminée";
+
   const main = (
     <>
-      <div className={styles.markStage} aria-hidden="true">
-        <span ref={markRef} className={styles.mark}>
-          <NjamboMark size={110} compact />
-          <span className={`${styles.markBadge} nj-title-icon`}>
-            <NjamboIcon name={win.isYou ? "trophy" : "crown"} tone="gold" size={30} />
-          </span>
-        </span>
-      </div>
+      <header className={styles.header}>
+        {modeLabel && (
+          <span className={styles.modePill}>{modeLabel}</span>
+        )}
 
-      <h1 id={titleId} className={styles.title}>
-        {win.isYou ? "Tu gagnes !" : `${win.name} gagne`}
-      </h1>
+        <div className={styles.crestStage} aria-hidden="true">
+          <div ref={crestRef} className={`${styles.crest}${win.isYou ? ` ${styles.crestWin}` : ` ${styles.crestLoss}`}`}>
+            {win.isYou && motion.enabled && motion.allowDecorativeLoop && (
+              <span className={styles.sunburst} />
+            )}
+            <span className={styles.crestMedallion}>
+              <NjamboIcon name={win.isYou ? "trophy" : "crown"} tone="gold" size={28} />
+            </span>
+          </div>
+        </div>
 
-      <div className={styles.reasons} role="list" aria-label="Condition de victoire">
-        {reasonLabels.map((label) => <span key={label} role="listitem"><Chip strong>{label}</Chip></span>)}
-      </div>
+        <h1 id={titleId} className={styles.title}>
+          {win.isYou ? "Victoire !" : `${win.name} gagne`}
+        </h1>
+
+        <div className={styles.reasons} role="list" aria-label="Condition de victoire">
+          {reasonLabels.map((label) => (
+            <span key={label} role="listitem" className={styles.reasonPill}>
+              {label}
+            </span>
+          ))}
+        </div>
+      </header>
 
       {result.type === "instant" && (
         <div className={styles.hand} aria-label={`Main gagnante de ${win.name}`}>
@@ -187,75 +223,68 @@ export function ResultScreen({
                 transform: `rotate(${(index - 2) * 7}deg)`,
               }}
             >
-              <PlayCard card={card} w={48} />
+              <PlayCard card={card} w={46} />
             </div>
           ))}
         </div>
       )}
 
-      {/* L'arène porte désormais le montant : le pot central et le siège du
-          vainqueur disent le gain mieux qu'un nombre isolé au-dessus d'eux. */}
       {arena ? (
         <div className={styles.arenaSlot}>{arena}</div>
       ) : (
-        <>
-          <div
-            ref={gainRef}
-            className={`${styles.gain} nj-result-gain`}
-            style={{ opacity: scriptedMotion ? 0 : 1 }}
-          >
-            + {NKAP(totalGain)}
-          </div>
-          <div className={styles.gainOwner}>
-            {win.isYou ? "Ton gain" : `Gain de ${win.name}`}
-          </div>
-        </>
+        <div className={styles.fallbackSlot}>
+          <img src={NKAP_COIN_SRC} alt="" className={styles.fallbackCoin} draggable={false} />
+        </div>
       )}
 
-      <div id={summaryId} className={styles.gainDetail}>
-        {result.doubles ? "Pot et pénalités doublés" : "Le pot revient au ngata"}
+      <div className={styles.summaryStrip}>
+        {totalGain > 0 && (
+          <div className={`${styles.nkapBanner}${win.isYou ? ` ${styles.nkapBannerWin}` : ""}`}>
+            <img src={NKAP_COIN_SRC} alt="" className={styles.nkapBannerCoin} draggable={false} />
+            <span ref={gainRef} className={styles.nkapBannerValue}>
+              {win.isYou ? `+ ${NKAP(totalGain)}` : `Pot · ${NKAP(totalGain)}`}
+            </span>
+          </div>
+        )}
+
+        <p id={summaryId} className={styles.gainDetail}>
+          {summaryText}
+        </p>
+
+        {!win.isYou && (result.refund ?? 0) > 0 && (
+          <div className={styles.refund}>
+            <img src={NKAP_COIN_SRC} alt="" className={styles.refundCoin} draggable={false} />
+            <span>Remboursement Cauris : + {NKAP(result.refund ?? 0)}</span>
+          </div>
+        )}
       </div>
 
-      {!win.isYou && (result.refund ?? 0) > 0 && (
-        <div className={styles.refund}>Remboursement Cauris : + {NKAP(result.refund ?? 0)}</div>
-      )}
-
-      {/* Libellés courts + pictogramme : les deux actions tiennent sur une
-          seule ligne jusqu'à 320 px. Le texte complet reste dans `ariaLabel`
-          pour les lecteurs d'écran. */}
       <ResultActions status={nextRound.status}>
-        {/* Système `njb` avec motifs pagne : le rose reste la couleur d'appel
-            principale (cf. la convention dans Btn.tsx), le cobalt en soutien
-            pour une sortie qui ne doit pas rivaliser avec elle. Les motifs
-            sont monochromes et se teintent du ton choisi. */}
-        <Btn
-          tone="pink"
-          fill="solid"
-          motif="royal-bands"
-          motifSides="both"
+        <button
+          type="button"
+          data-nj-skin="none"
+          className={`${styles.ctaPrimary}${win.isYou ? ` ${styles.ctaPrimaryWin}` : ""}`}
           onClick={handleNext}
           disabled={!canNext || nextRequested}
-          ariaLabel={nextRound.label}
+          aria-label={nextRound.label}
         >
-          <span aria-hidden="true">{nextRequested ? "✓" : "↻"}</span> {nextRound.short}
-        </Btn>
-        <Btn
-          tone="cobalt"
-          fill="soft"
-          motif="indigo-dots"
-          motifSides="both"
+          <span className={styles.ctaGlyph} aria-hidden="true">{nextRequested ? "✓" : "↻"}</span>
+          <span>{nextRound.short}</span>
+        </button>
+
+        <button
+          type="button"
+          data-nj-skin="none"
+          className={styles.ctaSecondary}
           onClick={onMenu}
-          ariaLabel="Quitter la table et revenir au menu"
+          aria-label="Quitter la table et revenir au menu"
         >
-          <span aria-hidden="true">⌂</span> Menu
-        </Btn>
+          <span className={styles.ctaGlyph} aria-hidden="true">⌂</span>
+          <span>Menu</span>
+        </button>
       </ResultActions>
     </>
   );
-
-  /* Le rail « Joueurs rencontrés » a été retiré : l'ajout en ami se fait
-     directement depuis le siège de chaque joueur dans l'arène, là où on le
-     regarde déjà. */
 
   return (
     <ResultLayout
@@ -271,9 +300,6 @@ export function ResultScreen({
       decoration={(
         <>
           {motion.enabled && motion.allowDecorativeLoop && <div className="nj-result-aura" aria-hidden="true" />}
-          {/* Les confettis marquent la victoire : les réserver au niveau `full`
-              les rendait invisibles sur mobile, où il n'est jamais atteint. On
-              baisse l'intensité au lieu de les supprimer. */}
           {motion.enabled && !motion.reduced && win.isYou && (
             <PowerParticles
               variant="confetti"

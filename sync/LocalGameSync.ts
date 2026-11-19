@@ -126,7 +126,39 @@ export class LocalGameSync implements GameSyncActions {
   private timerHandle: ReturnType<typeof setTimeout> | null = null;
   private botHandle: ReturnType<typeof setTimeout> | null = null;
   private dealHandle: ReturnType<typeof setTimeout> | null = null;
+  private trickHandle: ReturnType<typeof setTimeout> | null = null;
+  private bannerHandle: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
+
+  private stopAllTimers() {
+    this.stopTimer();
+    if (this.botHandle) {
+      clearTimeout(this.botHandle);
+      this.botHandle = null;
+    }
+    if (this.dealHandle) {
+      clearTimeout(this.dealHandle);
+      this.dealHandle = null;
+    }
+    if (this.trickHandle) {
+      clearTimeout(this.trickHandle);
+      this.trickHandle = null;
+    }
+    if (this.bannerHandle) {
+      clearTimeout(this.bannerHandle);
+      this.bannerHandle = null;
+    }
+  }
+
+  private flashBanner(text: string, ms: number) {
+    if (this.destroyed || this.phase === "result") return;
+    if (this.bannerHandle) clearTimeout(this.bannerHandle);
+    this.opts.onBanner(text);
+    this.bannerHandle = setTimeout(() => {
+      this.bannerHandle = null;
+      if (!this.destroyed && this.phase !== "result") this.opts.onBanner("");
+    }, ms);
+  }
 
   /* Listeners */
   private stateListeners = new Set<(state: GameState) => void>();
@@ -175,11 +207,8 @@ export class LocalGameSync implements GameSyncActions {
 
   private dealRound(basePlayers: Player[], leaderIdx: number) {
     if (this.destroyed) return;
-    // Annuler une distribution déjà programmée (évite un double deal)
-    if (this.dealHandle) {
-      clearTimeout(this.dealHandle);
-      this.dealHandle = null;
-    }
+    // Annuler tout timer/distribution/pli précédent (évite un double deal ou bot résiduel)
+    this.stopAllTimers();
     const { cfg, mise } = this.opts;
     const ps: Player[] = basePlayers.map((p, index) => ({
       ...p,
@@ -207,7 +236,7 @@ export class LocalGameSync implements GameSyncActions {
     this.emitState();
     this.opts.onBanner("Distribution…");
 
-    const dealTime = ps.length * cfg.cardsPerPlayer * cfg.anim.dealPerCard + cfg.anim.dealFlight + 350;
+    const dealTime = ps.length * cfg.cardsPerPlayer * cfg.anim.dealPerCard + cfg.anim.dealFlight + 180;
 
     this.dealHandle = setTimeout(() => {
       this.dealHandle = null;
@@ -310,10 +339,7 @@ export class LocalGameSync implements GameSyncActions {
       resolved = outcome.resolved;
       if (outcome.resolved.impact) {
         const def = POWER_CARDS_BY_ID[cardId];
-        if (def) {
-          this.opts.onBanner(`${def.name} !`);
-          setTimeout(() => this.opts.onBanner(""), 2000);
-        }
+        if (def) this.flashBanner(`${def.name} !`, 2000);
         applyResolvedOps(
           outcome.plan,
           { cardId, activatedBy, trickNo: this.trickNo },
@@ -324,8 +350,7 @@ export class LocalGameSync implements GameSyncActions {
         // pioche) → la carte n'est PAS consommée, on informe juste le joueur.
         used = false;
         if (activatedBy === 0) {
-          this.opts.onBanner(`${POWER_CARDS_BY_ID[cardId]?.name ?? "Pouvoir"} — aucun effet, carte non consommée`);
-          setTimeout(() => this.opts.onBanner(""), 2000);
+          this.flashBanner(`${POWER_CARDS_BY_ID[cardId]?.name ?? "Pouvoir"} — aucun effet, carte non consommée`, 2000);
         }
       }
     }
@@ -381,8 +406,7 @@ export class LocalGameSync implements GameSyncActions {
       }
     }
     if (restrictedIdx === null) {
-      this.opts.onBanner("Cette carte est bloquée — choisis-en une autre.");
-      setTimeout(() => this.opts.onBanner(""), 1600);
+      this.flashBanner("Cette carte est bloquée — choisis-en une autre.", 1600);
       return;
     }
     cardIdx = restrictedIdx;
@@ -431,7 +455,9 @@ export class LocalGameSync implements GameSyncActions {
       this.opts.onBanner(`${ps[win].name} domine le tour`);
       this.trickEndListeners.forEach((cb) => cb(win));
 
-      setTimeout(() => {
+      this.trickHandle = setTimeout(() => {
+        this.trickHandle = null;
+        if (this.destroyed || this.phase === "result") return;
         this.opts.onBanner("");
         this.dominantIdx = null;
         if (this.trickNo >= this.opts.cfg.cardsPerPlayer) {
@@ -455,6 +481,9 @@ export class LocalGameSync implements GameSyncActions {
         }
       }, this.opts.cfg.anim.trickPause);
     } else {
+      // Leader courant en direct sur le pli : la couronne suit la carte dominante à chaque pose.
+      const led = this.trickPlays[0].card.suit;
+      this.dominantIdx = trickWinner(this.trickPlays, led);
       this.turnIdx = (playerIdx + 1) % ps.length;
       this.startTurnSeconds();
       this.emitState();
@@ -494,6 +523,10 @@ export class LocalGameSync implements GameSyncActions {
   }
 
   private resolveWin(ps: Player[], winnerIdx: number, info: WinInfo) {
+    // Stopper immédiatement toute activité de jeu (timer, bots, plis, bannières).
+    this.stopAllTimers();
+    this.opts.onBanner("");
+
     const final = ps.map((p) => ({ ...p }));
     let potNow = this.pot || this.opts.mise * ps.length;
 
@@ -529,18 +562,19 @@ export class LocalGameSync implements GameSyncActions {
     });
     this.players = final;
     this.phase = "result";
+    this.dominantIdx = winnerIdx;
     this.pot = 0;
     this.activePowerEffects = []; // Nettoyer après résolution
     // Le remboursement reste purement local : cet adaptateur ne sert qu'à
     // l'entraînement invité et ne peut jamais écrire l'économie serveur.
-    /* Règlement obtenu par différence avant/après : capture d'un seul geste le
-       doublement, la protection Totem, les remboursements et le multiplicateur,
-       sans redire les règles appliquées ci-dessus. Pas de couronnes ici :
-       l'entraînement local n'est jamais classé. */
+    /* Règlement net sur la manche complète : `ps` avait déjà payé `this.opts.mise`
+       à la donne, donc l'écart réel de manche vaut `(final - ps) - mise`.
+       Aligné sur `functions/src/matchCommands.ts` : les perdants ont un delta
+       négatif (leurs Nkap partent vers le pot) et le vainqueur un delta positif. */
     const settlement = final.map((player, index) => ({
       playerIdx: index,
       contributed: this.opts.mise,
-      nkapDelta: player.balance - ps[index].balance,
+      nkapDelta: (player.balance - ps[index].balance) - this.opts.mise,
     }));
     this.result = {
       ...info, winner: final[winnerIdx], gain: potNow, playersCount: ps.length,
@@ -560,12 +594,17 @@ export class LocalGameSync implements GameSyncActions {
 
   private startTimer() {
     this.stopTimer();
+    if (this.destroyed || this.phase !== "turns") return;
     // Dev : temps illimité → on n'arme pas le décompte (aucun timeout).
     if (DEV.unlimitedTime) {
       this.timerListeners.forEach((cb) => cb(this.seconds));
       return;
     }
     this.timerHandle = setInterval(() => {
+      if (this.destroyed || this.phase !== "turns") {
+        this.stopTimer();
+        return;
+      }
       if (this.powerRuntime.isFrozen(this.turnIdx)) {
         this.timerListeners.forEach((cb) => cb(this.seconds));
         return;
@@ -666,7 +705,7 @@ export class LocalGameSync implements GameSyncActions {
       } else {
         doPlay();
       }
-    }, 1200 + Math.random() * 1800);
+    }, 520 + Math.random() * 680);
   }
 
   /* ═══════════════ Émission d'état ═══════════════ */
@@ -734,12 +773,7 @@ export class LocalGameSync implements GameSyncActions {
 
   destroy() {
     this.destroyed = true;
-    this.stopTimer();
-    if (this.botHandle) clearTimeout(this.botHandle);
-    if (this.dealHandle) {
-      clearTimeout(this.dealHandle);
-      this.dealHandle = null;
-    }
+    this.stopAllTimers();
     this.stateListeners.clear();
     this.playCardListeners.clear();
     this.trickEndListeners.clear();

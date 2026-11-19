@@ -1,39 +1,45 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — AuthGate & AccountCard
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .authGate.authGate {
-  color: var(--nj-solar-ink, #24372f);
-  border-color: color-mix(in srgb, var(--account-tone) 52%, var(--nj-solar-outline, #b88e54));
+  color: var(--sr-ivory, #fff8ea);
+  border: 1.5px solid color-mix(in srgb, var(--account-tone) 56%, rgba(255, 212, 92, 0.36));
   background:
-    radial-gradient(circle at 90% 2%, color-mix(in srgb, var(--account-tone) 22%, transparent), transparent 40%),
-    linear-gradient(145deg, color-mix(in srgb, var(--account-tone) 7%, #f7ead0), color-mix(in srgb, var(--account-tone) 10%, #f2e2c1));
-  box-shadow: inset 0 1px 0 white, 0 12px 26px rgba(35, 31, 18, 0.2);
+    radial-gradient(circle at 86% 4%, color-mix(in srgb, var(--account-tone) 24%, transparent), transparent 44%),
+    linear-gradient(162deg, rgba(44, 29, 21, 0.95), rgba(18, 13, 11, 0.97) 64%, rgba(10, 23, 19, 0.97));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.2),
+    0 18px 38px rgba(0, 0, 0, 0.5);
 }
 
 .authGate.authGate::before {
   background: repeating-linear-gradient(135deg, transparent 0 24px, color-mix(in srgb, var(--account-tone) 8%, transparent) 24px 26px, transparent 26px 50px);
-  opacity: 0.68;
+  opacity: 0.45;
 }
 
 .authGate :global(.nj-subtle) {
-  color: var(--nj-solar-muted, #66756d);
+  color: var(--sr-muted, #b0cdc2);
 }
 
 .authGate :global(.nj-input) {
-  color: var(--nj-solar-ink, #24372f);
-  border-color: color-mix(in srgb, var(--account-tone) 42%, var(--nj-solar-outline, #b88e54));
-  background: rgba(255, 253, 246, 0.9);
-  box-shadow: inset 0 1px 0 white;
+  color: var(--sr-ivory, #fff8ea);
+  border-color: color-mix(in srgb, var(--account-tone) 48%, rgba(255, 212, 92, 0.32));
+  background: rgba(8, 18, 15, 0.86);
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.42);
 }
 
 .authGate :global(.nj-input)::placeholder {
-  color: var(--nj-solar-muted, #66756d);
+  color: rgba(176, 205, 194, 0.62);
 }
 
 .authGate :global(.nj-input):focus {
-  border-color: color-mix(in srgb, var(--account-tone) 72%, var(--nj-solar-outline, #b88e54));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--account-tone) 18%, transparent), inset 0 1px 0 white;
+  border-color: var(--account-tone);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--account-tone) 24%, transparent);
 }
 
 .accountCard {
-  --account-tone: var(--nj-solar-yellow, #f5c344);
+  --account-tone: var(--sr-gold, #ffcf40);
   position: relative;
   min-width: 0;
   display: flex;
@@ -41,20 +47,22 @@
   justify-content: space-between;
   gap: 12px;
   margin-bottom: 4px;
-  padding: 10px;
+  padding: 10px 12px;
   overflow: hidden;
-  border: 1px solid color-mix(in srgb, var(--account-tone) 50%, var(--nj-solar-outline, #b88e54));
+  border: 1.5px solid color-mix(in srgb, var(--account-tone) 52%, rgba(255, 212, 92, 0.3));
   border-radius: 17px;
-  color: var(--nj-solar-ink, #24372f);
+  color: var(--sr-ivory, #fff8ea);
   background:
-    radial-gradient(circle at 90% 0, color-mix(in srgb, var(--account-tone) 20%, transparent), transparent 42%),
-    linear-gradient(145deg, rgba(255, 253, 246, 0.97), color-mix(in srgb, var(--account-tone) 7%, #f2e2c1));
-  box-shadow: inset 0 1px 0 white, 0 10px 22px rgba(35, 31, 18, 0.17);
+    radial-gradient(circle at 90% 0, color-mix(in srgb, var(--account-tone) 22%, transparent), transparent 44%),
+    linear-gradient(155deg, rgba(44, 29, 21, 0.94), rgba(17, 13, 11, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.18),
+    0 12px 24px rgba(0, 0, 0, 0.42);
 }
 
-.toneGold { --account-tone: var(--nj-solar-yellow, #f5c344); }
-.toneTeal { --account-tone: var(--nj-solar-green, #199b68); }
-.tonePink { --account-tone: var(--nj-solar-red, #e45145); }
+.toneGold { --account-tone: var(--sr-gold, #ffcf40); }
+.toneTeal { --account-tone: var(--sr-teal, #1de4be); }
+.tonePink { --account-tone: var(--sr-pink, #ff4772); }
 
 .identity {
   min-width: 0;
@@ -66,10 +74,10 @@
 .avatar {
   flex: 0 0 auto;
   padding: 2px;
-  border: 1px solid color-mix(in srgb, var(--account-tone) 56%, var(--nj-solar-outline, #b88e54));
+  border: 1.5px solid color-mix(in srgb, var(--account-tone) 68%, #fff0b8);
   border-radius: 50%;
-  background: color-mix(in srgb, var(--account-tone) 10%, white);
-  box-shadow: 0 5px 12px rgba(35, 31, 18, 0.17);
+  background: rgba(14, 10, 9, 0.85);
+  box-shadow: 0 5px 12px rgba(0, 0, 0, 0.42);
 }
 
 .copy {
@@ -80,9 +88,9 @@
 
 .copy strong {
   overflow: hidden;
-  color: var(--nj-solar-ink, #24372f);
-  font-size: 0.84rem;
-  font-weight: 950;
+  color: #fffaf0;
+  font-size: 0.88rem;
+  font-weight: 900;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -93,8 +101,8 @@
   align-items: center;
   gap: 5px;
   overflow: hidden;
-  color: var(--nj-solar-muted, #66756d);
-  font-size: 0.68rem;
+  color: var(--sr-muted, #b0cdc2);
+  font-size: 0.72rem;
   text-overflow: ellipsis;
   white-space: nowrap;
 }

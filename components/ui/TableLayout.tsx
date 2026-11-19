@@ -11,6 +11,7 @@ import type { MotionProfileMode } from "@/lib/motion";
 import styles from "./TableLayout.module.css";
 
 type TableScreenEffect = "win" | "lose" | null;
+export type TableSeatEdge = "bottom" | "top" | "left" | "right";
 
 interface TableLayoutProps {
   children: ReactNode;
@@ -18,12 +19,15 @@ interface TableLayoutProps {
   paused?: boolean;
   motionMode: MotionProfileMode;
   screenEffect?: TableScreenEffect;
+  turnEdge?: TableSeatEdge | null;
+  finalTrick?: boolean;
   className?: string;
 }
 
 interface TableSurfaceProps extends HTMLAttributes<HTMLDivElement> {
   inset: string;
   ceremony?: boolean;
+  finalTrick?: boolean;
 }
 
 interface TableStatusBarProps {
@@ -53,6 +57,7 @@ interface TableTurnStatusProps {
 interface TablePowerTrayProps {
   children: ReactNode;
   ariaLabel?: string;
+  bottomOffset?: number;
 }
 
 function cx(...classes: Array<string | false | null | undefined>) {
@@ -60,8 +65,8 @@ function cx(...classes: Array<string | false | null | undefined>) {
 }
 
 /**
- * Cadre purement visuel de la table. Les règles, le tour courant et les
- * contrats de synchronisation restent entièrement dans TableScreen.
+ * Cadre visuel « Salon Royal Épuré » de la table de jeu.
+ * Toute la logique, les règles et la synchronisation restent dans TableScreen.
  */
 export const TableLayout = forwardRef<HTMLDivElement, TableLayoutProps>(function TableLayout(
   {
@@ -70,6 +75,8 @@ export const TableLayout = forwardRef<HTMLDivElement, TableLayoutProps>(function
     paused = false,
     motionMode,
     screenEffect = null,
+    turnEdge = null,
+    finalTrick = false,
     className,
   },
   ref,
@@ -81,6 +88,7 @@ export const TableLayout = forwardRef<HTMLDivElement, TableLayoutProps>(function
         styles.root,
         activeFx && "nj-table-active-fx",
         paused && "nj-table-paused",
+        finalTrick && styles.finalTrickScene,
         className,
       )}
       aria-label="Table de jeu"
@@ -88,21 +96,64 @@ export const TableLayout = forwardRef<HTMLDivElement, TableLayoutProps>(function
       inert={paused || undefined}
       data-motion-level={motionMode}
       data-screen-effect={screenEffect ?? undefined}
+      data-turn-edge={turnEdge ?? undefined}
     >
+      {/* Filigrane discret des 4 enseignes dans les angles de la salle */}
+      <div className={styles.roomWatermarks} aria-hidden="true">
+        <span className={styles.wmTL}>♠</span>
+        <span className={styles.wmTR}>♥</span>
+        <span className={styles.wmBL}>♦</span>
+        <span className={styles.wmBR}>♣</span>
+      </div>
+
+      {/* Projecteur de tour doré qui bascule vers le joueur actif */}
+      <div
+        className={cx(
+          styles.turnSpotlight,
+          turnEdge && styles[`spot_${turnEdge}`],
+        )}
+        aria-hidden="true"
+      />
+
       {children}
     </main>
   );
 });
 
-export function TableSurface({ inset, ceremony = false, className, style, children, ...props }: TableSurfaceProps) {
+export function TableSurface({
+  inset,
+  ceremony = false,
+  finalTrick = false,
+  className,
+  style,
+  children,
+  ...props
+}: TableSurfaceProps) {
   return (
     <div
       {...props}
-      className={cx(styles.surface, "nj-table-image", ceremony && "nj-table-image-ceremony", className)}
+      className={cx(
+        styles.surface,
+        ceremony && "nj-table-image-ceremony",
+        finalTrick && styles.surfaceFinal,
+        className,
+      )}
       style={{ ...style, inset }}
       aria-hidden="true"
     >
-      {children}
+      {/* Filet laiton + 4 rivets sur le rebord en acajou */}
+      <span className={styles.railBevel} />
+      <span className={cx(styles.rivet, styles.rivetTL)} />
+      <span className={cx(styles.rivet, styles.rivetTR)} />
+      <span className={cx(styles.rivet, styles.rivetBL)} />
+      <span className={cx(styles.rivet, styles.rivetBR)} />
+
+      {/* Feutre émeraude profond + couture or + reflet doux */}
+      <div className={styles.feltBed}>
+        <span className={styles.feltStitch} />
+        <span className={styles.feltSheen} />
+        {children}
+      </div>
     </div>
   );
 }
@@ -141,7 +192,7 @@ export function TableMenuButton({ label, className, children, ...props }: TableM
   return (
     <button
       {...props}
-      data-nj-skin="icon"
+      data-nj-skin="none"
       type="button"
       className={cx(styles.menuButton, className)}
       aria-label={label}
@@ -165,9 +216,22 @@ export function TableTurnStatus({ children, bottomOffset, motionEnabled }: Table
   );
 }
 
-export function TablePowerTray({ children, ariaLabel = "Cartes pouvoir" }: TablePowerTrayProps) {
+export function TablePowerTray({
+  children,
+  ariaLabel = "Cartes pouvoir",
+  bottomOffset,
+}: TablePowerTrayProps) {
   return (
-    <div className={styles.powerTray} role="group" aria-label={ariaLabel}>
+    <div
+      className={styles.powerTray}
+      role="group"
+      aria-label={ariaLabel}
+      style={
+        bottomOffset !== undefined
+          ? ({ "--nj-power-tray-bottom": `${bottomOffset}px` } as CSSProperties)
+          : undefined
+      }
+    >
       {children}
     </div>
   );

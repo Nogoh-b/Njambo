@@ -1,23 +1,19 @@
 "use client";
 
+import Image from "next/image";
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
-import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenLeaderboard } from "@/lib/playerData";
 import { resolveRank } from "@/lib/playerRank";
-import { PlayerCard } from "@/components/player/PlayerCard";
-import { fromPublicProfile } from "@/components/player/playerCardData";
-import { BottomNavScene } from "@/components/ui/BottomNavScene";
-import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Surface, displayFont } from "@/components/ui/Shell";
+import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { GameShell } from "@/components/ui/GameShell";
 import type { OnlinePlayerProfile } from "@/types/game";
+import styles from "./LeaderboardScreen.module.css";
 
 export function LeaderboardScreen() {
   const { navigateTo } = useGame();
   const { user } = useAuth();
-  const motion = useMotionProfile();
   const [players, setPlayers] = useState<OnlinePlayerProfile[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -29,64 +25,137 @@ export function LeaderboardScreen() {
     return unsub;
   }, []);
 
+  const topThree = players.slice(0, 3);
+  /* Ordre podium visuel : #2 gauche · #1 centre surélevé · #3 droite */
+  const podiumOrder = [
+    topThree[1] ? { player: topThree[1], place: 2 as const } : null,
+    topThree[0] ? { player: topThree[0], place: 1 as const } : null,
+    topThree[2] ? { player: topThree[2], place: 3 as const } : null,
+  ].filter((entry): entry is { player: OnlinePlayerProfile; place: 1 | 2 | 3 } => entry !== null);
+
+  const rest = players.slice(3);
+
   return (
-    <BottomNavScene narrow>
-        <div className="nj-phone">
-          <ScreenHeader title="Classement" kicker="Les forts du quartier" icon="trophy" tone="gold" onBack={() => navigateTo("menu")} backLabel="Retour" />
-          <Surface scrollable>
-            <div className="nj-stack" style={{ gap: 10 }}>
-              {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement du classement...</div>}
-              {!loading && players.length === 0 && (
-                <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>
-                  Aucun joueur classe pour le moment.
-                </div>
-              )}
-              {players.map((p, i) => {
-                const isYou = p.uid === user?.uid;
-                const crowns = p.crowns ?? 1_000;
-                const rank = resolveRank(crowns);
-                return (
-                  <PlayerCard
-                    key={p.uid}
-                    player={fromPublicProfile(p)}
-                    tone={isYou ? "gold" : undefined}
-                    active={isYou}
-                    style={getEntranceAnimationStyle(motion, i, { duration: 0.34, step: 0.06 })}
-                    subtitle={null}
-                    lead={(
-                      <span
-                        style={{
-                          width: 38,
-                          height: 38,
-                          borderRadius: 14,
-                          display: "grid",
-                          placeItems: "center",
-                          ...displayFont,
-                          fontWeight: 900,
-                          background: i === 0 ? T.gold : i === 1 ? "#c7d0da" : i === 2 ? T.copper : "var(--nj-solar-sand)",
-                          color: i < 3 ? T.ink : "var(--nj-solar-ink)",
-                        }}
-                      >
-                        {i + 1}
-                      </span>
-                    )}
-                    badges={(
-                      <>
-                        <Chip strong style={{ minHeight: 22, fontSize: 10 }}>{rank.label}</Chip>
-                        {isYou && <Chip strong style={{ minHeight: 22, fontSize: 10 }}>Toi</Chip>}
-                      </>
-                    )}
-                    meta={(
-                      <span style={{ ...displayFont, color: "var(--nj-solar-yellow-deep)", fontWeight: 900, fontSize: 19, whiteSpace: "nowrap" }}>
-                        {crowns.toLocaleString("fr-FR")} couronnes
-                      </span>
-                    )}
-                  />
-                );
-              })}
-            </div>
-          </Surface>
+    <GameShell active="menu" dock={false} scroll={false} className={styles.scene} contentClassName={styles.frame}>
+      {/* ═══ HUD HAUT COMPACT ═══ */}
+      <header className={styles.hudBar}>
+        <div className={styles.hudLeft}>
+          <button
+            data-nj-skin="none"
+            type="button"
+            className={styles.backBtn}
+            onClick={() => navigateTo("menu")}
+            aria-label="Retour au salon"
+          >
+            <span aria-hidden="true">←</span>
+            <span className={styles.backLabel}>Salon</span>
+          </button>
+          <div className={styles.hudCopy}>
+            <span className={styles.hudKicker}>Les forts du quartier</span>
+            <h1>Classement</h1>
+          </div>
         </div>
-    </BottomNavScene>
+
+        <span className={styles.seasonPill}>
+          <NjamboIcon name="trophy" tone="gold" size={16} />
+          <span>Top {players.length || "Mboa"}</span>
+        </span>
+      </header>
+
+      {/* ═══ CONTENU : PODIUM + LISTE BORNÉE ═══ */}
+      {loading ? (
+        <div className={styles.emptyStage}>
+          <NjamboIcon name="trophy" tone="gold" size={38} />
+          <strong>Chargement du podium…</strong>
+          <p>Synchronisation des couronnes du Mboa.</p>
+        </div>
+      ) : players.length === 0 ? (
+        <div className={styles.emptyStage}>
+          <NjamboIcon name="trophy" tone="gold" size={42} />
+          <strong>Le trône est encore libre</strong>
+          <p>Joue des parties classées en ligne pour grimper sur le podium du quartier !</p>
+          <button data-nj-skin="none" type="button" className={styles.playNowBtn} onClick={() => navigateTo("play")}>
+            Trouver une table →
+          </button>
+        </div>
+      ) : (
+        <div className={styles.boardBody}>
+          {/* PODIUM ROYAL (#2 · #1 · #3) */}
+          <section className={styles.podiumStage} aria-label="Podium des trois premiers">
+            {podiumOrder.map(({ player, place }) => {
+              const crowns = player.crowns ?? 1_000;
+              const rank = resolveRank(crowns);
+              const isYou = player.uid === user?.uid;
+              return (
+                <article
+                  key={player.uid}
+                  className={`${styles.podiumCol} ${styles[`place_${place}`]}${isYou ? ` ${styles.podiumYou}` : ""}`}
+                >
+                  <div className={styles.podiumAvatarWrap}>
+                    {place === 1 && <span className={styles.winnerCrown} aria-hidden="true">👑</span>}
+                    <span className={styles.podiumRing}>
+                      <AvatarIllustration seed={player.emoji} size={place === 1 ? 62 : 48} online={player.online} />
+                    </span>
+                    <span className={styles.podiumRankBadge}>
+                      <Image src={rank.assetSrc} alt="" width={22} height={22} />
+                    </span>
+                  </div>
+
+                  <strong className={styles.podiumName}>
+                    {player.name}
+                    {isYou ? " (Toi)" : ""}
+                  </strong>
+
+                  <span className={styles.podiumCrowns}>
+                    <NjamboIcon name="crown" tone="gold" size={13} />
+                    {crowns.toLocaleString("fr-FR")}
+                  </span>
+
+                  <div className={styles.pedestal}>
+                    <span className={styles.pedestalNum}>#{place}</span>
+                    <small>{rank.label}</small>
+                  </div>
+                </article>
+              );
+            })}
+          </section>
+
+          {/* TABLEAU #4+ (seule cette liste défile) */}
+          <section className={styles.rankListCard} aria-label="Suite du classement">
+            <div className={styles.rankListScroll}>
+              {rest.length === 0 ? (
+                <div className={styles.fewPlayersNote}>
+                  Défie le quartier en ligne pour remplir le classement !
+                </div>
+              ) : (
+                rest.map((player, idx) => {
+                  const pos = idx + 4;
+                  const crowns = player.crowns ?? 1_000;
+                  const rank = resolveRank(crowns);
+                  const isYou = player.uid === user?.uid;
+                  return (
+                    <div key={player.uid} className={`${styles.rankRow}${isYou ? ` ${styles.rankRowYou}` : ""}`}>
+                      <span className={styles.rowPos}>{pos}</span>
+                      <AvatarIllustration seed={player.emoji} size={36} online={player.online} />
+                      <div className={styles.rowMeta}>
+                        <strong>
+                          {player.name}
+                          {isYou && <span className={styles.youTag}>Toi</span>}
+                        </strong>
+                        <small>{rank.label}</small>
+                      </div>
+                      <span className={styles.rowCrowns}>
+                        <NjamboIcon name="crown" tone="gold" size={14} />
+                        <strong>{crowns.toLocaleString("fr-FR")}</strong>
+                      </span>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+    </GameShell>
   );
 }

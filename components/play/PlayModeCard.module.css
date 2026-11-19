@@ -1,416 +1,359 @@
-.slot {
-  min-width: 0;
-  height: 100%;
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Carte de Mode de Jeu (Carte de collection 3D vive)
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-.secondarySlot {
-  grid-column: auto;
-}
+.card {
+  --card-accent: var(--sr-teal, #1de4be);
+  --card-accent-deep: #076b59;
+  --card-cta-ink: #05221c;
 
-.card.card {
-  --mode-material: var(--nj-solar-yellow, #f5c344);
-  --mode-glow: #ffe08a;
-  isolation: isolate;
-  height: 100%;
-  min-height: 276px;
-  padding: 0;
-  border-color: color-mix(in srgb, var(--mode-material) 44%, rgba(255, 244, 223, 0.14));
-  background: var(--nj-solar-surface-strong, #fffdf6);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.18),
-    0 18px 38px rgba(79, 63, 35, 0.18);
-  transition:
-    transform var(--nj-motion-panel) cubic-bezier(.2, .72, .2, 1),
-    box-shadow var(--nj-motion-interaction) ease,
-    border-color var(--nj-motion-interaction) ease;
-}
-
-.primaryCard.card {
-  min-height: 360px;
-}
-
-/* Doublé (.card.tone_*) pour dépasser la spécificité de .card.card ci-dessus,
-   sinon --mode-material resterait bloqué sur le gold par défaut pour toutes les cartes. */
-.card.tone_teal { --mode-material: var(--nj-solar-green, #199b68); --mode-glow: #7ee0b9; }
-.card.tone_gold { --mode-material: var(--nj-solar-yellow, #f5c344); --mode-glow: #ffe08a; }
-.card.tone_pink { --mode-material: var(--nj-solar-red, #e45145); --mode-glow: #ffaea6; }
-
-.card.card::before {
-  z-index: 2;
-  opacity: 0.16;
-  background:
-    repeating-linear-gradient(112deg, transparent 0 22px, color-mix(in srgb, var(--mode-material) 8%, transparent) 22px 23px, transparent 23px 45px);
-  mask-image: linear-gradient(90deg, black, transparent 72%);
-}
-
-.card.card::after {
-  content: "";
-  position: absolute;
-  inset: 7px;
-  z-index: 3;
-  pointer-events: none;
-  border: 1px solid color-mix(in srgb, var(--mode-material) 22%, transparent);
-  border-radius: calc(var(--nj-radius-lg, 22px) - 7px);
-  box-shadow: inset 0 0 42px color-mix(in srgb, var(--mode-glow) 5%, transparent);
-  transition:
-    border-color var(--nj-motion-interaction) ease,
-    box-shadow var(--nj-motion-interaction) ease;
-}
-
-/* La carte "primary" est plus mise en avant : liseré et halo interne plus francs. */
-.primaryCard.card::after {
-  border-color: color-mix(in srgb, var(--mode-material) 32%, transparent);
-  box-shadow:
-    inset 0 0 54px color-mix(in srgb, var(--mode-glow) 9%, transparent),
-    inset 0 0 0 1px color-mix(in srgb, var(--mode-glow) 14%, transparent);
-}
-
-.card.card > .art {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: center;
-  transform: scale(1.015);
-  transition: transform var(--nj-motion-panel) cubic-bezier(.2, .72, .2, 1), filter var(--nj-motion-interaction) ease;
-  filter: saturate(1.12) contrast(1.05) brightness(1.02);
-}
-
-.card.card > .shade {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  /* Base sombre teintée par le ton de la carte : le texte reste lisible,
-     mais teal / gold / pink respirent chacun leur propre couleur. */
-  background:
-    linear-gradient(
-      90deg,
-      color-mix(in srgb, var(--mode-material) 30%, rgba(9, 20, 14, 0.9)) 0%,
-      color-mix(in srgb, var(--mode-material) 18%, rgba(9, 18, 13, 0.42)) 54%,
-      transparent 100%
-    ),
-    linear-gradient(
-      0deg,
-      color-mix(in srgb, var(--mode-material) 22%, rgba(7, 15, 11, 0.86)) 0%,
-      transparent 62%
-    );
-}
-
-.card.card > .body {
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  border-radius: 24px;
+  border: 2px solid color-mix(in srgb, var(--card-accent) 74%, #fff2c2);
+  background:
+    radial-gradient(circle at 50% 0%, color-mix(in srgb, var(--card-accent) 24%, transparent), transparent 48%),
+    linear-gradient(180deg, #211713 0%, #140f0c 64%, #0c1d18 100%);
+  box-shadow:
+    0 22px 46px rgba(0, 0, 0, 0.56),
+    0 0 32px color-mix(in srgb, var(--card-accent) 26%, transparent);
+  transition:
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 180ms ease,
+    border-color 180ms ease,
+    box-shadow 180ms ease;
+  isolation: isolate;
+}
+
+.tone_teal {
+  --card-accent: var(--sr-teal, #1de4be);
+  --card-accent-deep: #076957;
+  --card-cta-ink: #04221c;
+}
+
+.tone_gold {
+  --card-accent: var(--sr-gold, #ffcf40);
+  --card-accent-deep: #874805;
+  --card-cta-ink: #261203;
+}
+
+.tone_pink {
+  --card-accent: var(--sr-pink, #ff4772);
+  --card-accent-deep: #8a1230;
+  --card-cta-ink: #fff8fa;
+}
+
+.goldTrim {
+  position: absolute;
+  inset: 6px;
+  border-radius: 18px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 36%, rgba(255, 246, 224, 0.14));
+  pointer-events: none;
   z-index: 4;
 }
 
-.locked.card > .art {
-  filter: saturate(0.78) brightness(0.84);
+/* ═══ Illustration haute plus généreuse ═══ */
+.artStage {
+  position: relative;
+  flex: 1 1 52%;
+  min-height: 138px;
+  overflow: hidden;
 }
 
-.body {
-  min-width: 0;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  justify-content: flex-end;
-  padding: clamp(20px, 5vw, 34px);
+.artImg {
+  object-fit: cover;
+  object-position: center 32%;
+  filter: saturate(1.16) contrast(1.04);
+  transition: transform 340ms ease;
 }
 
-.eyebrow {
-  color: var(--mode-glow);
-  font-size: 0.72rem;
-  font-weight: 850;
-  line-height: 1.2;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
+.card:hover .artImg {
+  transform: scale(1.05);
 }
 
-.titleRow {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 8px;
-}
-
-.icon {
-  width: 48px;
-  height: 48px;
-  display: grid;
-  flex: 0 0 auto;
-  place-items: center;
-  transition: transform var(--nj-motion-interaction) cubic-bezier(.2, .9, .25, 1.15);
-}
-
-.titleRow h2 {
-  min-width: 0;
-  margin: 0;
-  color: var(--nj-cream-100, #fff4df);
-  font-family: var(--font-display), sans-serif;
-  font-size: clamp(1.55rem, 6vw, 2.5rem);
-  font-weight: 800;
-  line-height: 0.98;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-}
-
-.body > p {
-  max-width: 540px;
-  margin: 12px 0 14px;
-  color: color-mix(in srgb, var(--nj-cream-100, #fff4df) 82%, transparent);
-  font-size: clamp(0.86rem, 3vw, 1rem);
-  line-height: 1.5;
-  text-wrap: pretty;
-}
-
-.conditions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 7px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
-}
-
-.conditions li {
-  min-height: 30px;
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 4px 9px;
-  color: var(--nj-cream-100, #fff4df);
-  border: 1px solid color-mix(in srgb, var(--mode-material) 32%, rgba(255, 255, 255, 0.14));
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--mode-material) 15%, rgba(11, 24, 17, 0.8));
-  backdrop-filter: blur(8px);
-  font-size: 0.72rem;
-  font-weight: 750;
-  white-space: nowrap;
-}
-
-.cta {
-  min-height: 48px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  margin-top: 18px;
-  padding: 0 18px;
-  color: #fffdf6;
-  border: 1px solid color-mix(in srgb, var(--mode-glow) 58%, transparent);
-  border-radius: var(--nj-radius-md, 16px);
+.artVignette {
+  position: absolute;
+  inset: 0;
   background:
-    linear-gradient(145deg, color-mix(in srgb, var(--mode-material) 88%, white 12%), color-mix(in srgb, var(--mode-material) 82%, #173d31 18%));
-  box-shadow: 0 10px 22px color-mix(in srgb, var(--mode-material) 24%, transparent);
-  font: inherit;
-  font-size: 0.9rem;
-  font-weight: 850;
-  cursor: pointer;
-  touch-action: manipulation;
-  transition: transform var(--nj-motion-press) ease, filter var(--nj-motion-interaction) ease, border-color var(--nj-motion-interaction) ease;
-}
-
-.cta > :last-child {
-  display: inline-flex;
-  flex: 0 0 auto;
-  transition: transform var(--nj-motion-interaction) cubic-bezier(.2, .8, .2, 1);
-}
-
-.cta:focus-visible {
-  outline: 2px solid color-mix(in srgb, var(--mode-glow) 72%, #fffdf6);
-  outline-offset: 3px;
-}
-
-.cta:active {
-  transform: translateY(1px) scale(0.985);
-}
-
-/* ─────────────────────────────────────────────────────────────────────────
-   Greffe GXE — le CTA est un <button> natif, donc équipé automatiquement
-   par la délégation (aucune modification du composant). Quand le moteur
-   tourne, il publie --gxe-press / --gxe-hover pilotés par ressort : appui
-   raide, relâchement souple, INTERRUPTIBLE en plein vol — ce qu'une
-   transition CSS ne sait pas faire.
-
-   Le :active/:hover ci-dessus reste le comportement de repli : il n'est
-   neutralisé que si le moteur est réellement actif.
-   ───────────────────────────────────────────────────────────────────────── */
-html[data-gxe-active] .cta {
-  /* `filter` est piloté par --gxe-hover : il ne DOIT pas être ici. Une
-     propriété transitionnée qui dépend d'une variable non enregistrée ne se
-     met jamais à jour quand la variable change — elle reste figée. */
-  transition: border-color var(--nj-motion-interaction) ease;
-  transform:
-    translateY(calc(-2px * var(--gxe-hover, 0) + 1px * var(--gxe-press, 0)))
-    scale(calc(1 - 0.02 * var(--gxe-press, 0)));
-  filter: brightness(calc(1 + 0.08 * var(--gxe-hover, 0)));
-}
-
-html[data-gxe-active] .cta:active {
-  transform:
-    translateY(calc(-2px * var(--gxe-hover, 0) + 1px * var(--gxe-press, 0)))
-    scale(calc(1 - 0.02 * var(--gxe-press, 0)));
-}
-
-/* NOTE : le soulèvement de la CARTE reste piloté par `:has(.cta:hover)`
-   ci-dessus. Ne pas le doubler d'une règle GXE : les variables --gxe-* sont
-   publiées sur le CTA, pas sur la carte, et une règle parente écraserait le
-   transform existant par une valeur nulle (piège de spécificité connu). */
-
-@media (prefers-reduced-motion: reduce) {
-  html[data-gxe-active] .cta,
-  html[data-gxe-active] .cta:active {
-    transform: none;
-  }
-}
-
-.lockNotice {
-  max-width: 100%;
-  min-height: 48px;
-  display: flex;
-  flex: 0 0 auto;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: auto;
-  padding: 8px 12px;
-  color: var(--nj-solar-ink, #24372f);
-  border: 1px solid rgba(245, 195, 68, 0.48);
-  border-radius: var(--nj-radius-md, 16px);
-  background: rgba(255, 253, 246, 0.92);
-  backdrop-filter: blur(14px);
+    linear-gradient(180deg, rgba(10, 18, 16, 0.36) 0%, transparent 40%, rgba(20, 15, 12, 0.96) 100%);
   pointer-events: none;
 }
 
-.lockIcon {
-  width: 36px;
-  height: 36px;
+.artTopRow {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 12px 13px 0;
+}
+
+.eyebrow {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 72%, #fff8ea);
+  background: rgba(12, 16, 15, 0.82);
+  color: color-mix(in srgb, var(--card-accent) 85%, #ffffff);
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.featuredBadge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #fff099, #ffba24);
+  color: #241203;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.45);
+}
+
+.modeMedallion {
+  position: absolute;
+  left: 14px;
+  bottom: 8px;
+  z-index: 2;
+  width: 50px;
+  height: 50px;
   display: grid;
-  flex: 0 0 auto;
   place-items: center;
-  border-radius: 11px;
-  background: rgba(243, 201, 105, 0.1);
+  border-radius: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 84%, #ffffff);
+  background:
+    radial-gradient(circle at 40% 20%, color-mix(in srgb, var(--card-accent) 56%, transparent), transparent 64%),
+    linear-gradient(170deg, #332018, #140d0b);
+  box-shadow:
+    0 8px 18px rgba(0, 0, 0, 0.54),
+    0 0 18px color-mix(in srgb, var(--card-accent) 34%, transparent),
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.34);
 }
 
-.lockNotice > span:last-child {
-  min-width: 0;
+/* ═══ Corps de carte ═══ */
+.body {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 8px 15px 15px;
+}
+
+.titleBlock {
   display: grid;
-  gap: 2px;
+  gap: 4px;
 }
 
-.lockNotice strong { font-size: 0.78rem; }
-.lockNotice small { color: var(--nj-solar-muted, #66756d); font-size: 0.72rem; line-height: 1.3; }
-
-.tone_gold .cta {
-  color: var(--nj-solar-ink, #24372f);
+.titleBlock h2 {
+  margin: 0;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(21px, 5vw, 25px);
+  font-weight: 900;
+  line-height: 1.04;
+  letter-spacing: -0.02em;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .card:has(.cta:hover) .art,
-  .card:focus-within .art {
-    transform: scale(1.045);
-    filter: saturate(1.04) brightness(1.025);
+.titleBlock p {
+  margin: 0;
+  color: #bfd6cc;
+  font-size: 12.5px;
+  line-height: 1.38;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.lockPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: fit-content;
+  padding: 4px 10px;
+  border-radius: 9px;
+  border: 1px solid rgba(255, 207, 64, 0.52);
+  background: rgba(255, 207, 64, 0.16);
+  color: #fff0a8;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.chips {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chips li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 9px;
+  border-radius: 9px;
+  border: 1px solid color-mix(in srgb, var(--card-accent) 28%, rgba(255, 248, 234, 0.14));
+  background: rgba(255, 248, 234, 0.07);
+  color: #f5e8ce;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+/* Bouton CTA 3D ultra-tactile */
+.ctaBtn {
+  width: 100%;
+  min-height: 48px;
+  padding: 0 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  border-radius: 15px;
+  border: 1.5px solid color-mix(in srgb, var(--card-accent) 72%, #ffffff);
+  color: var(--card-cta-ink);
+  background:
+    radial-gradient(ellipse 80% 80% at 50% 0%, rgba(255, 255, 255, 0.48), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--card-accent) 82%, #ffffff), var(--card-accent) 56%, color-mix(in srgb, var(--card-accent) 82%, #000000));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.62),
+    0 5px 0 var(--card-accent-deep),
+    0 12px 24px rgba(0, 0, 0, 0.44);
+  font-family: var(--font-display), sans-serif;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 105ms ease, box-shadow 105ms ease, filter 150ms ease;
+}
+
+.ctaBtn:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
+}
+
+.ctaBtn:active {
+  transform: translateY(4px);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.35),
+    0 1px 0 var(--card-accent-deep),
+    0 4px 10px rgba(0, 0, 0, 0.36);
+}
+
+.ctaArrow {
+  font-size: 18px;
+  font-weight: 900;
+}
+
+/* ═══ MOBILE (<760px) : Éventail carrousel superposé plus haut sans dock ═══ */
+@media (max-width: 759px) {
+  .card {
+    position: absolute;
+    width: min(84%, 352px);
+    height: min(95%, 510px);
   }
 
-  /* La carte entière se soulève et son halo interne s'intensifie. */
-  .card:has(.cta:hover),
-  .card:focus-within {
-    transform: translateY(-3px);
-    border-color: color-mix(in srgb, var(--mode-material) 58%, rgba(255, 244, 223, 0.18));
+  .selectedCard {
+    z-index: 3;
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1) rotate(0deg);
+  }
+
+  .sideCard {
+    z-index: 1;
+    opacity: 0.42;
+    filter: brightness(0.68);
+    cursor: pointer;
+  }
+
+  .pos_left {
+    transform: translate3d(-74%, 14px, 0) scale(0.84) rotate(-6deg);
+  }
+
+  .pos_right {
+    transform: translate3d(74%, 14px, 0) scale(0.84) rotate(6deg);
+  }
+
+  .pos_farLeft {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(-115%, 24px, 0) scale(0.76) rotate(-10deg);
+  }
+
+  .pos_farRight {
+    opacity: 0;
+    pointer-events: none;
+    transform: translate3d(115%, 24px, 0) scale(0.76) rotate(10deg);
+  }
+}
+
+/* ═══ TABLETTE & DESKTOP (≥760px) : 3 grandes cartes en éventail royal ═══ */
+@media (min-width: 760px) {
+  .card {
+    position: relative;
+    width: 100%;
+    height: min(94%, 545px);
+    opacity: 1;
+    filter: none;
+  }
+
+  .card:nth-child(1) {
+    transform: rotate(-1.6deg) translateY(8px);
+  }
+
+  .card:nth-child(2) {
+    height: min(98%, 570px);
+    z-index: 2;
+    border-color: color-mix(in srgb, var(--card-accent) 82%, #fff2b8);
     box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.22),
-      0 26px 52px color-mix(in srgb, var(--mode-material) 22%, rgba(79, 63, 35, 0.24));
+      0 28px 60px rgba(0, 0, 0, 0.62),
+      0 0 46px color-mix(in srgb, var(--card-accent) 34%, transparent);
+    transform: translateY(-4px);
   }
 
-  .card:has(.cta:hover)::after,
-  .card:focus-within::after {
-    border-color: color-mix(in srgb, var(--mode-material) 42%, transparent);
-    box-shadow: inset 0 0 60px color-mix(in srgb, var(--mode-glow) 13%, transparent);
+  .card:nth-child(3) {
+    transform: rotate(1.6deg) translateY(8px);
   }
 
-  .card:has(.cta:hover) .icon,
-  .card:focus-within .icon {
-    transform: translateY(-2px) rotate(-3deg) scale(1.06);
-  }
-
-  .cta:hover {
-    filter: brightness(1.08);
-    transform: translateY(-2px);
-    border-color: color-mix(in srgb, var(--mode-glow) 78%, transparent);
-  }
-
-  .cta:hover > :last-child {
-    transform: translateX(3px);
+  .card:hover {
+    z-index: 5;
+    transform: translateY(-10px) rotate(0deg) scale(1.025);
+    border-color: color-mix(in srgb, var(--card-accent) 90%, #ffffff);
+    box-shadow:
+      0 32px 64px rgba(0, 0, 0, 0.66),
+      0 0 48px color-mix(in srgb, var(--card-accent) 42%, transparent);
   }
 }
 
-@media (max-width: 599px) {
+@media (max-height: 670px) and (max-width: 759px) {
+  .artStage {
+    min-height: 108px;
+  }
+
   .body {
-    padding: 18px;
+    gap: 7px;
+    padding: 6px 12px 12px;
   }
 
-  .primaryCard.card { min-height: 350px; }
-  .secondaryCard.card { min-height: 270px; }
-  .body > p { font-size: 0.84rem; }
-  .cta { width: 100%; }
-}
-
-@media (min-width: 600px) {
-  .primarySlot {
-    grid-column: 1 / -1;
+  .titleBlock p {
+    -webkit-line-clamp: 1;
   }
 
-  .primaryCard.card { min-height: 410px; }
-  .secondaryCard.card { min-height: 300px; }
-}
-
-@media (min-width: 960px) {
-  .primarySlot {
-    grid-column: 1;
-    grid-row: 1 / 3;
+  .ctaBtn {
+    min-height: 42px;
   }
-
-  .primaryCard.card { min-height: 560px; }
-  .secondaryCard.card { min-height: 0; }
-  .secondaryCard .body { padding: 22px; }
-  .secondaryCard .titleRow h2 { font-size: 1.5rem; }
-  .secondaryCard .body > p { margin: 8px 0 10px; font-size: 0.8rem; }
-  .secondaryCard .cta { margin-top: 12px; }
-}
-
-@media (orientation: landscape) and (max-height: 620px) and (min-width: 600px) and (max-width: 959px) {
-  .primarySlot {
-    grid-column: 1;
-    grid-row: 1 / 3;
-  }
-
-  .primaryCard.card { min-height: 480px; }
-  .secondaryCard.card { min-height: 0; }
-  .secondaryCard .body { padding: 15px; }
-  .secondaryCard .body > p { margin: 6px 0 8px; font-size: 0.75rem; line-height: 1.35; }
-  .secondaryCard .conditions li { min-height: 27px; padding: 3px 7px; }
-  .secondaryCard .cta { min-height: 44px; margin-top: 9px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .card.card,
-  .art,
-  .icon,
-  .cta,
-  .cta > :last-child {
+  .card,
+  .artImg,
+  .ctaBtn {
     transition: none;
-  }
-
-  .card:has(.cta:hover),
-  .card:focus-within,
-  .card:has(.cta:hover) .art,
-  .card:focus-within .art,
-  .card:has(.cta:hover) .icon,
-  .card:focus-within .icon,
-  .cta:hover,
-  .cta:hover > :last-child,
-  .cta:active {
-    filter: none;
-    transform: none;
   }
 }

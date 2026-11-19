@@ -2263,19 +2263,20 @@ html[data-gxe-active] .njb--solid {
   font: inherit;
   text-align: left;
   box-shadow: 0 9px 18px rgba(0, 0, 0, 0.42);
+  will-change: transform, opacity;
+  transition:
+    transform 240ms cubic-bezier(0.22, 0.88, 0.28, 1),
+    opacity 190ms ease,
+    box-shadow 190ms ease,
+    filter 190ms ease;
 }
 
 .nj-playcard-glow {
   outline: 3px solid var(--gold);
-  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.48);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.48), 0 0 16px rgba(242, 187, 69, 0.24);
 }
 
 .playcard-clickable {
-  transition:
-    transform var(--nj-motion-interaction) ease,
-    opacity var(--nj-motion-interaction) ease,
-    box-shadow var(--nj-motion-interaction) ease,
-    filter var(--nj-motion-interaction) ease;
   animation: playableCardPulse 2.4s ease-in-out infinite;
 }
 
@@ -2774,19 +2775,20 @@ html[data-gxe-active] .njb--solid {
 }
 
 .nj-deposit-seat {
-  contain: layout style paint;
+  contain: layout style;
+  overflow: visible;
   isolation: isolate;
 }
 
 .nj-deposit-seat::before {
   content: "";
   position: absolute;
-  inset: -10px;
+  inset: -14px;
   z-index: -1;
   border-radius: 50%;
   pointer-events: none;
   opacity: 0;
-  background: radial-gradient(ellipse, rgba(242, 187, 69, 0.3), transparent 64%);
+  background: radial-gradient(ellipse, rgba(255, 212, 82, 0.42), transparent 66%);
 }
 
 .nj-deposit-seat-active::before {
@@ -2794,12 +2796,13 @@ html[data-gxe-active] .njb--solid {
 }
 
 .nj-deposit-seat-dominant::before {
-  opacity: 0.9;
-  animation: depositDominantGlow 1.4s ease-out both;
+  opacity: 1;
+  animation: depositDominantGlow 1.2s ease-out both;
 }
 
 .nj-deposit-card-landed {
-  filter: drop-shadow(0 0 10px rgba(242, 187, 69, 0.18));
+  /* Évite filter: drop-shadow (recalcul GPU par frame) : la carte porte déjà sa propre ombre. */
+  will-change: transform;
 }
 
 /* Badge « carte boostée » (Éclair du Mfoundi = valeur, Pagne Changeant = couleur). */
@@ -2826,15 +2829,19 @@ html[data-gxe-active] .njb--solid {
 
 .nj-flying-card-trail {
   position: absolute;
-  inset: 9% -24% 9% 26%;
+  inset: 10% -26% 10% 24%;
   z-index: -1;
   border-radius: 999px;
   pointer-events: none;
-  background: linear-gradient(90deg, color-mix(in srgb, var(--flight-fx-color, var(--gold)) 42%, transparent), rgba(255, 248, 232, 0.08), transparent 76%);
-  filter: blur(9px);
-  transform: translateX(-24%) scaleX(0.72);
+  background: linear-gradient(
+    90deg,
+    color-mix(in srgb, var(--flight-fx-color, var(--gold)) 42%, transparent),
+    rgba(255, 248, 224, 0.14) 38%,
+    transparent 78%
+  );
+  transform: translateX(-22%) scaleX(0.75);
   transform-origin: right center;
-  animation: flightTrail var(--flight-dur, 500ms) ease-out both;
+  animation: flightTrail var(--flight-dur, 360ms) ease-out both;
 }
 
 .nj-recommended-card {
@@ -4090,23 +4097,45 @@ html[data-gxe-active] .njb--solid {
   }
 }
 
-/* La carte part visiblement du deck (centre de table) vers la main.
-   Chaque éventail étant pivoté vers le centre, translateY(-Nvmin) pointe vers
-   le deck. On rend la carte VISIBLE tôt (opacity 1 dès 12%) et assez grande
-   pour qu'on la voie réellement quitter le paquet, au lieu d'apparaître
-   directement dans la main. */
+/* La carte quitte réellement la pioche centrale (--deal-dx / --deal-dy mesurés
+   dans le repère local de chaque siège) puis glisse jusqu'à son emplacement
+   exact dans l'éventail, 100% composité GPU (transform + opacity uniquement). */
 @keyframes dealFly {
   0% {
     opacity: 0;
-    transform: translateY(-38vmin) scale(0.5) rotate(26deg);
+    transform: translate3d(var(--deal-dx, 0px), var(--deal-dy, -42vmin), 0)
+      scale(var(--deal-scale, 0.6)) rotate(18deg);
   }
   12% {
     opacity: 1;
-    transform: translateY(-33vmin) scale(0.62) rotate(22deg);
+    transform: translate3d(
+        calc(var(--deal-dx, 0px) * 0.9),
+        calc(var(--deal-dy, -42vmin) * 0.9),
+        0
+      )
+      scale(calc(var(--deal-scale, 0.6) + 0.14)) rotate(12deg);
   }
-  70% {
+  76% {
     opacity: 1;
-    transform: translateY(-6vmin) scale(0.94) rotate(6deg);
+    transform: translate3d(
+        calc(var(--deal-dx, 0px) * 0.06),
+        calc(var(--deal-dy, -42vmin) * 0.06),
+        0
+      )
+      scale(1.03) rotate(calc(var(--card-rot, 0deg) + 2deg));
+  }
+  100% {
+    opacity: 1;
+    transform: rotate(var(--card-rot, 0deg)) translateY(var(--card-lift, 0px));
+  }
+}
+
+@keyframes dominantCrownFloat {
+  0%, 100% {
+    transform: translateY(0) scale(1);
+  }
+  50% {
+    transform: translateY(-3px) scale(1.06);
   }
 }
 

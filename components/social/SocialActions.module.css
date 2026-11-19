@@ -1,0 +1,121 @@
+/* ═══════════════ SocialActions — Boutons 3D Salon Royal ═══════════════ */
+
+.group {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.btn {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  height: 36px;
+  min-width: 36px;
+  padding: 0 12px;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.015em;
+  line-height: 1;
+  cursor: pointer;
+  overflow: hidden;
+  user-select: none;
+  transition:
+    transform 0.14s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.15s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.compact {
+  height: 34px;
+  min-width: 34px;
+  padding: 0 9px;
+  border-radius: 11px;
+  font-size: 11.5px;
+}
+
+.btn:hover:not(:disabled) {
+  transform: translateY(-1.5px);
+  filter: brightness(1.08);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1.5px) scale(0.97);
+}
+
+.btn:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
+/* ── Profil : verre émeraude-laiton discret ── */
+.profile {
+  color: #f4ebd8;
+  border: 1.5px solid rgba(242, 187, 69, 0.34);
+  background: linear-gradient(180deg, rgba(36, 26, 20, 0.92), rgba(16, 12, 10, 0.96));
+  box-shadow: 0 3px 0 rgba(5, 4, 3, 0.8), inset 0 1px 0 rgba(255, 240, 196, 0.16);
+}
+
+.profile:hover:not(:disabled) {
+  border-color: rgba(255, 214, 96, 0.65);
+}
+
+/* ── Ajouter : or fondu 3D ── */
+.add {
+  color: #291504;
+  border: 1.5px solid #fff1b8;
+  background: linear-gradient(180deg, #ffe784 0%, #f1b93c 55%, #cb8314 100%);
+  box-shadow:
+    0 3px 0 #7b4807,
+    0 6px 14px rgba(242, 187, 69, 0.28),
+    inset 0 1px 0 rgba(255, 255, 238, 0.72);
+}
+
+.addDone {
+  color: #9fffe8;
+  border: 1.5px solid rgba(46, 228, 184, 0.56);
+  background: linear-gradient(180deg, rgba(16, 68, 56, 0.92), rgba(8, 36, 30, 0.96));
+  box-shadow: 0 2px 0 rgba(4, 20, 16, 0.85);
+}
+
+/* ── Message : turquoise émeraude 3D ── */
+.message {
+  color: #e6fff9;
+  border: 1.5px solid rgba(45, 232, 196, 0.52);
+  background: linear-gradient(180deg, rgba(20, 96, 82, 0.94), rgba(10, 52, 46, 0.97));
+  box-shadow:
+    0 3px 0 #062822,
+    0 5px 12px rgba(18, 178, 150, 0.22),
+    inset 0 1px 0 rgba(186, 255, 242, 0.25);
+}
+
+/* ── Inviter à table : rubis-or royal 3D ── */
+.invite {
+  color: #fff6ea;
+  border: 1.5px solid rgba(255, 168, 192, 0.68);
+  background: linear-gradient(180deg, #f35480 0%, #c82252 100%);
+  box-shadow:
+    0 3px 0 #6e0e2a,
+    0 6px 14px rgba(216, 48, 96, 0.3),
+    inset 0 1px 0 rgba(255, 224, 234, 0.42);
+}
+
+.inviteDone {
+  color: #ffe89a;
+  border: 1.5px solid rgba(255, 214, 96, 0.62);
+  background: linear-gradient(180deg, rgba(66, 44, 14, 0.94), rgba(34, 21, 6, 0.96));
+  box-shadow: 0 2px 0 rgba(20, 12, 3, 0.85);
+}
+
+.checkMark {
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+}

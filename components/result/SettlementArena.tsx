@@ -24,99 +24,88 @@ export interface Seat {
   playerIdx: number;
   player: Player;
   uid?: string;
+  contributed: number;
   nkapDelta: number;
   crownsBefore?: number;
   crownsDelta?: number;
   canAddFriend: boolean;
   isWinner: boolean;
   /** Direction depuis le centre, sans unité (cos/sin). Le CSS la multiplie
-   *  par les rayons, qu'il adapte à l'orientation et à la place disponible. */
+   *  par les rayons adaptés au portrait, au paysage et au nombre de joueurs. */
   x: string;
   y: string;
 }
 
-/** Jetons émis par trajet. Le transfert des NKAP est le sujet même de cet
- *  écran : il doit jouer à TOUS les niveaux de motion, seul le nombre de
- *  jetons varie. Le réserver à `full` le rendait invisible sur mobile, où ce
- *  niveau n'est jamais atteint (cf. deriveMotionLevel), et une rétrogradation
- *  du capteur de FPS suffisait à le faire disparaître. Seul le respect de
- *  « mouvement réduit » (`off`) le supprime, à juste titre. */
-const COIN_BUDGET: Record<string, number> = { full: 14, balanced: 9, lite: 5, off: 0 };
+const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
+const NKAP_STACK_SRC = "/assets/njambo/economy/nkap-stack-64.webp";
 
-/** Teintes de jetons, panachées comme des jetons de valeurs différentes. Le
- *  cycle est déterministe : une même manche produit toujours le même mélange. */
-const COIN_TONES = ["coinGold", "coinCopper", "coinTeal", "coinPalm"] as const;
+/** Budget de pièces Nkap en vol vers le vainqueur selon le profil de fluidité.
+ *  Le transfert Nkap joue sur TOUS les profils actifs (seul « mouvement réduit »
+ *  le coupe), avec une densité généreuse en mode full/balanced. */
+const COIN_BUDGET: Record<string, number> = { full: 18, balanced: 12, lite: 7, off: 0 };
 
-/** Nombre de jetons d'un trajet, proportionnel à la part qu'il transporte.
- *  Un gros transfert doit se VOIR plus dense qu'un petit — c'est la densité,
- *  pas la vitesse, qui dit le montant. Toujours au moins un jeton, sinon un
- *  petit paiement passerait inaperçu. */
 function coinsForShare(budget: number, part: number, whole: number): number {
   if (budget <= 0) return 0;
-  if (whole <= 0) return Math.min(budget, 2);
-  return Math.max(1, Math.min(budget, Math.round((part / whole) * budget)));
+  if (whole <= 0) return Math.min(budget, 4);
+  return Math.max(3, Math.min(Math.ceil(budget * 0.65), Math.round((part / whole) * budget)));
 }
 
-/* Les rayons de la couronne vivent dans le CSS (`--arena-rx` / `--arena-ry`) :
-   c'est lui qui sait si l'on est en portrait, en paysage ou à l'étroit. Le JS
-   n'émet que la DIRECTION de chaque siège, sans unité. Les figer ici en dur
-   empêchait toute adaptation et cassait le paysage. */
-
-/** Couronne vectorielle. Les médaillons bitmap de `NjamboIcon` sont chargés en
- *  64 px : réduits à 10-17 px ils deviennent illisibles. Un tracé simple reste
- *  net à toute taille et se colore par `currentColor`. */
-function CrownGlyph({ size = 11 }: { size?: number }) {
+/** Couronne vectorielle dorée nette à toute taille. */
+function CrownGlyph({ size = 12 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 24 24" fill="none" aria-hidden="true" focusable="false">
       <path
-        d="M3 8.5 6.4 12 12 4.5 17.6 12 21 8.5V18a1.5 1.5 0 0 1-1.5 1.5h-15A1.5 1.5 0 0 1 3 18V8.5Z"
+        d="M3 17.5L2 8.2L7.5 12L12 4.8L16.5 12L22 8.2L21 17.5C20.9 18.6 20 19.5 18.9 19.5H5.1C4 19.5 3.1 18.6 3 17.5Z"
         fill="currentColor"
       />
     </svg>
   );
 }
 
-function signed(value: number): string {
+function signedNkap(value: number): string {
+  return `${value > 0 ? "+" : value < 0 ? "−" : ""}${Math.abs(value).toLocaleString("fr-FR")}`;
+}
+
+function signedSpoken(value: number): string {
   return `${value > 0 ? "+ " : value < 0 ? "− " : ""}${NKAP(Math.abs(value))}`;
 }
 
-/** Le pot est un petit disque : il porte le nombre seul, sans l'unité, qui
- *  n'y tiendrait pas et que le contexte rend superflue. */
 function bare(value: number): string {
   return value.toLocaleString("fr-FR");
 }
 
 export function SettlementArena({
-  players, settlement, winnerIdx, motion, friendUids, onAddFriend,
+  players,
+  settlement,
+  winnerIdx,
+  motion,
+  friendUids,
+  onAddFriend,
 }: SettlementArenaProps) {
-  /* Effets et sons GXE : le moteur ignore ce qu'est une manche ; c'est ici,
-     au point d'usage, qu'un fait de jeu (« le pot part chez le vainqueur »)
-     devient une intention d'expérience (confettis, tintement de pièce/
-     couronne). Sans FxLayer monté ou audio désactivé : no-op silencieux. */
   const gxeSfx = useSfx();
   const fx = useFx();
   const arenaRef = useRef<HTMLDivElement>(null);
   const potRef = useRef<HTMLDivElement>(null);
+  const potInnerRef = useRef<HTMLDivElement>(null);
   const potAmountRef = useRef<HTMLSpanElement>(null);
   const flightRef = useRef<HTMLDivElement>(null);
   const seatRefs = useRef(new Map<number, HTMLDivElement>());
-  const allowParticles = motion.allowParticles;
+  const avatarRefs = useRef(new Map<number, HTMLSpanElement>());
+  const winnerRippleRef = useRef<HTMLSpanElement>(null);
   const deltaRefs = useRef(new Map<number, HTMLSpanElement>());
+  const balanceRefs = useRef(new Map<number, HTMLSpanElement>());
   const crownRefs = useRef(new Map<number, HTMLSpanElement>());
+  const allowParticles = motion.allowParticles;
 
   const seats = useMemo<Seat[]>(() => {
     const byIdx = new Map(settlement.map((entry) => [entry.playerIdx, entry]));
     const count = players.length;
-    /* Le joueur local est ancré en bas, comme à la table : on retrouve sa
-       place sans la chercher. Les autres se répartissent dans le sens horaire. */
     const anchor = Math.max(0, players.findIndex((player) => player.isYou));
 
     return players.map((player, playerIdx) => {
       const entry = byIdx.get(playerIdx);
       const step = ((playerIdx - anchor + count) % count) / count;
       const angle = (90 + step * 360) * (Math.PI / 180);
-      /* Ajoutable seulement si c'est un vrai compte, pas moi, pas un bot, et
-         pas déjà dans mes relations. Sinon le bouton est simplement absent. */
       const uid = entry?.uid;
       const canAddFriend = Boolean(
         uid && !player.isYou && !entry?.bot && !friendUids?.has(uid),
@@ -126,6 +115,7 @@ export function SettlementArena({
         playerIdx,
         player,
         uid,
+        contributed: entry?.contributed ?? 0,
         nkapDelta: entry?.nkapDelta ?? 0,
         crownsBefore: entry?.crownsBefore,
         crownsDelta: entry?.crownsDelta,
@@ -137,9 +127,7 @@ export function SettlementArena({
     });
   }, [players, settlement, winnerIdx, friendUids]);
 
-  /* Le pot vaut la somme des mises engagées. En table d'entraînement la mise
-     est nulle : on retombe alors sur le gain du vainqueur, qui vient du pot
-     accumulé pendant la manche — sinon la scène afficherait un pot vide. */
+  /* Pot affiché au centre de la table miniature. */
   const potTotal = useMemo(() => {
     const staked = settlement.reduce((sum, entry) => sum + Math.max(0, entry.contributed), 0);
     if (staked > 0) return staked;
@@ -148,208 +136,364 @@ export function SettlementArena({
   }, [settlement, winnerIdx]);
 
   const showCrowns = seats.some((seat) => seat.crownsBefore !== undefined);
-  /* Volontairement PAS conditionné à `allowEntranceCascade`, qui tombe en
-     `lite` : seul « mouvement réduit » doit priver du transfert. */
   const scripted = motion.enabled && !motion.reduced;
-  const coinBudget = COIN_BUDGET[motion.mode] ?? 5;
+  const coinBudget = COIN_BUDGET[motion.mode] ?? 7;
 
   useGsapTimeline(scripted, arenaRef, (gsap) => {
     const arena = arenaRef.current;
     const flight = flightRef.current;
     const pot = potRef.current;
-    if (!arena || !pot) return;
+    const potInner = potInnerRef.current;
+    if (!arena || !pot || !potInner) return;
 
-    /* Les jetons sont créés à la main : le `revert()` du contexte GSAP ne les
-       connaît pas et ne les retirerait pas. On repart d'une couche vide à
-       chaque construction pour éviter qu'ils ne s'accumulent. */
     flight?.replaceChildren();
 
     const tl = gsap.timeline({ defaults: { ease: "power2.out" } });
     const base = arena.getBoundingClientRect();
     const centreOf = (node: Element) => {
       const box = node.getBoundingClientRect();
-      return { x: box.left - base.left + box.width / 2, y: box.top - base.top + box.height / 2 };
+      return {
+        x: box.left - base.left + box.width / 2,
+        y: box.top - base.top + box.height / 2,
+      };
     };
     const potCentre = centreOf(pot);
+    const seatInners = Array.from(arena.querySelectorAll(`.${styles.seatInner}`));
 
-    /* Les sièges se posent, puis le pot apparaît : on lit d'abord qui joue. */
+    /* Entrée théâtrale des sièges puis du coffre central Nkap. */
     tl.fromTo(
-      Array.from(arena.querySelectorAll(`.${styles.seat}`)),
-      { opacity: 0, scale: 0.86 },
-      { opacity: 1, scale: 1, duration: 0.34, stagger: 0.07 },
+      seatInners,
+      { opacity: 0, scale: 0.84, y: 8 },
+      { opacity: 1, scale: 1, y: 0, duration: 0.36, stagger: 0.06, ease: "back.out(1.6)" },
       0,
-    ).fromTo(pot, { opacity: 0, scale: 0.7 }, { opacity: 1, scale: 1, duration: 0.4, ease: "back.out(1.8)" }, 0.12);
+    ).fromTo(
+      potInner,
+      { opacity: 0, scale: 0.62 },
+      { opacity: 1, scale: 1, duration: 0.44, ease: "back.out(2)" },
+      0.14,
+    );
 
-    /* Un seul mécanisme de vol pour les deux monnaies : seuls le glyphe et le
-       son changent. Les couronnes voyagent de perdant à vainqueur en direct —
-       elles ne transitent pas par le pot, qui ne concerne que les NKAP. */
-    const flyTokens = (
-      kind: "coin" | "crown",
+    /** Émet une gerbe d'étincelles dorées à l'impact d'une vague de pièces Nkap. */
+    const spawnImpactSparks = (atPt: { x: number; y: number }, count: number, radius: number) => {
+      if (!flight || motion.mode === "lite") return;
+      for (let i = 0; i < count; i += 1) {
+        const spark = document.createElement("span");
+        spark.className = styles.coinSpark;
+        spark.setAttribute("aria-hidden", "true");
+        flight.appendChild(spark);
+        const angle = (i / count) * Math.PI * 2 + (i % 2) * 0.25;
+        const dist = radius * (0.65 + (i % 3) * 0.22);
+        gsap.fromTo(
+          spark,
+          { x: atPt.x - 4, y: atPt.y - 4, opacity: 1, scale: 0.45 },
+          {
+            x: atPt.x - 4 + Math.cos(angle) * dist,
+            y: atPt.y - 4 + Math.sin(angle) * dist,
+            opacity: 0,
+            scale: 1.35,
+            duration: 0.56,
+            ease: "power2.out",
+            onComplete: () => spark.remove(),
+          },
+        );
+      }
+    };
+
+    /** Vol courbé parabolique (Bézier quadratique) de vraies pièces Nkap ou de
+     *  médaillons couronnes, avec roulis 3D, éclat d'apex et son synchronisé. */
+    const flyCurvedTokens = (
+      kind: "nkap" | "crown",
       from: { x: number; y: number },
       to: { x: number; y: number },
       at: number,
-      spread: number,
       count: number,
+      opts?: { heroStream?: boolean; onFirstLand?: () => void; onStreamMid?: () => void },
     ) => {
       if (!flight || count <= 0) return;
-      const travel = (motion.allowLongCascade ? 0.9 : 0.74) * (kind === "crown" ? 0.92 : 1);
-      /* Plus il y a de jetons, plus ils se serrent : une grosse somme part en
-         grappe dense, une petite en gouttes espacées. */
-      const step = Math.max(0.035, 0.34 / count);
+      const hero = Boolean(opts?.heroStream);
+      const size = kind === "crown" ? 22 : hero ? 26 : 22;
+      const half = size / 2;
+      const travel = (motion.allowLongCascade ? 0.84 : 0.7) * (hero ? 1.06 : 0.92);
+      const step = hero
+        ? Math.max(0.032, 0.44 / Math.max(1, count))
+        : Math.max(0.042, 0.28 / Math.max(1, count));
+
+      const dx = to.x - from.x;
+      const dy = to.y - from.y;
+      const dist = Math.hypot(dx, dy) || 1;
+      const nx = -dy / dist;
+      const ny = dx / dist;
+      const mx = (from.x + to.x) / 2;
+      const my = (from.y + to.y) / 2;
 
       for (let index = 0; index < count; index += 1) {
         const token = document.createElement("span");
         token.className = kind === "crown"
           ? styles.crownToken
-          : `${styles.coin} ${styles[COIN_TONES[index % COIN_TONES.length]]}`;
+          : `${styles.nkapCoin}${hero ? ` ${styles.nkapCoinHero}` : ""}`;
         token.setAttribute("aria-hidden", "true");
-        if (kind === "crown") token.textContent = "♛";
+
+        if (kind === "crown") {
+          token.textContent = "♛";
+        } else {
+          const img = document.createElement("img");
+          img.src = NKAP_COIN_SRC;
+          img.alt = "";
+          img.draggable = false;
+          img.className = styles.nkapCoinImg;
+          token.appendChild(img);
+        }
         flight.appendChild(token);
 
+        /* Éventail courbé harmonieux : chaque pièce décrit sa propre parabole
+           en altitude, offrant une vraie cascade généreuse et lisible. */
+        const lane = count <= 1 ? 0 : (index / (count - 1)) * 2 - 1;
+        const curveSpread = (hero ? 42 : 26) * lane + ((index % 2 === 0 ? 1 : -1) * (hero ? 10 : 6));
+        const loft = hero ? 28 + (index % 3) * 10 : 18 + (index % 2) * 8;
+        const cx = mx + nx * curveSpread;
+        const cy = my + ny * curveSpread - loft;
+        const endJitterX = lane * (hero ? 9 : 5);
+        const endJitterY = ((index % 3) - 1) * (hero ? 5 : 3);
+        const targetX = to.x + endJitterX;
+        const targetY = to.y + endJitterY;
+        const spins = kind === "nkap" ? (hero ? 2.5 + (index % 2) * 0.5 : 2) : 1;
+        const rotDir = index % 2 === 0 ? 1 : -1;
         const delay = at + index * step;
-        /* Décalage perpendiculaire décroissant : les jetons partent en éventail
-           puis se resserrent à l'arrivée, ce qui évite l'empilement. */
-        const offset = (index - (count - 1) / 2) * spread;
-        tl.fromTo(
-          token,
-          { x: from.x - 9, y: from.y - 9, opacity: 0, scale: 0.5 },
-          { opacity: 1, scale: 1, duration: 0.18 },
-          delay,
-        )
-          .to(token, {
-            x: to.x - 9 + offset * 0.25,
-            y: to.y - 9,
-            duration: travel,
-            ease: "power1.inOut",
-          }, delay)
-          .to(token, { opacity: 0, scale: 0.62, duration: 0.2 }, delay + travel - 0.14);
 
-        /* Le son se déclenche à l'ATTERRISSAGE, pas au départ : c'est le
-           contact qui doit s'entendre. Un seul jeton sonne par trajet, sinon
-           la rafale devient une bouillie. */
+        const prog = { t: 0 };
+        gsap.set(token, {
+          x: from.x - half,
+          y: from.y - half,
+          opacity: 0,
+          scale: 0.52,
+        });
+
+        tl.to(prog, {
+          t: 1,
+          duration: travel,
+          ease: hero ? "power2.inOut" : "power1.inOut",
+          onUpdate: () => {
+            const t = prog.t;
+            const inv = 1 - t;
+            const px = inv * inv * from.x + 2 * inv * t * cx + t * t * targetX;
+            const py = inv * inv * from.y + 2 * inv * t * cy + t * t * targetY;
+            /* Effet d'envol : grossit à l'apex de la parabole puis atterrit net. */
+            const apexBoost = Math.sin(t * Math.PI);
+            const scale = (hero ? 0.72 : 0.68) + apexBoost * (hero ? 0.54 : 0.42);
+            /* Miroitement 3D de la pièce d'or Nkap en rotation. */
+            const flipX = kind === "nkap"
+              ? 0.48 + 0.52 * Math.abs(Math.cos(t * Math.PI * spins))
+              : 1;
+            const opacity = t < 0.1 ? t / 0.1 : t > 0.88 ? Math.max(0, (1 - t) / 0.12) : 1;
+            gsap.set(token, {
+              x: px - half,
+              y: py - half,
+              scaleX: scale * flipX,
+              scaleY: scale,
+              rotation: rotDir * t * (kind === "nkap" ? 190 : 28),
+              opacity,
+            });
+          },
+          onComplete: () => {
+            gsap.set(token, { opacity: 0 });
+          },
+        }, delay);
+
+        /* Cliquetis Nkap musical à l'atterrissage (calé sur la 1re pièce, et un
+           second éclat au milieu de la grande vague vers le vainqueur). */
         if (index === 0) {
           tl.call(() => {
-            gxeSfx.playChime(kind === "crown" ? CROWN_SOUND : COIN_SOUND); // migré vers GXE
-          }, [], delay + travel);
+            gxeSfx.playChime(kind === "crown" ? CROWN_SOUND : COIN_SOUND);
+            opts?.onFirstLand?.();
+          }, [], delay + travel * 0.9);
+        } else if (hero && index === Math.floor(count * 0.45)) {
+          tl.call(() => {
+            gxeSfx.playChime(COIN_SOUND);
+            opts?.onStreamMid?.();
+          }, [], delay + travel * 0.9);
         }
       }
     };
 
-    /* Temps 1 — les mises quittent les perdants et tombent dans le pot. Le
-       budget de jetons se répartit au prorata : celui qui perd le plus en
-       envoie visiblement plus. */
-    const payIn = 0.62;
-    const totalPaidIn = seats.reduce(
-      (sum, seat) => (seat.isWinner || seat.nkapDelta >= 0 ? sum : sum + Math.abs(seat.nkapDelta)),
+    /* ── Temps 1 : les perdants versent leurs Nkap dans le pot central ── */
+    const payIn = 0.46;
+    const payers = seats.filter((seat) => !seat.isWinner && (seat.nkapDelta < 0 || seat.contributed > 0));
+    const totalPaidIn = payers.reduce(
+      (sum, seat) => sum + Math.max(Math.abs(seat.nkapDelta), seat.contributed),
       0,
     );
     let sawPayment = false;
-    seats.forEach((seat, order) => {
-      const node = seatRefs.current.get(seat.playerIdx);
-      if (!node || seat.isWinner || seat.nkapDelta >= 0) return;
+
+    payers.forEach((seat, order) => {
+      const node = avatarRefs.current.get(seat.playerIdx) ?? seatRefs.current.get(seat.playerIdx);
+      const amount = seat.nkapDelta < 0 ? Math.abs(seat.nkapDelta) : seat.contributed;
+      if (!node || amount <= 0) return;
       sawPayment = true;
-      /* Les perdants paient l'un APRÈS l'autre : on voit qui donne quoi, au
-         lieu d'une salve simultanée illisible. */
-      const at = payIn + order * 0.22;
-      flyTokens("coin", centreOf(node), potCentre, at, 22,
-        coinsForShare(coinBudget, Math.abs(seat.nkapDelta), totalPaidIn));
-      const counter = { value: 0 };
-      const label = deltaRefs.current.get(seat.playerIdx);
-      if (label) {
-        /* `player.balance` est le solde APRÈS règlement : on remonte au solde
-           d'avant pour le voir redescendre au rythme des jetons. */
-        counter.value = seat.player.balance - seat.nkapDelta;
+
+      const at = payIn + order * 0.18;
+      const count = coinsForShare(coinBudget, amount, totalPaidIn);
+      flyCurvedTokens("nkap", centreOf(node), potCentre, at, count, {
+        onFirstLand: () => {
+          gsap.fromTo(
+            potInner,
+            { scale: 1 },
+            { scale: 1.14, duration: 0.16, yoyo: true, repeat: 1, ease: "power2.out" },
+          );
+          spawnImpactSparks(potCentre, 5, 24);
+        },
+      });
+
+      /* Compteur delta du perdant (0 → −250). */
+      const deltaNode = deltaRefs.current.get(seat.playerIdx);
+      if (deltaNode && seat.nkapDelta < 0) {
+        const counter = { value: 0 };
+        deltaNode.textContent = signedNkap(0);
+        tl.to(counter, {
+          value: seat.nkapDelta,
+          duration: 0.62,
+          onUpdate: () => { deltaNode.textContent = signedNkap(Math.round(counter.value)); },
+          onComplete: () => { deltaNode.textContent = signedNkap(seat.nkapDelta); },
+        }, at + 0.08);
+      }
+
+      /* Solde total du joueur local s'il perd. */
+      const balNode = balanceRefs.current.get(seat.playerIdx);
+      if (balNode && seat.player.isYou && seat.nkapDelta < 0) {
+        const startBal = Math.max(0, seat.player.balance - seat.nkapDelta);
+        const counter = { value: startBal };
+        balNode.textContent = `Solde ${bare(startBal)}`;
         tl.to(counter, {
           value: seat.player.balance,
-          duration: 0.72,
-          onUpdate: () => { label.textContent = bare(Math.round(counter.value)); },
-          onComplete: () => { label.textContent = bare(seat.player.balance); },
-        }, at);
+          duration: 0.65,
+          onUpdate: () => { balNode.textContent = `Solde ${bare(Math.round(counter.value))}`; },
+          onComplete: () => { balNode.textContent = `Solde ${bare(seat.player.balance)}`; },
+        }, at + 0.1);
       }
     });
 
-    /* Temps 2 — le pot bascule chez le vainqueur. Il part même si personne n'a
-       payé à l'instant (mise nulle) : le pot s'est rempli pendant la manche. */
-    const payOut = sawPayment ? 2.1 : 0.8;
-    const winnerNode = seatRefs.current.get(winnerIdx);
-    if (winnerNode) {
-      tl.to(pot, { scale: 1.12, duration: 0.2, ease: "power2.out" }, payOut - 0.2)
-        .to(pot, { scale: 1, duration: 0.26 }, payOut);
-      /* Le pot part en entier : c'est le trajet le plus dense de la scène. */
-      flyTokens("coin", potCentre, centreOf(winnerNode), payOut, 26, coinBudget);
+    /* ── Temps 2 : grande cascade dorée de pièces Nkap du pot vers le vainqueur ── */
+    const payOut = sawPayment ? payIn + payers.length * 0.18 + 0.92 : 0.62;
+    const winnerAvatar = avatarRefs.current.get(winnerIdx) ?? seatRefs.current.get(winnerIdx);
+    const winnerSeatEl = seatRefs.current.get(winnerIdx);
+    const winnerSeat = seats.find((seat) => seat.playerIdx === winnerIdx);
 
-      /* Célébration GXE, calée sur l'arrivée des pièces : les confettis
-         partent DU siège du vainqueur (ancrage sur l'élément réel). Le
-         réglage `allowParticles` de l'app fait foi — le moteur ne décide
-         jamais à sa place. */
-      if (allowParticles) {
-        tl.call(() => {
-          const node = seatRefs.current.get(winnerIdx);
-          if (node) fx.burst("confetti", node);
-        }, undefined, payOut + 0.45);
+    if (winnerAvatar && winnerSeat) {
+      const winnerCentre = centreOf(winnerAvatar);
+
+      /* Le coffre central gonfle et libère tout le pactole vers le vainqueur. */
+      tl.to(potInner, { scale: 1.18, duration: 0.22, ease: "power2.out" }, payOut - 0.18)
+        .to(potInner, { scale: potTotal > 0 ? 0.92 : 1, duration: 0.34, ease: "power2.inOut" }, payOut + 0.06);
+
+      const payoutCoins = potTotal > 0 ? coinBudget : Math.min(8, coinBudget);
+      flyCurvedTokens("nkap", potCentre, winnerCentre, payOut, payoutCoins, {
+        heroStream: true,
+        onFirstLand: () => {
+          /* Onde de choc dorée + rebond du médaillon vainqueur + gerbe d'étincelles. */
+          if (winnerRippleRef.current) {
+            gsap.fromTo(
+              winnerRippleRef.current,
+              { scale: 0.55, opacity: 0.95 },
+              { scale: 2.35, opacity: 0, duration: 0.72, ease: "power2.out" },
+            );
+          }
+          gsap.fromTo(
+            winnerAvatar,
+            { scale: 1 },
+            { scale: 1.13, duration: 0.22, yoyo: true, repeat: 1, ease: "back.out(2)" },
+          );
+          spawnImpactSparks(winnerCentre, 10, 40);
+          if (allowParticles && winnerSeatEl) fx.burst("confetti", winnerSeatEl);
+        },
+        onStreamMid: () => {
+          if (winnerRippleRef.current) {
+            gsap.fromTo(
+              winnerRippleRef.current,
+              { scale: 0.7, opacity: 0.72 },
+              { scale: 2.1, opacity: 0, duration: 0.58, ease: "power2.out" },
+            );
+          }
+          spawnImpactSparks(winnerCentre, 7, 34);
+        },
+      });
+
+      /* Compteur de gain du vainqueur qui monte au fil de l'arrivée des pièces. */
+      const winnerDeltaNode = deltaRefs.current.get(winnerIdx);
+      const displayWinnerDelta = winnerSeat.nkapDelta > 0 ? winnerSeat.nkapDelta : potTotal;
+      if (winnerDeltaNode && displayWinnerDelta > 0) {
+        const counter = { value: 0 };
+        winnerDeltaNode.textContent = signedNkap(0);
+        tl.to(counter, {
+          value: displayWinnerDelta,
+          duration: motion.allowLongCascade ? 0.85 : 0.65,
+          ease: "power2.out",
+          onUpdate: () => { winnerDeltaNode.textContent = signedNkap(Math.round(counter.value)); },
+          onComplete: () => { winnerDeltaNode.textContent = signedNkap(displayWinnerDelta); },
+        }, payOut + 0.42);
       }
 
-      const winnerLabel = deltaRefs.current.get(winnerIdx);
-      const winnerSeat = seats.find((seat) => seat.playerIdx === winnerIdx);
-      if (winnerLabel && winnerSeat) {
-        const counter = { value: winnerSeat.player.balance - winnerSeat.nkapDelta };
+      /* Solde total du joueur local s'il gagne. */
+      const winnerBalNode = balanceRefs.current.get(winnerIdx);
+      if (winnerBalNode && winnerSeat.player.isYou && winnerSeat.nkapDelta > 0) {
+        const startBal = Math.max(0, winnerSeat.player.balance - winnerSeat.nkapDelta);
+        const counter = { value: startBal };
+        winnerBalNode.textContent = `Solde ${bare(startBal)}`;
         tl.to(counter, {
           value: winnerSeat.player.balance,
-          duration: motion.allowLongCascade ? 0.8 : 0.62,
-          onUpdate: () => { winnerLabel.textContent = bare(Math.round(counter.value)); },
-          onComplete: () => { winnerLabel.textContent = bare(winnerSeat.player.balance); },
-        }, payOut + 0.2);
+          duration: motion.allowLongCascade ? 0.85 : 0.65,
+          ease: "power2.out",
+          onUpdate: () => { winnerBalNode.textContent = `Solde ${bare(Math.round(counter.value))}`; },
+          onComplete: () => { winnerBalNode.textContent = `Solde ${bare(winnerSeat.player.balance)}`; },
+        }, payOut + 0.42);
       }
 
-      /* Le pot se vide au rythme de son transfert. */
-      if (potAmountRef.current) {
+      /* Le pot central se vide au rythme de la pluie de Nkap. */
+      if (potAmountRef.current && potTotal > 0) {
         const node = potAmountRef.current;
         const counter = { value: potTotal };
         tl.to(counter, {
           value: 0,
-          duration: 0.6,
+          duration: 0.62,
+          ease: "power2.in",
           onUpdate: () => { node.textContent = bare(Math.round(counter.value)); },
           onComplete: () => { node.textContent = bare(0); },
-        }, payOut + 0.2);
+        }, payOut + 0.14);
       }
     }
 
-    /* Temps 3 — les couronnes, une fois l'argent posé. Elles VOLENT elles
-       aussi : le classement se transfère de perdant à vainqueur, en direct et
-       sans passer par le pot, qui ne concerne que les NKAP. */
-    const crownsAt = payOut + 1.25;
-    if (showCrowns) {
-      const winnerNode = seatRefs.current.get(winnerIdx);
+    /* ── Temps 3 : transfert direct des couronnes en match classé ── */
+    const crownsAt = payOut + 1.18;
+    if (showCrowns && winnerAvatar) {
+      const winnerCentre = centreOf(winnerAvatar);
       let crownOrder = 0;
 
       seats.forEach((seat) => {
         const node = crownRefs.current.get(seat.playerIdx);
         if (!node || seat.crownsDelta === undefined) return;
+        const seatAvatar = avatarRefs.current.get(seat.playerIdx) ?? seatRefs.current.get(seat.playerIdx);
+        const at = crownsAt + crownOrder * 0.18;
 
-        /* Chaque perdant de couronnes envoie les siennes au vainqueur. */
-        const seatNode = seatRefs.current.get(seat.playerIdx);
-        const at = crownsAt + crownOrder * 0.2;
-        if (seat.crownsDelta < 0 && seatNode && winnerNode) {
-          /* Les couronnes restent peu nombreuses : elles se comptent à l'unité,
-             une grappe dense les rendrait illisibles. */
-          flyTokens("crown", centreOf(seatNode), centreOf(winnerNode), at, 20,
-            Math.min(3, Math.max(1, Math.round(Math.abs(seat.crownsDelta) / 8))));
+        if (seat.crownsDelta < 0 && seatAvatar) {
+          flyCurvedTokens(
+            "crown",
+            centreOf(seatAvatar),
+            winnerCentre,
+            at,
+            Math.min(4, Math.max(1, Math.round(Math.abs(seat.crownsDelta) / 7))),
+          );
           crownOrder += 1;
         }
 
-        /* Le compteur parcourt le TOTAL de couronnes, de l'ancien au nouveau :
-           on voit le classement de chacun bouger, pas seulement l'écart. */
         const before = seat.crownsBefore ?? 0;
         const counter = { value: before };
         tl.to(counter, {
           value: before + seat.crownsDelta,
-          duration: 0.7,
+          duration: 0.68,
           onUpdate: () => { node.textContent = bare(Math.round(counter.value)); },
           onComplete: () => { node.textContent = bare(before + (seat.crownsDelta ?? 0)); },
-        }, seat.crownsDelta < 0 ? at : crownsAt + 0.5);
+        }, seat.crownsDelta < 0 ? at : crownsAt + 0.45);
       });
     }
-  }, [scripted, seats, potTotal, showCrowns, coinBudget, winnerIdx, gxeSfx, allowParticles, fx]);
+  }, [scripted, seats, potTotal, showCrowns, coinBudget, winnerIdx, gxeSfx, allowParticles, fx, motion.mode, motion.allowLongCascade]);
 
   return (
     <div
@@ -359,77 +503,130 @@ export function SettlementArena({
       aria-label="Règlement de la manche"
       data-dense={players.length >= 4 || undefined}
     >
-      {/* La natte, posée avant tout le reste : elle est le sol de la scène. */}
+      {/* Table miniature Salon Royal (acajou sculpté, laiton & feutre émeraude) */}
       <div className={styles.mat} aria-hidden="true" />
 
+      {/* Coffre central Nkap (ou sceau Ngata en manche amicale sans mise) */}
       <div ref={potRef} className={styles.pot} aria-hidden="true">
-        <span ref={potAmountRef} className={styles.potAmount}>{bare(potTotal)}</span>
-      </div>
-
-      {seats.map((seat) => (
-        <div
-          key={seat.playerIdx}
-          ref={(node) => { if (node) seatRefs.current.set(seat.playerIdx, node); }}
-          className={`${styles.seat}${seat.isWinner ? ` ${styles.seatWinner}` : ""}`}
-          style={{ "--ux": seat.x, "--uy": seat.y } as React.CSSProperties}
-          role="listitem"
-          /* L'issue est annoncée d'un bloc : les compteurs animés restent
-             masqués aux lecteurs d'écran pour ne pas égrener les valeurs. */
-          aria-label={[
-            seat.player.name,
-            seat.isWinner ? "gagne la manche" : "perd la manche",
-            signed(seat.nkapDelta),
-            seat.crownsDelta !== undefined ? `${signed(seat.crownsDelta)} couronnes` : "",
-          ].filter(Boolean).join(", ")}
-        >
-          <span className={styles.avatarWrap} aria-hidden="true">
-            <AvatarIllustration seed={seat.player.emoji} size={44} active={seat.isWinner} />
-            {seat.isWinner && (
-              <span className={styles.crownMark}>
-                <CrownGlyph size={17} />
+        <div ref={potInnerRef} className={`${styles.potInner}${potTotal <= 0 ? ` ${styles.potInnerHonor}` : ""}`}>
+          {potTotal > 0 ? (
+            <>
+              <img
+                src={NKAP_STACK_SRC}
+                alt=""
+                className={styles.potCoinImg}
+                draggable={false}
+              />
+              <span ref={potAmountRef} className={styles.potAmount}>
+                {bare(potTotal)}
               </span>
-            )}
-          </span>
-
-          <span className={styles.name} aria-hidden="true">{seat.player.name}</span>
-
-          {/* Le solde complet n'est connu que pour le joueur local : le serveur
-              ne divulgue pas le portefeuille des adversaires. Eux ne portent
-              que leurs couronnes, ce qui allège aussi la scène. */}
-          {seat.player.isYou && (
-            <span
-              ref={(node) => { if (node) deltaRefs.current.set(seat.playerIdx, node); }}
-              className={`${styles.delta} ${
-                seat.nkapDelta > 0 ? styles.deltaUp : seat.nkapDelta < 0 ? styles.deltaDown : styles.deltaFlat
-              }`}
-              aria-hidden="true"
-            >
-              {bare(seat.player.balance)}
-            </span>
-          )}
-
-          {seat.crownsBefore !== undefined && (
-            <span className={styles.crowns} aria-hidden="true">
-              <CrownGlyph />
-              <span ref={(node) => { if (node) crownRefs.current.set(seat.playerIdx, node); }}>
-                {bare(seat.crownsBefore + (seat.crownsDelta ?? 0))}
+              <span className={styles.potUnit}>NKAP</span>
+            </>
+          ) : (
+            <>
+              <span className={styles.potHonorCrown}>
+                <CrownGlyph size={22} />
               </span>
-            </span>
-          )}
-
-          {onAddFriend && seat.canAddFriend && (
-            <button
-              type="button"
-              className={styles.addFriend}
-              onClick={() => onAddFriend(seat)}
-              aria-label={`Ajouter ${seat.player.name} en ami`}
-              data-nj-skin="none"
-            >
-              +
-            </button>
+              <span className={styles.potUnit}>NGATA</span>
+            </>
           )}
         </div>
-      ))}
+      </div>
+
+      {seats.map((seat) => {
+        const displayDelta = seat.isWinner
+          ? (seat.nkapDelta > 0 ? seat.nkapDelta : potTotal)
+          : seat.nkapDelta;
+        const showDeltaPill = displayDelta !== 0;
+
+        return (
+          <div
+            key={seat.playerIdx}
+            ref={(node) => { if (node) seatRefs.current.set(seat.playerIdx, node); }}
+            className={`${styles.seat}${seat.isWinner ? ` ${styles.seatWinner}` : ""}`}
+            style={{ "--ux": seat.x, "--uy": seat.y } as React.CSSProperties}
+            role="listitem"
+            aria-label={[
+              seat.player.name,
+              seat.isWinner ? "gagne la manche" : "perd la manche",
+              showDeltaPill ? signedSpoken(displayDelta) : "",
+              seat.crownsDelta !== undefined ? `${signedNkap(seat.crownsDelta)} couronnes` : "",
+            ].filter(Boolean).join(", ")}
+          >
+            <div className={styles.seatInner}>
+              <span
+                ref={(node) => { if (node) avatarRefs.current.set(seat.playerIdx, node); }}
+                className={styles.avatarWrap}
+                aria-hidden="true"
+              >
+                {seat.isWinner && (
+                  <span ref={winnerRippleRef} className={styles.winnerRipple} />
+                )}
+                <AvatarIllustration seed={seat.player.emoji} size={42} active={seat.isWinner} />
+                {seat.isWinner && (
+                  <span className={styles.crownMark}>
+                    <CrownGlyph size={15} />
+                  </span>
+                )}
+              </span>
+
+              <span className={styles.namePill} aria-hidden="true">
+                <span className={styles.name}>{seat.player.name}</span>
+              </span>
+
+              {showDeltaPill ? (
+                <span
+                  className={`${styles.nkapPill} ${
+                    displayDelta > 0 ? styles.nkapPillUp : styles.nkapPillDown
+                  }`}
+                  aria-hidden="true"
+                >
+                  <img src={NKAP_COIN_SRC} alt="" className={styles.nkapMiniIcon} draggable={false} />
+                  <span ref={(node) => { if (node) deltaRefs.current.set(seat.playerIdx, node); }}>
+                    {signedNkap(displayDelta)}
+                  </span>
+                </span>
+              ) : seat.isWinner ? (
+                <span className={`${styles.nkapPill} ${styles.nkapPillUp}`} aria-hidden="true">
+                  <CrownGlyph size={11} />
+                  <span>Ngata</span>
+                </span>
+              ) : null}
+
+              {seat.player.isYou && seat.player.balance > 0 && (
+                <span
+                  ref={(node) => { if (node) balanceRefs.current.set(seat.playerIdx, node); }}
+                  className={styles.balanceHint}
+                  aria-hidden="true"
+                >
+                  Solde {bare(seat.player.balance)}
+                </span>
+              )}
+
+              {seat.crownsBefore !== undefined && (
+                <span className={styles.crowns} aria-hidden="true">
+                  <CrownGlyph size={11} />
+                  <span ref={(node) => { if (node) crownRefs.current.set(seat.playerIdx, node); }}>
+                    {bare(seat.crownsBefore + (seat.crownsDelta ?? 0))}
+                  </span>
+                </span>
+              )}
+
+              {onAddFriend && seat.canAddFriend && (
+                <button
+                  type="button"
+                  className={styles.addFriend}
+                  onClick={() => onAddFriend(seat)}
+                  aria-label={`Ajouter ${seat.player.name} en ami`}
+                  data-nj-skin="none"
+                >
+                  +
+                </button>
+              )}
+            </div>
+          </div>
+        );
+      })}
 
       <div ref={flightRef} className={styles.flightLayer} aria-hidden="true" />
     </div>

@@ -220,14 +220,14 @@ function SceneRouter() {
       case "rules": return <RulesScreen />;
       case "power_shop": return <ShopScreen />;
       case "power_collection": return <PowerCollectionScreen />;
-      case "play": return <PlayHubScreen />;
+      case "play": return <PlayHubScreen onBotStart={handleBotStart} />;
       case "shop": return <ShopScreen />;
       case "events": return <EventsScreen />;
       case "event_detail": return <EventDetailScreen onStart={handleEventStart} />;
       case "wallet": return <WalletScreen />;
       case "bot_setup": return <BotSetupScreen onStart={handleBotStart} />;
-      case "online_setup": return <OnlineSetupScreen />;
-      case "friends_invite": return <FriendsSetupScreen />;
+      case "online_setup": return <OnlineSetupScreen onBotStart={handleBotStart} />;
+      case "friends_invite": return <FriendsSetupScreen onBotStart={handleBotStart} />;
       case "lobby": return roomId ? <LobbyScreen onGameStart={handleGameStart} onBack={handleMenu} /> : null;
       default: return null; // "table" : géré par le bloc gameActive ci-dessous
     }
@@ -304,6 +304,7 @@ function SceneRouter() {
       {gameResult && (
         <ResultScreen
           result={gameResult}
+          gameMode={gameMode}
           mise={gameMise}
           onNext={handleNextRound}
           onMenu={handleMenu}

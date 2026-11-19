@@ -1,8 +1,38 @@
+import os from "node:os";
 import path from "node:path";
 import type { NextConfig } from "next";
 
+/**
+ * Détecte automatiquement toutes les IPv4 locales de la machine + autorise les
+ * plages privées LAN/Wi-Fi/partage de connexion (10.x, 192.168.x, 172.x) pour
+ * que le test sur téléphone ne soit jamais bloqué quand l'IP DHCP change.
+ */
+function getAllowedDevOrigins(): string[] {
+  const origins = new Set<string>([
+    "localhost",
+    "127.0.0.1",
+    "*.local",
+    "10.*",
+    "10.*.*.*",
+    "192.168.*",
+    "192.168.*.*",
+    "172.*",
+    "172.*.*.*",
+  ]);
+  const interfaces = os.networkInterfaces();
+  for (const entries of Object.values(interfaces)) {
+    for (const entry of entries ?? []) {
+      if (entry.family === "IPv4" && !entry.internal) {
+        origins.add(entry.address);
+      }
+    }
+  }
+  return [...origins];
+}
+
 const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR || ".next",
+  allowedDevOrigins: getAllowedDevOrigins(),
   // Les jonctions node_modules/@gxe/* pointent vers ../gxe/packages : Turbopack
   // résout les liens en chemins réels, la racine doit donc englober les deux
   // dépôts, sinon `@gxe/react` est « hors projet » et introuvable.
@@ -12,20 +42,8 @@ const nextConfig: NextConfig = {
   // produit alors des « Could not find the module … in the React Client
   // Manifest ». Après toute modification ici : supprimer `.next/dev`.
   turbopack: {
-    root: path.resolve(process.cwd(), ".."),
+    root: process.cwd(),
   },
-  // Game Experience Engine : les packages @gxe/* sont liés par jonction vers
-  // ../gxe/packages et exportent leurs sources TypeScript — Next doit donc les
-  // transpiler comme du code du projet (le HMR porte alors jusqu'au moteur).
-  transpilePackages: [
-    "@gxe/contract",
-    "@gxe/kernel",
-    "@gxe/experience",
-    "@gxe/stage",
-    "@gxe/driver-motion",
-    "@gxe/driver-particles",
-    "@gxe/react",
-  ],
   images: {
     // Les assets sont déjà en .webp ; on sert directement ce format.
     formats: ["image/webp"],

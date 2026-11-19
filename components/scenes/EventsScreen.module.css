@@ -1,0 +1,652 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Événements : Billets & Affiches de Gala du Ter
+   100dvh strict · Encoches de billets physiques + aperçu du sentier de tables
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.scene {
+  color: var(--sr-ivory, #fff8ea);
+}
+
+.frame {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
+}
+
+/* ═══ HUD HAUT ═══ */
+.hudBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 17px;
+  border: 1.5px solid rgba(255, 71, 114, 0.48);
+  background:
+    radial-gradient(circle at 14% 50%, rgba(255, 71, 114, 0.24), transparent 52%),
+    linear-gradient(120deg, rgba(56, 22, 34, 0.95), rgba(18, 12, 15, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.2), 0 4px 0 #18070d, 0 10px 22px rgba(0, 0, 0, 0.42);
+}
+
+.hudLeft {
+  min-width: 0;
+  flex: 1 1 170px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.backBtn {
+  flex: 0 0 auto;
+  height: 36px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1.5px solid #ffe89e;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe06b 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 3px 0 #703903;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.hudCopy {
+  min-width: 0;
+  display: grid;
+  gap: 1px;
+}
+
+.hudKicker {
+  color: #ff9ab2;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.hudCopy h1 {
+  margin: 0;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(16px, 3.8vw, 22px);
+  font-weight: 900;
+  line-height: 1.05;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hudRight {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.guestMiniBtn {
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 11px;
+  border: 1.5px solid #96ffec;
+  background: linear-gradient(180deg, #42f7d6, #16c9a8);
+  color: #04221c;
+  font-size: 11.5px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #055748;
+}
+
+.ticketRack {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.ticketStubPill {
+  position: relative;
+  height: 34px;
+  padding: 0 9px 0 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(255, 212, 92, 0.36);
+  background: linear-gradient(160deg, rgba(30, 22, 18, 0.94), rgba(12, 14, 15, 0.96));
+  color: #fffaf0;
+  font-size: 12px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+  transition: transform 110ms ease;
+}
+
+.ticketStubPill:hover { transform: translateY(-1px); }
+
+.tier_bronze { border-color: rgba(235, 140, 74, 0.72); }
+.tier_argent { border-color: rgba(190, 214, 238, 0.72); }
+.tier_or { border-color: rgba(255, 207, 64, 0.82); }
+
+.errorStrip {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 71, 114, 0.52);
+  background: rgba(96, 16, 36, 0.85);
+  color: #ffd6e0;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+/* ═══ VITRINE DES BILLETS DE GALA (seule cette zone défile si nécessaire) ═══ */
+.galaStage {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding: 2px 3px 6px 1px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.45) transparent;
+}
+
+.galaGrid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  min-height: 100%;
+}
+
+@media (min-width: 780px) {
+  .galaGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 18px;
+    height: 100%;
+    align-items: stretch;
+  }
+}
+
+/* ── CARTE BILLET DE GALA ── */
+.galaTicket {
+  --ev-accent: #ffcf40;
+  --ev-deep: #7a4204;
+  --ev-ink: #241203;
+  --ev-glow: rgba(255, 207, 64, 0.34);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border-radius: 24px;
+  border: 2px solid color-mix(in srgb, var(--ev-accent) 76%, #fff4cc);
+  background: linear-gradient(180deg, #1b1310 0%, #140f0d 65%, #0c1a15 100%);
+  box-shadow:
+    0 20px 44px rgba(0, 0, 0, 0.56),
+    0 0 32px color-mix(in srgb, var(--ev-glow) 70%, transparent);
+  overflow: hidden;
+  cursor: pointer;
+  transition: transform 180ms cubic-bezier(0.2, 0.88, 0.25, 1.1), box-shadow 180ms ease;
+}
+
+.galaTicket:hover {
+  transform: translateY(-4px);
+  box-shadow:
+    0 26px 54px rgba(0, 0, 0, 0.64),
+    0 0 42px var(--ev-glow);
+}
+
+.themeGold {
+  --ev-accent: #ffcf40;
+  --ev-deep: #7a4204;
+  --ev-ink: #241203;
+  --ev-glow: rgba(255, 207, 64, 0.34);
+}
+
+.themeTeal {
+  --ev-accent: #1de4be;
+  --ev-deep: #065c4b;
+  --ev-ink: #04221c;
+  --ev-glow: rgba(29, 228, 190, 0.34);
+}
+
+/* Partie haute illustrée */
+.posterTopZone {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 225px;
+  padding: 14px 16px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 10px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.posterArt {
+  object-fit: cover;
+  object-position: center 22%;
+  filter: saturate(1.18) contrast(1.05);
+  transition: transform 360ms ease;
+}
+
+.galaTicket:hover .posterArt {
+  transform: scale(1.04);
+}
+
+.posterShade {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg, rgba(10, 14, 14, 0.52) 0%, rgba(10, 12, 12, 0.24) 36%, rgba(14, 11, 10, 0.92) 78%, #140f0d 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+.posterInnerRim {
+  position: absolute;
+  inset: 7px 7px 0;
+  border-radius: 17px 17px 0 0;
+  border: 1px solid color-mix(in srgb, var(--ev-accent) 32%, rgba(255, 248, 234, 0.14));
+  border-bottom: 0;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.posterBadgesRow {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.statusSeal {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: rgba(8, 22, 17, 0.88);
+  border: 1px solid rgba(70, 255, 156, 0.68);
+  color: #a6ffcf;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #46ff9c;
+  box-shadow: 0 0 10px #46ff9c;
+}
+
+.stateSoon { border-color: rgba(75, 142, 255, 0.72); color: #bed6ff; }
+.stateSoon .statusDot { background: #4b8eff; box-shadow: 0 0 8px #4b8eff; }
+.stateEnded { border-color: rgba(255, 207, 64, 0.58); color: #ffe599; }
+.stateEnded .statusDot { background: #ffcf40; }
+.stateEliminated { border-color: rgba(255, 71, 114, 0.72); color: #ffb3c6; }
+.stateEliminated .statusDot { background: #ff4772; }
+
+/* Souche ticket requis */
+.entryPassTag {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 4px 10px 4px 7px;
+  border-radius: 12px;
+  border: 1.5px dashed rgba(255, 212, 92, 0.62);
+  background: rgba(14, 12, 12, 0.88);
+  box-shadow: 0 6px 14px rgba(0, 0, 0, 0.48);
+}
+
+.entryPassCopy {
+  display: grid;
+  line-height: 1.05;
+}
+
+.entryPassCopy small {
+  color: #d6c5a3;
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.entryPassCopy strong {
+  color: #fff2b2;
+  font-size: 11.5px;
+  font-weight: 900;
+}
+
+/* Bloc titre */
+.posterTitleBlock {
+  position: relative;
+  z-index: 3;
+  margin-top: auto;
+  display: grid;
+  gap: 4px;
+}
+
+.modeMetaRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.modePill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--ev-accent) 22%, rgba(12, 14, 14, 0.86));
+  border: 1px solid color-mix(in srgb, var(--ev-accent) 62%, #ffffff);
+  color: color-mix(in srgb, var(--ev-accent) 82%, #ffffff);
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.datePill {
+  color: #d7e5de;
+  font-size: 11px;
+  font-weight: 800;
+}
+
+.posterTitleBlock h2 {
+  margin: 0;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(23px, 4.8vw, 31px);
+  font-weight: 950;
+  line-height: 1.02;
+  text-shadow: 0 4px 16px rgba(0, 0, 0, 0.72);
+}
+
+.posterDesc {
+  margin: 0;
+  color: #cbe0d7;
+  font-size: 12.5px;
+  line-height: 1.38;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Mini-sentier de tables ovales sur l'affiche */
+.miniTrailBar {
+  position: relative;
+  z-index: 3;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 7px 10px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 212, 92, 0.28);
+  background: rgba(10, 20, 17, 0.82);
+}
+
+.miniTrailNodes {
+  display: flex;
+  align-items: center;
+}
+
+.miniTrailStep {
+  display: inline-flex;
+  align-items: center;
+}
+
+.miniOvalNode {
+  width: 28px;
+  height: 20px;
+  border-radius: 999px;
+  border: 1.5px solid #8a4c24;
+  background: radial-gradient(circle, #1e8867, #0b4433);
+  color: #e4f5ee;
+  font-size: 10px;
+  font-weight: 900;
+  display: inline-grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.45);
+}
+
+.miniOvalDone {
+  border-color: #70ffe3;
+  background: linear-gradient(180deg, #42f7d6, #14b596);
+  color: #04221c;
+}
+
+.miniOvalNow {
+  border-color: #fff2b2;
+  background: radial-gradient(circle, #28ba8c, #0f6249);
+  color: #fff0a8;
+  box-shadow: 0 0 12px var(--ev-glow), 0 0 0 2px color-mix(in srgb, var(--ev-accent) 45%, transparent);
+}
+
+.miniTrailWire {
+  width: 12px;
+  height: 2px;
+  background: linear-gradient(90deg, rgba(255, 207, 64, 0.7), rgba(255, 207, 64, 0.3));
+}
+
+.miniTrophyGoal {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid #ffe070;
+  background: radial-gradient(circle, rgba(255, 207, 64, 0.35), rgba(28, 18, 8, 0.94));
+  display: inline-grid;
+  place-items: center;
+}
+
+.livesPips {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.lifePip {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.lifeAlive {
+  color: #ff5b82;
+  text-shadow: 0 0 8px rgba(255, 71, 114, 0.72);
+}
+
+.lifeSpent {
+  color: rgba(255, 255, 255, 0.2);
+}
+
+.livesCaption {
+  margin-left: 3px;
+  color: #b8d3c9;
+  font-size: 10.5px;
+  font-weight: 850;
+}
+
+/* ── PERFORATION DE BILLET ── */
+.ticketPerforation {
+  position: relative;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  background: #140f0d;
+}
+
+.perfDashes {
+  width: 100%;
+  border-top: 2px dashed rgba(255, 212, 92, 0.36);
+  margin-inline: 14px;
+}
+
+.notchLeft,
+.notchRight {
+  position: absolute;
+  top: 50%;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #08241d;
+  border: 2px solid color-mix(in srgb, var(--ev-accent) 68%, #fff0b8);
+  transform: translateY(-50%);
+}
+
+.notchLeft { left: -10px; }
+.notchRight { right: -10px; }
+
+/* ── SOUCHE BASSE : TRÉSOR FINAL + CTA 3D ── */
+.ticketStubBody {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 6px 16px 15px;
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 100%, color-mix(in srgb, var(--ev-accent) 16%, transparent), transparent 64%),
+    linear-gradient(180deg, #140f0d, #0d1a16);
+}
+
+.prizeShowcase {
+  display: grid;
+  gap: 6px;
+}
+
+.prizeEyebrow {
+  color: #ffcf40;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.prizeItemsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+}
+
+.prizeItemChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 7px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 207, 64, 0.44);
+  background: linear-gradient(135deg, rgba(255, 207, 64, 0.16), rgba(14, 22, 19, 0.9));
+  color: #fffaf0;
+  font-size: 12.5px;
+  font-weight: 900;
+}
+
+.prizeItemChip img {
+  object-fit: contain;
+  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5));
+}
+
+.galaCta {
+  position: relative;
+  width: 100%;
+  min-height: 50px;
+  padding: 6px 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  overflow: hidden;
+  border-radius: 16px;
+  border: 1.5px solid color-mix(in srgb, var(--ev-accent) 74%, #ffffff);
+  color: var(--ev-ink);
+  background:
+    radial-gradient(ellipse 80% 70% at 50% 0%, rgba(255, 255, 255, 0.52), transparent 58%),
+    linear-gradient(180deg, color-mix(in srgb, var(--ev-accent) 82%, #ffffff), var(--ev-accent) 56%, color-mix(in srgb, var(--ev-accent) 80%, #000000));
+  box-shadow:
+    inset 0 2px 0 rgba(255, 255, 255, 0.65),
+    0 4px 0 var(--ev-deep),
+    0 12px 24px rgba(0, 0, 0, 0.46);
+  cursor: pointer;
+  transition: transform 110ms ease, filter 140ms ease;
+}
+
+.galaCta:hover { filter: brightness(1.07); transform: translateY(-1px); }
+.galaCta:active { transform: translateY(3px); }
+
+.ctaSheen {
+  position: absolute;
+  inset: 0;
+  width: 34%;
+  background: linear-gradient(108deg, transparent, rgba(255, 255, 255, 0.48) 50%, transparent);
+  transform: translateX(-140%);
+  animation: galaSweep 4.4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes galaSweep {
+  0%, 62% { transform: translateX(-140%); }
+  90%, 100% { transform: translateX(350%); }
+}
+
+.ctaCopy {
+  display: grid;
+  text-align: left;
+  line-height: 1.05;
+}
+
+.ctaCopy strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 15.5px;
+  font-weight: 950;
+  letter-spacing: 0.03em;
+}
+
+.ctaCopy small {
+  font-size: 10.5px;
+  font-weight: 800;
+  opacity: 0.85;
+}
+
+.ctaArrow {
+  width: 30px;
+  height: 30px;
+  border-radius: 9px;
+  background: rgba(0, 0, 0, 0.16);
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  font-weight: 900;
+}
+
+.authDone {
+  padding: 16px;
+  text-align: center;
+  color: #79f5a8;
+  font-weight: 850;
+}
+
+@media (max-width: 500px) {
+  .backLabel { display: none; }
+  .backBtn { width: 36px; padding: 0; justify-content: center; }
+  .posterTopZone { min-height: 195px; padding: 12px 13px 10px; }
+  .ticketStubBody { padding: 5px 13px 13px; gap: 9px; }
+}

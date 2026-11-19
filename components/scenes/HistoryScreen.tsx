@@ -1,22 +1,28 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { T } from "@/config/theme";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { getEntranceAnimationStyle, useMotionProfile } from "@/lib/motion";
 import { listenMatchHistory } from "@/lib/playerData";
 import { NKAP } from "@/data/mock";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
-import { BottomNavScene } from "@/components/ui/BottomNavScene";
-import { Chip } from "@/components/ui/Chip";
-import { ScreenHeader, Surface, displayFont } from "@/components/ui/Shell";
+import { GameShell } from "@/components/ui/GameShell";
 import type { MatchHistoryEntry } from "@/types/game";
+import styles from "./HistoryScreen.module.css";
+
+type HistoryFilter = "all" | "won" | "lost";
 
 function modeLabel(mode: MatchHistoryEntry["mode"]): string {
-  if (mode === "bot") return "IA";
-  if (mode === "friends") return "Amis";
-  return "Online";
+  if (mode === "bot") return "Contre l'IA";
+  if (mode === "friends") return "Entre amis";
+  return "En ligne";
+}
+
+function modeToneClass(mode: MatchHistoryEntry["mode"]): string {
+  if (mode === "friends") return styles.modePink;
+  if (mode === "bot") return styles.modeTeal;
+  return styles.modeGold;
 }
 
 export function HistoryScreen() {
@@ -25,6 +31,7 @@ export function HistoryScreen() {
   const motion = useMotionProfile();
   const [matches, setMatches] = useState<MatchHistoryEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState<HistoryFilter>("all");
 
   useEffect(() => {
     if (!user?.uid) {
@@ -41,84 +48,139 @@ export function HistoryScreen() {
     return unsub;
   }, [user?.uid]);
 
+  const winsCount = matches.filter((m) => m.won).length;
+  const filteredMatches = matches.filter((m) => {
+    if (filter === "won") return m.won;
+    if (filter === "lost") return !m.won;
+    return true;
+  });
+
   return (
-    <BottomNavScene narrow>
-        <div className="nj-phone">
-          <ScreenHeader title="Historique" kicker="Dernieres parties" icon="history" tone="pink" onBack={() => navigateTo("menu")} backLabel="Retour" />
-          <Surface
-            scrollable={matches.length > 0}
-            style={{
-              minHeight: 360,
-              display: matches.length === 0 ? "grid" : "block",
-              placeItems: matches.length === 0 ? "center" : undefined,
-              textAlign: matches.length === 0 ? "center" : "left",
-            }}
-          >
-            {loading && <div className="nj-subtle" style={{ textAlign: "center" }}>Chargement de l&apos;historique...</div>}
+    <GameShell dock={false} scroll={false} contentClassName={styles.historyShell}>
+      {/* ═══ TOP HUD ═══ */}
+      <header className={styles.hud}>
+        <button data-nj-skin="none" type="button" className="nj-sr-back" onClick={() => navigateTo("menu")}>
+          <span className="nj-sr-back-arrow" aria-hidden="true">←</span>
+          <span>Salon</span>
+        </button>
 
-            {!loading && matches.length === 0 && (
-              <div>
-                <div style={{ display: "grid", placeItems: "center", marginBottom: 16 }}>
-                  <span style={{ position: "relative", display: "grid", placeItems: "center" }}>
-                    <NjamboMark size={104} compact />
-                    <span className="nj-title-icon" style={{ position: "absolute", right: -8, bottom: -8, width: 44, height: 44 }}>
-                      <NjamboIcon name="empty" tone="pink" size={26} />
-                    </span>
-                  </span>
-                </div>
-                <div style={{ fontWeight: 900, fontSize: 20, marginBottom: 6 }}>Aucune partie jouee</div>
-                <p className="nj-subtle" style={{ maxWidth: 300 }}>
-                  Lance une premiere manche, et tes resultats viendront se ranger ici.
-                </p>
-              </div>
-            )}
-
-            {!loading && matches.length > 0 && (
-              <div className="nj-stack" style={{ gap: 10 }}>
-                {matches.map((match, i) => (
-                  <div
-                    key={match.id}
-                    className={`nj-list-card${match.won ? " nj-list-card--gold is-active" : ""}`}
-                    style={getEntranceAnimationStyle(motion, i, { duration: 0.34, step: 0.05 })}
-                  >
-                    <span
-                      className="nj-title-icon"
-                      style={{
-                        width: 42,
-                        height: 42,
-                        background: match.won ? T.gold : "var(--nj-solar-sand)",
-                        color: match.won ? T.ink : "var(--nj-solar-ink)",
-                      }}
-                    >
-                      <NjamboIcon name={match.won ? "trophy" : "history"} tone={match.won ? "gold" : "light"} size={24} />
-                    </span>
-                    <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
-                        <strong>{match.won ? "Victoire" : "Defaite"}</strong>
-                        <Chip tone={match.mode === "friends" ? "pink" : match.mode === "bot" ? "teal" : "gold"}>{modeLabel(match.mode)}</Chip>
-                        {match.doubles && <Chip strong>x2</Chip>}
-                      </div>
-                      <div className="nj-subtle">
-                        Gagnant: {match.winnerName} · {new Date(match.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <div
-                      style={{
-                        ...displayFont,
-                        color: match.gain >= 0 ? T.gold : T.bad,
-                        fontWeight: 900,
-                        fontSize: 18,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {match.gain >= 0 ? "+" : ""}{NKAP(match.gain)}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-          </Surface>
+        <div className={styles.hudCenter}>
+          <span className={styles.hudKicker}>CARNET DE TABLE</span>
+          <h1 className={styles.hudTitle}>Historique</h1>
         </div>
-    </BottomNavScene>
+
+        <div className={styles.scorePill}>
+          <NjamboIcon name="trophy" tone="gold" size={16} />
+          <strong>{winsCount}</strong>
+          <span>/ {matches.length}</span>
+        </div>
+      </header>
+
+      {/* ═══ FILTRES (si au moins 1 manche) ═══ */}
+      {matches.length > 0 && (
+        <div className={styles.filterBar} role="tablist" aria-label="Filtrer l'historique">
+          {(
+            [
+              ["all", `Toutes (${matches.length})`],
+              ["won", `Victoires (${winsCount})`],
+              ["lost", `Défaites (${matches.length - winsCount})`],
+            ] as const
+          ).map(([id, label]) => (
+            <button
+              key={id}
+              data-nj-skin="none"
+              type="button"
+              role="tab"
+              aria-selected={filter === id}
+              className={`${styles.filterPill}${filter === id ? ` ${styles.filterActive}` : ""}`}
+              onClick={() => setFilter(id)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {/* ═══ CORPS (seule la liste défile) ═══ */}
+      <section className={styles.board} aria-label="Journal des manches">
+        {loading ? (
+          <div className={styles.emptyCard}>
+            <span className={styles.emptyEmblem}>
+              <NjamboIcon name="history" tone="pink" size={38} />
+            </span>
+            <p>Chargement du carnet de table…</p>
+          </div>
+        ) : matches.length === 0 ? (
+          <div className={styles.emptyCard}>
+            <div className={styles.emptyMarkWrap}>
+              <NjamboMark size={98} compact />
+              <span className={styles.emptyTrophyPin}>
+                <NjamboIcon name="trophy" tone="gold" size={24} />
+              </span>
+            </div>
+            <h2>Aucune manche enregistrée</h2>
+            <p>
+              Prends place à une table ! Chaque victoire, chaque Ngata ×2 et chaque pot remporté viendra enrichir ton palmarès.
+            </p>
+            <button
+              data-nj-skin="none"
+              type="button"
+              className={styles.playCta}
+              onClick={() => navigateTo("play")}
+            >
+              <NjamboIcon name="play" tone="gold" size={18} />
+              <span>Lancer une manche</span>
+            </button>
+          </div>
+        ) : filteredMatches.length === 0 ? (
+          <div className={styles.emptyCard}>
+            <h2>Aucune manche dans ce filtre</h2>
+            <p>Essaie un autre filtre pour revoir l&apos;ensemble de tes manches.</p>
+          </div>
+        ) : (
+          <div className={styles.ticketList}>
+            {filteredMatches.map((match, i) => (
+              <article
+                key={match.id}
+                className={`${styles.ticket} ${match.won ? styles.ticketWin : styles.ticketLoss}`}
+                style={getEntranceAnimationStyle(motion, i, { duration: 0.3, step: 0.04 })}
+              >
+                <span className={styles.ticketBadge}>
+                  <NjamboIcon
+                    name={match.won ? "trophy" : "history"}
+                    tone={match.won ? "gold" : "pink"}
+                    size={24}
+                  />
+                </span>
+
+                <div className={styles.ticketBody}>
+                  <div className={styles.ticketTop}>
+                    <strong className={styles.ticketOutcome}>
+                      {match.won ? "Victoire" : "Défaite"}
+                    </strong>
+                    <span className={`${styles.modeBadge} ${modeToneClass(match.mode)}`}>
+                      {modeLabel(match.mode)}
+                    </span>
+                    {match.doubles && (
+                      <span className={styles.ngataStamp}>NGATA ×2</span>
+                    )}
+                  </div>
+                  <div className={styles.ticketMeta}>
+                    <span>Gagnant : <b>{match.winnerName}</b></span>
+                    <span>·</span>
+                    <span>{new Date(match.createdAt).toLocaleDateString("fr-FR")}</span>
+                  </div>
+                </div>
+
+                <div className={`${styles.ticketDelta} ${match.gain >= 0 ? styles.deltaPos : styles.deltaNeg}`}>
+                  {match.gain >= 0 ? "+" : ""}
+                  {NKAP(match.gain)}
+                </div>
+              </article>
+            ))}
+          </div>
+        )}
+      </section>
+    </GameShell>
   );
 }

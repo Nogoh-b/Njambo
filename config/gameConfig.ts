@@ -25,22 +25,20 @@ export const GAME_CONFIG: GameConfig = {
   winnerPlaysLastNextRound: true,
   firstLeaderIndex: 0,
   anim: {
-    navigation: 250,
-    roundIntro: 1200,
-    dealPerCard: 80,
-    dealFlight: 420,
-    dropFlight: 380,
-    trickPause: 950,
-    moment: 1100,
-    powerMax: 1600,
-    landSettle: 140,
-    powerBeat: 500,
-    // Cadence du REPLAY serveur (AuthoritativeGameSync) : "réflexion" simulée
-    // avant chaque coup adverse d'un batch. Plus court que le bot local
-    // (le coup est déjà décidé). La deadline serveur inclut séparément tout
-    // le budget du replay avant les 15 secondes réellement jouables.
-    replayBotThinkMin: 700,
-    replayBotThinkMax: 1400,
+    navigation: 220,
+    roundIntro: 750,
+    dealPerCard: 65,
+    dealFlight: 380,
+    dropFlight: 340,
+    trickPause: 780,
+    moment: 950,
+    powerMax: 1500,
+    landSettle: 80,
+    powerBeat: 420,
+    // Cadence du REPLAY serveur (AuthoritativeGameSync) : réactive et naturelle
+    // tout en laissant chaque vol de carte clairement lisible.
+    replayBotThinkMin: 420,
+    replayBotThinkMax: 780,
   },
   economy: {
     dailyBonus: 500, // jetons offerts par réclamation

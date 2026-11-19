@@ -60,7 +60,7 @@ export function NotificationsScreen() {
   return (
     <BottomNavScene active="notifications" narrow>
         <div className="nj-phone">
-          <ScreenHeader title="Notifications" kicker="Activite" icon="notification" tone="pink" onBack={() => navigateTo("menu")} backLabel="Retour" />
+          <ScreenHeader title="Notifications" kicker="Activité" icon="notification" tone="pink" onBack={() => navigateTo("menu")} backLabel="Salon" />
           <Surface scrollable>
             <div className="nj-stack" style={{ gap: 10 }}>
               {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement...</div>}

@@ -3,7 +3,6 @@
 import { useId, type ReactNode } from "react";
 import Image from "next/image";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
-import { Btn } from "./Btn";
 import { GameShell } from "@/components/ui/GameShell";
 import type { GameTone } from "@/components/ui/GamePrimitives";
 import { HubReveal } from "@/components/ui/HubReveal";
@@ -23,20 +22,9 @@ interface PreGameLayoutProps {
   children: ReactNode;
   className?: string;
   contentClassName?: string;
-  /**
-   * Illustration de fond du bandeau de titre (typiquement l'art du mode dont
-   * on prépare une partie). Posée très en retrait derrière les dégradés
-   * existants : elle donne son image à l'écran sans coûter un pixel de hauteur.
-   */
   headerArt?: string;
-  /** Classe additionnelle sur `.page` — porte les jetons de l'écran. */
   pageClassName?: string;
-  /**
-   * Contraint la page à la hauteur du viewport : la chaîne devient
-   * rétractable et c'est à l'écran de désigner son absorbeur. Sans ce
-   * drapeau, la page grandit et déborde en défilement (comportement
-   * historique, conservé pour les autres écrans).
-   */
+  /** Par défaut true : verrouille l'écran dans 100dvh sans scroll global. */
   fit?: boolean;
 }
 
@@ -47,12 +35,6 @@ interface PreGameWorkspaceProps {
   className?: string;
   primaryClassName?: string;
   railClassName?: string;
-  /**
-   * Place le rail avant le contenu dans le DOM. Sur mobile, la configuration
-   * doit se lire avant la liste qu'elle filtre ; on déplace donc l'ordre
-   * source plutôt que d'utiliser `order`, qui désynchroniserait la tabulation
-   * de la lecture entre deux blocs tous deux interactifs (WCAG 2.4.3).
-   */
   railFirst?: boolean;
 }
 
@@ -75,8 +57,9 @@ function cx(...classes: Array<string | false | null | undefined>) {
 }
 
 /**
- * Cadre commun des étapes qui précèdent une partie. Il ne connaît ni mise,
- * ni salle, ni matchmaking : les écrans conservent entièrement leur logique.
+ * Cadre Salon Royal Vibrant des écrans de pré-partie (IA, En ligne, Amis, Lobby).
+ * Zéro dock bas, zéro scroll global : en-tête HUD compact, workspace borné
+ * (où seules les listes défilent) et barre CTA 3D fixée en bas.
  */
 export function PreGameLayout({
   title,
@@ -92,18 +75,17 @@ export function PreGameLayout({
   contentClassName,
   headerArt,
   pageClassName,
-  fit = false,
+  fit = true,
 }: PreGameLayoutProps) {
   const titleId = `pre-game-${useId().replaceAll(":", "")}`;
+  const displayBackLabel = backLabel === "Menu" ? "Salon" : backLabel;
 
   return (
-    /* Pas de dock : ces écrans sont des sous-menus ouverts depuis « Jouer »
-       et portent déjà leur bouton de retour. Le garder ferait doublon et
-       réserverait 64 px sur des mises en page déjà contraintes. */
     <GameShell
       active="play"
       dock={false}
-      className={cx(styles.scene, "nj-mboa-solar-hub", TONE_CLASS[tone], className)}
+      scroll={!fit}
+      className={cx(styles.scene, TONE_CLASS[tone], className)}
       contentClassName={styles.shellScroll}
     >
       <div className={cx(styles.page, fit && styles.fitPage, pageClassName)}>
@@ -119,22 +101,20 @@ export function PreGameLayout({
                 priority
               />
             )}
-            <Btn
-              tone={tone}
-              fill="outline"
-              motif="indigo-dots"
-              motifSides="both"
+            <button
+              data-nj-skin="none"
+              type="button"
               className={styles.backButton}
               onClick={onBack}
-              ariaLabel={backAriaLabel ?? `Retour à ${backLabel}`}
+              aria-label={backAriaLabel ?? `Retour à ${backLabel}`}
             >
               <span aria-hidden="true">←</span>
-              <span className={styles.backLabel}>{backLabel}</span>
-            </Btn>
+              <span className={styles.backLabel}>{displayBackLabel}</span>
+            </button>
 
             <div className={styles.identity}>
               <span className={styles.icon} aria-hidden="true">
-                <NjamboIcon name={icon} tone={tone} size={31} />
+                <NjamboIcon name={icon} tone={tone} size={23} />
               </span>
               <div className={styles.heading}>
                 {kicker !== undefined && <div className={styles.kicker}>{kicker}</div>}
@@ -159,7 +139,7 @@ export function PreGameLayout({
   );
 }
 
-/** Zone responsive : une colonne jusqu'au desktop, puis contenu + rail. */
+/** Zone responsive bornée : contenu + rail sans scroll global. */
 export function PreGameWorkspace({
   children,
   rail,
@@ -191,7 +171,7 @@ export function PreGameWorkspace({
   );
 }
 
-/** Barre d'actions commune, en flux puis collante au bas de la zone de contenu. */
+/** Barre d'actions 3D fixée en bas de l'écran de pré-partie. */
 export function PreGameFooter({
   children,
   status,

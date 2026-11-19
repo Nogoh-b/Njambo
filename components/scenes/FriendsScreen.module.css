@@ -1,82 +1,1410 @@
-.socialHub {
-  --social-green: var(--nj-nav-palm, #54a94f);
-}
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Le Village Social (Animé & Interactif · 100dvh)
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-.panel {
-  min-width: 0;
-  display: grid;
-  gap: 14px;
-  padding: clamp(14px, 4vw, 22px);
-  border: 1px solid color-mix(in srgb, var(--social-green) 28%, var(--nj-solar-outline, #e3cfa7));
-  border-radius: var(--nj-radius-lg, 22px);
-  background:
-    radial-gradient(circle at 92% 4%, rgba(228, 81, 69, 0.1), transparent 28%),
-    var(--nj-solar-surface, rgba(248, 239, 220, 0.96));
-  box-shadow: 0 16px 34px rgba(66, 50, 28, 0.18);
-}
-
-.tabs {
-  padding: 5px;
-  border: 1px solid rgba(84, 169, 79, 0.22);
-  border-radius: 16px;
-  background: rgba(214, 234, 215, 0.78);
-}
-
-.tabs > button {
-  flex: 1 1 0;
-}
-
-.search.search {
-  margin: 0;
-  color: var(--nj-solar-ink, #24372f);
-  border-color: rgba(25, 155, 104, 0.28);
-  background: var(--nj-solar-surface-strong, #fbf4e6);
-  box-shadow: inset 0 1px 0 white;
-}
-
-.search.search:focus {
-  border-color: var(--nj-solar-green, #199b68);
-  box-shadow: 0 0 0 4px rgba(25, 155, 104, 0.12);
-}
-
-.list {
+.socialShell {
+  position: relative;
+  width: min(100%, 840px);
+  height: 100%;
+  min-height: 0;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
   gap: 10px;
+  overflow: hidden;
+  isolation: isolate;
 }
 
-.socialHub :global(.nj-list-card) {
-  color: var(--nj-solar-ink, #24372f);
-  border-color: rgba(84, 169, 79, 0.2);
-  background: var(--nj-solar-surface, rgba(248, 239, 220, 0.96));
-  box-shadow: 0 9px 20px rgba(79, 63, 35, 0.11), inset 5px 0 0 color-mix(in srgb, var(--lc-tone) 68%, white);
+/* ── Ambiance Lustre & Lucioles Dorées ───────────────────────────────────── */
+
+.villageSpotlight {
+  position: fixed;
+  inset: -12% 0 auto 0;
+  height: 68vh;
+  z-index: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 60% 48% at 50% 18%, rgba(255, 212, 92, 0.14), rgba(34, 212, 148, 0.08) 46%, transparent 74%);
 }
 
-.socialHub :global(.nj-list-card.is-active) {
-  border-color: color-mix(in srgb, var(--lc-tone) 48%, #d8c49e);
-  background: linear-gradient(145deg, color-mix(in srgb, var(--lc-tone) 10%, var(--nj-solar-surface-strong, #fbf4e6)), var(--nj-solar-surface-strong, #fbf4e6));
-  box-shadow: 0 10px 24px rgba(79, 63, 35, 0.13), inset 5px 0 0 color-mix(in srgb, var(--lc-tone) 76%, white);
+.villageSparks {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
 }
 
-.socialHub :global(.nj-subtle) {
-  color: var(--nj-solar-muted, #66756d);
+.villageSparks span {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff0a8;
+  box-shadow: 0 0 12px 2px rgba(255, 207, 64, 0.55);
+  opacity: 0.35;
+  animation: villageSparkFloat 5.2s ease-in-out infinite;
 }
 
-.socialHub :global(.btn) {
-  color: var(--nj-solar-ink, #24372f);
-  border-color: rgba(25, 155, 104, 0.24);
-  border-image: none !important;
-  background: rgba(232, 246, 233, 0.94);
-  box-shadow: none;
+@keyframes villageSparkFloat {
+  0%, 100% { transform: translateY(0) scale(0.75); opacity: 0.2; }
+  50% { transform: translateY(-12px) scale(1.3); opacity: 0.85; }
 }
 
-.socialHub :global(.btn-gold),
-.socialHub :global(.btn-teal) {
-  color: white;
-  background: linear-gradient(145deg, #25aa76, var(--nj-solar-green-deep, #116345));
+/* ── TOP HUD SALON ROYAL ─────────────────────────────────────────────────── */
+
+.hud {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 20px;
+  border: 1.5px solid rgba(242, 187, 69, 0.38);
+  background:
+    radial-gradient(circle at 14% 50%, rgba(46, 224, 150, 0.16), transparent 50%),
+    radial-gradient(circle at 88% 50%, rgba(255, 207, 64, 0.14), transparent 52%),
+    linear-gradient(125deg, rgba(16, 46, 36, 0.95), rgba(10, 22, 18, 0.97) 58%, rgba(26, 17, 12, 0.96));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 202, 0.22),
+    0 4px 0 rgba(5, 16, 12, 0.9),
+    0 12px 26px rgba(0, 0, 0, 0.48);
 }
 
-.socialHub :global(.btn-pink) {
-  color: white;
-  border-color: rgba(228, 81, 69, 0.32);
-  background: linear-gradient(145deg, #f06c5f, var(--nj-solar-red-deep, #a92f2a));
+.backBtn {
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 13px;
+  border-radius: 13px;
+  border: 1.5px solid rgba(255, 214, 96, 0.38);
+  background: linear-gradient(180deg, rgba(44, 28, 18, 0.94), rgba(20, 12, 8, 0.98));
+  color: #fff6df;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(8, 5, 3, 0.85), inset 0 1px 0 rgba(255, 240, 194, 0.2);
+  transition: transform 0.14s ease, border-color 0.16s ease, filter 0.14s ease;
 }
 
+.backBtn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 218, 114, 0.72);
+  filter: brightness(1.08);
+}
+
+.backBtn:active {
+  transform: translateY(2px);
+}
+
+.backArrow {
+  color: #ffd86b;
+  font-size: 15px;
+  line-height: 1;
+}
+
+.hudCenter {
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+.hudKicker {
+  display: block;
+  font-size: 9.5px;
+  font-weight: 900;
+  letter-spacing: 0.2em;
+  color: #ffd86b;
+  text-transform: uppercase;
+}
+
+.hudTitle {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(17px, 2.8vw, 24px);
+  font-weight: 950;
+  background: linear-gradient(180deg, #fffdf2 0%, #f7e6bd 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.55));
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.hudRight {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.statusPill {
+  height: 36px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1.5px solid rgba(60, 224, 140, 0.48);
+  background: linear-gradient(180deg, rgba(16, 52, 38, 0.94), rgba(8, 26, 20, 0.97));
+  color: #e6fff2;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(4, 14, 10, 0.8), 0 4px 12px rgba(0, 0, 0, 0.34);
+  transition: transform 0.14s ease, border-color 0.16s ease, box-shadow 0.16s ease;
+}
+
+.statusPill:hover {
+  transform: translateY(-1px);
+  border-color: rgba(114, 248, 178, 0.82);
+}
+
+.statusPillActive {
+  border-color: #7df9b8;
+  box-shadow: 0 0 16px rgba(60, 224, 140, 0.36), 0 3px 0 rgba(4, 14, 10, 0.8);
+}
+
+.statusPill strong {
+  color: #7cf8b4;
+  font-variant-numeric: tabular-nums;
+}
+
+.statusLabel {
+  color: rgba(212, 246, 228, 0.8);
+  font-size: 11px;
+}
+
+.onlineDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #3ee48a;
+  box-shadow: 0 0 10px rgba(62, 228, 138, 0.95);
+}
+
+.onlineDotPulse {
+  animation: onlineBeacon 2s ease-in-out infinite;
+}
+
+@keyframes onlineBeacon {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(62, 228, 138, 0.7), 0 0 10px rgba(62, 228, 138, 0.9); }
+  50% { box-shadow: 0 0 0 5px rgba(62, 228, 138, 0), 0 0 12px rgba(62, 228, 138, 1); }
+}
+
+.msgQuickBtn {
+  position: relative;
+  width: 38px;
+  height: 38px;
+  border-radius: 13px;
+  border: 1.5px solid rgba(45, 232, 196, 0.44);
+  background: linear-gradient(180deg, rgba(16, 62, 54, 0.94), rgba(8, 30, 28, 0.98));
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: 0 3px 0 rgba(4, 16, 14, 0.85), inset 0 1px 0 rgba(178, 255, 240, 0.22);
+  transition: transform 0.14s ease, border-color 0.16s ease, filter 0.14s ease;
+}
+
+.msgQuickBtn:hover {
+  transform: translateY(-1px);
+  border-color: #6df9de;
+  filter: brightness(1.1);
+}
+
+.msgQuickBtn:active {
+  transform: translateY(2px);
+}
+
+.msgBadge {
+  position: absolute;
+  top: -5px;
+  right: -5px;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ff5f88, #d42050);
+  border: 1.5px solid #ffd5e0;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 950;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 8px rgba(255, 48, 102, 0.72);
+}
+
+/* ── 3 ONGLETS BIJOUX À PILULE COULISSANTE ───────────────────────────────── */
+
+.tabBar {
+  position: relative;
+  z-index: 3;
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+  padding: 5px;
+  border-radius: 17px;
+  border: 1.5px solid rgba(242, 187, 69, 0.26);
+  background: linear-gradient(180deg, rgba(12, 30, 24, 0.92), rgba(7, 17, 14, 0.96));
+  box-shadow: inset 0 2px 10px rgba(0, 0, 0, 0.48), 0 8px 18px rgba(0, 0, 0, 0.34);
+}
+
+.tabBtn {
+  position: relative;
+  height: 42px;
+  padding: 0 8px;
+  border-radius: 13px;
+  border: none;
+  background: transparent;
+  color: rgba(226, 238, 232, 0.8);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 900;
+  cursor: pointer;
+  overflow: hidden;
+  transition: color 0.16s ease, transform 0.12s ease;
+}
+
+.tabBtn:hover:not(.tabBtnActive) {
+  color: #fff8ea;
+}
+
+.tabBtn:active {
+  transform: scale(0.97);
+}
+
+.tabBtnActive {
+  color: #fffdf4;
+}
+
+.tabActiveBg {
+  position: absolute;
+  inset: 0;
+  border-radius: 12px;
+  z-index: 0;
+}
+
+.tabPillEmerald {
+  border: 1.5px solid rgba(154, 255, 198, 0.76);
+  background: linear-gradient(180deg, #27b96b 0%, #147743 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(220, 255, 236, 0.42),
+    0 4px 14px rgba(34, 196, 110, 0.34);
+}
+
+.tabPillRuby {
+  border: 1.5px solid rgba(255, 176, 198, 0.78);
+  background: linear-gradient(180deg, #ee4b78 0%, #b41c48 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 224, 234, 0.42),
+    0 4px 14px rgba(232, 56, 108, 0.36);
+}
+
+.tabPillTeal {
+  border: 1.5px solid rgba(154, 255, 238, 0.78);
+  background: linear-gradient(180deg, #1cc7aa 0%, #0e7c6d 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(214, 255, 248, 0.42),
+    0 4px 14px rgba(29, 214, 184, 0.34);
+}
+
+.tabInner {
+  position: relative;
+  z-index: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: 100%;
+}
+
+.tabLabel {
+  white-space: nowrap;
+}
+
+.tabCount {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  color: #fff6df;
+  font-size: 11px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  display: inline-grid;
+  place-items: center;
+}
+
+.tabAlert {
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: #ff2b60;
+  border: 1px solid #ffd4e0;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 950;
+  display: inline-grid;
+  place-items: center;
+  box-shadow: 0 0 12px rgba(255, 43, 96, 0.85);
+  animation: alertBounce 1.8s ease-in-out infinite;
+}
+
+@keyframes alertBounce {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+/* ── PANNEAU CENTRAL SALON ROYAL ─────────────────────────────────────────── */
+
+.board {
+  position: relative;
+  z-index: 2;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: clamp(11px, 2vw, 17px);
+  border-radius: 24px;
+  border: 1.5px solid rgba(242, 187, 69, 0.34);
+  background:
+    radial-gradient(ellipse 75% 40% at 50% 0%, rgba(255, 207, 64, 0.1), transparent 62%),
+    radial-gradient(ellipse 80% 56% at 88% 92%, rgba(30, 184, 134, 0.14), transparent 64%),
+    linear-gradient(170deg, rgba(16, 44, 34, 0.95) 0%, rgba(10, 24, 20, 0.97) 52%, rgba(18, 12, 10, 0.98) 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 244, 204, 0.18),
+    inset 0 -16px 32px rgba(0, 0, 0, 0.35),
+    0 18px 38px rgba(0, 0, 0, 0.52);
+  overflow: hidden;
+}
+
+.rivet {
+  position: absolute;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fff4c2, #d49b36 65%, #7c5112);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.65);
+  opacity: 0.68;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.rivetTl { top: 9px; left: 9px; }
+.rivetTr { top: 9px; right: 9px; }
+.rivetBl { bottom: 9px; left: 9px; }
+.rivetBr { bottom: 9px; right: 9px; }
+
+/* ── Barre contextuelle (filtres & Table privée) ─────────────────────────── */
+
+.contextBar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.filterGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.filterPill {
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 224, 148, 0.22);
+  background: rgba(6, 18, 15, 0.66);
+  color: rgba(220, 236, 228, 0.78);
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 850;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.13s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.filterPill span {
+  opacity: 0.75;
+  font-variant-numeric: tabular-nums;
+}
+
+.filterPill:hover {
+  border-color: rgba(255, 214, 96, 0.48);
+  color: #fff8ea;
+}
+
+.filterPillActive {
+  color: #ffe896;
+  border-color: rgba(255, 214, 96, 0.66);
+  background: linear-gradient(180deg, rgba(64, 44, 16, 0.85), rgba(34, 22, 8, 0.92));
+  box-shadow: 0 2px 10px rgba(242, 187, 69, 0.2);
+}
+
+.filterPillOnline {
+  color: #a6ffd0;
+  border-color: rgba(62, 228, 138, 0.72);
+  background: linear-gradient(180deg, rgba(16, 74, 48, 0.9), rgba(8, 40, 26, 0.95));
+  box-shadow: 0 2px 10px rgba(62, 228, 138, 0.24);
+}
+
+.filterPillRuby {
+  color: #ffd0dc;
+  border-color: rgba(255, 92, 132, 0.72);
+  background: linear-gradient(180deg, rgba(84, 22, 40, 0.9), rgba(46, 12, 22, 0.95));
+}
+
+.miniDot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3ee48a;
+  box-shadow: 0 0 8px rgba(62, 228, 138, 0.9);
+}
+
+.privateTableBtn {
+  position: relative;
+  height: 34px;
+  padding: 0 13px;
+  border-radius: 11px;
+  border: 1.5px solid #fff0b6;
+  background: linear-gradient(180deg, #ffe784 0%, #f0b536 55%, #c77e12 100%);
+  color: #291504;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow:
+    0 3px 0 #7a4806,
+    0 6px 14px rgba(242, 187, 69, 0.28),
+    inset 0 1px 0 rgba(255, 255, 238, 0.72);
+  transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.privateTableBtn:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+}
+
+.privateTableBtn:active {
+  transform: translateY(2px);
+}
+
+/* ── Recherche Joueurs + Filtre En ligne ─────────────────────────────────── */
+
+.searchRow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.searchWrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 12px;
+  pointer-events: none;
+  display: grid;
+  place-items: center;
+}
+
+.searchInput {
+  width: 100%;
+  height: 42px;
+  padding: 0 36px 0 38px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(45, 232, 196, 0.36);
+  background: rgba(5, 16, 14, 0.86);
+  color: #fff8ea;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  outline: none;
+  box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.48);
+  transition: border-color 0.18s ease, box-shadow 0.18s ease;
+}
+
+.searchInput::placeholder {
+  color: rgba(182, 214, 204, 0.62);
+}
+
+.searchInput:focus {
+  border-color: #2ee8c4;
+  box-shadow: 0 0 0 3px rgba(46, 232, 196, 0.2), inset 0 2px 8px rgba(0, 0, 0, 0.45);
+}
+
+.searchClear {
+  position: absolute;
+  right: 8px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff8ea;
+  font-size: 15px;
+  font-weight: 900;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+}
+
+.onlineToggle {
+  flex: 0 0 auto;
+  height: 42px;
+  padding: 0 12px;
+  border-radius: 14px;
+  border: 1.5px solid rgba(255, 224, 148, 0.24);
+  background: rgba(6, 18, 15, 0.82);
+  color: rgba(220, 238, 228, 0.8);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 850;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 0.13s ease, border-color 0.15s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.onlineToggle:hover {
+  border-color: rgba(62, 228, 138, 0.56);
+  color: #fff8ea;
+}
+
+.onlineToggleActive {
+  color: #b4ffd6;
+  border-color: #46e892;
+  background: linear-gradient(180deg, rgba(16, 76, 50, 0.92), rgba(8, 42, 28, 0.96));
+  box-shadow: 0 0 14px rgba(62, 228, 138, 0.26);
+}
+
+/* ── Toast flottant ──────────────────────────────────────────────────────── */
+
+.toast {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 13px;
+  font-size: 12.5px;
+  font-weight: 850;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.42);
+}
+
+.toastGold {
+  color: #fff4c8;
+  border: 1px solid rgba(255, 214, 96, 0.65);
+  background: linear-gradient(180deg, rgba(78, 50, 14, 0.94), rgba(44, 26, 6, 0.96));
+}
+
+.toastEmerald {
+  color: #c8ffea;
+  border: 1px solid rgba(62, 228, 152, 0.65);
+  background: linear-gradient(180deg, rgba(14, 76, 54, 0.94), rgba(8, 42, 30, 0.96));
+}
+
+.toastRuby {
+  color: #ffd4de;
+  border: 1px solid rgba(255, 96, 136, 0.62);
+  background: linear-gradient(180deg, rgba(88, 22, 42, 0.94), rgba(48, 12, 24, 0.96));
+}
+
+.toastIcon {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.16);
+  display: grid;
+  place-items: center;
+  font-size: 11.5px;
+  font-weight: 950;
+}
+
+/* ── Liste scrollable interne ────────────────────────────────────────────── */
+
+.listScroll {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 2px 3px 6px 1px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.44) transparent;
+}
+
+/* ═══ CARTES SOCIALES SALON ROYAL (Animées & Interactives) ═══ */
+
+.socialCard {
+  position: relative;
+  border-radius: 18px;
+  border: 1.5px solid rgba(242, 187, 69, 0.22);
+  background:
+    linear-gradient(150deg, rgba(36, 26, 20, 0.92) 0%, rgba(16, 22, 19, 0.95) 56%, rgba(11, 16, 14, 0.97) 100%);
+  box-shadow:
+    0 6px 16px rgba(0, 0, 0, 0.36),
+    inset 0 1px 0 rgba(255, 244, 202, 0.14);
+  overflow: hidden;
+  transition:
+    transform 0.18s cubic-bezier(0.22, 1, 0.36, 1),
+    border-color 0.2s ease,
+    box-shadow 0.2s ease;
+}
+
+/* Filet lumineux vertical signature sur le bord gauche */
+.socialCard::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3.5px;
+  border-radius: 0 4px 4px 0;
+  background: rgba(242, 187, 69, 0.45);
+  transition: background 0.2s ease, box-shadow 0.2s ease;
+}
+
+/* Reflet spéculaire subtil au survol */
+.socialCard::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(112deg, transparent 0 36%, rgba(255, 244, 204, 0.08) 50%, transparent 64%);
+  transform: translateX(-115%);
+  transition: transform 0.65s ease;
+  pointer-events: none;
+}
+
+.socialCard:hover {
+  transform: translateY(-2px);
+  border-color: rgba(255, 214, 96, 0.46);
+  box-shadow:
+    0 10px 24px rgba(0, 0, 0, 0.48),
+    0 0 18px rgba(242, 187, 69, 0.12),
+    inset 0 1px 0 rgba(255, 246, 210, 0.22);
+}
+
+.socialCard:hover::after {
+  transform: translateX(115%);
+}
+
+.cardOnline {
+  border-color: rgba(62, 228, 152, 0.4);
+  background:
+    radial-gradient(ellipse 52% 90% at 6% 50%, rgba(46, 224, 150, 0.16), transparent 64%),
+    linear-gradient(150deg, rgba(22, 46, 36, 0.94) 0%, rgba(12, 26, 22, 0.96) 56%, rgba(14, 16, 14, 0.98) 100%);
+}
+
+.cardOnline::before {
+  background: linear-gradient(180deg, #6df9b8, #1ec978);
+  box-shadow: 0 0 12px rgba(62, 228, 152, 0.72);
+}
+
+.cardIncoming {
+  border-color: rgba(255, 92, 132, 0.5);
+  background:
+    radial-gradient(ellipse 55% 90% at 8% 50%, rgba(255, 72, 118, 0.18), transparent 66%),
+    linear-gradient(150deg, rgba(48, 20, 28, 0.94) 0%, rgba(22, 14, 18, 0.97) 64%, rgba(14, 12, 13, 0.98) 100%);
+}
+
+.cardIncoming::before {
+  background: linear-gradient(180deg, #ff7a9e, #e0285a);
+  box-shadow: 0 0 12px rgba(255, 72, 118, 0.72);
+}
+
+.cardOutgoing {
+  border-color: rgba(242, 187, 69, 0.32);
+}
+
+.cardExpanded {
+  border-color: rgba(255, 214, 96, 0.62);
+  box-shadow:
+    0 12px 28px rgba(0, 0, 0, 0.52),
+    0 0 22px rgba(255, 207, 64, 0.16),
+    inset 0 1px 0 rgba(255, 246, 206, 0.24);
+}
+
+.cardMainRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 11px 10px 14px;
+}
+
+.cardIdentityBtn {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+/* ── Avatar Crest + Sonar En Ligne + Badge de Rang ── */
+
+.avatarFrame {
+  position: relative;
+  flex: 0 0 auto;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  padding: 1px;
+  background: radial-gradient(circle, rgba(242, 187, 69, 0.3), rgba(20, 14, 10, 0.8));
+}
+
+.avatarOnline {
+  box-shadow: 0 0 0 2px rgba(62, 228, 152, 0.55), 0 0 14px rgba(62, 228, 152, 0.3);
+}
+
+.avatarRuby {
+  box-shadow: 0 0 0 2px rgba(255, 92, 132, 0.62), 0 0 14px rgba(255, 72, 118, 0.34);
+}
+
+.avatarSonar {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(62, 228, 152, 0.65);
+  pointer-events: none;
+  animation: avatarSonarRing 2.6s ease-out infinite;
+}
+
+@keyframes avatarSonarRing {
+  0% { transform: scale(0.95); opacity: 0.8; }
+  100% { transform: scale(1.28); opacity: 0; }
+}
+
+.rankBadge {
+  position: absolute;
+  right: -5px;
+  top: -5px;
+  z-index: 3;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: radial-gradient(circle, #382514, #140e0a 76%);
+  border: 1.5px solid rgba(255, 214, 96, 0.76);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.6);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.rankBadge img {
+  width: 19px;
+  height: 19px;
+  object-fit: contain;
+}
+
+.identityBody {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.nameRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.playerName {
+  color: #fffaf0;
+  font-size: 14.5px;
+  font-weight: 900;
+  line-height: 1.18;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.presenceTag {
+  flex: 0 0 auto;
+  padding: 1.5px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 850;
+  color: rgba(196, 216, 208, 0.72);
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.presenceLive {
+  color: #9effcc;
+  background: rgba(24, 118, 76, 0.42);
+  border-color: rgba(62, 228, 152, 0.54);
+}
+
+.friendTag {
+  flex: 0 0 auto;
+  padding: 1.5px 7px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 900;
+  color: #a4ffd2;
+  background: rgba(20, 108, 68, 0.46);
+  border: 1px solid rgba(62, 228, 152, 0.56);
+}
+
+.metaStrip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.rankLabel {
+  color: rgba(232, 214, 174, 0.78);
+  font-size: 11.5px;
+  font-weight: 750;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 150px;
+}
+
+.crownChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(64, 44, 14, 0.65);
+  border: 1px solid rgba(255, 214, 96, 0.34);
+  color: #ffe582;
+  font-size: 10.5px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.statChip {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: rgba(16, 48, 40, 0.7);
+  border: 1px solid rgba(132, 214, 194, 0.24);
+  color: #bfe8dc;
+  font-size: 10.5px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.reqBadge {
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 900;
+}
+
+.reqBadgeIn {
+  color: #ffd0dc;
+  background: rgba(224, 40, 90, 0.32);
+  border: 1px solid rgba(255, 118, 154, 0.56);
+}
+
+.reqBadgeOut {
+  color: #ffe8a2;
+  background: rgba(164, 114, 24, 0.28);
+  border: 1px solid rgba(255, 214, 96, 0.42);
+}
+
+.timeText {
+  color: rgba(196, 216, 208, 0.66);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+/* ── BOUTONS D'ACTION 3D SUR LES CARTES ──────────────────────────────────── */
+
+.cardActions {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.actionBtn {
+  position: relative;
+  height: 36px;
+  padding: 0 11px;
+  border-radius: 12px;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  overflow: hidden;
+  white-space: nowrap;
+  transition:
+    transform 0.14s cubic-bezier(0.22, 1, 0.36, 1),
+    filter 0.14s ease,
+    box-shadow 0.16s ease,
+    border-color 0.16s ease;
+}
+
+.actionBtn:hover:not(:disabled) {
+  transform: translateY(-1.5px);
+  filter: brightness(1.08);
+}
+
+.actionBtn:active:not(:disabled) {
+  transform: translateY(1.5px) scale(0.96);
+}
+
+.actionBtn:disabled {
+  opacity: 0.62;
+  cursor: default;
+}
+
+.btnIconOnly {
+  width: 36px;
+  padding: 0;
+}
+
+.btnGlyph {
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+}
+
+/* Or fondu 3D (Inviter / Ajouter) */
+.btnGold {
+  color: #291504;
+  border: 1.5px solid #fff1b8;
+  background: linear-gradient(180deg, #ffe784 0%, #f1b83a 54%, #c98012 100%);
+  box-shadow:
+    0 3px 0 #7b4807,
+    0 6px 14px rgba(242, 187, 69, 0.26),
+    inset 0 1px 0 rgba(255, 255, 238, 0.72);
+}
+
+/* Message Turquoise-Émeraude 3D */
+.btnMsg {
+  color: #e6fff9;
+  border: 1.5px solid rgba(46, 232, 196, 0.5);
+  background: linear-gradient(180deg, rgba(20, 96, 82, 0.94), rgba(10, 52, 46, 0.97));
+  box-shadow:
+    0 3px 0 #062822,
+    0 5px 12px rgba(18, 178, 150, 0.2),
+    inset 0 1px 0 rgba(186, 255, 242, 0.24);
+}
+
+/* Accepter Émeraude Royal 3D */
+.btnAccept {
+  color: #042212;
+  border: 1.5px solid #b4ffd6;
+  background: linear-gradient(180deg, #62f4a2 0%, #24c66d 100%);
+  box-shadow:
+    0 3px 0 #0e6b38,
+    0 6px 14px rgba(42, 214, 120, 0.3),
+    inset 0 1px 0 rgba(232, 255, 242, 0.7);
+}
+
+/* Refuser / Inviter Rubis 3D */
+.btnReject,
+.btnRuby {
+  color: #fff4f7;
+  border: 1.5px solid rgba(255, 160, 184, 0.62);
+  background: linear-gradient(180deg, #e84470 0%, #ad1c46 100%);
+  box-shadow:
+    0 3px 0 #620c24,
+    0 6px 14px rgba(214, 38, 86, 0.28),
+    inset 0 1px 0 rgba(255, 218, 228, 0.36);
+}
+
+/* Annuler verre rubis discret */
+.btnCancel {
+  color: #ffb8ca;
+  border: 1.5px solid rgba(255, 114, 148, 0.46);
+  background: linear-gradient(180deg, rgba(64, 18, 30, 0.88), rgba(34, 10, 16, 0.94));
+  box-shadow: 0 3px 0 rgba(22, 6, 10, 0.85);
+}
+
+/* Confirmé / Invité */
+.btnDone {
+  color: #9fffe8;
+  border: 1.5px solid rgba(46, 228, 184, 0.56);
+  background: linear-gradient(180deg, rgba(16, 68, 56, 0.92), rgba(8, 36, 30, 0.96));
+  box-shadow: 0 2px 0 rgba(4, 20, 16, 0.85);
+}
+
+/* Verre acajou-laiton (Profil) */
+.btnGlass {
+  color: #f6eedc;
+  border: 1.5px solid rgba(242, 187, 69, 0.36);
+  background: linear-gradient(180deg, rgba(40, 28, 20, 0.94), rgba(18, 13, 10, 0.98));
+  box-shadow: 0 3px 0 rgba(6, 4, 3, 0.85), inset 0 1px 0 rgba(255, 240, 196, 0.16);
+}
+
+.sentPill {
+  height: 34px;
+  padding: 0 11px;
+  border-radius: 11px;
+  border: 1px solid rgba(255, 214, 96, 0.44);
+  background: rgba(66, 44, 14, 0.52);
+  color: #ffe89e;
+  font-size: 11.5px;
+  font-weight: 850;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+}
+
+.expandBtn {
+  width: 28px;
+  height: 34px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 224, 148, 0.18);
+  background: rgba(255, 255, 255, 0.05);
+  color: rgba(255, 232, 168, 0.78);
+  font-size: 13px;
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: transform 0.2s ease, background 0.15s ease, color 0.15s ease;
+}
+
+.expandBtn:hover {
+  background: rgba(255, 214, 96, 0.14);
+  color: #ffe896;
+}
+
+.expandBtnOpen {
+  transform: rotate(180deg);
+  background: rgba(255, 214, 96, 0.18);
+  color: #ffe896;
+}
+
+/* ── TIROIR INTERACTIF DÉPLIABLE DE LA CARTE ─────────────────────────────── */
+
+.cardDrawer {
+  overflow: hidden;
+  border-top: 1px solid rgba(255, 224, 148, 0.14);
+  background: rgba(6, 16, 13, 0.58);
+}
+
+.drawerInner {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 10px 14px 12px;
+}
+
+.drawerStats {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.drawerStatBox {
+  padding: 6px 8px;
+  border-radius: 11px;
+  background: rgba(16, 38, 30, 0.65);
+  border: 1px solid rgba(255, 224, 148, 0.16);
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.drawerStatBox small {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: rgba(196, 220, 212, 0.68);
+}
+
+.drawerStatBox strong {
+  font-size: 12.5px;
+  font-weight: 950;
+  color: #ffe896;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.winBarWrap {
+  padding: 0 2px;
+}
+
+.winBarTrack {
+  height: 5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  overflow: hidden;
+}
+
+.winBarFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #24c66d, #ffd86b);
+  box-shadow: 0 0 10px rgba(255, 216, 107, 0.55);
+}
+
+.drawerBtns {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 7px;
+}
+
+.drawerBtn {
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 11px;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.drawerBtn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  filter: brightness(1.08);
+}
+
+.drawerBtn:active:not(:disabled) {
+  transform: translateY(1.5px);
+}
+
+/* ── ÉTATS VIDES ANIMÉS ──────────────────────────────────────────────────── */
+
+.emptyCard {
+  margin: auto;
+  max-width: 360px;
+  padding: 26px 20px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 11px;
+}
+
+.emptyBadge {
+  width: 82px;
+  height: 82px;
+  border-radius: 26px;
+  display: grid;
+  place-items: center;
+  animation: emptyFloat 3.4s ease-in-out infinite;
+}
+
+@keyframes emptyFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+.emptyEmerald {
+  border: 2px solid rgba(62, 228, 152, 0.6);
+  background: radial-gradient(circle at 35% 28%, rgba(62, 228, 152, 0.3), rgba(10, 28, 20, 0.94) 74%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 28px rgba(62, 228, 152, 0.24);
+}
+
+.emptyRuby {
+  border: 2px solid rgba(255, 86, 130, 0.6);
+  background: radial-gradient(circle at 35% 28%, rgba(255, 86, 130, 0.3), rgba(30, 10, 18, 0.94) 74%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 28px rgba(255, 86, 130, 0.24);
+}
+
+.emptyTeal {
+  border: 2px solid rgba(46, 232, 196, 0.6);
+  background: radial-gradient(circle at 35% 28%, rgba(46, 232, 196, 0.3), rgba(10, 28, 26, 0.94) 74%);
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.45), 0 0 28px rgba(46, 232, 196, 0.24);
+}
+
+.emptyCard h2 {
+  margin: 4px 0 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 20px;
+  color: #fff8ea;
+}
+
+.emptyCard p {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.48;
+  color: #b7d4c8;
+}
+
+.emptyCta {
+  position: relative;
+  margin-top: 6px;
+  height: 44px;
+  padding: 0 22px;
+  border-radius: 14px;
+  border: 1.5px solid #fff2b6;
+  background: linear-gradient(180deg, #ffe98a 0%, #f1b738 56%, #c87f12 100%);
+  color: #291504;
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 950;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  overflow: hidden;
+  box-shadow:
+    0 4px 0 #7b4807,
+    0 10px 22px rgba(0, 0, 0, 0.42),
+    0 0 18px rgba(255, 207, 64, 0.26),
+    inset 0 1px 0 rgba(255, 255, 240, 0.72);
+  transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.emptyCta::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 0 36%, rgba(255, 255, 245, 0.46) 50%, transparent 64%);
+  transform: translateX(-115%);
+  animation: villageCtaSheen 3.8s 0.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes villageCtaSheen {
+  0%, 62% { transform: translateX(-115%); }
+  100% { transform: translateX(120%); }
+}
+
+.emptyCta:hover {
+  filter: brightness(1.06);
+  transform: translateY(-1.5px);
+}
+
+.emptyCta:active {
+  transform: translateY(2px);
+}
+
+/* ── RESPONSIVE MOBILE PORTRAIT ──────────────────────────────────────────── */
+
+@media (max-width: 560px) {
+  .statusLabel {
+    display: none;
+  }
+
+  .hud {
+    padding: 7px 8px;
+    gap: 7px;
+  }
+
+  .backBtn {
+    padding: 0 10px;
+    font-size: 12px;
+  }
+
+  .tabBtn {
+    font-size: 11.5px;
+    padding: 0 4px;
+  }
+
+  .tabInner {
+    gap: 4px;
+  }
+
+  .cardMainRow {
+    padding: 9px 9px 9px 12px;
+    gap: 8px;
+  }
+
+  .btnText {
+    display: none;
+  }
+
+  .actionBtn {
+    height: 34px;
+    padding: 0 9px;
+    font-size: 11.5px;
+  }
+
+  .btnIconOnly {
+    width: 34px;
+    padding: 0;
+  }
+
+  .drawerBtns {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .drawerBtns > :last-child {
+    grid-column: 1 / -1;
+  }
+
+  .onlineToggle {
+    padding: 0 10px;
+    font-size: 11px;
+    gap: 5px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .villageSparks,
+  .avatarSonar,
+  .emptyCta::after {
+    display: none;
+  }
+
+  .onlineDotPulse,
+  .tabAlert,
+  .emptyBadge {
+    animation: none !important;
+  }
+}

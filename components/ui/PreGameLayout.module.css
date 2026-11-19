@@ -1,344 +1,231 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — PreGameLayout (100dvh · Zéro Dock · Zéro Scroll global)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
 .scene {
-  --pre-game-accent: var(--nj-solar-yellow, #f5c344);
-  --pre-game-accent-rgb: 245, 195, 68;
-  /* Bascule solar clair (miroir de GameHubLayout) : les primitives enfants
-     (Surface, Btn, nj-list-card, nj-input) suivent ces tokens. */
-  --nj-text: var(--nj-solar-ink, #24372f);
-  --nj-text-muted: var(--nj-solar-muted, #66756d);
-  --nj-surface: var(--nj-solar-surface, rgba(242, 226, 193, 0.96));
-  --nj-surface-soft: #e2cfa9;
-  --nj-surface-strong: var(--nj-solar-surface-strong, #f7ead0);
-  --nj-border-soft: rgba(118, 80, 51, 0.24);
-  --nj-shadow-card: 0 12px 26px rgba(35, 31, 18, 0.24);
-  --nj-gold: var(--nj-solar-yellow, #f5c344);
-  --nj-teal: var(--nj-solar-green, #199b68);
-  --nj-pink: var(--nj-solar-red, #e45145);
-  --nj-cobalt: #4d78c9;
-  /* Dans les menus de choix, le composant partagé reprend exactement les
-     couleurs des cartes de l'accueil, pas son ancienne palette néon. */
-  --nj-tone-gold: var(--nj-solar-yellow, #f5c344);
-  --nj-tone-teal: var(--nj-solar-green, #199b68);
-  --nj-tone-pink: var(--nj-solar-red, #e45145);
-  --nj-tone-cobalt: #4d78c9;
-  --gold: var(--nj-solar-yellow, #f5c344);
-  --teal: var(--nj-solar-green, #199b68);
-  --pink: var(--nj-solar-red, #e45145);
-  --text: var(--nj-solar-ink, #24372f);
-  --brass: var(--pre-game-accent);
-  --panel-edge: color-mix(in srgb, var(--pre-game-accent) 24%, #d8c49e);
-  --panel-grain: var(--nj-solar-surface-strong, #f7ead0);
+  --pre-game-accent: var(--sr-gold, #ffcf40);
+  --pre-game-accent-rgb: 255, 207, 64;
+  color: var(--sr-ivory, #fff8ea);
   isolation: isolate;
 }
 
-.scene :global(.nj-input) {
-  color: var(--nj-solar-ink, #24372f);
-  border-color: color-mix(in srgb, var(--pre-game-accent) 38%, var(--nj-solar-outline, #b88e54));
-  background: rgba(255, 253, 246, 0.9);
-  box-shadow: inset 0 1px 0 white;
-}
-
-.scene :global(.nj-input)::placeholder {
-  color: color-mix(in srgb, var(--nj-solar-muted, #66756d) 74%, transparent);
-}
-
-.scene :global(.nj-input):focus {
-  border-color: color-mix(in srgb, var(--pre-game-accent) 72%, var(--nj-solar-outline, #b88e54));
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--pre-game-accent) 18%, transparent), inset 0 1px 0 white;
-}
-
-.scene::before {
-  content: "";
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(circle at 88% 4%, rgba(var(--pre-game-accent-rgb), 0.15), transparent 30%),
-    linear-gradient(148deg, rgba(var(--pre-game-accent-rgb), 0.045), transparent 46%);
-}
-
-.toneGold {
-  --pre-game-accent: var(--nj-solar-yellow, #f5c344);
-  --pre-game-accent-rgb: 245, 195, 68;
-}
-
-.toneTeal {
-  --pre-game-accent: var(--nj-solar-green, #199b68);
-  --pre-game-accent-rgb: 25, 155, 104;
-}
-
-.tonePink {
-  --pre-game-accent: var(--nj-solar-red, #e45145);
-  --pre-game-accent-rgb: 228, 81, 69;
-}
-
-.toneCobalt {
-  --pre-game-accent: #4d78c9;
-  --pre-game-accent-rgb: 77, 120, 201;
-}
+.toneGold { --pre-game-accent: var(--sr-gold, #ffcf40); --pre-game-accent-rgb: 255, 207, 64; }
+.toneTeal { --pre-game-accent: var(--sr-teal, #1de4be); --pre-game-accent-rgb: 29, 228, 190; }
+.tonePink { --pre-game-accent: var(--sr-pink, #ff4772); --pre-game-accent-rgb: 255, 71, 114; }
+.toneCobalt { --pre-game-accent: var(--sr-cobalt, #4b8eff); --pre-game-accent-rgb: 75, 142, 255; }
 
 .shellScroll {
   width: 100%;
-  scrollbar-gutter: stable;
+  height: 100%;
+  min-height: 0;
 }
 
 .page {
   width: 100%;
-  min-height: 100%;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--nj-layout-section-gap);
-  padding-bottom: 2px;
+  gap: 10px;
 }
 
-.headerReveal,
-.contentReveal {
+.fitPage {
+  overflow: hidden;
+}
+
+.headerReveal {
+  flex: 0 0 auto;
   min-width: 0;
 }
 
 .contentReveal {
-  flex: 1 0 auto;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
+/* ═══ HUD HAUT COMPACT ═══ */
 .header {
   position: relative;
   min-width: 0;
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  display: flex;
   align-items: center;
-  gap: clamp(10px, 2.5vw, 16px);
-  padding: clamp(11px, 2vw, 16px);
+  gap: 10px;
+  padding: 7px 10px;
   overflow: hidden;
-  /* Contexte d'empilement propre : sans lui, `.headerArt` (z-index -1)
-     passerait derrière le fond opaque du bandeau et resterait invisible. */
   isolation: isolate;
-  border: 1px solid color-mix(in srgb, var(--pre-game-accent) 34%, var(--panel-edge));
-  border-radius: var(--nj-radius-lg, 22px);
+  border-radius: 18px;
+  border: 1.5px solid color-mix(in srgb, var(--pre-game-accent) 46%, rgba(255, 212, 92, 0.34));
   background:
-    linear-gradient(112deg, rgba(var(--pre-game-accent-rgb), 0.12), transparent 42%),
-    var(--panel-grain);
-  box-shadow: var(--nj-shadow-low, 0 10px 24px rgba(0, 0, 0, 0.28));
+    radial-gradient(circle at 14% 50%, rgba(var(--pre-game-accent-rgb), 0.2), transparent 48%),
+    linear-gradient(120deg, rgba(54, 30, 19, 0.94), rgba(18, 13, 11, 0.95));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.22),
+    0 4px 0 #090604,
+    0 10px 22px rgba(0, 0, 0, 0.38);
 }
 
-.header::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 2px;
-  pointer-events: none;
-  background: linear-gradient(90deg, transparent, var(--pre-game-accent), transparent);
-  opacity: 0.68;
-}
-
-/* Illustration du mode, très en retrait derrière les dégradés du bandeau.
-   `isolation: isolate` sur `.scene` borne le z-index négatif au bandeau. */
 .headerArt {
   z-index: -1;
   object-fit: cover;
-  object-position: 72% center;
-  opacity: 0.17;
+  object-position: 78% center;
+  opacity: 0.22;
   pointer-events: none;
   user-select: none;
 }
 
-@media (prefers-reduced-transparency: reduce) {
-  .headerArt { opacity: 0.08; }
-}
-
 .backButton {
-  min-width: var(--nj-touch-target);
-  min-height: var(--nj-touch-target);
+  flex: 0 0 auto;
+  height: 38px;
+  padding: 0 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 7px;
-  padding: 0 12px;
-  border-radius: var(--nj-radius-md, 16px);
-  font: inherit;
+  gap: 6px;
+  border-radius: 12px;
+  border: 1.5px solid #ffe89e;
+  color: #241203;
+  background: linear-gradient(180deg, #ffe06b 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.65),
+    0 3px 0 #703903;
+  font-family: var(--font-display), sans-serif;
   font-size: 13px;
-  font-weight: 850;
+  font-weight: 900;
   cursor: pointer;
-  touch-action: manipulation;
-  transition:
-    transform var(--nj-motion-press) ease,
-    border-color var(--nj-motion-interaction) ease,
-    background var(--nj-motion-interaction) ease;
+  transition: transform 105ms ease, filter 150ms ease;
+}
+
+.backButton:hover {
+  filter: brightness(1.08);
+  transform: translateY(-1px);
 }
 
 .backButton:active {
-  transform: scale(0.985);
+  transform: translateY(2px);
 }
 
 .backLabel {
-  display: none;
+  line-height: 1;
 }
 
 .identity {
   min-width: 0;
+  flex: 1 1 auto;
   display: flex;
   align-items: center;
-  gap: clamp(10px, 2vw, 14px);
+  gap: 9px;
 }
 
 .icon {
-  width: clamp(48px, 8vw, 58px);
-  height: clamp(48px, 8vw, 58px);
-  display: grid;
   flex: 0 0 auto;
+  width: 38px;
+  height: 38px;
+  display: grid;
   place-items: center;
-  border: 1px solid color-mix(in srgb, var(--pre-game-accent) 56%, transparent);
-  border-radius: var(--nj-radius-md, 16px);
-  background:
-    radial-gradient(circle at 32% 24%, rgba(255, 255, 255, 0.6), transparent 58%),
-    linear-gradient(150deg, color-mix(in srgb, var(--pre-game-accent) 28%, white), rgba(255, 253, 246, 0.92));
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7), 0 8px 18px rgba(35, 31, 18, 0.18);
+  border-radius: 12px;
+  border: 1px solid rgba(var(--pre-game-accent-rgb), 0.56);
+  background: radial-gradient(circle at 50% 25%, rgba(var(--pre-game-accent-rgb), 0.34), rgba(14, 11, 10, 0.92));
 }
 
 .heading {
   min-width: 0;
   display: grid;
-  gap: 4px;
+  gap: 1px;
 }
 
 .kicker {
   color: var(--pre-game-accent);
-  font-size: 0.68rem;
-  font-weight: 850;
-  line-height: 1.1;
-  letter-spacing: 0.13em;
+  font-size: 9.5px;
+  font-weight: 900;
+  line-height: 1;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
 }
 
 .heading h1 {
-  max-width: 22ch;
   margin: 0;
-  color: var(--nj-text, var(--text, #fff4df));
-  font-family: var(--nj-font-display, var(--font-display)), sans-serif;
-  font-size: clamp(1.55rem, 6vw, 2.35rem);
-  font-weight: 800;
-  line-height: 1;
-  letter-spacing: -0.025em;
-  text-wrap: balance;
+  color: #fffaf0;
+  font-family: var(--font-display), sans-serif;
+  font-size: clamp(16px, 4vw, 22px);
+  font-weight: 850;
+  line-height: 1.06;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .heading p {
-  max-width: 60ch;
-  margin: 0;
-  color: var(--nj-text-muted, rgba(255, 244, 223, 0.66));
-  font-size: clamp(0.78rem, 2.3vw, 0.9rem);
-  line-height: 1.4;
-  text-wrap: pretty;
+  display: none;
+  margin: 2px 0 0;
+  color: var(--sr-muted, #b0cdc2);
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
+/* ═══ CONTENU & WORKSPACE BORNÉS ═══ */
 .content {
-  min-height: 100%;
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: var(--nj-layout-gap);
+  gap: 10px;
+  overflow: hidden;
 }
 
 .workspace {
+  flex: 1 1 auto;
+  min-height: 0;
   min-width: 0;
-  display: grid;
-  flex: 1 0 auto;
-  gap: var(--nj-layout-gap);
-  align-items: start;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow: hidden;
 }
 
-/* ─────────────────────────────────────────────────────────────
-   Mise en page contrainte (opt-in) — `fitPage` sur `.page`.
-
-   Par défaut la chaîne est en `flex: 1 0 auto` : rien ne peut rendre de
-   place, et `.page` n'a qu'un `min-height`, donc aucun élément n'est
-   désigné pour absorber le reste — tout excédent devient du défilement.
-   Les règles ci-dessous donnent une hauteur définie à `.page` puis
-   rendent la chaîne rétractable, à charge pour l'écran de désigner son
-   absorbeur. Les écrans qui ne posent pas `fitPage` sont inchangés.
-   ───────────────────────────────────────────────────────────── */
-.fitPage {
-  height: 100%;
-}
-
-.fitPage .headerReveal {
-  flex: 0 0 auto;
-}
-
-.fitPage .contentReveal {
-  min-height: 0;
+.primary {
   flex: 1 1 auto;
-}
-
-.fitPage .content {
-  height: 100%;
   min-height: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.42) transparent;
 }
 
-/* `.workspace` est une grille : ses enfants sont des items de grille, pas
-   des items flex. C'est donc le gabarit de lignes qui désigne l'absorbeur —
-   le rail (configuration) se dimensionne sur son contenu, `.primary` prend
-   tout le reste. Suppose `railFirst` : le rail occupe la première ligne. */
-.fitPage .workspace {
-  min-height: 0;
-  flex: 1 1 auto;
-  grid-template-rows: auto minmax(0, 1fr);
-  align-items: stretch;
-}
-
-.fitPage .primary,
-.fitPage .rail {
-  min-height: 0;
-}
-
-.fitPage .footer {
-  flex: 0 0 auto;
-}
-
-/* Écrans courts : le chrome (bandeau, pied) se resserre en premier, avant
-   que le contenu utile n'ait à céder quoi que ce soit. */
-@media (max-height: 700px) {
-  .fitPage .header {
-    padding-block: 7px;
-  }
-
-  .fitPage .icon {
-    width: 38px;
-    height: 38px;
-  }
-
-  .fitPage .heading h1 {
-    font-size: clamp(1.3rem, 5vw, 1.7rem);
-  }
-
-  .fitPage .footer {
-    padding-block: 6px;
-  }
-}
-
-.primary,
 .rail {
+  flex: 0 0 auto;
   min-width: 0;
-  display: grid;
-  gap: var(--nj-layout-gap);
-  align-content: start;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 }
 
+/* ═══ BARRE CTA BASSE FIXE ═══ */
 .footer {
-  position: sticky;
-  bottom: 0;
-  z-index: 12;
-  display: grid;
-  gap: 8px;
-  margin-top: auto;
-  padding: 10px;
-  border: 1px solid color-mix(in srgb, var(--pre-game-accent) 32%, var(--panel-edge));
-  border-radius: var(--nj-radius-lg, 22px);
+  flex: 0 0 auto;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 9px 11px;
+  border-radius: 18px;
+  border: 1.5px solid color-mix(in srgb, var(--pre-game-accent) 44%, rgba(255, 212, 92, 0.34));
   background:
-    linear-gradient(145deg, rgba(var(--pre-game-accent-rgb), 0.12), transparent 45%),
-    var(--nj-solar-surface-strong, #f7ead0);
-  box-shadow: 0 -12px 28px rgba(35, 31, 18, 0.18), inset 0 1px 0 rgba(255, 250, 232, 0.6);
-  backdrop-filter: blur(18px);
+    radial-gradient(ellipse 80% 70% at 50% 0%, rgba(var(--pre-game-accent-rgb), 0.16), transparent 64%),
+    linear-gradient(175deg, rgba(42, 26, 18, 0.96), rgba(16, 12, 10, 0.98));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 248, 224, 0.2),
+    0 -6px 22px rgba(0, 0, 0, 0.34);
 }
 
 .footerStatus {
@@ -348,133 +235,39 @@
 .footerActions {
   min-width: 0;
   display: flex;
-  align-items: stretch;
-  gap: 10px;
+  align-items: center;
+  gap: 8px;
 }
 
-.footerActions > * {
-  min-width: 0;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .backButton:hover {
-    transform: translateY(-1px);
-  }
-}
-
-@media (max-width: 599px) {
-  .header {
-    align-items: start;
-  }
-
-  .backButton {
-    width: var(--nj-touch-target);
-    padding-inline: 0;
-  }
-
-  .heading p {
-    display: none;
-  }
-
-  .footerActions {
-    flex-wrap: wrap;
-  }
-
-  .footerActions > * {
-    flex: 1 1 132px;
-  }
-}
-
-@media (min-width: 600px) {
-  .backLabel {
-    display: inline;
-  }
-
-  .header {
-    padding-inline: 18px;
-  }
-}
-
-@media (min-width: 960px) {
-  .hasRail {
-    grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
-  }
-
-  .hasRail .primary {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .hasRail .rail {
-    position: sticky;
-    top: 0;
-    grid-column: 2;
-    grid-row: 1;
-    order: 0;
-  }
-
-  /* Deux colonnes, une seule ligne : le gabarit à deux lignes du mode
-     contraint laisserait une piste `1fr` vide sous le contenu. */
-  .fitPage .hasRail {
-    grid-template-rows: minmax(0, 1fr);
-  }
-
-  .footer {
-    padding: 11px 12px;
-  }
-}
-
-@media (orientation: landscape) and (max-height: 620px) {
-  .page {
-    gap: 12px;
-  }
-
-  .header {
-    padding-block: 8px;
-  }
-
+@media (max-width: 480px) {
+  .backLabel,
   .icon {
-    width: 46px;
-    height: 46px;
-  }
-
-  .heading p {
     display: none;
   }
 
-  .footer {
-    position: static;
-  }
-}
-
-/* Paysage large : deux colonnes, mais c'est la CONFIGURATION qui reçoit la
-   part large. Un rail étroit l'obligerait à empiler ses deux groupes de
-   choix et à manger toute la hauteur, pendant que la colonne principale —
-   qui ne porte qu'une bande de salles — gaspillerait sa largeur. */
-@media (orientation: landscape) and (max-height: 620px) and (min-width: 720px) {
-  .fitPage .hasRail {
-    grid-template-columns: minmax(0, 1fr) minmax(340px, 430px);
-    grid-template-rows: minmax(0, 1fr);
-  }
-
-  .fitPage .hasRail .primary {
-    grid-column: 1;
-    grid-row: 1;
-  }
-
-  .fitPage .hasRail .rail {
-    grid-column: 2;
-    grid-row: 1;
-  }
-}
-
-@media (prefers-reduced-motion: reduce) {
   .backButton {
-    transition: none;
+    width: 38px;
+    padding: 0;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 880px) {
+  .heading p {
+    display: block;
   }
 
-  .backButton:hover,
-  .backButton:active {
-    transform: none;
+  .hasRail {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(290px, 360px);
+    gap: 14px;
+    align-items: stretch;
+  }
+
+  .rail {
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 207, 64, 0.42) transparent;
   }
 }

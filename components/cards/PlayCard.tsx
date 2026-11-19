@@ -76,6 +76,12 @@ const CORNER_BASE_STYLE: CSSProperties = {
   lineHeight: 0.85,
 };
 
+export interface DealOrigin {
+  dx: number;
+  dy: number;
+  scale: number;
+}
+
 export interface PlayCardProps {
   card?: Card;
   hidden?: boolean;
@@ -86,6 +92,8 @@ export interface PlayCardProps {
   glow?: boolean;
   onClick?: () => void;
   dealDelay?: number | null;
+  /** Vecteur local (pioche → emplacement carte) mesuré pour la donne. */
+  dealOrigin?: DealOrigin | null;
 }
 
 export const PlayCard = memo(function PlayCard({
@@ -98,11 +106,22 @@ export const PlayCard = memo(function PlayCard({
   glow,
   onClick,
   dealDelay,
+  dealOrigin,
 }: PlayCardProps) {
   const h = w * 1.45;
   const anim: CSSProperties =
     dealDelay != null
-      ? { animation: `dealFly ${GAME_CONFIG.anim.dealFlight}ms ${dealDelay}ms cubic-bezier(.22,.85,.3,1) both` }
+      ? {
+          animation: `dealFly ${GAME_CONFIG.anim.dealFlight}ms ${dealDelay}ms cubic-bezier(.2,.86,.26,1) both`,
+          willChange: "transform, opacity",
+          ...(dealOrigin
+            ? {
+                ["--deal-dx" as string]: `${Math.round(dealOrigin.dx)}px`,
+                ["--deal-dy" as string]: `${Math.round(dealOrigin.dy)}px`,
+                ["--deal-scale" as string]: dealOrigin.scale.toFixed(3),
+              }
+            : {}),
+        }
       : {};
 
   const base: CSSProperties = {

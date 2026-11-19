@@ -3,23 +3,16 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
 import { T } from "@/config/theme";
+import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
-import type { PowerCardDef, PowerCategory, PowerRarity } from "@/types/game";
+import type { PowerCardDef, PowerRarity } from "@/types/game";
+import styles from "./PowerCardView.module.css";
 
-const CATEGORY_LABEL: Record<PowerCategory, string> = {
-  offensive: "Offensive",
-  defense: "Défense",
-  score: "Score",
-  tactical: "Tactique",
-  perturbation: "Perturbation",
-  economy: "Économie",
-};
-
-const RARITY_LABEL: Record<PowerRarity, string> = {
-  common: "Commune",
-  rare: "Rare",
-  epic: "Épique",
-  legendary: "Légendaire",
+const RARITY_INFO: Record<PowerRarity, { label: string; className: string }> = {
+  common: { label: "Commune", className: "rCommon" },
+  rare: { label: "Rare", className: "rRare" },
+  epic: { label: "Épique", className: "rEpic" },
+  legendary: { label: "Légendaire", className: "rLegendary" },
 };
 
 export function cardToneColor(tone: string): string {
@@ -45,41 +38,63 @@ export function PowerCardView({
   compact = false,
   showMeta = true,
   className,
-  surface = "default",
 }: PowerCardViewProps) {
-  const tone = cardToneColor(card.tone);
+  const pal = CATEGORY_MOTIF_PALETTE[card.category];
+  const rarity = RARITY_INFO[card.rarity];
+
   return (
     <div
       className={[
-        "nj-power-card-view",
-        `nj-power-card-${card.rarity}`,
-        selected ? "is-selected" : "",
-        disabled ? "is-disabled" : "",
-        compact ? "is-compact" : "",
-        surface === "solar" ? "is-solar" : "",
+        styles.card,
+        styles[rarity.className],
+        compact ? styles.compact : "",
+        selected ? styles.selected : "",
+        disabled ? styles.disabled : "",
         className ?? "",
-      ].filter(Boolean).join(" ")}
-      style={{ "--power-tone": tone } as CSSProperties}
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      style={
+        {
+          "--c-primary": pal.primary,
+          "--c-secondary": pal.secondary,
+          "--c-glow": pal.glow,
+          "--c-top": pal.clothTop,
+          "--c-bot": pal.clothBot,
+        } as CSSProperties
+      }
     >
-      <div className="nj-power-card-art" aria-hidden="true">
-        <Image src={card.art} alt="" fill sizes={compact ? "56px" : "84px"} />
-        <span className="nj-power-card-sheen" />
+      {/* Artwork fondu organiquement dans la carte */}
+      <div className={styles.artMask} aria-hidden="true">
+        <Image
+          src={card.art}
+          alt=""
+          fill
+          sizes={compact ? "80px" : "190px"}
+          className={styles.artImg}
+        />
       </div>
-      <div className="nj-power-card-body">
-        <div className="nj-power-card-topline">
-          <span className="nj-power-card-icon">
-            <NjamboIcon name={card.icon as NjamboIconName} tone={card.tone} size={compact ? 16 : 18} />
+
+      {/* Grand motif Ndop coloré selon le type + grand blason & architecture selon la rareté */}
+      <PowerCardMotif category={card.category} rarity={card.rarity} className={styles.motifSvg} />
+      {!compact && <span className={styles.sheen} aria-hidden="true" />}
+
+      {/* Haut de carte épuré : laisse le grand blason central libre */}
+      <div className={styles.topRow}>
+        {qty !== undefined && qty > 0 && <span className={styles.qtyBadge}>×{qty}</span>}
+      </div>
+
+      {/* Bas de carte flottant sur le motif */}
+      <div className={styles.bottomInfo}>
+        <span className={styles.iconHalo} aria-hidden="true">
+          <NjamboIcon name={card.icon as NjamboIconName} tone={card.tone} size={compact ? 11 : 16} />
+        </span>
+        {!compact && (
+          <span className={styles.typeLabel}>
+            {pal.label}{showMeta ? ` · ${rarity.label}` : ""}
           </span>
-          {qty !== undefined && qty > 0 && <span className="nj-power-card-qty">×{qty}</span>}
-        </div>
-        <strong>{card.name}</strong>
-        {!compact && <p>{card.description}</p>}
-        {showMeta && !compact && (
-          <div className="nj-power-card-meta">
-            <span>{CATEGORY_LABEL[card.category]}</span>
-            <span>{RARITY_LABEL[card.rarity]}</span>
-          </div>
         )}
+        <strong className={styles.title}>{card.name}</strong>
       </div>
     </div>
   );
