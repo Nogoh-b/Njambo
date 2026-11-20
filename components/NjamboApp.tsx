@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { MOTION_DURATION_MS, MotionProfileProvider, reducedSceneVariants, sceneVariants, useMotionProfile } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
+import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepLink";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
 import { markPerformance } from "@/lib/performanceMetrics";
@@ -51,7 +52,7 @@ const SCENE_TRANSITION_MS = MOTION_DURATION_MS.navigation;
    ResultScreen s'affiche en overlay plein écran quand un résultat est prêt. */
 
 function SceneRouter() {
-  const { scene, navigateTo, endTransition, profile, setProfile, cfg, eventDetailId } = useGame();
+  const { scene, navigateTo, endTransition, profile, setProfile, cfg, eventDetailId, setEventDetailId } = useGame();
   const { animationsOn } = useSettings();
   const motionProfile = useMotionProfile();
   const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, leaveRoom } = useLobby();
@@ -86,6 +87,20 @@ function SceneRouter() {
   useEffect(() => {
     markPerformance(`navigation:${scene}`);
   }, [scene]);
+
+  /* Notifications d'événement : /?event=<id> au démarrage, ou clic sur une
+     notification alors que l'app est déjà ouverte (message du service worker). */
+  useEffect(() => {
+    const open = (id: string | null) => {
+      if (!id) return;
+      setEventDetailId(id);
+      navigateTo("event_detail");
+    };
+    open(consumeEventDeepLink());
+    const onWorkerMessage = (message: MessageEvent) => open(eventIdFromWorkerMessage(message.data));
+    navigator.serviceWorker?.addEventListener("message", onWorkerMessage);
+    return () => navigator.serviceWorker?.removeEventListener("message", onWorkerMessage);
+  }, [navigateTo, setEventDetailId]);
 
   useEffect(() => {
     schedulePostSplashPreload();

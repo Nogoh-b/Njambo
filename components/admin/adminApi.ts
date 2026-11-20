@@ -85,6 +85,22 @@ export interface AdminPlayerDetail {
   runs: AdminPlayerRun[];
 }
 
+export interface AdminCampaign {
+  id: string;
+  source: "event" | "manual";
+  eventId?: string;
+  eventTitle?: string;
+  notificationId?: string;
+  title: string;
+  body: string;
+  audience: "all" | "active_run" | "not_joined";
+  sendAt: number;
+  status: "scheduled" | "sending" | "sent" | "cancelled";
+  cancelledReason?: string;
+  sentAt?: number;
+  stats?: { targeted: number; inApp: number; pushSent: number; pushFailed: number; optedOut: number; tokensInvalidated: number };
+}
+
 const call = async <T,>(name: string, payload: Record<string, unknown> = {}) => (await callBackend<T>(name, payload)).data;
 
 export const adminApi = {
@@ -105,6 +121,10 @@ export const adminApi = {
   resetRun: (runId: string, mode: "restart" | "close", reason: string) =>
     call<{ runId: string; status: string }>("adminResetEventRun", { runId, mode, reason }),
   leaderboard: (eventId: string) => call<EventLeaderboardData>("getEventLeaderboard", { eventId }),
+  campaigns: () => call<{ campaigns: AdminCampaign[] }>("listCampaigns"),
+  createCampaign: (input: { title: string; body: string; audience: string; eventId?: string; sendAt?: number | null }) =>
+    call<{ campaignId: string; sendAt: number }>("createCampaign", input),
+  cancelCampaign: (campaignId: string) => call<{ campaignId: string }>("cancelCampaign", { campaignId }),
   uploads: (kind?: string) => call<{ uploads: AdminUpload[] }>("listAdminUploads", kind ? { kind } : {}),
 };
 
@@ -134,6 +154,8 @@ const ERROR_LABELS: Record<string, string> = {
   UNSUPPORTED_TYPE: "Format accepté : PNG, JPEG ou WebP.",
   UNREADABLE_IMAGE: "Image illisible.",
   INVALID_EVENTID: "Identifiant invalide (a-z, 0-9, _ ; 3 à 64 caractères).",
+  EVENT_REQUIRED_FOR_AUDIENCE: "Choisis un événement pour cibler ses participants.",
+  CAMPAIGN_NOT_SCHEDULED: "Cette campagne n’est plus en attente.",
   PLAYER_NOT_FOUND: "Joueur introuvable.",
   RUN_IN_MATCH: "Le joueur est en pleine partie : attends la fin de la partie.",
   INVALID_REASON: "Indique un motif (200 caractères max).",

@@ -1,4 +1,5 @@
 const STATIC_CACHE = "njambo-static-v2";
+const NOTIFICATION_ICON = "/assets/njambo/card-back.webp";
 const IMAGE_CACHE = "njambo-images-v2";
 const PAGE_CACHE = "njambo-pages-v2";
 const CACHES = [STATIC_CACHE, IMAGE_CACHE, PAGE_CACHE];
@@ -60,4 +61,42 @@ self.addEventListener("fetch", (event) => {
       return response;
     }).catch(async () => (await caches.match(event.request)) || (await caches.match("/"))));
   }
+});
+
+/* ═══ Notifications push (FCM) ═══
+   Les campagnes envoient un message « data » { title, body, link, tag,
+   eventId } ; les anciens messages « notification » restent gérés. */
+self.addEventListener("push", (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { notification: { body: event.data ? event.data.text() : "" } };
+  }
+  const data = payload.data || {};
+  const notification = payload.notification || {};
+  const title = data.title || notification.title || "Njambo";
+  const link = data.link || (payload.fcmOptions && payload.fcmOptions.link) || (payload.fcm_options && payload.fcm_options.link) || "/";
+  event.waitUntil(self.registration.showNotification(title, {
+    body: data.body || notification.body || "",
+    icon: NOTIFICATION_ICON,
+    tag: data.tag || notification.tag || undefined,
+    data: { link, eventId: data.eventId || "" },
+  }));
+});
+
+/* Clic : on réutilise l'onglet ouvert (message à l'app) ou on en ouvre un. */
+self.addEventListener("notificationclick", (event) => {
+  event.notification.close();
+  const { link = "/", eventId = "" } = event.notification.data || {};
+  event.waitUntil((async () => {
+    const windows = await self.clients.matchAll({ type: "window", includeUncontrolled: true });
+    const existing = windows.find((client) => new URL(client.url).origin === self.location.origin);
+    if (existing) {
+      await existing.focus();
+      existing.postMessage({ type: "njambo:open-link", link, eventId });
+      return;
+    }
+    await self.clients.openWindow(new URL(link, self.location.origin).href);
+  })());
 });

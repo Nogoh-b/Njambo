@@ -12,7 +12,7 @@
 | 0 | Socle déjà livré (retour parcours, animations, 1 ticket = 1 parcours) | ✅ Terminé |
 | 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | ✅ Code terminé — à valider en prod |
 | 2 | Classement + récompenses par rang + compte à rebours | ✅ Code terminé — à valider en prod |
-| 3 | Notifications programmées (campagnes) | 🟡 En cours |
+| 3 | Notifications programmées (campagnes) | ✅ Code terminé — à valider en prod |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ⬜ À faire |
 | 5 | Cosmétiques (récompenses exclusives) | ⬜ À faire |
 | 6 | Saison (passe gratuit + premium XAF) | ⬜ À faire |
@@ -330,9 +330,9 @@ Déployer aussi les index : `firebase deploy --only firestore:indexes`
 - [x] À la publication d'un événement : création/maj des campagnes depuis `notifications[]` de la fiche (ouverture, X min avant la fin, date fixe)
 - [x] Job serveur (1 min) : campagnes dues → ciblage (`all` / `active_run` / `not_joined`) → push FCM (tokens existants) + `users/{uid}/notifications` ; envoi par lots, idempotent
 - [x] Nettoyage des tokens FCM invalides
-- [ ] Section admin **Notifications** : campagnes libres (immédiates ou programmées), audience, aperçu, historique + stats
-- [ ] Options joueur : interrupteur « Alertes d'événements »
-- [ ] Clic sur la notification → ouvre directement le détail de l'événement
+- [x] Section admin **Notifications** : campagnes libres (immédiates ou programmées), audience, aperçu, historique + stats
+- [x] Options joueur : interrupteur « Alertes d'événements »
+- [x] Clic sur la notification → ouvre directement le détail de l'événement
 
 **Critère de fin** : une campagne programmée part à l'heure, une seule fois,
 uniquement vers l'audience choisie, et respecte l'opt-out.
@@ -373,6 +373,22 @@ opt-out, jeton mort désactivé, in-app vers le détail, relance aux seuls
 non-inscrits, fin aux seuls parcours actifs, pas de renvoi après
 republication, campagne annulée jamais envoyée, campagne immédiate,
 archivage, préférence joueur.
+
+### Client — implémenté
+
+| Élément | Où | Détail |
+| --- | --- | --- |
+| Affichage des push | `public/sw.js` | Le service worker **ne gérait aucun push** : ajout de `push` (messages « data » des campagnes + anciens messages « notification ») et `notificationclick` (réutilise l'onglet ouvert, sinon ouvre `/?event=…`) |
+| Lien profond | `lib/eventDeepLink.ts`, `components/NjamboApp.tsx` | `/?event=<id>` au démarrage (retiré de l'URL) ou message du service worker → détail de l'événement |
+| Interrupteur « Alertes d’événements » | `components/scenes/EventAlertsToggle.tsx` dans Options (carte « Son & alertes ») | Enregistre `notificationPrefs.events` ; à l'activation, **demande la permission** et enregistre le jeton push (avant, le jeton n'était enregistré que si la permission avait déjà été donnée ailleurs, ce qui n'arrivait jamais) ; messages si bloqué / non disponible |
+| Jeton push | `lib/pushRegistration.ts`, `components/PwaRegistration.tsx` | Logique commune ; rafraîchissement silencieux au démarrage si la permission est accordée |
+| Admin | `components/admin/NotificationsAdmin.tsx` | Nouvelle campagne (titre 60, message 160, audience, événement, maintenant / programmer) avec **aperçu** ; historique (source fiche / libre, statut, dans l'app, push, refus, échecs) ; annulation |
+
+**À valider en production** : `NEXT_PUBLIC_FIREBASE_VAPID_KEY` doit être
+défini sur Vercel (sinon : alertes dans l'app uniquement). Activer l'interrupteur
+sur un téléphone, envoyer une campagne immédiate depuis l'admin, vérifier la
+réception et que le clic ouvre l'événement. Le push nécessite que le
+service account du VPS ait le droit Firebase Cloud Messaging.
 
 ---
 
@@ -486,3 +502,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 2 | Serveur du classement : règles + 6 tests, score écrit au règlement de table, `count()` Postgres, `getEventLeaderboard` (top 50 + mon rang), job de distribution par rang idempotent avec notification ; test d'intégration 13/13 avec de vraies parties. |
 | 2026-11-20 | 2 | Client : onglet Classement (podium, top 50, ma ligne épinglée, récompenses), bandeau « +pts · ancien rang → nouveau rang », comptes à rebours (liste, détail, menu ; < 2 h mis en avant), notifications d'événement cliquables ; classement en direct dans l'admin. **Phase 2 : code terminé.** |
 | 2026-11-20 | 3 | Serveur des campagnes : planification pure (3 tests), synchronisation à l'activation d'une révision, envoi par pages avec reprise, ciblage, opt-out, nettoyage des jetons, campagnes libres ; test d'intégration 15/15. |
+| 2026-11-20 | 3 | Client : gestion des push dans le service worker (absente jusque-là), lien profond `/?event=`, interrupteur « Alertes d’événements » qui demande la permission et enregistre le jeton, section admin Notifications avec aperçu et historique. **Phase 3 : code terminé.** |

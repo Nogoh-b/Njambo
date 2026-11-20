@@ -6,6 +6,7 @@ import { useSettings, type MotionQualityPreference } from "@/contexts/SettingsCo
 import { NjamboIcon } from "@/components/ui/Art";
 import { GameShell } from "@/components/ui/GameShell";
 import { Toggle } from "@/components/ui/Toggle";
+import { EventAlertsToggle } from "./EventAlertsToggle";
 import styles from "./OptionsScreen.module.css";
 
 const LANGUAGES = [
@@ -53,13 +54,14 @@ export function OptionsScreen() {
                 <NjamboIcon name="sound" tone="gold" size={22} />
               </span>
               <div>
-                <h2>Audio de table</h2>
-                <p>Ambiance sonore et effets de jeu</p>
+                <h2>Son &amp; alertes</h2>
+                <p>Ambiance sonore, effets de jeu et notifications</p>
               </div>
             </div>
             <div className={styles.togglesStack}>
               <Toggle label="Musique" caption="Ambiance légère de table" on={musicOn} onChange={setMusicOn} />
               <Toggle label="Effets sonores" caption="Cartes, timer et victoires" on={sfxOn} onChange={setSfxOn} />
+              <EventAlertsToggle />
             </div>
           </section>
 

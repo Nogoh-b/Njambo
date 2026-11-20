@@ -14,6 +14,7 @@ import { collection, limit, onSnapshot, orderBy, query } from "@/lib/firestoreCl
 import { adminApi, adminErrorText, type AdminEventSummary } from "./adminApi";
 import { EventsAdmin } from "./EventsAdmin";
 import { PlayersAdmin } from "./PlayersAdmin";
+import { NotificationsAdmin } from "./NotificationsAdmin";
 import { LIFECYCLE_LABELS, LifecycleBadge, formatDateTime } from "./adminUi";
 import styles from "./AdminConsole.module.css";
 
@@ -24,7 +25,7 @@ const NAV: Array<{ key: Section; label: string; soon?: string }> = [
   { key: "events", label: "Événements" },
   { key: "seasons", label: "Saisons", soon: "phase 6" },
   { key: "cosmetics", label: "Cosmétiques", soon: "phase 5" },
-  { key: "notifications", label: "Notifications", soon: "phase 3" },
+  { key: "notifications", label: "Notifications" },
   { key: "players", label: "Joueurs" },
   { key: "audit", label: "Audit" },
   { key: "tools", label: "Outils" },
@@ -81,6 +82,7 @@ function ConsoleBody() {
         {loadError && <div className={`${styles.notice} ${styles.error}`}>{loadError} <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => void reload()}>Réessayer</button></div>}
         {section === "dashboard" && <Dashboard events={events} openEvents={() => setSection("events")} />}
         {section === "events" && <EventsAdmin events={events} reload={reload} />}
+        {section === "notifications" && <NotificationsAdmin events={events} />}
         {section === "players" && <PlayersAdmin />}
         {section === "audit" && <AuditLog />}
         {section === "tools" && <Tools />}
