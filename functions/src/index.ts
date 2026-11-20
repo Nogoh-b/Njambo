@@ -41,6 +41,12 @@ import {
   adminResetEventRunHandler,
 } from "./playerAdminCommands";
 import { getEventLeaderboardHandler } from "./eventLeaderboardCommands";
+import {
+  listCampaignsHandler,
+  createCampaignHandler,
+  cancelCampaignHandler,
+  setNotificationPrefsHandler,
+} from "./campaignCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -60,6 +66,7 @@ export { refundCancelledMatch, refundExpiredEventQueues } from "./triggers";
 export { notifyFullEnergy } from "./notificationCommands";
 export { promoteScheduledEvents } from "./eventAdminCommands";
 export { settleEventRankings } from "./eventLeaderboardCommands";
+export { sendDueCampaigns } from "./campaignCommands";
 
 const callable = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true", consumeAppCheckToken: true } as const;
 
@@ -88,6 +95,10 @@ export const publishAdminDraft = onCall(callable, publishAdminDraftHandler);
 export const seedLiveOps = onCall(callable, seedLiveOpsHandler);
 export const migrateLegacyPlayer = onCall(callable, migrateLegacyPlayerHandler);
 export const registerPushToken = onCall(callable, registerPushTokenHandler);
+export const listCampaigns = onCall(callable, listCampaignsHandler);
+export const createCampaign = onCall(callable, createCampaignHandler);
+export const cancelCampaign = onCall(callable, cancelCampaignHandler);
+export const setNotificationPrefs = onCall(callable, setNotificationPrefsHandler);
 export const updateFeatureFlags = onCall(callable, updateFeatureFlagsHandler);
 export const saveAdminDraft = onCall(callable, saveAdminDraftHandler);
 export const listAdminEvents = onCall(callable, listAdminEventsHandler);

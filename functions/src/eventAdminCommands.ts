@@ -21,6 +21,7 @@ import {
 } from "../../domain";
 import { asObject, db, requireAdmin, requiredString, runIdempotent } from "./core";
 import type { DocumentData, Transaction } from "./firestoreTypes";
+import { cancelEventCampaigns, syncEventCampaigns } from "./campaignCommands";
 
 const EVENT_ID = /^[a-z0-9_]{3,64}$/;
 
@@ -149,7 +150,7 @@ export async function publishEventDraftHandler(request: CallableRequest<unknown>
   const eventId = eventIdFrom(data);
   const publishAt = data.publishAt === undefined || data.publishAt === null ? null : Number(data.publishAt);
   if (publishAt !== null && !Number.isFinite(publishAt)) throw new HttpsError("invalid-argument", "INVALID_PUBLISHAT");
-  return runIdempotent(uid, "publishEventDraft", data.idempotencyKey, async (transaction, now) => {
+  const result = await runIdempotent(uid, "publishEventDraft", data.idempotencyKey, async (transaction, now) => {
     const indexRef = db.doc(`events/${eventId}`);
     const draftRef = db.doc(`event_drafts/${eventId}`);
     const [indexSnap, draftSnap] = await Promise.all([transaction.get(indexRef), transaction.get(draftRef)]);
@@ -170,6 +171,18 @@ export async function publishEventDraftHandler(request: CallableRequest<unknown>
     audit(transaction, uid, scheduled ? "event_schedule" : "event_publish", { eventId, revision, publishAt }, now);
     return { eventId, revision, scheduled, publishAt: scheduled ? publishAt : now };
   });
+  // Notifications de la fiche : programmées dès que la révision est active.
+  if (!result.scheduled) await syncActivatedCampaigns(eventId, result.revision);
+  return result;
+}
+
+async function syncActivatedCampaigns(eventId: string, revision: number) {
+  try {
+    const version = await loadVersion(eventId, revision);
+    if (version) await syncEventCampaigns(version);
+  } catch (error) {
+    console.error(`syncEventCampaigns ${eventId} v${revision}`, error);
+  }
 }
 
 /** Annule une publication programmée (la révision reste dans l'historique). */
@@ -220,7 +233,7 @@ export async function archiveEventHandler(request: CallableRequest<unknown>) {
   const data = asObject(request.data);
   const eventId = eventIdFrom(data);
   const archived = data.archived !== false;
-  return runIdempotent(uid, "archiveEvent", data.idempotencyKey, async (transaction, now) => {
+  const result = await runIdempotent(uid, "archiveEvent", data.idempotencyKey, async (transaction, now) => {
     const indexRef = db.doc(`events/${eventId}`);
     const indexSnap = await transaction.get(indexRef);
     if (!indexSnap.exists) throw new HttpsError("not-found", "EVENT_NOT_FOUND");
@@ -232,6 +245,8 @@ export async function archiveEventHandler(request: CallableRequest<unknown>) {
     audit(transaction, uid, archived ? "event_archive" : "event_unarchive", { eventId }, now);
     return { eventId, archived };
   });
+  if (result.archived) await cancelEventCampaigns(eventId, "event_archived");
+  return result;
 }
 
 /** Supprime le brouillon en cours (la version en ligne n'est pas touchée). */
@@ -301,6 +316,7 @@ export async function getAdminEventStatsHandler(request: CallableRequest<unknown
 export async function promoteScheduledEventsImpl(now = Date.now()) {
   const due = await db.collection("events").where("scheduledAt", "<=", now).get();
   let promoted = 0;
+  const activated: Array<{ eventId: string; revision: number }> = [];
   for (const doc of due.docs) {
     const revision = Number(doc.get("scheduledRevision") ?? 0);
     if (!revision) continue;
@@ -321,8 +337,10 @@ export async function promoteScheduledEventsImpl(now = Date.now()) {
       }, { merge: true });
       transaction.create(db.collection("admin_audit").doc(), { uid: "system", action: "event_promote", eventId: doc.id, revision, createdAt: at });
       promoted += 1;
+      activated.push({ eventId: doc.id, revision });
     });
   }
+  for (const entry of activated) await syncActivatedCampaigns(entry.eventId, entry.revision);
   return { promoted };
 }
 

@@ -3,3 +3,4 @@ export * from "./catalog";
 export * from "./events";
 export * from "./eventConfig";
 export * from "./eventLeaderboard";
+export * from "./eventNotifications";

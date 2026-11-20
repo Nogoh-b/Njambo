@@ -12,7 +12,7 @@
 | 0 | Socle déjà livré (retour parcours, animations, 1 ticket = 1 parcours) | ✅ Terminé |
 | 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | ✅ Code terminé — à valider en prod |
 | 2 | Classement + récompenses par rang + compte à rebours | ✅ Code terminé — à valider en prod |
-| 3 | Notifications programmées (campagnes) | ⬜ À faire |
+| 3 | Notifications programmées (campagnes) | 🟡 En cours |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ⬜ À faire |
 | 5 | Cosmétiques (récompenses exclusives) | ⬜ À faire |
 | 6 | Saison (passe gratuit + premium XAF) | ⬜ À faire |
@@ -327,15 +327,52 @@ Déployer aussi les index : `firebase deploy --only firestore:indexes`
 - `players/{uid}.notificationPrefs.events` (opt-out)
 
 ### Tâches
-- [ ] À la publication d'un événement : création/maj des campagnes depuis `notifications[]` de la fiche (ouverture, X min avant la fin, date fixe)
-- [ ] Job serveur (1 min) : campagnes dues → ciblage (`all` / `active_run` / `not_joined`) → push FCM (tokens existants) + `users/{uid}/notifications` ; envoi par lots, idempotent
-- [ ] Nettoyage des tokens FCM invalides
+- [x] À la publication d'un événement : création/maj des campagnes depuis `notifications[]` de la fiche (ouverture, X min avant la fin, date fixe)
+- [x] Job serveur (1 min) : campagnes dues → ciblage (`all` / `active_run` / `not_joined`) → push FCM (tokens existants) + `users/{uid}/notifications` ; envoi par lots, idempotent
+- [x] Nettoyage des tokens FCM invalides
 - [ ] Section admin **Notifications** : campagnes libres (immédiates ou programmées), audience, aperçu, historique + stats
 - [ ] Options joueur : interrupteur « Alertes d'événements »
 - [ ] Clic sur la notification → ouvre directement le détail de l'événement
 
 **Critère de fin** : une campagne programmée part à l'heure, une seule fois,
 uniquement vers l'audience choisie, et respecte l'opt-out.
+
+### Serveur — implémenté (`functions/src/campaignCommands.ts`, `domain/eventNotifications.ts`)
+
+**Planification** `planEventCampaigns(version, activatedAt)` (pure, 3 tests) :
+ouverture = `max(startsAt, activation)` ; avant la fin = `endsAt − offset` ;
+date fixe = `at`. Ignorées si déjà passées (sauf ouverture) ou après la fin.
+Identifiant **stable** `ev_{eventId}_{notificationId}`.
+
+**Synchronisation** `syncEventCampaigns` : appelée quand une révision devient
+active (publication immédiate, ou promotion d'une publication programmée).
+Crée / met à jour les campagnes `scheduled` ; ne touche jamais une campagne
+déjà envoyée, en cours, ou annulée à la main ; annule celles retirées de la
+fiche. Archiver un événement annule ses campagnes en attente.
+
+**Envoi** `sendDueCampaignsImpl` (chaque minute, verrou anti-réentrance) :
+campagne réservée en transaction (`scheduled → sending`) ; annulée si
+l'événement n'est plus publié ou est terminé ; joueurs parcourus par pages
+de 300 (uid croissant) avec **point de reprise** (`progress.lastUid`, reprise
+d'un envoi bloqué > 10 min) ; ciblage `all` / `active_run` (parcours actif
+ou en file) / `not_joined` (aucun parcours) ; **opt-out**
+`players/{uid}.notificationPrefs.events === false` → ni push ni in-app ;
+notification in-app à id déterministe `camp_{campaignId}` (pas de doublon à
+la reprise) ; push FCM « data » par paquets de 500 (lien `/?event=…`) ;
+jetons invalides désactivés ; statistiques `targeted, inApp, pushSent,
+pushFailed, optedOut, tokensInvalidated`.
+
+**Commandes** : `listCampaigns`, `createCampaign { title, body, audience,
+eventId?, sendAt? }` (audience ciblée ⇒ événement requis), `cancelCampaign`,
+`setNotificationPrefs { events }` (joueur). Index Firestore ajoutés ; collection
+lisible par les admins seulement (`authz.ts`, `firestore.rules`).
+
+Test `server/scripts/smoke-campaigns.cjs` (Postgres jetable, push simulé) —
+15/15 : 3 campagnes créées à la publication, ouverture vers tous sauf
+opt-out, jeton mort désactivé, in-app vers le détail, relance aux seuls
+non-inscrits, fin aux seuls parcours actifs, pas de renvoi après
+republication, campagne annulée jamais envoyée, campagne immédiate,
+archivage, préférence joueur.
 
 ---
 
@@ -448,3 +485,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 1 | Section Joueurs (recherche, soldes, parcours, tickets offerts avec motif, réinitialiser/clôturer un parcours) ; test Postgres 11/11. **Phase 1 : code terminé**, validation en production à faire. |
 | 2026-11-20 | 2 | Serveur du classement : règles + 6 tests, score écrit au règlement de table, `count()` Postgres, `getEventLeaderboard` (top 50 + mon rang), job de distribution par rang idempotent avec notification ; test d'intégration 13/13 avec de vraies parties. |
 | 2026-11-20 | 2 | Client : onglet Classement (podium, top 50, ma ligne épinglée, récompenses), bandeau « +pts · ancien rang → nouveau rang », comptes à rebours (liste, détail, menu ; < 2 h mis en avant), notifications d'événement cliquables ; classement en direct dans l'admin. **Phase 2 : code terminé.** |
+| 2026-11-20 | 3 | Serveur des campagnes : planification pure (3 tests), synchronisation à l'activation d'une révision, envoi par pages avec reprise, ciblage, opt-out, nettoyage des jetons, campagnes libres ; test d'intégration 15/15. |

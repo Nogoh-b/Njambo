@@ -37,6 +37,12 @@ import {
   adminResetEventRunHandler,
 } from "../../functions/src/playerAdminCommands";
 import { getEventLeaderboardHandler } from "../../functions/src/eventLeaderboardCommands";
+import {
+  listCampaignsHandler,
+  createCampaignHandler,
+  cancelCampaignHandler,
+  setNotificationPrefsHandler,
+} from "../../functions/src/campaignCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -80,6 +86,10 @@ export const commands: Record<string, Handler> = {
   seedLiveOps: seedLiveOpsHandler,
   migrateLegacyPlayer: migrateLegacyPlayerHandler,
   registerPushToken: registerPushTokenHandler,
+  listCampaigns: listCampaignsHandler,
+  createCampaign: createCampaignHandler,
+  cancelCampaign: cancelCampaignHandler,
+  setNotificationPrefs: setNotificationPrefsHandler,
   updateFeatureFlags: updateFeatureFlagsHandler,
   saveAdminDraft: saveAdminDraftHandler,
   listAdminEvents: listAdminEventsHandler,

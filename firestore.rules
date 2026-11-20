@@ -284,6 +284,10 @@ service cloud.firestore {
       allow update: if admin() && validDraft(request.resource.data) && request.resource.data.createdBy == resource.data.createdBy;
       allow delete: if admin();
     }
+    match /notification_campaigns/{campaignId} {
+      allow read: if admin();
+      allow write: if false;
+    }
     match /event_drafts/{eventId} {
       allow read: if admin();
       allow write: if false;

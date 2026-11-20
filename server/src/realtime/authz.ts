@@ -113,6 +113,7 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
     case "admin_drafts":
     case "event_drafts":
     case "admin_uploads":
+    case "notification_campaigns":
     case "admin_audit":
       return auth.admin ? { kind: "allow" } : { kind: "deny" };
     default:

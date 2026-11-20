@@ -4,6 +4,7 @@ import { refundCancelledMatchImpl, refundExpiredEventQueuesImpl } from "../../fu
 import { notifyFullEnergyImpl } from "../../functions/src/notificationCommands";
 import { promoteScheduledEventsImpl } from "../../functions/src/eventAdminCommands";
 import { settleEventRankingsImpl } from "../../functions/src/eventLeaderboardCommands";
+import { sendDueCampaignsImpl } from "../../functions/src/campaignCommands";
 import { autoPlayExpiredMatchesImpl } from "../../functions/src/matchTimeouts";
 
 function watchCancelledMatches() {
@@ -41,6 +42,15 @@ export function startJobs() {
   // Publication programmée des événements (admin) : activée à la minute près.
   cron.schedule("* * * * *", () => {
     promoteScheduledEventsImpl().catch((error) => console.error("promoteScheduledEventsImpl failed", error));
+  });
+  // Campagnes de notifications dues (événements + campagnes libres), avec verrou anti-réentrance.
+  let campaignsRunning = false;
+  cron.schedule("* * * * *", () => {
+    if (campaignsRunning) return;
+    campaignsRunning = true;
+    sendDueCampaignsImpl()
+      .catch((error) => console.error("sendDueCampaignsImpl failed", error))
+      .finally(() => { campaignsRunning = false; });
   });
   // Fin d'événement : distribution des récompenses par rang (une seule fois).
   cron.schedule("*/5 * * * *", () => {
