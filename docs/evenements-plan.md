@@ -13,7 +13,7 @@
 | 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | ✅ Code terminé — à valider en prod |
 | 2 | Classement + récompenses par rang + compte à rebours | ✅ Code terminé — à valider en prod |
 | 3 | Notifications programmées (campagnes) | ✅ Code terminé — à valider en prod |
-| 4 | Sauver une vie, parcours parfait, modificateurs & boss | ⬜ À faire |
+| 4 | Sauver une vie, parcours parfait, modificateurs & boss | 🟡 En cours |
 | 5 | Cosmétiques (récompenses exclusives) | ⬜ À faire |
 | 6 | Saison (passe gratuit + premium XAF) | ⬜ À faire |
 | 7 | Défis entre amis | ⬜ À faire |
@@ -395,26 +395,63 @@ service account du VPS ait le droit Firebase Cloud Messaging.
 ## Phase 4 — Sauver une vie · Parcours parfait · Modificateurs & boss
 
 ### Sauver une vie
-- [ ] `domain/` : `revivePrice(revivesUsed, config)` + `canRevive(run, now, config)` + tests
-- [ ] À l'élimination : `eliminatedAt` sur le run
-- [ ] Commande `reviveEventRun` : run éliminé, dans la fenêtre, sous le max → débit cauris, `losses - 1`, statut jouable, `revivesUsed + 1`, ledger
+- [x] `domain/` : `revivePrice(revivesUsed, config)` + `canRevive(run, now, config)` + tests
+- [x] À l'élimination : `eliminatedAt` sur le run
+- [x] Commande `reviveEventRun` : run éliminé, dans la fenêtre, sous le max → débit cauris, `losses - 1`, statut jouable, `revivesUsed + 1`, ledger
 - [ ] Overlay « Éliminé » : bouton « Continuer · X cauris » + minuteur ; animation de gemme qui se reforme
-- [ ] Stats admin : rachats, cauris dépensés
+- [x] Stats admin : rachats, cauris dépensés
 
 ### Parcours parfait
-- [ ] À la complétion avec `losses === 0` : `perfectRun.reward` + badge cosmétique (phase 5) + `run.perfect = true`
+- [x] À la complétion avec `losses === 0` (et aucune vie rachetée) : `perfectRun.reward` + `run.perfect = true` — badge cosmétique : phase 5
 - [ ] Overlay « Grand prix » : variante « Parcours parfait »
 - [ ] Badge visible sur le profil (après phase 5)
 
 ### Modificateurs & boss
-- [ ] Moteur des bots serveur : paramètre de **niveau** (aujourd'hui seulement côté local)
-- [ ] `startMatch` applique `modifiers` (pouvoirs interdits, mise ×2, minuteur de tour) et le profil du boss (nom, avatar, niveau)
-- [ ] Minuteur de tour côté serveur (coup automatique à expiration) si `turn_timer`
+- [x] Moteur des bots serveur : paramètre de **niveau** (aujourd'hui seulement côté local)
+- [x] `startMatch` applique `modifiers` (pouvoirs interdits, mise ×2, minuteur de tour) et le profil du boss (nom, avatar, niveau)
+- [x] Minuteur de tour côté serveur (coup automatique à expiration) si `turn_timer`
 - [ ] Client : étiquettes de modificateurs sur les tables + présentation « Boss » à l'entrée de table
-- [ ] Admin : édition des modificateurs et du boss par table (avatar via upload)
+- [x] Admin : édition des modificateurs et du boss par table (avatar via upload)
 
 **Critère de fin** : un joueur éliminé peut racheter une vie en cauris dans
 la limite fixée ; les modificateurs configurés s'appliquent réellement en partie.
+
+### Serveur — implémenté
+
+**Règles pures** (`domain/eventRules.ts`, tests `tests/event-rules.test.ts`) :
+`stageMatchRules(stage)` → mise (×2), pouvoirs interdits (`no_powers` ou
+`powersAllowed: false`), secondes par tour, IA (`facile→easy`,
+`normal→normal`, `difficile/élite→hard` ; un boss impose son niveau :
+1-2 easy, 3 normal, 4-5 hard) ; `revivePrice`, `canRevive` (désactivé /
+pas éliminé / maximum atteint / fenêtre expirée) ; `isPerfectRun` (aucune
+vie perdue **ni rachetée**). `scoreEventRun` ne donne plus le bonus parfait
+à un parcours sauvé.
+
+**En partie** (`functions/src/matchCommands.ts`) : `startMatch` calcule les
+règles de la table et les stocke sur le match (`rules`) ; mise doublée ;
+pouvoirs vidés et `usePowerCard` refuse (`POWERS_DISABLED`) ; délai de tour
+de la table utilisé partout (premier tour, tours suivants, élimination en
+cours de tour) ; le dernier bot devient le **boss** (nom, 👑, `avatarUrl`).
+Les bots des tables d'événement jouent désormais avec **l'IA du jeu local**
+(`engine/bot.ts` : easy / normal / hard avec mémoire des cartes) au lieu du
+hasard ; les autres modes gardent le comportement historique.
+
+**Élimination / rachat** : `eliminatedAt` posé au règlement et à l'abandon ;
+commande `reviveEventRun { runId }` (`functions/src/eventRunCommands.ts`) :
+vérifie `canRevive`, événement encore ouvert, dépenses non bloquées, cauris
+suffisants → débit + ledger, `losses − 1`, statut jouable (`matchmaking` en
+PvP), `revivesUsed + 1`, `reviveCaurisSpent`.
+
+**Parcours parfait** : à la dernière table, `perfectRun.reward` ajouté une
+seule fois (clé `perfect`), `run.perfect = true`.
+
+**Stats admin** : `revives`, `reviveCauris`, `perfect`.
+
+Test `server/scripts/smoke-event-rules.cjs` (Postgres jetable, vraies
+parties) — 16/16 : mise ×2, pouvoirs vidés et refusés, minuteur 8 s, boss
+en IA difficile, bonus parfait, `eliminatedAt`, rachats à 20 puis 40,
+refus (en jeu, maximum, fenêtre, cauris insuffisants), stats. Les tests
+des phases 1-3 repassent (20, 11, 13, 15).
 
 ---
 
@@ -503,3 +540,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 2 | Client : onglet Classement (podium, top 50, ma ligne épinglée, récompenses), bandeau « +pts · ancien rang → nouveau rang », comptes à rebours (liste, détail, menu ; < 2 h mis en avant), notifications d'événement cliquables ; classement en direct dans l'admin. **Phase 2 : code terminé.** |
 | 2026-11-20 | 3 | Serveur des campagnes : planification pure (3 tests), synchronisation à l'activation d'une révision, envoi par pages avec reprise, ciblage, opt-out, nettoyage des jetons, campagnes libres ; test d'intégration 15/15. |
 | 2026-11-20 | 3 | Client : gestion des push dans le service worker (absente jusque-là), lien profond `/?event=`, interrupteur « Alertes d’événements » qui demande la permission et enregistre le jeton, section admin Notifications avec aperçu et historique. **Phase 3 : code terminé.** |
+| 2026-11-20 | 4 | Serveur : règles de table (mise ×2, pouvoirs interdits, minuteur, boss), IA des bots du jeu local sur les tables d'événement, `eliminatedAt`, commande `reviveEventRun`, bonus parcours parfait, stats de rachats ; 8 tests + intégration 16/16. |

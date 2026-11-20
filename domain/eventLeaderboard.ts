@@ -12,6 +12,8 @@ export interface EventRunScoreInput {
   completed: boolean;
   losses: number;
   allowedLosses: number;
+  /** Un parcours sauvé (vie rachetée) n'est jamais « parfait ». */
+  revivesUsed?: number;
 }
 
 export interface EventScoreBreakdown {
@@ -29,7 +31,7 @@ export interface EventScoreBreakdown {
 export function scoreEventRun(input: EventRunScoreInput, board: Pick<EventLeaderboardConfig, "pointsPerStage" | "pointsPerLifeLeft" | "perfectBonus">): EventScoreBreakdown {
   const stages = Math.max(0, input.stagesWon) * board.pointsPerStage;
   const livesLeft = input.completed ? Math.max(0, input.allowedLosses - input.losses) * board.pointsPerLifeLeft : 0;
-  const perfect = input.completed && input.losses === 0 ? board.perfectBonus : 0;
+  const perfect = input.completed && input.losses === 0 && (input.revivesUsed ?? 0) === 0 ? board.perfectBonus : 0;
   return { stages, livesLeft, perfect, total: stages + livesLeft + perfect };
 }
 

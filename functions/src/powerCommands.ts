@@ -152,6 +152,8 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     if (match.status !== "playing" || !(match.participantUids ?? []).includes(uid)) {
       throw new HttpsError("failed-precondition", "MATCH_NOT_PLAYABLE");
     }
+    // Table d'événement « pouvoirs interdits » (phase 4).
+    if ((match as { rules?: { powersDisabled?: boolean } | null }).rules?.powersDisabled) throw new HttpsError("failed-precondition", "POWERS_DISABLED");
     const participants = match.participants;
     const seat = participants.findIndex((participant) => participant.uid === uid);
     if (seat < 0) throw new HttpsError("failed-precondition", "NOT_A_PARTICIPANT");

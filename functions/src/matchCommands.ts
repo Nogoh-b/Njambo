@@ -1,11 +1,12 @@
 import { randomInt } from "node:crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { crownWinGain, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, type EnergyState, type EventLeaderboardEntry, type Reward } from "../../domain";
+import { crownWinGain, isPerfectRun, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, stageMatchRules, type EnergyState, type EventLeaderboardEntry, type Reward, type ServerBotDifficulty, type StageMatchRules } from "../../domain";
 import { applyReward, asObject, boundedNumber, db, economyFrom, integer, ledger, requireUid, requiredString, runIdempotent, stableId } from "./core";
 import type { DocumentReference, DocumentSnapshot, Transaction } from "./firestoreTypes";
 import { GAME_CONFIG } from "../../config/gameConfig";
 import { POWER_CARDS_BY_ID } from "../../config/powerCards";
 import { PowerRuntimeState } from "../../engine/power/runtimeState";
+import { botChooseCard } from "../../engine/bot";
 import { applyTrickPowerRewards, consumeNextCardModifiers } from "../../engine/power/rewards";
 import { loadEngineState, persistEngineState } from "./powerCommands";
 import type { Card as EngineCard, PowerCardId } from "../../types/game";
@@ -13,7 +14,20 @@ import type { Card as EngineCard, PowerCardId } from "../../types/game";
 type MatchMode = "bot" | "online" | "friends" | "event";
 type Suit = "♥" | "♦" | "♣" | "♠";
 interface ServerCard { id: string; suit: Suit; value: number; rank: string; color: string }
-export interface MatchParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number }
+export interface MatchParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number; boss?: boolean; avatarUrl?: string }
+
+/** Règles propres à une table d'événement (phase 4), stockées sur le match. */
+export interface MatchTableRules {
+  powersDisabled: boolean;
+  turnSeconds: number;
+  botDifficulty: ServerBotDifficulty;
+  modifiers: string[];
+  boss: { name: string; botLevel: number; avatarUrl: string | null } | null;
+}
+
+function matchTurnSeconds(match: { rules?: MatchTableRules | null }) {
+  return Number(match.rules?.turnSeconds ?? GAME_CONFIG.turnSeconds) || GAME_CONFIG.turnSeconds;
+}
 
 /** Mouvement de compte d'un joueur sur la manche qui vient de se terminer.
  *  `crownsBefore`/`crownsDelta` restent absents hors match classé (modes bot
@@ -33,6 +47,7 @@ interface MatchPlay { uid: string; card: ServerCard; turnId: string }
 export interface MatchDocument {
   status: string;
   mode: MatchMode;
+  rules?: MatchTableRules | null;
   eventRunId?: string | null;
   eventRunIds?: Record<string, string>;
   ranked?: boolean;
@@ -209,6 +224,8 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     let eventRunIds: Record<string, string> = {};
     let eventStake = 0;
     let eventRanked = false;
+    /* Règles de la table d'événement (phase 4) : modificateurs, boss, IA. */
+    let tableRules: StageMatchRules | null = null;
     let eventQueueRef: DocumentReference | null = null;
     let eventQueueEntries: Array<{ uid: string; runId: string; joinedAt: number }> | null = null;
     let roomRef: DocumentReference | null = null;
@@ -236,21 +253,21 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
         );
       }
       if (!["active", "matchmaking"].includes(String(ownRunSnap.get("status")))) throw new HttpsError("failed-precondition", "INVALID_EVENT_RUN_STATUS");
-      const version = ownRunSnap.get("versionSnapshot") as {
-        eventId: string;
-        revision: number;
-        mode: "pve" | "pvp";
-        stages: Array<{ playerCount: number; stakeNkap: number; crownsEnabled?: boolean }>;
-      };
+      const version = normalizeEventVersion(ownRunSnap.get("versionSnapshot"));
       const stageIndex = Number(ownRunSnap.get("stageIndex") ?? 0);
       const stage = version.stages[stageIndex];
       if (!stage) throw new HttpsError("failed-precondition", "EVENT_STAGE_NOT_FOUND");
-      eventStake = Number(stage.stakeNkap ?? 0);
+      tableRules = stageMatchRules(stage, GAME_CONFIG.turnSeconds);
+      eventStake = tableRules.stakeNkap;
       eventRanked = stage.crownsEnabled === true;
       if (version.mode === "pve") {
         const playerSnap = await transaction.get(db.doc(`players/${uid}`));
         participants = [{ uid, name: String(playerSnap.get("name") ?? "Joueur"), emoji: String(playerSnap.get("emoji") ?? "🎴"), bot: false, crowns: Number(playerSnap.get("crowns") ?? 1_000) }];
-        participants.push(...Array.from({ length: Math.max(1, stage.playerCount - 1) }, (_, index) => ({ uid: `bot_${matchId}_${index}`, name: `Gardien ${index + 1}`, emoji: "🥁", bot: true, crowns: 1_000 })));
+        const botCount = Math.max(1, stage.playerCount - 1);
+        const boss = tableRules.boss;
+        participants.push(...Array.from({ length: botCount }, (_, index): MatchParticipant => (boss && index === botCount - 1
+          ? { uid: `bot_${matchId}_${index}`, name: boss.name, emoji: "👑", bot: true, crowns: 1_000, boss: true, ...(boss.avatarUrl ? { avatarUrl: boss.avatarUrl } : {}) }
+          : { uid: `bot_${matchId}_${index}`, name: `Gardien ${index + 1}`, emoji: "🥁", bot: true, crowns: 1_000 })));
         eventRunRefs = [ownRunRef];
         eventRunSnaps = [ownRunSnap];
         eventRunIds = { [uid]: eventRunId };
@@ -358,10 +375,12 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     });
     const devPowerBypass = process.env.POWERS_DEV_BYPASS === "1";
     const allPowerIds = Object.keys(POWER_CARDS_BY_ID) as PowerCardId[];
+    const powersDisabled = tableRules?.powersDisabled === true;
     const equippedByUid = new Map(realParticipants.map((participant, index) => [
       participant.uid,
-      devPowerBypass ? allPowerIds : (inventorySnaps[index].get("equippedCards") ?? []) as PowerCardId[],
+      powersDisabled ? [] : devPowerBypass ? allPowerIds : (inventorySnaps[index].get("equippedCards") ?? []) as PowerCardId[],
     ]));
+    const turnSeconds = tableRules?.turnSeconds ?? GAME_CONFIG.turnSeconds;
 
     const deck = secureDeck();
     const hands = new Map<string, ServerCard[]>();
@@ -374,7 +393,11 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
       stakeNkap: stake, energyCost, potNkap: mode === "bot" ? stake * participants.length : stake * realParticipants.length,
       leaderIndex: 0, turnIndex: 0, trickNumber: 0, trickPlays: [], deposits: {},
       handCounts: Object.fromEntries(participants.map((participant) => [participant.uid, 5])),
-      turnId, turnStartedAt: now, actionDeadlineAt: now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(participants.length) + 15_000,
+      turnId, turnStartedAt: now, actionDeadlineAt: now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(participants.length) + turnSeconds * 1_000,
+      ...(tableRules ? { rules: {
+        powersDisabled, turnSeconds, botDifficulty: tableRules.botDifficulty, modifiers: tableRules.modifiers,
+        boss: tableRules.boss ? { name: tableRules.boss.name, botLevel: tableRules.boss.botLevel, avatarUrl: tableRules.boss.avatarUrl ?? null } : null,
+      } } : {}),
       missedTurns: Object.fromEntries(realParticipants.map((participant) => [participant.uid, 0])),
       result: null, settlementId: null, createdAt: now, updatedAt: now,
     };
@@ -528,6 +551,14 @@ export async function performGameAction(
       finished = activeParticipants.every((participant) => (hands.get(participant.uid)?.length ?? 0) === 0);
     };
 
+    /* Tables d'événement : les bots jouent avec l'IA du jeu local (engine/bot.ts)
+       au niveau de la table ou du boss ; ailleurs, comportement historique. */
+    const botDifficulty = match.rules?.botDifficulty ?? null;
+    const currentBestValue = (ledSuit: string | null) => {
+      if (!ledSuit) return null;
+      const values = trickPlays.filter((entry) => entry.card.suit === ledSuit).map((entry) => entry.card.value);
+      return values.length ? Math.max(...values) : null;
+    };
     const play = (actor: MatchParticipant, requestedCardId: string | null, automatic: boolean, pick: "random" | "lowest") => {
       const seat = participants.findIndex((participant) => participant.uid === actor.uid);
       const hand = hands.get(actor.uid) ?? [];
@@ -537,7 +568,9 @@ export async function performGameAction(
         ? hand.find((candidate) => candidate.id === requestedCardId)
         : pick === "lowest"
           ? [...legal].sort((a, b) => a.value - b.value)[0]
-          : legal[randomInt(legal.length)];
+          : actor.bot && botDifficulty
+            ? hand[botChooseCard(hand as EngineCard[], ledSuit, hand.length === 1, currentBestValue(ledSuit), { difficulty: botDifficulty, seen: Object.values(deposits).flat() as EngineCard[] })]
+            : legal[randomInt(legal.length)];
       if (!card || !legal.some((candidate) => candidate.id === card?.id)) throw new HttpsError("failed-precondition", "ILLEGAL_CARD");
 
       // Restrictions des pouvoirs (Coupe-Circuit, Filet, Sceau…) : carte
@@ -710,7 +743,8 @@ export async function performGameAction(
       if (!version.leaderboard.enabled) return {};
       const completed = progress.status === "completed";
       const stagesWon = completed ? version.stages.length : progress.stageIndex;
-      const breakdown = scoreEventRun({ stagesWon, completed, losses, allowedLosses: version.allowedLosses }, version.leaderboard);
+      const revivesUsed = Number(runSnap.get("revivesUsed") ?? 0);
+      const breakdown = scoreEventRun({ stagesWon, completed, losses, allowedLosses: version.allowedLosses, revivesUsed }, version.leaderboard);
       const uidForEntry = realParticipants[index].uid;
       const candidate: EventLeaderboardEntry = {
         uid: uidForEntry,
@@ -719,7 +753,7 @@ export async function performGameAction(
         score: breakdown.total,
         stagesWon,
         livesLeft: Math.max(0, version.allowedLosses - losses),
-        perfect: completed && losses === 0,
+        perfect: completed && isPerfectRun({ losses, revivesUsed }),
         completed,
         durationMs: Math.max(0, now - Number(runSnap.get("createdAt") ?? now)),
         reachedAt: now,
@@ -754,6 +788,8 @@ export async function performGameAction(
             losses: progress.losses,
             status: progress.status,
             currentMatchId: null,
+            // Début de la fenêtre « sauver une vie » (phase 4).
+            ...(progress.status === "eliminated" ? { eliminatedAt: now } : {}),
             updatedAt: now,
           });
           return;
@@ -767,6 +803,12 @@ export async function performGameAction(
         const rewards = (!stage.rewardRepeatable && claimed.includes(stageKey)) ? [] : [...stage.reward];
         if (!claimed.includes(stageKey)) claimed.push(stageKey);
         if (isFinal && !claimed.includes("final")) { rewards.push(...version.finalReward); claimed.push("final"); }
+        /* Parcours parfait (phase 4) : aucune vie perdue ni rachetée. */
+        const perfect = isFinal && isPerfectRun({ losses, revivesUsed: Number(eventRunSnap.get("revivesUsed") ?? 0) });
+        if (perfect && !claimed.includes("perfect")) {
+          rewards.push(...normalizeEventVersion(eventRunSnap.get("versionSnapshot")).perfectRun.reward);
+          claimed.push("perfect");
+        }
         const beforeRewards = economyFrom(economySnaps[index].data(), now);
         beforeRewards.nkap += pot;
         let nextEconomy = beforeRewards;
@@ -780,6 +822,7 @@ export async function performGameAction(
           claimedRewardKeys: claimed,
           currentMatchId: null,
           completedAt: isFinal ? now : null,
+          ...(perfect ? { perfect: true } : {}),
           ...leaderboardUpdate(index, progress, losses),
           updatedAt: now,
         });
@@ -802,7 +845,7 @@ export async function performGameAction(
     // Pénalité de timer différée (Cri du Chef…) : consommée au début du tour
     // du prochain joueur — parité avec LocalGameSync.startTurnSeconds. À faire
     // AVANT la persistance du runtime pour que la consommation soit durable.
-    const nextTurnSeconds = runtime.consumeTimerPenalty(turnIndex, GAME_CONFIG.turnSeconds, 3);
+    const nextTurnSeconds = runtime.consumeTimerPenalty(turnIndex, matchTurnSeconds(match), 3);
     // Persistance de l'état moteur des pouvoirs (effets restants, restrictions
     // consommées, pénalités) — la pioche n'est pas touchée par un pli.
     persistEngineState(transaction, matchId, { ...engine, effects: finished ? [] : effects, runtime: runtime.toJSON() }, now);
@@ -876,7 +919,8 @@ export async function abandonMatchHandler(request: CallableRequest<unknown>) {
         // PvP : le run doit rester « matchmaking » pour être accepté dans la
         // file de l'étape suivante (startMatch filtre sur ce statut).
         const playable = runSnap.get("versionSnapshot.mode") === "pvp" ? "matchmaking" : "active";
-        transaction.update(runRef, { losses, status: losses >= maxLosses ? "eliminated" : playable, currentMatchId: null, updatedAt: now });
+        const eliminatedNow = losses >= maxLosses;
+        transaction.update(runRef, { losses, status: eliminatedNow ? "eliminated" : playable, currentMatchId: null, ...(eliminatedNow ? { eliminatedAt: now } : {}), updatedAt: now });
       }
       return { matchId, status: "forfeit", eliminated: true };
     }
@@ -980,7 +1024,7 @@ export async function abandonMatchHandler(request: CallableRequest<unknown>) {
       leaderIndex: Number(match.leaderIndex) === quitterSeat ? nextTurnSeat : Number(match.leaderIndex),
       turnId: nextTurnId,
       turnStartedAt: currentTurnEliminated ? now : match.turnStartedAt,
-      actionDeadlineAt: currentTurnEliminated ? now + GAME_CONFIG.turnSeconds * 1_000 : match.actionDeadlineAt,
+      actionDeadlineAt: currentTurnEliminated ? now + matchTurnSeconds(match) * 1_000 : match.actionDeadlineAt,
       forfeitedBy: [...((match.forfeitedBy as string[] | undefined) ?? []), uid],
       forfeitedAt: now,
       updatedAt: now,

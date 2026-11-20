@@ -287,8 +287,14 @@ export async function getAdminEventStatsHandler(request: CallableRequest<unknown
   const byStatus: Record<string, number> = {};
   const reachedStage: number[] = [];
   const players = new Set<string>();
+  let revives = 0;
+  let reviveCauris = 0;
+  let perfect = 0;
   for (const doc of runs.docs) {
     const run = doc.data() ?? {};
+    revives += Number(run.revivesUsed ?? 0);
+    reviveCauris += Number(run.reviveCaurisSpent ?? 0);
+    if (run.perfect === true) perfect += 1;
     const status = String(run.status ?? "active");
     byStatus[status] = (byStatus[status] ?? 0) + 1;
     players.add(String(run.uid));
@@ -305,6 +311,9 @@ export async function getAdminEventStatsHandler(request: CallableRequest<unknown
     eliminated: byStatus.eliminated ?? 0,
     completed: byStatus.completed ?? 0,
     abandoned: byStatus.abandoned ?? 0,
+    revives,
+    reviveCauris,
+    perfect,
     byStatus,
     /** funnel[i] = parcours ayant atteint la table i (funnel[n] = complétés). */
     funnel: Array.from({ length: reachedStage.length }, (_, index) => reachedStage[index] ?? 0),

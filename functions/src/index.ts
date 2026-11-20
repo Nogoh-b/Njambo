@@ -47,6 +47,7 @@ import {
   cancelCampaignHandler,
   setNotificationPrefsHandler,
 } from "./campaignCommands";
+import { reviveEventRunHandler } from "./eventRunCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -81,6 +82,7 @@ export const spinLoyaltyWheel = onCall(callable, spinLoyaltyWheelHandler);
 export const equipPowerCards = onCall(callable, equipPowerCardsHandler);
 export const joinEvent = onCall(callable, joinEventHandler);
 export const leaveEvent = onCall(callable, leaveEventHandler);
+export const reviveEventRun = onCall(callable, reviveEventRunHandler);
 export const getEventLeaderboard = onCall(callable, getEventLeaderboardHandler);
 export const createPaymentIntent = onCall(callable, createPaymentIntentHandler);
 export const verifyStorePurchase = onCall(callable, verifyStorePurchaseHandler);
