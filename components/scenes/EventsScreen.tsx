@@ -302,7 +302,7 @@ export function EventsScreen() {
                         const vis = rewardVisual(reward);
                         return (
                           <span key={rIdx} className={styles.prizeItemChip}>
-                            <Image src={vis.src} alt="" width={24} height={24} />
+                            <Image src={vis.src} unoptimized={vis.src.startsWith("http")} alt="" width={24} height={24} />
                             <strong>{vis.label}</strong>
                           </span>
                         );

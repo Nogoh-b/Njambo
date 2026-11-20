@@ -631,7 +631,7 @@ export function EventDetailScreen({
                       const vis = rewardVisual(reward);
                       return (
                         <span key={rIdx} className={styles.pedestalLootItem}>
-                          <Image src={vis.src} alt="" width={30} height={30} />
+                          <Image src={vis.src} unoptimized={vis.src.startsWith("http")} alt="" width={30} height={30} />
                           <strong>{vis.label}</strong>
                         </span>
                       );
@@ -710,7 +710,7 @@ export function EventDetailScreen({
                   const vis = rewardVisual(reward);
                   return (
                     <span key={rIdx} className={styles.lootChip}>
-                      <Image src={vis.src} alt="" width={22} height={22} />
+                      <Image src={vis.src} unoptimized={vis.src.startsWith("http")} alt="" width={22} height={22} />
                       <strong>{vis.label}</strong>
                     </span>
                   );

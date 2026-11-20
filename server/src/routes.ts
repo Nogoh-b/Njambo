@@ -44,6 +44,12 @@ import {
   setNotificationPrefsHandler,
 } from "../../functions/src/campaignCommands";
 import { reviveEventRunHandler } from "../../functions/src/eventRunCommands";
+import {
+  listCosmeticsHandler,
+  saveCosmeticHandler,
+  getCosmeticCollectionHandler,
+  equipCosmeticHandler,
+} from "../../functions/src/cosmeticCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -88,6 +94,10 @@ export const commands: Record<string, Handler> = {
   seedLiveOps: seedLiveOpsHandler,
   migrateLegacyPlayer: migrateLegacyPlayerHandler,
   registerPushToken: registerPushTokenHandler,
+  listCosmetics: listCosmeticsHandler,
+  saveCosmetic: saveCosmeticHandler,
+  getCosmeticCollection: getCosmeticCollectionHandler,
+  equipCosmetic: equipCosmeticHandler,
   listCampaigns: listCampaignsHandler,
   createCampaign: createCampaignHandler,
   cancelCampaign: cancelCampaignHandler,

@@ -2,7 +2,7 @@
 
 /* Appels typés de la console admin (commandes du back VPS) + upload d'images. */
 
-import type { EventLifecycle, EventValidationIssue, EventVersion } from "@/domain";
+import type { CosmeticDefinition, EventLifecycle, EventValidationIssue, EventVersion } from "@/domain";
 import { BACKEND_URL, BackendError, callBackend } from "@/lib/backend";
 import type { EventLeaderboardData } from "@/hooks/useEventLeaderboard";
 import { auth } from "@/lib/firebase";
@@ -128,6 +128,8 @@ export const adminApi = {
   createCampaign: (input: { title: string; body: string; audience: string; eventId?: string; sendAt?: number | null }) =>
     call<{ campaignId: string; sendAt: number }>("createCampaign", input),
   cancelCampaign: (campaignId: string) => call<{ campaignId: string }>("cancelCampaign", { campaignId }),
+  cosmetics: () => call<{ cosmetics: CosmeticDefinition[] }>("listCosmetics"),
+  saveCosmetic: (cosmetic: CosmeticDefinition) => call<{ cosmetic: CosmeticDefinition }>("saveCosmetic", { cosmetic }),
   uploads: (kind?: string) => call<{ uploads: AdminUpload[] }>("listAdminUploads", kind ? { kind } : {}),
 };
 
@@ -159,6 +161,8 @@ const ERROR_LABELS: Record<string, string> = {
   INVALID_EVENTID: "Identifiant invalide (a-z, 0-9, _ ; 3 à 64 caractères).",
   EVENT_REQUIRED_FOR_AUDIENCE: "Choisis un événement pour cibler ses participants.",
   CAMPAIGN_NOT_SCHEDULED: "Cette campagne n’est plus en attente.",
+  COSMETIC_INVALID: "Le cosmétique contient des erreurs.",
+  COSMETIC_TYPE_LOCKED: "Le type d’un cosmétique existant ne peut pas changer.",
   PLAYER_NOT_FOUND: "Joueur introuvable.",
   RUN_IN_MATCH: "Le joueur est en pleine partie : attends la fin de la partie.",
   INVALID_REASON: "Indique un motif (200 caractères max).",
@@ -175,4 +179,11 @@ export function issuesFromError(error: unknown): EventValidationIssue[] {
   if (!(error instanceof BackendError)) return [];
   const details = error.details as { issues?: EventValidationIssue[] } | undefined;
   return Array.isArray(details?.issues) ? details.issues : [];
+}
+
+/* Catalogue des cosmétiques partagé par les RewardPicker (chargé une fois). */
+let cosmeticCache: Promise<CosmeticDefinition[]> | null = null;
+export function loadCosmeticCatalog(force = false) {
+  if (!cosmeticCache || force) cosmeticCache = adminApi.cosmetics().then((result) => result.cosmetics).catch(() => { cosmeticCache = null; return []; });
+  return cosmeticCache;
 }

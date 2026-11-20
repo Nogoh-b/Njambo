@@ -176,7 +176,7 @@ export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue,
               const visual = rewardVisual(reward);
               return (
                 <li key={`${reward.type}-${index}`} className={styles.reward} style={{ "--i": index } as CSSProperties}>
-                  <Image src={visual.src} alt="" width={40} height={40} />
+                  <Image src={visual.src} unoptimized={visual.src.startsWith("http")} alt="" width={40} height={40} />
                   <strong>+ {visual.label}</strong>
                 </li>
               );

@@ -2,6 +2,7 @@
 
 // Import type-only (aucun cycle à l'exécution) : le modèle de script générique
 // des cartes pouvoir vit dans engine/power/types.ts.
+import type { PlayerCosmetics } from "@/domain";
 import type {
   PowerChoices,
   PowerFxPreset,
@@ -40,6 +41,8 @@ export interface Player {
   equippedPowers?: PowerCardId[];
   /** État d'activation des cartes pouvoir en jeu */
   powerActivations?: PowerCardActivation[];
+  /** Cosmétiques équipés (phase 5) : cadre, badge, titre, dos de carte. */
+  cosmetics?: PlayerCosmetics;
 }
 
 export interface TrickPlay {

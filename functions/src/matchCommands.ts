@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { crownWinGain, isPerfectRun, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, stageMatchRules, type EnergyState, type EventLeaderboardEntry, type Reward, type ServerBotDifficulty, type StageMatchRules } from "../../domain";
+import { crownWinGain, displayCosmetics, isPerfectRun, readPlayerCosmetics, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, stageMatchRules, type EnergyState, type EventLeaderboardEntry, type PlayerCosmetics, type Reward, type ServerBotDifficulty, type StageMatchRules } from "../../domain";
 import { applyReward, asObject, boundedNumber, db, economyFrom, integer, ledger, requireUid, requiredString, runIdempotent, stableId } from "./core";
 import type { DocumentReference, DocumentSnapshot, Transaction } from "./firestoreTypes";
 import { GAME_CONFIG } from "../../config/gameConfig";
@@ -14,7 +14,7 @@ import type { Card as EngineCard, PowerCardId } from "../../types/game";
 type MatchMode = "bot" | "online" | "friends" | "event";
 type Suit = "♥" | "♦" | "♣" | "♠";
 interface ServerCard { id: string; suit: Suit; value: number; rank: string; color: string }
-export interface MatchParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number; boss?: boolean; avatarUrl?: string }
+export interface MatchParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number; boss?: boolean; avatarUrl?: string; cosmetics?: PlayerCosmetics }
 
 /** Règles propres à une table d'événement (phase 4), stockées sur le match. */
 export interface MatchTableRules {
@@ -357,11 +357,18 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     const stake = mode === "friends" ? 0 : mode === "event" ? eventStake : requestedStake;
     if (mode !== "friends" && mode !== "event" && ![100, 250, 500].includes(stake)) throw new HttpsError("invalid-argument", "STAKE_REQUIRED");
     const realParticipants = participants.filter((participant) => !participant.bot);
-    const [economySnaps, inventorySnaps, economyConfigSnap] = await Promise.all([
+    const [economySnaps, inventorySnaps, economyConfigSnap, cosmeticSnaps] = await Promise.all([
       Promise.all(realParticipants.map((participant) => transaction.get(db.doc(`economies/${participant.uid}`)))),
       Promise.all(realParticipants.map((participant) => transaction.get(db.doc(`inventories/${participant.uid}`)))),
       transaction.get(db.doc("runtime_config/economy")),
+      Promise.all(realParticipants.map((participant) => transaction.get(db.doc(`players/${participant.uid}`)))),
     ]);
+    /* Cosmétiques équipés (phase 5) : copiés sur les participants pour être
+       vus par tous à la table (cadre, badge, titre, dos de carte). */
+    realParticipants.forEach((participant, index) => {
+      const cosmetics = readPlayerCosmetics(cosmeticSnaps[index].get("equippedCosmetics"));
+      if (Object.keys(cosmetics).length > 0) participant.cosmetics = cosmetics;
+    });
     const configuredCosts = (economyConfigSnap.get("matchEnergyCosts") ?? {}) as Partial<Record<MatchMode, number>>;
     const energyCost = mode === "event" ? 0 : Math.floor(boundedNumber(configuredCosts[mode], matchCost(mode), 0, 100));
     const nextEconomies = realParticipants.map((participant, index) => {
@@ -759,6 +766,7 @@ export async function performGameAction(
         reachedAt: now,
         name: String(playerSnaps[index]?.get("name") ?? "Joueur"),
         emoji: String(playerSnaps[index]?.get("emoji") ?? "🎴"),
+        cosmetics: displayCosmetics(readPlayerCosmetics(playerSnaps[index]?.get("equippedCosmetics"))),
         updatedAt: now,
       };
       const existing = leaderboardSnaps[index]?.exists ? leaderboardSnaps[index]!.data() as EventLeaderboardEntry : null;

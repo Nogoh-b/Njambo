@@ -48,6 +48,12 @@ import {
   setNotificationPrefsHandler,
 } from "./campaignCommands";
 import { reviveEventRunHandler } from "./eventRunCommands";
+import {
+  listCosmeticsHandler,
+  saveCosmeticHandler,
+  getCosmeticCollectionHandler,
+  equipCosmeticHandler,
+} from "./cosmeticCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -97,6 +103,10 @@ export const publishAdminDraft = onCall(callable, publishAdminDraftHandler);
 export const seedLiveOps = onCall(callable, seedLiveOpsHandler);
 export const migrateLegacyPlayer = onCall(callable, migrateLegacyPlayerHandler);
 export const registerPushToken = onCall(callable, registerPushTokenHandler);
+export const listCosmetics = onCall(callable, listCosmeticsHandler);
+export const saveCosmetic = onCall(callable, saveCosmeticHandler);
+export const getCosmeticCollection = onCall(callable, getCosmeticCollectionHandler);
+export const equipCosmetic = onCall(callable, equipCosmeticHandler);
 export const listCampaigns = onCall(callable, listCampaignsHandler);
 export const createCampaign = onCall(callable, createCampaignHandler);
 export const cancelCampaign = onCall(callable, cancelCampaignHandler);

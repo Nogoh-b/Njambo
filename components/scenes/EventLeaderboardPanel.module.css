@@ -79,6 +79,7 @@
 .stepEmpty { min-height: 1px; }
 
 .podiumAvatar {
+  position: relative;
   display: grid;
   place-items: center;
   width: 40px;
@@ -142,7 +143,30 @@
 }
 
 .rank { font-weight: 950; color: var(--ev-accent); text-align: center; font-variant-numeric: tabular-nums; }
-.avatar { font-size: 17px; text-align: center; }
+.avatar { position: relative; font-size: 17px; text-align: center; }
+.podiumAvatar { position: relative; }
+
+/* Cosmétiques (phase 5) */
+.frame {
+  position: absolute;
+  inset: -22%;
+  width: 144%;
+  height: 144%;
+  object-fit: contain;
+  pointer-events: none;
+}
+.nameLine { display: inline-flex; align-items: center; gap: 4px; max-width: 100%; }
+.badge { width: 16px; height: 16px; object-fit: contain; flex: none; }
+.title {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 10px;
+  font-weight: 800;
+  font-style: italic;
+  color: #ffd76a;
+}
 .name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 800; }
 .perfect { margin-left: 4px; color: #ffcf40; }
 .progress { color: #a9c4ba; font-size: 11px; font-weight: 700; white-space: nowrap; }

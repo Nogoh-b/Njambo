@@ -2,7 +2,9 @@
 
 /* Éditeur d'une liste de récompenses : le type choisi détermine les champs. */
 
-import { DEFAULT_BOOSTERS, type Reward } from "@/domain";
+import { useEffect, useState } from "react";
+import { DEFAULT_BOOSTERS, type CosmeticDefinition, type Reward } from "@/domain";
+import { loadCosmeticCatalog } from "./adminApi";
 import { POWER_CARDS } from "@/config/powerCards";
 import styles from "./AdminConsole.module.css";
 
@@ -13,7 +15,10 @@ const TYPE_LABELS: Record<Reward["type"], string> = {
   energy_pass: "Énergie illimitée",
   booster_book: "Livre (booster)",
   card: "Carte de pouvoir",
+  cosmetic: "Cosmétique",
 };
+
+const COSMETIC_TYPE_LABELS: Record<string, string> = { card_back: "Dos de carte", avatar_frame: "Cadre", badge: "Badge", title: "Titre" };
 
 function defaultReward(type: Reward["type"]): Reward {
   switch (type) {
@@ -23,6 +28,7 @@ function defaultReward(type: Reward["type"]): Reward {
     case "energy_pass": return { type, durationMinutes: 60 };
     case "booster_book": return { type, boosterId: DEFAULT_BOOSTERS[0]?.id ?? "normal", amount: 1 };
     case "card": return { type, cardId: POWER_CARDS[0]?.id ?? "", rarity: "village" };
+    case "cosmetic": return { type, cosmeticId: "", rarity: "commun" };
   }
 }
 
@@ -34,6 +40,7 @@ export function rewardSummary(reward: Reward): string {
     case "energy_pass": return `Énergie ∞ ${reward.durationMinutes} min`;
     case "booster_book": return `${reward.amount} livre ${reward.boosterId}`;
     case "card": return `Carte ${reward.cardId}`;
+    case "cosmetic": return `Cosmétique ${reward.name ?? reward.cosmeticId}`;
   }
 }
 
@@ -49,6 +56,9 @@ export function RewardPicker({ value, onChange, errorFor, path, emptyLabel = "Au
   emptyLabel?: string;
 }) {
   const update = (index: number, reward: Reward) => onChange(value.map((item, i) => (i === index ? reward : item)));
+  const [cosmetics, setCosmetics] = useState<CosmeticDefinition[] | null>(null);
+  const needsCatalog = value.some((reward) => reward.type === "cosmetic");
+  useEffect(() => { if (needsCatalog && !cosmetics) void loadCosmeticCatalog().then(setCosmetics); }, [needsCatalog, cosmetics]);
   const listError = errorFor(path);
 
   return (
@@ -94,6 +104,21 @@ export function RewardPicker({ value, onChange, errorFor, path, emptyLabel = "Au
                 <select value={reward.boosterId} onChange={(event) => update(index, { ...reward, boosterId: event.target.value })}>
                   {DEFAULT_BOOSTERS.map((booster) => <option key={booster.id} value={booster.id}>{booster.title}</option>)}
                 </select>
+              </label>
+            )}
+            {reward.type === "cosmetic" && (
+              <label className={`${styles.field} ${err("cosmeticId") ? styles.invalid : ""}`}>
+                <span>Cosmétique</span>
+                <select value={reward.cosmeticId} onChange={(event) => {
+                  const picked = cosmetics?.find((item) => item.id === event.target.value);
+                  update(index, picked
+                    ? { type: "cosmetic", cosmeticId: picked.id, rarity: picked.rarity, name: picked.name, ...(picked.imageUrl ? { imageUrl: picked.imageUrl } : {}) }
+                    : { type: "cosmetic", cosmeticId: "", rarity: "commun" });
+                }}>
+                  <option value="">{cosmetics === null ? "Chargement…" : cosmetics.length ? "Choisir…" : "Catalogue vide"}</option>
+                  {(cosmetics ?? []).map((item) => <option key={item.id} value={item.id}>{COSMETIC_TYPE_LABELS[item.type]} · {item.name} ({item.rarity}){item.published ? "" : " — inactif"}</option>)}
+                </select>
+                {err("cosmeticId") && <span className={styles.fieldError}>{err("cosmeticId")}</span>}
               </label>
             )}
             {reward.type === "card" && (

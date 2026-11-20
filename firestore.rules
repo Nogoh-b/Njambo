@@ -277,6 +277,7 @@ service cloud.firestore {
     match /events/{id} { allow read: if resource.data.published == true; allow write: if false; }
     match /event_versions/{id} { allow read: if resource.data.published == true; allow write: if false; }
     match /runtime_config/{id} { allow read: if true; allow write: if false; }
+    match /cosmetics/{id} { allow read: if resource.data.published == true; allow write: if false; }
 
     match /admin_drafts/{draftId} {
       allow read: if admin();

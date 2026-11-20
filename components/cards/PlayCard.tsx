@@ -15,7 +15,7 @@ const CARD_BACK_STYLE: CSSProperties = {
   border: `2px solid ${T.gold}66`,
   background: `
     linear-gradient(180deg, rgba(5,5,12,.06), rgba(5,5,12,.18)),
-    url("/assets/njambo/card-back.webp") center / cover no-repeat,
+    var(--nj-card-back, url("/assets/njambo/card-back.webp")) center / cover no-repeat,
     radial-gradient(circle at 50% 38%, ${T.night3}, ${T.night1} 68%)`,
   backgroundSize: "100% 100%, cover, 100% 100%",
   backgroundPosition: "center",

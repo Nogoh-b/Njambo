@@ -5,6 +5,7 @@
 
 import type { Reward } from "./catalog";
 import type { EventLeaderboardConfig } from "./events";
+import type { PlayerCosmetics } from "./cosmetics";
 
 export interface EventRunScoreInput {
   /** Tables validées (= nombre de tables franchies). */
@@ -50,6 +51,8 @@ export interface EventLeaderboardEntry {
   reachedAt: number;
   name: string;
   emoji: string;
+  /** Cadre, badge et titre équipés au moment du score (phase 5). */
+  cosmetics?: PlayerCosmetics;
   updatedAt: number;
 }
 

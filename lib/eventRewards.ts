@@ -43,6 +43,12 @@ export function rewardVisual(reward: Reward): { src: string; label: string } {
       label: `Énergie ${reward.durationMinutes / 60}h`,
     };
   }
+  if (reward.type === "cosmetic") {
+    return {
+      src: reward.imageUrl ?? "/assets/njambo/books/card-back-128.webp",
+      label: reward.name ?? "Cosmétique exclusif",
+    };
+  }
   return {
     src: "/assets/njambo/books/card-back-128.webp",
     label: `Carte ${reward.rarity}`,

@@ -1,5 +1,7 @@
 "use client";
 
+import type { PlayerCosmetics } from "@/domain";
+
 import { doc, onSnapshot, type DocumentSnapshot, type Unsubscribe } from "@/lib/firestoreClient";
 import { generateSecureId } from "@/lib/cryptoUtils";
 import { db } from "@/lib/firebase";
@@ -12,7 +14,7 @@ import type {
   Result, RoomPlayer, SyncStatus,
 } from "@/types/game";
 
-interface ServerParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number }
+interface ServerParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number; cosmetics?: PlayerCosmetics; boss?: boolean; avatarUrl?: string }
 interface ServerAction { uid: string; card: Card; playId: string; automatic: boolean }
 interface ServerMatch {
   id: string;
@@ -628,6 +630,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
       const hidden = Array.from({ length: count }, (_, index): Card => ({ id: `hidden-${participant.uid}-${index}`, rank: "?", value: 0, suit: "♠", color: "#1e1e1e" }));
       return {
         name: participant.name, emoji: participant.emoji, isYou,
+        ...(participant.cosmetics ? { cosmetics: participant.cosmetics } : {}),
         balance: isYou ? this.opts.profile.balance : 0,
         hand: isYou ? this.hand : hidden,
         deposit: match.deposits?.[participant.uid] ?? [],

@@ -52,6 +52,7 @@ export function rewardText(reward: Reward): string {
     case "energy_pass": return `énergie illimitée ${reward.durationMinutes} min`;
     case "booster_book": return `${reward.amount} livre${reward.amount > 1 ? "s" : ""} ${reward.boosterId}`;
     case "card": return "une carte de pouvoir";
+    case "cosmetic": return reward.name ? `« ${reward.name} »` : "un cosmétique exclusif";
   }
 }
 

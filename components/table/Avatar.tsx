@@ -146,6 +146,16 @@ export const Avatar = memo(function Avatar({
         <AvatarIllustration seed={p.emoji || p.name} size={S - (compactHorizontal ? 8 : 10)} active={active} />
       </span>
 
+      {/* Cosmétiques (phase 5) : cadre par-dessus l'avatar, badge en bas à droite. */}
+      {p.cosmetics?.avatarFrame?.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element -- image uploadée depuis l'admin (URL du VPS)
+        <img src={p.cosmetics.avatarFrame.imageUrl} alt="" aria-hidden="true" className="nj-avatar-frame" />
+      )}
+      {p.cosmetics?.badge?.imageUrl && (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={p.cosmetics.badge.imageUrl} alt={p.cosmetics.badge.name} title={p.cosmetics.badge.name} className="nj-avatar-badge" />
+      )}
+
       {/* Gel du timer (Sable du Temps) */}
       {frozen && (
         <span className="nj-timer-frozen" aria-label="Timer gelé">
@@ -242,6 +252,7 @@ export const Avatar = memo(function Avatar({
             >
               {p.name}
             </span>
+            {p.cosmetics?.title && <span className="nj-avatar-title" title={p.cosmetics.title.name}>{p.cosmetics.title.name}</span>}
             {active && (
               <span
                 title={unlimitedTime ? "Timer illimité (mode test)" : `Temps restant : ${seconds}s`}
@@ -338,6 +349,7 @@ export const Avatar = memo(function Avatar({
         >
           {p.name}
         </div>
+        {p.cosmetics?.title && <span className="nj-avatar-title" style={{ maxWidth: 86, textAlign: "center" }} title={p.cosmetics.title.name}>{p.cosmetics.title.name}</span>}
         <div
           style={{
             fontSize: 9.5,

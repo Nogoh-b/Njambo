@@ -18,6 +18,8 @@ import { GameShell } from "@/components/ui/GameShell";
 import { GameModal } from "@/components/ui/GameModal";
 import { AuthGate } from "@/components/ui/AuthGate";
 import type { PlayerStats, PowerCardId, PublicPlayerProfile } from "@/types/game";
+import { CosmeticCollection } from "./CosmeticCollection";
+import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import styles from "./ProfileScreen.module.css";
 
 const AVATARS = [
@@ -36,6 +38,8 @@ const AVATARS = [
 const ZERO_STATS: PlayerStats = { played: 0, won: 0, bestWin: 0 };
 
 export function ProfileScreen() {
+  const [collectionOpen, setCollectionOpen] = useState(false);
+  const myCosmetics = useMyCosmetics();
   const { profile, setProfile, navigateTo } = useGame();
   const { user, updateUserProfile, updateAgeBand, logout } = useAuth();
   const { economy, rank, inventory } = useEconomy();
@@ -337,6 +341,23 @@ export function ProfileScreen() {
               </div>
             </button>
 
+            {/* Cosmétiques gagnés en événement (phase 5) */}
+            {!isGuest && (
+              <button
+                data-nj-skin="none"
+                type="button"
+                className={styles.cardDeckTray}
+                onClick={() => setCollectionOpen(true)}
+                aria-label="Ma collection de cosmétiques"
+              >
+                <div className={styles.deckTrayLeft}>
+                  <small>Ma collection</small>
+                  <strong>{myCosmetics.title ? `« ${myCosmetics.title.name} »` : "Cadres, badges, titres"}</strong>
+                </div>
+                <span aria-hidden="true" style={{ fontSize: 22 }}>✨</span>
+              </button>
+            )}
+
             {error && <div className={styles.errBox} role="alert">{error}</div>}
           </motion.article>
 
@@ -602,6 +623,11 @@ export function ProfileScreen() {
             );
           })}
         </div>
+      </GameModal>
+
+      {/* ═══ MODALE COLLECTION DE COSMÉTIQUES (phase 5) ═══ */}
+      <GameModal open={collectionOpen} onClose={() => setCollectionOpen(false)} kicker="Récompenses d’événements" title="Ma collection" tone="gold">
+        {collectionOpen && <CosmeticCollection />}
       </GameModal>
 
       {/* ═══ MODALE CONNEXION / SAUVEGARDER LE COMPTE ═══ */}

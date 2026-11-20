@@ -1,3 +1,4 @@
+import type { CosmeticRarity } from "./cosmetics";
 import type { CardRarity, TicketTier, WeightedValue } from "./economy";
 
 export type Reward =
@@ -6,7 +7,9 @@ export type Reward =
   | { type: "ticket"; tier: TicketTier; amount: number }
   | { type: "energy_pass"; durationMinutes: number }
   | { type: "booster_book"; boosterId: string; amount: number }
-  | { type: "card"; cardId: string; rarity: CardRarity };
+  | { type: "card"; cardId: string; rarity: CardRarity }
+  /** Phase 5 : cosmétique (nom/image copiés pour l'affichage des gains). */
+  | { type: "cosmetic"; cosmeticId: string; rarity: CosmeticRarity; name?: string; imageUrl?: string };
 
 export interface Price {
   currency: "cauris" | "xaf";

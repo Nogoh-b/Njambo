@@ -14,7 +14,7 @@
 | 2 | Classement + récompenses par rang + compte à rebours | ✅ Code terminé — à valider en prod |
 | 3 | Notifications programmées (campagnes) | ✅ Code terminé — à valider en prod |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ✅ Code terminé — à valider en prod |
-| 5 | Cosmétiques (récompenses exclusives) | ⬜ À faire |
+| 5 | Cosmétiques (récompenses exclusives) | ✅ Code terminé — à valider en prod |
 | 6 | Saison (passe gratuit + premium XAF) | ⬜ À faire |
 | 7 | Défis entre amis | ⬜ À faire |
 
@@ -404,7 +404,7 @@ service account du VPS ait le droit Firebase Cloud Messaging.
 ### Parcours parfait
 - [x] À la complétion avec `losses === 0` (et aucune vie rachetée) : `perfectRun.reward` + `run.perfect = true` — badge cosmétique : phase 5
 - [x] Overlay « Grand prix » : variante « Parcours parfait »
-- [ ] Badge visible sur le profil (après phase 5) — reporté en phase 5
+- [x] Badge visible sur le profil : via une récompense « Cosmétique » ajoutée au bonus parfait (phase 5)
 
 ### Modificateurs & boss
 - [x] Moteur des bots serveur : paramètre de **niveau** (aujourd'hui seulement côté local)
@@ -485,16 +485,62 @@ parcours sans perdre de vie pour voir le bonus parfait.
 - Nouveau type de récompense : `{ type: "cosmetic", cosmeticId }`
 
 ### Tâches
-- [ ] `applyReward` gère `cosmetic` (doublon → compensation en cauris)
-- [ ] Commande `equipCosmetic`
-- [ ] Admin : catalogue cosmétiques (upload, rareté, activation)
-- [ ] `RewardPicker` : choix d'un cosmétique
-- [ ] Profil : onglet « Collection » + équipement
-- [ ] Rendu : dos de carte à la table, cadre d'avatar et badge (table, profil, classement), titre sous le nom
-- [ ] Animations de gain dans l'overlay de conséquences
+- [x] `applyReward` gère `cosmetic` (doublon → compensation en cauris)
+- [x] Commande `equipCosmetic`
+- [x] Admin : catalogue cosmétiques (upload, rareté, activation)
+- [x] `RewardPicker` : choix d'un cosmétique
+- [x] Profil : onglet « Collection » + équipement
+- [x] Rendu : dos de carte à la table, cadre d'avatar et badge (table, profil, classement), titre sous le nom
+- [x] Animations de gain dans l'overlay de conséquences
 
 **Critère de fin** : un cosmétique créé dans l'admin peut être gagné dans un
 événement, équipé, et vu par les autres joueurs.
+
+### Implémenté
+
+**Domaine** (`domain/cosmetics.ts`) : types `card_back` · `avatar_frame` ·
+`badge` · `title` ; raretés commun / rare / épique / légendaire ; doublon →
+**10 / 25 / 60 / 150 cauris** ; `validateCosmetic` (image obligatoire sauf
+titre) ; `readPlayerCosmetics`, `displayCosmetics`. Nouvelle récompense
+`{ type: "cosmetic", cosmeticId, rarity, name?, imageUrl? }` (nom et image
+copiés pour l'affichage des gains), validée par `validateEventVersion`.
+
+**Serveur** (`functions/src/cosmeticCommands.ts`, `core.ts`) : `applyReward`
+ajoute le cosmétique à `inventories/{uid}.cosmetics` (ou compense le
+doublon) — valable pour tables, grand prix, parfait, classement ;
+`listCosmetics` / `saveCosmetic` (admin, type verrouillé après création,
+audit) ; `getCosmeticCollection` (possédés, même désactivés, + équipés) ;
+`equipCosmetic { slot, cosmeticId | null }` (possession + bon emplacement)
+→ copie publique `players/{uid}.equippedCosmetics`. Au lancement d'une
+partie, les cosmétiques des joueurs sont copiés sur `match.participants`
+(**vus par tous à la table**) ; les lignes de classement portent cadre,
+badge et titre. `cosmetics` lisible par tous si `published`.
+
+**Client** : cadre par-dessus l'avatar, badge en bas à droite, titre doré
+sous le pseudo (sièges de table, classement, podium) ; dos de carte appliqué
+à toutes les cartes face cachée via `--nj-card-back` (`hooks/useMyCosmetics.ts`)
+— c'est le dos **du joueur lui-même** (la pioche est commune) ; profil →
+« Ma collection » (onglets par emplacement, équiper / retirer) ; images des
+cosmétiques dans les gains (overlay, classement, détail).
+
+**Admin** : section Cosmétiques (galerie filtrable, création / modification,
+image via upload — PNG transparent conservé en WebP —, rareté, actif) ;
+`RewardPicker` propose les cosmétiques du catalogue.
+
+**Correctif au passage** : `app/globals.css` se terminait au milieu d'une
+règle (`.nj-admin h1 { … var(--`) ; tout ajout en fin de fichier cassait la
+compilation CSS. Règle réparée.
+
+Test `server/scripts/smoke-cosmetics.cjs` (Postgres jetable) — 10/10 :
+validation, catalogue, type verrouillé, gain, doublon → 60 cauris, refus
+(non possédé, mauvais emplacement), collection, copie sur les participants,
+retrait d'un emplacement.
+
+![Cosmétiques à la table et au classement](captures/phase5/table-classement.webp)
+
+**À valider en production** : créer un cadre (PNG transparent), un badge et
+un titre ; les mettre en récompense (grand prix ou classement) ; les gagner,
+les équiper depuis le profil ; vérifier qu'un autre joueur les voit à la table.
 
 ---
 
@@ -563,3 +609,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 3 | Client : gestion des push dans le service worker (absente jusque-là), lien profond `/?event=`, interrupteur « Alertes d’événements » qui demande la permission et enregistre le jeton, section admin Notifications avec aperçu et historique. **Phase 3 : code terminé.** |
 | 2026-11-20 | 4 | Serveur : règles de table (mise ×2, pouvoirs interdits, minuteur, boss), IA des bots du jeu local sur les tables d'événement, `eliminatedAt`, commande `reviveEventRun`, bonus parcours parfait, stats de rachats ; 8 tests + intégration 16/16. |
 | 2026-11-20 | 4 | Client : offre de rachat (overlay + bouton principal avec minuteur, gemme qui se reforme), variante « Parcours parfait », étiquettes de règles, intro du boss, KPI admin. **Phase 4 : code terminé.** |
+| 2026-11-20 | 5 | Cosmétiques : domaine + récompense `cosmetic` (doublon → cauris), catalogue admin, collection et équipement, affichage table / classement / profil, dos de carte ; réparation de `globals.css` tronqué ; intégration 10/10. **Phase 5 : code terminé.** |

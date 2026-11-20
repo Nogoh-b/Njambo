@@ -255,6 +255,7 @@ export function EventEditor({ initial, summary, isNew, onClose, onChanged }: {
           <h2>Grand prix (parcours terminé)</h2>
           <RewardPicker path="finalReward" value={event.finalReward} errorFor={errorFor} onChange={(finalReward) => patch({ finalReward })} />
           <h3>Bonus « parcours parfait » (aucune vie perdue)</h3>
+          <p className={styles.hint} style={{ marginTop: 0 }}>Astuce : ajoutez une récompense « Cosmétique » (ex. un badge) pour marquer les parcours parfaits sur le profil.</p>
           <RewardPicker path="perfectRun.reward" value={event.perfectRun.reward} errorFor={errorFor} onChange={(reward) => patch({ perfectRun: { ...event.perfectRun, reward } })} />
           <PhaseHint phase={4} />
         </section>

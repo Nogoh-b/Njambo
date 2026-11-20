@@ -19,7 +19,8 @@ import type {
 export const EVENT_DIFFICULTIES: EventDifficulty[] = ["facile", "normal", "difficile", "elite"];
 export const EVENT_MODIFIERS: EventStageModifier[] = ["no_powers", "double_stake", "turn_timer"];
 export const TICKET_TIERS: TicketTier[] = ["bronze", "argent", "or"];
-const REWARD_TYPES = ["nkap", "cauris", "ticket", "energy_pass", "booster_book", "card"] as const;
+const REWARD_TYPES = ["nkap", "cauris", "ticket", "energy_pass", "booster_book", "card", "cosmetic"] as const;
+const COSMETIC_RARITY_VALUES = ["commun", "rare", "epique", "legendaire"];
 const CARD_RARITIES = ["village", "notable", "chef", "ancetre"] as const;
 
 export const DEFAULT_EVENT_REVIVE: EventReviveConfig = {
@@ -164,6 +165,10 @@ export function validateReward(reward: unknown, path: string): EventValidationIs
   if (type === "booster_book") {
     needAmount(100);
     if (!str(item.boosterId)) issues.push({ path: `${path}.boosterId`, message: "Booster requis." });
+  }
+  if (type === "cosmetic") {
+    if (!str(item.cosmeticId)) issues.push({ path: `${path}.cosmeticId`, message: "Cosmétique requis." });
+    if (!COSMETIC_RARITY_VALUES.includes(item.rarity as string)) issues.push({ path: `${path}.rarity`, message: "Rareté du cosmétique invalide." });
   }
   if (type === "card") {
     if (!str(item.cardId)) issues.push({ path: `${path}.cardId`, message: "Carte requise." });

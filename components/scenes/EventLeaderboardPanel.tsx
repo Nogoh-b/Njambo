@@ -19,7 +19,7 @@ function RewardChips({ rewards }: { rewards: EventRankReward["reward"] }) {
     <span className={styles.chips}>
       {rewards.map((reward, index) => {
         const visual = rewardVisual(reward);
-        return <span key={index} className={styles.chip}><Image src={visual.src} alt="" width={16} height={16} />{visual.label}</span>;
+        return <span key={index} className={styles.chip}><Image src={visual.src} unoptimized={visual.src.startsWith("http")} alt="" width={16} height={16} />{visual.label}</span>;
       })}
     </span>
   );
@@ -29,8 +29,20 @@ function Row({ entry, mine }: { entry: RankedEntry; mine: boolean }) {
   return (
     <li className={`${styles.row}${mine ? ` ${styles.rowMine}` : ""}`}>
       <span className={styles.rank}>{entry.rank}</span>
-      <span className={styles.avatar} aria-hidden="true">{entry.emoji}</span>
-      <span className={styles.name}>{mine ? "Toi" : entry.name}{entry.perfect && <span className={styles.perfect} title="Parcours parfait">★</span>}</span>
+      <span className={styles.avatar} aria-hidden="true">
+        {entry.emoji}
+        {/* eslint-disable-next-line @next/next/no-img-element -- cosmétiques uploadés (URL du VPS) */}
+        {entry.cosmetics?.avatarFrame?.imageUrl && <img className={styles.frame} src={entry.cosmetics.avatarFrame.imageUrl} alt="" />}
+      </span>
+      <span className={styles.name}>
+        <span className={styles.nameLine}>
+          {mine ? "Toi" : entry.name}
+          {entry.perfect && <span className={styles.perfect} title="Parcours parfait">★</span>}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          {entry.cosmetics?.badge?.imageUrl && <img className={styles.badge} src={entry.cosmetics.badge.imageUrl} alt={entry.cosmetics.badge.name} title={entry.cosmetics.badge.name} />}
+        </span>
+        {entry.cosmetics?.title && <small className={styles.title}>{entry.cosmetics.title.name}</small>}
+      </span>
       <span className={styles.progress}>{entry.completed ? "Grand prix" : `${entry.stagesWon} table${entry.stagesWon > 1 ? "s" : ""}`}</span>
       <strong className={styles.score}>{entry.score.toLocaleString("fr-FR")}</strong>
     </li>
@@ -92,8 +104,13 @@ export function EventLeaderboardPanel({ event, uid, data, error, reload, preview
             <ol className={styles.podium} aria-label="Podium">
               {[podium[1], podium[0], podium[2]].map((entry, slot) => entry ? (
                 <li key={entry.uid} className={`${styles.step} ${styles[`step${[2, 1, 3][slot]}`]}${entry.uid === uid ? ` ${styles.rowMine}` : ""}`}>
-                  <span className={styles.podiumAvatar} aria-hidden="true">{entry.emoji}</span>
+                  <span className={styles.podiumAvatar} aria-hidden="true">
+                    {entry.emoji}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    {entry.cosmetics?.avatarFrame?.imageUrl && <img className={styles.frame} src={entry.cosmetics.avatarFrame.imageUrl} alt="" />}
+                  </span>
                   <span className={styles.podiumName}>{entry.uid === uid ? "Toi" : entry.name}</span>
+                  {entry.cosmetics?.title && <small className={styles.title}>{entry.cosmetics.title.name}</small>}
                   <strong>{entry.score.toLocaleString("fr-FR")}</strong>
                   <span className={styles.block}>{entry.rank}</span>
                 </li>

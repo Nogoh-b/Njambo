@@ -5382,4 +5382,39 @@ html[data-gxe-active] .njb--solid {
   font-family: var(--font-sans), sans-serif;
 }
 .nj-admin > header { display: flex; justify-content: space-between; gap: 20px; align-items: start; margin-bottom: 22px; }
-.nj-admin h1 { margin: 2px 0; color: #f2bb45; font: 900 clamp(34px, 6vw, 58px)/1 var(--
+.nj-admin h1 { margin: 2px 0; color: #f2bb45; font: 900 clamp(34px, 6vw, 58px)/1 var(--font-display, var(--font-sans)), sans-serif; }
+/* (règle ci-dessus réparée : le fichier se terminait au milieu de cette déclaration) */
+
+/* ═══ Cosmétiques équipés (phase 5) ═══ */
+.nj-avatar-frame {
+  position: absolute;
+  inset: -12%;
+  width: 124%;
+  height: 124%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 2;
+}
+.nj-avatar-badge {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  width: 42%;
+  height: 42%;
+  object-fit: contain;
+  pointer-events: none;
+  z-index: 3;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.6));
+}
+.nj-avatar-title {
+  display: block;
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 9px;
+  font-weight: 850;
+  font-style: italic;
+  color: #ffd76a;
+  letter-spacing: 0.02em;
+}
