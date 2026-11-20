@@ -1038,3 +1038,60 @@
   .miniTableShell { width: 78px; height: 46px; }
   .actionCta { min-height: 48px; }
 }
+
+/* ═══ Conséquences de la dernière partie (marqueurs temporaires) ═══ */
+
+/* Gemme de vie qui se brise dans le HUD. */
+.lifeGemBreaking {
+  animation: hudGemBreak 1100ms 300ms ease-in both;
+  display: inline-block;
+}
+
+@keyframes hudGemBreak {
+  0% { transform: scale(1); color: #ff5b82; }
+  30% { transform: scale(1.8); color: #ff5b82; text-shadow: 0 0 14px rgba(255, 71, 114, 1); }
+  55% { transform: scale(1.2) rotate(-18deg); }
+  100% { transform: scale(1) rotate(0); color: rgba(255, 255, 255, 0.18); text-shadow: none; }
+}
+
+/* Table tout juste débloquée : elle « s'allume » et rebondit. */
+.nodeJustUnlocked .miniTableShell {
+  animation: nodeUnlock 1200ms 400ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+.nodeJustUnlocked::after {
+  animation: nodeHalo 1600ms 400ms ease-out 2;
+  border: 2px solid #ffcf40;
+  border-radius: 50%;
+  content: "";
+  inset: 6px 14px auto;
+  aspect-ratio: 1.6;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+}
+
+@keyframes nodeUnlock {
+  0% { transform: scale(0.82); filter: grayscale(1) brightness(0.6); }
+  55% { transform: scale(1.14); filter: none; }
+  100% { transform: scale(1); }
+}
+
+@keyframes nodeHalo {
+  0% { opacity: 0.9; transform: scale(0.8); }
+  100% { opacity: 0; transform: scale(1.5); }
+}
+
+/* Fil d'or qui s'embrase de la table validée vers la suivante. */
+.goldenWireIgnite {
+  animation: wireIgnite 900ms 200ms ease-out both;
+  background: linear-gradient(90deg, #4df5d8, #ffcf40) 0 0 / 0% 100% no-repeat, rgba(255, 207, 64, 0.2);
+}
+
+@keyframes wireIgnite {
+  to { background-size: 100% 100%, auto; box-shadow: 0 0 12px rgba(255, 207, 64, 0.85); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lifeGemBreaking, .nodeJustUnlocked .miniTableShell, .nodeJustUnlocked::after, .goldenWireIgnite { animation: none; }
+}

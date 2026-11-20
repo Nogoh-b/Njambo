@@ -833,7 +833,10 @@ export async function abandonMatchHandler(request: CallableRequest<unknown>) {
       if (runRef && runSnap) {
         const losses = Number(runSnap.get("losses") ?? 0) + 1;
         const maxLosses = Number(runSnap.get("versionSnapshot.allowedLosses") ?? 3);
-        transaction.update(runRef, { losses, status: losses >= maxLosses ? "eliminated" : "active", currentMatchId: null, updatedAt: now });
+        // PvP : le run doit rester « matchmaking » pour être accepté dans la
+        // file de l'étape suivante (startMatch filtre sur ce statut).
+        const playable = runSnap.get("versionSnapshot.mode") === "pvp" ? "matchmaking" : "active";
+        transaction.update(runRef, { losses, status: losses >= maxLosses ? "eliminated" : playable, currentMatchId: null, updatedAt: now });
       }
       return { matchId, status: "forfeit", eliminated: true };
     }

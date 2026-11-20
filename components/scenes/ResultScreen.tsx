@@ -259,30 +259,45 @@ export function ResultScreen({
         )}
       </div>
 
-      <ResultActions status={nextRound.status}>
-        <button
-          type="button"
-          data-nj-skin="none"
-          className={`${styles.ctaPrimary}${win.isYou ? ` ${styles.ctaPrimaryWin}` : ""}`}
-          onClick={handleNext}
-          disabled={!canNext || nextRequested}
-          aria-label={nextRound.label}
-        >
-          <span className={styles.ctaGlyph} aria-hidden="true">{nextRequested ? "✓" : "↻"}</span>
-          <span>{nextRound.short}</span>
-        </button>
+      {gameMode === "event" ? (
+        <ResultActions>
+          <button
+            type="button"
+            data-nj-skin="none"
+            className={`${styles.ctaPrimary}${win.isYou ? ` ${styles.ctaPrimaryWin}` : ""}`}
+            onClick={onMenu}
+            aria-label="Retour au parcours de l'événement"
+          >
+            <span className={styles.ctaGlyph} aria-hidden="true">→</span>
+            <span>{win.isYou ? "Voir ma progression" : "Retour au parcours"}</span>
+          </button>
+        </ResultActions>
+      ) : (
+        <ResultActions status={nextRound.status}>
+          <button
+            type="button"
+            data-nj-skin="none"
+            className={`${styles.ctaPrimary}${win.isYou ? ` ${styles.ctaPrimaryWin}` : ""}`}
+            onClick={handleNext}
+            disabled={!canNext || nextRequested}
+            aria-label={nextRound.label}
+          >
+            <span className={styles.ctaGlyph} aria-hidden="true">{nextRequested ? "✓" : "↻"}</span>
+            <span>{nextRound.short}</span>
+          </button>
 
-        <button
-          type="button"
-          data-nj-skin="none"
-          className={styles.ctaSecondary}
-          onClick={onMenu}
-          aria-label="Quitter la table et revenir au menu"
-        >
-          <span className={styles.ctaGlyph} aria-hidden="true">⌂</span>
-          <span>Menu</span>
-        </button>
-      </ResultActions>
+          <button
+            type="button"
+            data-nj-skin="none"
+            className={styles.ctaSecondary}
+            onClick={onMenu}
+            aria-label="Quitter la table et revenir au menu"
+          >
+            <span className={styles.ctaGlyph} aria-hidden="true">⌂</span>
+            <span>Menu</span>
+          </button>
+        </ResultActions>
+      )}
     </>
   );
 

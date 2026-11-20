@@ -34,6 +34,11 @@ interface GameContextValue {
   /** eventId porté pour la scène event_detail (null = liste des événements). */
   eventDetailId: string | null;
   setEventDetailId: (id: string | null) => void;
+  /** Photo du parcours prise juste avant de lancer une partie d'événement.
+   *  Au retour sur event_detail, comparée au run à jour pour animer les
+   *  conséquences (vie perdue, table validée, élimination, grand prix). */
+  eventReturn: EventReturnSnapshot | null;
+  setEventReturn: (snapshot: EventReturnSnapshot | null) => void;
 
   /* Profil joueur */
   profile: Profile;
@@ -49,6 +54,14 @@ interface GameContextValue {
 
   /* Config (shortcut) */
   cfg: typeof GAME_CONFIG;
+}
+
+export interface EventReturnSnapshot {
+  runId: string;
+  eventId: string;
+  stageIndex: number;
+  losses: number;
+  takenAt: number;
 }
 
 const GameContext = createContext<GameContextValue | null>(null);
@@ -107,6 +120,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [profile, setProfileRaw] = useState<Profile>(() => applyDevProfile(loadStoredProfile()));
   const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>({});
   const [eventDetailId, setEventDetailIdRaw] = useState<string | null>(null);
+  const [eventReturn, setEventReturn] = useState<EventReturnSnapshot | null>(null);
   const [musicOn, setMusicOn] = useState(false);
   const [sfxOn, setSfxOn] = useState(true);
 
@@ -159,9 +173,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<GameContextValue>(() => ({
     scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget,
-    eventDetailId, setEventDetailId,
+    eventDetailId, setEventDetailId, eventReturn, setEventReturn,
     profile, setProfile, musicOn, setMusicOn, sfxOn, setSfxOn, cfg,
-  }), [scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget, eventDetailId, setEventDetailId, profile, setProfile, musicOn, sfxOn, cfg]);
+  }), [scene, transitioning, navigateTo, endTransition, socialTarget, setSocialTarget, eventDetailId, setEventDetailId, eventReturn, profile, setProfile, musicOn, sfxOn, cfg]);
 
   return (
     <GameContext.Provider

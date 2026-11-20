@@ -1,0 +1,321 @@
+/* ═══════════════ Conséquences d'une partie d'événement ═══════════════
+   Overlay plein écran sur le parcours : table validée, vie perdue,
+   élimination, grand prix. Les animations sont coupées automatiquement
+   par .nj-motion-off (globals.css) et prefers-reduced-motion. */
+
+.overlay {
+  --accent: #e7b04a;
+  --accent-soft: rgba(231, 176, 74, 0.22);
+  align-items: center;
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 16px;
+  position: fixed;
+  z-index: 70;
+}
+
+.tone_teal { --accent: #3fc2b0; --accent-soft: rgba(63, 194, 176, 0.22); }
+.kind_life_lost, .kind_eliminated { --accent: #d8566a; --accent-soft: rgba(216, 86, 106, 0.22); }
+
+.backdrop {
+  animation: fadeIn 260ms ease-out both;
+  backdrop-filter: blur(6px);
+  background: radial-gradient(circle at 50% 38%, rgba(8, 10, 20, 0.78), rgba(2, 3, 8, 0.95));
+  inset: 0;
+  position: absolute;
+}
+
+.kind_eliminated .backdrop {
+  background: radial-gradient(circle at 50% 38%, rgba(30, 6, 10, 0.86), rgba(4, 1, 2, 0.97));
+}
+
+.panel {
+  align-items: center;
+  animation: panelIn 520ms cubic-bezier(0.2, 1.4, 0.4, 1) both;
+  background: linear-gradient(160deg, rgba(34, 22, 18, 0.97), rgba(12, 8, 10, 0.99));
+  border: 1px solid color-mix(in srgb, var(--accent) 48%, transparent);
+  border-radius: 22px;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.6), 0 0 48px var(--accent-soft);
+  color: var(--nj-cream, #fff4df);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 400px;
+  outline: none;
+  overflow: hidden;
+  padding: 30px 22px 22px;
+  position: relative;
+  text-align: center;
+  width: 100%;
+}
+
+.kind_life_lost .panel { animation: panelIn 420ms ease-out both, shake 460ms 380ms ease-in-out both; }
+.kind_eliminated .panel { animation: panelIn 420ms ease-out both, shake 620ms 380ms ease-in-out both; }
+
+.rays {
+  background: conic-gradient(from 0deg, transparent 0 10%, var(--accent-soft) 12% 18%, transparent 20% 35%, var(--accent-soft) 37% 43%, transparent 45% 60%, var(--accent-soft) 62% 68%, transparent 70% 85%, var(--accent-soft) 87% 93%, transparent 95%);
+  height: 520px;
+  left: 50%;
+  opacity: 0;
+  pointer-events: none;
+  position: absolute;
+  top: -180px;
+  transform: translateX(-50%);
+  width: 520px;
+}
+
+.kind_advance .rays, .kind_completed .rays {
+  animation: raysSpin 9s linear infinite, fadeIn 600ms 200ms ease-out forwards;
+}
+
+.emblem {
+  align-items: center;
+  animation: emblemPop 640ms 120ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+  background: radial-gradient(circle, color-mix(in srgb, var(--accent) 36%, transparent), transparent 70%);
+  border: 2px solid var(--accent);
+  border-radius: 50%;
+  box-shadow: 0 0 30px var(--accent-soft);
+  display: flex;
+  height: 76px;
+  justify-content: center;
+  position: relative;
+  width: 76px;
+}
+
+.kind_eliminated .emblem { filter: grayscale(0.6); }
+
+.kicker {
+  color: var(--accent);
+  font-size: 0.74rem;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  margin: 0;
+  position: relative;
+  text-transform: uppercase;
+}
+
+.title {
+  animation: titleIn 500ms 220ms ease-out both;
+  font-size: clamp(1.6rem, 6vw, 2.1rem);
+  line-height: 1.05;
+  margin: 0;
+  position: relative;
+}
+
+.body {
+  color: rgba(255, 244, 223, 0.82);
+  font-size: 0.92rem;
+  line-height: 1.4;
+  margin: 0;
+  position: relative;
+}
+
+/* ───── Vies ───── */
+
+.lives {
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  position: relative;
+}
+
+.gem {
+  color: rgba(255, 255, 255, 0.16);
+  font-size: 1.7rem;
+  line-height: 1;
+  position: relative;
+  transition: color 200ms;
+}
+
+.gemOn {
+  color: #ff5c7a;
+  filter: drop-shadow(0 0 8px rgba(255, 92, 122, 0.7));
+}
+
+.kind_advance .gemOn, .kind_completed .gemOn { animation: gemPulse 1.6s 700ms ease-in-out 2; }
+.gemOff { opacity: 0.45; }
+
+.gemBreak {
+  animation: gemBreak 900ms 520ms ease-in both;
+  color: #ff5c7a;
+}
+
+.gemBreakFinal { animation-duration: 1100ms; }
+
+.shard {
+  animation: shardFly 800ms 760ms ease-out both;
+  background: #ff5c7a;
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  height: 9px;
+  left: 50%;
+  opacity: 0;
+  position: absolute;
+  top: 50%;
+  width: 7px;
+}
+
+/* ───── Progression ───── */
+
+.track {
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 999px;
+  height: 8px;
+  margin: 4px 6px;
+  position: relative;
+  width: calc(100% - 12px);
+}
+
+.trackFill {
+  animation: trackGrow 900ms 520ms cubic-bezier(0.3, 1, 0.4, 1) both;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, #fff), var(--accent));
+  border-radius: inherit;
+  box-shadow: 0 0 12px var(--accent-soft);
+  inset: 0 auto 0 0;
+  position: absolute;
+  width: var(--to);
+}
+
+.trackDot {
+  background: #2a2026;
+  border: 2px solid rgba(255, 255, 255, 0.25);
+  border-radius: 50%;
+  height: 14px;
+  position: absolute;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  width: 14px;
+}
+
+.trackDotOn { background: var(--accent); border-color: #fff4df; }
+.trackDotFresh { animation: dotIgnite 700ms 1200ms cubic-bezier(0.2, 1.8, 0.4, 1) both; }
+
+/* ───── Gains ───── */
+
+.rewards {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  list-style: none;
+  margin: 2px 0 0;
+  padding: 0;
+  position: relative;
+}
+
+.reward {
+  align-items: center;
+  animation: rewardPop 560ms calc(1000ms + var(--i) * 180ms) cubic-bezier(0.2, 1.7, 0.4, 1) both;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid color-mix(in srgb, var(--accent) 40%, transparent);
+  border-radius: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 92px;
+  padding: 10px 12px 8px;
+}
+
+.reward strong {
+  color: var(--accent);
+  font-size: 0.86rem;
+}
+
+/* ───── Actions ───── */
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 6px;
+  position: relative;
+  width: 100%;
+}
+
+.primary, .secondary {
+  border-radius: 14px;
+  cursor: pointer;
+  font-size: 0.98rem;
+  font-weight: 800;
+  min-height: 46px;
+  padding: 10px 16px;
+  width: 100%;
+}
+
+.primary {
+  animation: fadeIn 300ms 1300ms ease-out both;
+  background: linear-gradient(180deg, color-mix(in srgb, var(--accent) 85%, #fff), var(--accent));
+  border: 0;
+  box-shadow: 0 6px 0 color-mix(in srgb, var(--accent) 55%, #000), 0 10px 24px rgba(0, 0, 0, 0.4);
+  color: #1b1208;
+}
+
+.primary:active { box-shadow: 0 2px 0 color-mix(in srgb, var(--accent) 55%, #000); transform: translateY(4px); }
+
+.secondary {
+  animation: fadeIn 300ms 1400ms ease-out both;
+  background: transparent;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  color: rgba(255, 244, 223, 0.85);
+}
+
+.primary:focus-visible, .secondary:focus-visible { outline: 2px solid #fff4df; outline-offset: 2px; }
+
+/* ───── Confettis (grand prix) ───── */
+
+.confetti {
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  position: absolute;
+  z-index: 1;
+}
+
+.confetti span {
+  animation: confettiFall calc(1800ms + (var(--i) * 37ms) % 900ms) calc(300ms + (var(--i) * 53ms) % 700ms) ease-in both;
+  background: hsl(calc(var(--i) * 47deg) 85% 62%);
+  border-radius: 2px;
+  height: 12px;
+  left: calc((var(--i) * 37%) % 100%);
+  position: absolute;
+  top: -20px;
+  width: 7px;
+}
+
+/* ───── Keyframes ───── */
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes panelIn { from { opacity: 0; transform: translateY(24px) scale(0.92); } to { opacity: 1; transform: none; } }
+@keyframes titleIn { from { opacity: 0; transform: translateY(8px); letter-spacing: 0.08em; } to { opacity: 1; transform: none; } }
+@keyframes emblemPop { from { opacity: 0; transform: scale(0.3) rotate(-25deg); } to { opacity: 1; transform: none; } }
+@keyframes raysSpin { to { transform: translateX(-50%) rotate(360deg); } }
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(7px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(3px); }
+}
+@keyframes gemPulse { 50% { transform: scale(1.25); } }
+@keyframes gemBreak {
+  0% { transform: scale(1); }
+  25% { transform: scale(1.35); filter: drop-shadow(0 0 14px #ff5c7a); }
+  45% { transform: scale(1.1) rotate(-12deg); color: #ff5c7a; }
+  100% { transform: scale(0.85) rotate(8deg); color: rgba(255, 255, 255, 0.16); filter: none; opacity: 0.45; }
+}
+@keyframes shardFly {
+  0% { opacity: 1; transform: translate(-50%, -50%) rotate(0); }
+  100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--r)); }
+}
+@keyframes trackGrow { from { width: var(--from); } to { width: var(--to); } }
+@keyframes dotIgnite { 0% { transform: translate(-50%, -50%) scale(0.6); } 60% { transform: translate(-50%, -50%) scale(1.6); box-shadow: 0 0 18px var(--accent); } 100% { transform: translate(-50%, -50%) scale(1); } }
+@keyframes rewardPop { from { opacity: 0; transform: translateY(16px) scale(0.6); } to { opacity: 1; transform: none; } }
+@keyframes confettiFall {
+  0% { opacity: 1; transform: translateY(0) rotate(0); }
+  100% { opacity: 0.2; transform: translateY(110vh) rotate(720deg); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .overlay *, .overlay *::before, .overlay *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; }
+  .confetti { display: none; }
+}

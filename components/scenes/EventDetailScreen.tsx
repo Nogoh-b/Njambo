@@ -1,8 +1,10 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState, type CSSProperties } from "react";
-import { type EventStage, type EventVersion, type Reward } from "@/domain";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useSfx } from "@gxe/react";
+import { type EventStage, type EventVersion } from "@/domain";
+import { TICKET_ART, rewardVisual } from "@/lib/eventRewards";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useGame } from "@/contexts/GameContext";
@@ -12,6 +14,8 @@ import { GameModal } from "@/components/ui/GameModal";
 import { GameShell } from "@/components/ui/GameShell";
 import { NjamboIcon } from "@/components/ui/Art";
 import { resolveEventTheme } from "@/lib/eventTheme";
+import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
+import { EventOutcomeOverlay, resolveEventOutcome, type EventOutcome } from "./EventOutcomeOverlay";
 import styles from "./EventDetailScreen.module.css";
 
 type StageState = "completed" | "current" | "locked";
@@ -19,12 +23,6 @@ type StageState = "completed" | "current" | "locked";
 const EVENT_ART: Record<string, string> = {
   defi_du_mboa: "/assets/njambo/events/defi-du-mboa.webp",
   tournoi_du_ter: "/assets/njambo/events/tournoi-du-ter.webp",
-};
-
-const TICKET_ART: Record<"bronze" | "argent" | "or", string> = {
-  bronze: "/assets/njambo/tickets/ticket-bronze-64.webp",
-  argent: "/assets/njambo/tickets/ticket-argent-64.webp",
-  or: "/assets/njambo/tickets/ticket-or-64.webp",
 };
 
 const DIFFICULTY_META: Record<
@@ -36,46 +34,6 @@ const DIFFICULTY_META: Record<
   difficile: { label: "Difficile", stars: "★★★", className: "diffHard" },
   elite: { label: "Élite", stars: "★★★★", className: "diffElite" },
 };
-
-function rewardVisual(reward: Reward): { src: string; label: string } {
-  if (reward.type === "nkap") {
-    return {
-      src: "/assets/njambo/economy/nkap-stack-64.webp",
-      label: `${reward.amount.toLocaleString("fr-FR")} Nkap`,
-    };
-  }
-  if (reward.type === "cauris") {
-    return {
-      src: "/assets/njambo/economy/cauris-pouch-64.webp",
-      label: `${reward.amount} cauris`,
-    };
-  }
-  if (reward.type === "booster_book") {
-    const bookId = ["normal", "rare", "exceptionnel"].includes(reward.boosterId)
-      ? reward.boosterId
-      : "normal";
-    return {
-      src: `/assets/njambo/books/book-${bookId}-128.webp`,
-      label: `Livre ${reward.boosterId}`,
-    };
-  }
-  if (reward.type === "ticket") {
-    return {
-      src: TICKET_ART[reward.tier] ?? TICKET_ART.bronze,
-      label: `Ticket ${reward.tier}`,
-    };
-  }
-  if (reward.type === "energy_pass") {
-    return {
-      src: "/assets/njambo/economy/energy-flask-64.webp",
-      label: `Énergie ${reward.durationMinutes / 60}h`,
-    };
-  }
-  return {
-    src: "/assets/njambo/books/card-back-128.webp",
-    label: `Carte ${reward.rarity}`,
-  };
-}
 
 function eventDates(event: EventVersion) {
   const format = new Intl.DateTimeFormat("fr-FR", {
@@ -97,7 +55,8 @@ export function EventDetailScreen({
     stage0?: { title: string; playerCount: number },
   ) => void;
 }) {
-  const { navigateTo, eventDetailId } = useGame();
+  const { navigateTo, eventDetailId, eventReturn, setEventReturn } = useGame();
+  const gxeSfx = useSfx();
   const { user } = useAuth();
   const { inventory, loading: economyLoading, command } = useEconomy();
   const { events, loading: contentLoading, error: contentError } = useLiveOpsContent();
@@ -122,13 +81,79 @@ export function EventDetailScreen({
   const theme = resolveEventTheme(event?.eventId);
   const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) };
 
-  const run = event
-    ? runs.find(
-        (candidate) =>
-          candidate.eventId === event.eventId &&
-          ["active", "matchmaking", "eliminated"].includes(candidate.status),
-      )
-    : undefined;
+  /* Parcours affiché : d'abord un parcours en cours (active/matchmaking),
+     sinon le plus récent terminé (éliminé ou grand prix) pour afficher son
+     bilan. L'ordre des documents n'est pas garanti : on trie explicitement. */
+  const run = useMemo(() => {
+    if (!event) return undefined;
+    const mine = runs
+      .filter((candidate) => candidate.eventId === event.eventId)
+      .sort((a, b) => Number(b.updatedAt ?? 0) - Number(a.updatedAt ?? 0));
+    return (
+      mine.find((candidate) => candidate.status === "active" || candidate.status === "matchmaking")
+      ?? mine.find((candidate) => candidate.status === "eliminated" || candidate.status === "completed")
+    );
+  }, [event, runs]);
+
+  /* ── Conséquences de la dernière partie ──────────────────────────────
+     eventReturn = photo du run prise avant la partie. Dès que le run à jour
+     diffère (règlement serveur), on joue l'animation correspondante.
+     Sans changement au bout de 8 s (partie annulée, abandon avant la
+     donne…), la photo est simplement oubliée. */
+  const [outcome, setOutcome] = useState<EventOutcome | null>(null);
+  const [freshUnlockIndex, setFreshUnlockIndex] = useState<number | null>(null);
+  const [breakingLifeIndex, setBreakingLifeIndex] = useState<number | null>(null);
+  const outcomeTimerRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    if (!eventReturn || !event || eventReturn.eventId !== event.eventId) return;
+    const updated = runs.find((candidate) => candidate.id === eventReturn.runId);
+    const result = updated ? resolveEventOutcome(event, eventReturn, updated) : null;
+    if (result) {
+      if (outcomeTimerRef.current !== null) {
+        window.clearTimeout(outcomeTimerRef.current);
+        outcomeTimerRef.current = null;
+      }
+      setEventReturn(null);
+      setOutcome(result);
+      if (result.kind === "advance") setFreshUnlockIndex(result.stageIndex + 1);
+      if (result.kind === "life_lost" || result.kind === "eliminated") {
+        setBreakingLifeIndex(Math.max(0, event.allowedLosses - result.losses));
+      }
+      gxeSfx.playChime(result.kind === "advance" || result.kind === "completed" ? WIN_SOUND : LOSE_SOUND);
+      return;
+    }
+    if (outcomeTimerRef.current === null) {
+      const remaining = Math.max(0, 8_000 - (Date.now() - eventReturn.takenAt));
+      outcomeTimerRef.current = window.setTimeout(() => {
+        outcomeTimerRef.current = null;
+        setEventReturn(null);
+      }, remaining);
+    }
+  }, [event, eventReturn, gxeSfx, runs, setEventReturn]);
+
+  useEffect(() => () => {
+    if (outcomeTimerRef.current !== null) window.clearTimeout(outcomeTimerRef.current);
+  }, []);
+
+  /* Les marqueurs d'animation sur le plateau / le HUD s'effacent seuls. */
+  useEffect(() => {
+    if (freshUnlockIndex === null && breakingLifeIndex === null) return;
+    const timer = window.setTimeout(() => {
+      setFreshUnlockIndex(null);
+      setBreakingLifeIndex(null);
+    }, 2_600);
+    return () => window.clearTimeout(timer);
+  }, [freshUnlockIndex, breakingLifeIndex]);
+
+  const rememberRunBeforeMatch = (runId: string, stageIndex: number, losses: number) => {
+    if (!event) return;
+    if (outcomeTimerRef.current !== null) {
+      window.clearTimeout(outcomeTimerRef.current);
+      outcomeTimerRef.current = null;
+    }
+    setEventReturn({ runId, eventId: event.eventId, stageIndex, losses, takenAt: Date.now() });
+  };
 
   const isGuest = !user || user.isAnonymous;
 
@@ -139,7 +164,9 @@ export function EventDetailScreen({
   /* Sélectionner par défaut l'étape active du joueur (ou la table 1) */
   useEffect(() => {
     if (!event) return;
-    if (run && run.status !== "eliminated") {
+    if (run && run.status === "completed") {
+      setSelectedStageIndex(Math.max(0, event.stages.length - 1));
+    } else if (run && run.status !== "eliminated") {
       setSelectedStageIndex(Math.min(run.stageIndex, Math.max(0, event.stages.length - 1)));
     } else {
       setSelectedStageIndex(0);
@@ -156,7 +183,7 @@ export function EventDetailScreen({
   const ticketTier = event?.ticketTier ?? "bronze";
   const ticketCount = tickets[ticketTier] ?? 0;
   const hasTicket = ticketCount >= 1;
-  const hasActiveRun = Boolean(run && run.status !== "eliminated");
+  const hasActiveRun = Boolean(run && (run.status === "active" || run.status === "matchmaking"));
   const canEnter = availability === "active" && !isGuest && !economyLoading && (hasActiveRun || hasTicket);
 
   const enter = async () => {
@@ -170,6 +197,7 @@ export function EventDetailScreen({
         text: `Ta place est réservée — participation ${result.runId.slice(0, 8)}…`,
       });
       const stage0 = event.stages[0];
+      rememberRunBeforeMatch(result.runId, 0, 0);
       onStart?.(
         result.runId,
         event.mode,
@@ -200,8 +228,11 @@ export function EventDetailScreen({
       return;
     }
     if (hasActiveRun && run) {
-      if (run.status === "matchmaking") return;
+      /* « matchmaking » = le run attend une table PvP : on (re)lance la
+         recherche — startMatch remet le joueur dans la file de l'étape.
+         Aucun ticket n'est redemandé tant que le parcours n'est pas fini. */
       const stage = event.stages[run.stageIndex] ?? event.stages[0];
+      rememberRunBeforeMatch(run.id, run.stageIndex, run.losses);
       onStart?.(
         run.id,
         event.mode,
@@ -263,9 +294,11 @@ export function EventDetailScreen({
   const lossesUsed = run?.losses ?? 0;
   const lossesLeft = Math.max(0, event.allowedLosses - lossesUsed);
   const activeStageIndex = run?.status === "eliminated" ? -1 : (run?.stageIndex ?? 0);
+  const runCompleted = run?.status === "completed";
 
   const stageState = (idx: number): StageState => {
     if (!run) return idx === 0 ? "current" : "locked";
+    if (runCompleted) return "completed";
     if (run.status === "eliminated") return idx < run.stageIndex ? "completed" : "locked";
     if (idx < run.stageIndex) return "completed";
     if (idx === run.stageIndex) return "current";
@@ -283,12 +316,10 @@ export function EventDetailScreen({
     if (availability === "ended") return { title: "ÉVÉNEMENT TERMINÉ", sub: "Rendez-vous au prochain tournoi" };
     if (isGuest) return { title: "SE CONNECTER", sub: "Sauvegarde ton parcours et utilise tes tickets" };
     if (hasActiveRun && run) {
-      if (run.status === "matchmaking") {
-        return { title: "RECHERCHE EN COURS…", sub: `Étape ${Math.min(activeStageIndex + 1, event.stages.length)} / ${event.stages.length}` };
-      }
+      const lives = `${lossesLeft} vie${lossesLeft > 1 ? "s" : ""} restante${lossesLeft > 1 ? "s" : ""}`;
       return {
         title: `CONTINUER · TABLE ${Math.min(activeStageIndex + 1, event.stages.length)}`,
-        sub: `${lossesLeft} vie${lossesLeft > 1 ? "s" : ""} restante${lossesLeft > 1 ? "s" : ""}`,
+        sub: isPvp ? `${lives} · file PvP · sans nouveau ticket` : `${lives} · sans nouveau ticket`,
       };
     }
     if (!hasTicket) {
@@ -300,19 +331,25 @@ export function EventDetailScreen({
     if (run?.status === "eliminated") {
       return {
         title: "RECOMMENCER · 1 TICKET",
-        sub: `Nouvelle tentative (${event.allowedLosses} vies)`,
+        sub: `Nouveau parcours complet (${event.allowedLosses} vies)`,
+      };
+    }
+    if (runCompleted) {
+      return {
+        title: "REJOUER LE PARCOURS · 1 TICKET",
+        sub: "Grand prix déjà remporté — tente un nouveau parcours",
       };
     }
     return {
       title: isPvp ? "COMPOSTER 1 TICKET · FILE PvP" : "COMPOSTER 1 TICKET · ENTRER",
-      sub: `${event.stages.length} tables · ${event.allowedLosses} vies`,
+      sub: `1 ticket = tout le parcours · ${event.stages.length} tables · ${event.allowedLosses} vies`,
     };
   })();
 
   const ctaDisabled =
     busy ||
+    Boolean(outcome) ||
     availability !== "active" ||
-    Boolean(hasActiveRun && run?.status === "matchmaking") ||
     (!isGuest && hasTicket && !canEnter);
 
   const themeClass = isPvp ? styles.themeTeal : styles.themeGold;
@@ -352,7 +389,7 @@ export function EventDetailScreen({
             {Array.from({ length: event.allowedLosses }, (_, i) => (
               <span
                 key={i}
-                className={`${styles.lifeGem}${i < lossesLeft ? ` ${styles.lifeGemOn}` : ` ${styles.lifeGemOff}`}`}
+                className={`${styles.lifeGem}${i < lossesLeft ? ` ${styles.lifeGemOn}` : ` ${styles.lifeGemOff}`}${i === breakingLifeIndex ? ` ${styles.lifeGemBreaking}` : ""}`}
                 aria-hidden="true"
               >
                 ♦
@@ -422,7 +459,7 @@ export function EventDetailScreen({
                       data-nj-skin="none"
                       type="button"
                       aria-pressed={selected}
-                      className={`${styles.tableNodeBtn} ${styles[`state_${state}`]}${selected ? ` ${styles.nodeSelected}` : ""}${isBoss ? ` ${styles.nodeBoss}` : ""}`}
+                      className={`${styles.tableNodeBtn} ${styles[`state_${state}`]}${selected ? ` ${styles.nodeSelected}` : ""}${isBoss ? ` ${styles.nodeBoss}` : ""}${idx === freshUnlockIndex ? ` ${styles.nodeJustUnlocked}` : ""}`}
                       onClick={() => setSelectedStageIndex(idx)}
                       aria-label={`Table ${stage.order} : ${stage.title}, ${diff.label}, ${stage.playerCount} joueurs`}
                     >
@@ -472,7 +509,7 @@ export function EventDetailScreen({
 
                     {/* Connecteur doré vers l'étape suivante */}
                     <span
-                      className={`${styles.goldenWire}${state === "completed" ? ` ${styles.goldenWireLit}` : ""}`}
+                      className={`${styles.goldenWire}${state === "completed" ? ` ${styles.goldenWireLit}` : ""}${freshUnlockIndex !== null && idx === freshUnlockIndex - 1 ? ` ${styles.goldenWireIgnite}` : ""}`}
                       aria-hidden="true"
                     />
                   </li>
@@ -591,12 +628,14 @@ export function EventDetailScreen({
                   <strong>
                     {run.status === "eliminated"
                       ? "Éliminé"
+                      : runCompleted
+                      ? "Grand prix ✓"
                       : `Étape ${Math.min(activeStageIndex + 1, event.stages.length)}/${event.stages.length}`}
                   </strong>
                   <span className={styles.runMiniTrack}>
                     <span
                       style={{
-                        width: `${Math.min(100, (Math.max(0, activeStageIndex) / event.stages.length) * 100)}%`,
+                        width: runCompleted ? "100%" : `${Math.min(100, (Math.max(0, activeStageIndex) / event.stages.length) * 100)}%`,
                       }}
                     />
                   </span>
@@ -644,6 +683,18 @@ export function EventDetailScreen({
           </button>
         </section>
       </div>
+
+      {outcome && (
+        <EventOutcomeOverlay
+          outcome={outcome}
+          event={event}
+          tone={isPvp ? "teal" : "gold"}
+          onClose={() => setOutcome(null)}
+          onContinue={outcome.kind === "advance" || outcome.kind === "life_lost"
+            ? () => { setOutcome(null); handlePrimaryAction(); }
+            : undefined}
+        />
+      )}
 
       {/* Modale connexion en place (zéro sortie du plateau) */}
       <GameModal

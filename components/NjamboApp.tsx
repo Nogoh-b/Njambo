@@ -51,7 +51,7 @@ const SCENE_TRANSITION_MS = MOTION_DURATION_MS.navigation;
    ResultScreen s'affiche en overlay plein écran quand un résultat est prêt. */
 
 function SceneRouter() {
-  const { scene, navigateTo, endTransition, profile, setProfile, cfg } = useGame();
+  const { scene, navigateTo, endTransition, profile, setProfile, cfg, eventDetailId } = useGame();
   const { animationsOn } = useSettings();
   const motionProfile = useMotionProfile();
   const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, leaveRoom } = useLobby();
@@ -199,8 +199,15 @@ function SceneRouter() {
     // contaminait la partie suivante (roomId injecté dans une table bot) et
     // ré-armait l'affordance « Reprendre ».
     if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
+    // Partie d'événement (finie ou abandonnée) : retour au parcours, qui
+    // anime les conséquences (vie perdue, table validée, élimination…).
+    // eventDetailId est conservé depuis l'entrée sur la table.
+    if (gameMode === "event" && eventDetailId) {
+      navigateTo("event_detail");
+      return;
+    }
     navigateTo("menu");
-  }, [navigateTo, currentRoom, leaveRoom, refreshActiveRoomHint]);
+  }, [navigateTo, currentRoom, leaveRoom, refreshActiveRoomHint, gameMode, eventDetailId]);
 
   /* Rendu de la scène courante (hors table/result, gérés séparément en overlay). */
   const renderScene = (): ReactNode => {
@@ -308,7 +315,7 @@ function SceneRouter() {
           mise={gameMise}
           onNext={handleNextRound}
           onMenu={handleMenu}
-          canNext={!!profile && profile.balance >= gameMise}
+          canNext={gameMode !== "event" && !!profile && profile.balance >= gameMise}
           nextRequiresConsensus={gameMode === "online" || gameMode === "friends"}
         />
       )}

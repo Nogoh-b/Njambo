@@ -17,11 +17,7 @@ export async function refundCancelledMatchImpl(matchId: string, after: DocumentD
     const runIdsByUid = (after.eventRunIds ?? (after.eventRunId && real[0] ? { [real[0].uid]: after.eventRunId } : {})) as Record<string, string>;
     const eventParticipants = real.filter((participant) => typeof runIdsByUid[participant.uid] === "string");
     const runRefs = eventParticipants.map((participant) => db.doc(`event_runs/${runIdsByUid[participant.uid]}`));
-    const inventoryRefs = eventParticipants.map((participant) => db.doc(`inventories/${participant.uid}`));
-    const [runSnaps, inventorySnaps] = await Promise.all([
-      Promise.all(runRefs.map((ref) => transaction.get(ref))),
-      Promise.all(inventoryRefs.map((ref) => transaction.get(ref))),
-    ]);
+    const runSnaps = await Promise.all(runRefs.map((ref) => transaction.get(ref)));
     const now = Date.now();
     real.forEach((participant, index) => {
       const economy = economyFrom(economySnaps[index].data(), now);
@@ -35,17 +31,16 @@ export async function refundCancelledMatchImpl(matchId: string, after: DocumentD
         nkap: Number(after.stakeNkap ?? 0), energy: Number(after.energyCost ?? 0),
       }, next, now, { matchId });
     });
+    /* Un ticket couvre tout le parcours (jusqu'à élimination) : une partie
+       annulée ne rend PAS le ticket — sinon le joueur récupérait un ticket
+       tout en gardant son parcours. On remet simplement le run en état
+       jouable pour qu'il rejoue l'étape. Seul leaveEvent / la file expirée
+       rendent un ticket encore « reserved » (aucune partie jouée). */
     eventParticipants.forEach((participant, index) => {
       const runSnap = runSnaps[index];
-      const inventorySnap = inventorySnaps[index];
-      if (!runSnap.exists || runSnap.get("ticketStatus") === "returned") return;
-      const tier = String(runSnap.get("ticketTier"));
-      const inventory = inventorySnap.data() ?? {};
-      const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) } as Record<string, number>;
-      tickets[tier] = Number(tickets[tier] ?? 0) + 1;
+      if (!runSnap.exists || runSnap.get("currentMatchId") !== matchId) return;
       const eventMode = runSnap.get("versionSnapshot.mode");
-      transaction.set(inventoryRefs[index], { ...inventory, tickets, updatedAt: now }, { merge: false });
-      transaction.update(runRefs[index], { ticketStatus: "returned", status: eventMode === "pvp" ? "matchmaking" : "active", currentMatchId: null, updatedAt: now });
+      transaction.update(runRefs[index], { status: eventMode === "pvp" ? "matchmaking" : "active", currentMatchId: null, updatedAt: now });
     });
     transaction.update(matchRef, { refundId: stableId("refund", matchId), refundedAt: now, updatedAt: now });
   });

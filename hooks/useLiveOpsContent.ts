@@ -27,11 +27,16 @@ export interface PlayerEventRun {
   uid: string;
   eventId: string;
   eventRevision: number;
-  status: "active" | "matchmaking" | "completed" | "eliminated" | "left";
+  status: "active" | "matchmaking" | "completed" | "eliminated" | "left" | "no_match";
   ticketTier: "bronze" | "argent" | "or";
   ticketStatus: "reserved" | "consumed" | "returned";
   stageIndex: number;
   losses: number;
+  currentMatchId?: string | null;
+  claimedRewardKeys?: string[];
+  /** Copie de la version de l'événement au moment de l'inscription. */
+  versionSnapshot?: EventVersion;
+  createdAt?: number;
   updatedAt?: number;
 }
 
