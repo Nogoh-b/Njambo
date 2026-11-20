@@ -18,7 +18,8 @@ import {
   PowerParticleLayer,
   type PowerParticleBurst,
 } from "@/components/power/PowerParticleLayer";
-import { POWER_MODULES } from "@/config/powers";
+import { getPowerModule } from "@/config/powers";
+import type { PowerModule } from "@/engine/power/types";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { T } from "@/config/theme";
 import type { ZoneRegistry } from "@/components/table/zones/ZoneRegistry";
@@ -170,9 +171,10 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
 
   const run = (activation: PowerCardActivation) => {
     const d = depsRef.current;
-    const powerModule = POWER_MODULES[activation.cardId];
-    const def = powerModule?.def ?? POWER_CARDS_BY_ID[activation.cardId];
-    if (!def) return;
+    const powerModule = getPowerModule(activation.cardId);
+    // Carte inconnue de ce client (catalogue pas encore à jour) : pas d'animation.
+    if (!powerModule) return;
+    const def = powerModule.def;
 
     const mine = d.uiIndexFromUid(activation.activatedByUid) === 0;
     const blocked = !!activation.blockedByCardId;
@@ -222,7 +224,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
 
   async function playScript(
     activation: PowerCardActivation,
-    powerModule: (typeof POWER_MODULES)[PowerCardId],
+    powerModule: PowerModule,
     mine: boolean,
     transactional: boolean,
   ) {

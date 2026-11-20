@@ -38,19 +38,24 @@ import {
   stableId,
 } from "./core";
 import { paymentProvider } from "./payments/providers";
+import { boosterTierOf, getPowerModule, isInBoosters, listPowerModules } from "../../config/powers/registry";
+import { ensurePowerCatalogFresh } from "./powerCatalog";
 import { SEASON_PREMIUM_PREFIX } from "./seasonCommands";
 import { bindChallengeRuns } from "./challengeCommands";
 import type { Transaction } from "./firestoreTypes";
 
-const CARD_POOL: Record<CardRarity, string[]> = {
-  village: ["oeil_sorcier", "pluie_etoiles", "vent_nord", "bouclier_village", "tambour_appel"],
-  notable: ["benediction_chef", "coupe_circuit", "sable_temps", "main_griot", "feu_camp"],
-  chef: ["eclair_mfoundi", "masque_bluffeur", "filet_pecheur", "pagne_changeant"],
-  ancetre: ["totem_ancetres", "marche_nuit", "cri_chef", "pacte_mains"],
-};
+/* Cartes pouvoir pouvant tomber dans un livre, par palier — calculé depuis
+   le catalogue dynamique (palier réglé dans l'admin ; cartes du code : palier
+   historique). Palier vide → toutes les cartes éligibles. */
+export function boosterCardPool(rarity: CardRarity): string[] {
+  const eligible = listPowerModules().filter((card) => !card.dev && isInBoosters(card.def));
+  const pool = eligible.filter((card) => boosterTierOf(card.def) === rarity).map((card) => card.def.id);
+  if (pool.length > 0) return pool;
+  return eligible.map((card) => card.def.id);
+}
 
 function pickCard(rarity: CardRarity) {
-  const pool = CARD_POOL[rarity];
+  const pool = boosterCardPool(rarity);
   return pool[Math.floor(randomRoll() * pool.length)];
 }
 
@@ -223,6 +228,7 @@ function chooseRarity(definition: BoosterDefinition, pityCount: number): CardRar
 
 export async function openBoosterBookHandler(request: CallableRequest<unknown>) {
   const uid = requireUid(request);
+  await ensurePowerCatalogFresh();
   const data = asObject(request.data);
   const boosterId = requiredString(data, "boosterId", 64);
   const openingId = stableId(uid, "booster", String(data.idempotencyKey));
@@ -300,12 +306,13 @@ function deterministicGridRarity(uid: string, day: string, position: number): Ca
 function deterministicGridCard(uid: string, day: string, position: number, rarity: CardRarity): string {
   const secret = process.env.NJAMBO_GRID_SECRET || process.env.GCLOUD_PROJECT || "emulator-only-secret";
   const hex = createHmac("sha256", secret).update(`${uid}:${day}:${position}:card`).digest("hex").slice(0, 12);
-  const pool = CARD_POOL[rarity];
+  const pool = boosterCardPool(rarity);
   return pool[Number.parseInt(hex, 16) % pool.length];
 }
 
 export async function buyDailyGridSlotHandler(request: CallableRequest<unknown>) {
   const uid = requireUid(request);
+  await ensurePowerCatalogFresh();
   const data = asObject(request.data);
   const position = Number(data.position);
   if (!Number.isInteger(position) || position < 0 || position > 8) throw new HttpsError("invalid-argument", "INVALID_POSITION");
@@ -369,6 +376,7 @@ export async function spinLoyaltyWheelHandler(request: CallableRequest<unknown>)
 
 export async function equipPowerCardsHandler(request: CallableRequest<unknown>) {
   const uid = requireUid(request);
+  await ensurePowerCatalogFresh();
   const data = asObject(request.data);
   const rawCardIds = data.cardIds;
   if (!Array.isArray(rawCardIds) || rawCardIds.length > 3 || rawCardIds.some((value) => typeof value !== "string" || value.length > 64)) {
@@ -380,6 +388,7 @@ export async function equipPowerCardsHandler(request: CallableRequest<unknown>) 
     const state = await economyAndInventory(transaction, uid, now);
     const ownedCards = (state.inventory.cards ?? {}) as Record<string, unknown>;
     if (cardIds.some((cardId) => !ownedCards[cardId])) throw new HttpsError("failed-precondition", "CARD_NOT_OWNED");
+    if (cardIds.some((cardId) => !getPowerModule(cardId))) throw new HttpsError("failed-precondition", "UNKNOWN_POWER_CARD");
     const inventory = { ...state.inventory, equippedCards: cardIds, updatedAt: now };
     transaction.set(state.inventoryRef, inventory, { merge: false });
     return { equippedCards: cardIds };

@@ -1,26 +1,36 @@
 import type { PowerCardDef, PowerCardId } from "../types/game";
-import { POWER_MODULES } from "./powers";
-
+import { listPowerModules, subscribePowerCatalog } from "./powers";
 
 /**
- * Les définitions vivent désormais dans `config/powers/<id>.ts` (un module
- * par carte : def + script déclaratif). Ce fichier reste le point d'entrée
- * historique pour la boutique/l'inventaire — l'ordre du registre = l'ordre
- * d'affichage.
+ * Vue « boutique / inventaire » du registre dynamique des cartes pouvoir
+ * (config/powers/registry.ts). Ces deux objets sont MIS À JOUR EN PLACE à
+ * chaque changement de catalogue (publication admin) : les imports existants
+ * restent valides. Pour re-rendre à chaque changement, utiliser
+ * usePowerCatalogRevision() (hooks/usePowerCatalog.ts).
+ *
+ * POWER_CARDS = cartes proposées (sans les cartes de test hors dev, ni les
+ * archivées). POWER_CARDS_BY_ID = TOUTES les cartes connues (une carte
+ * archivée reste jouable par ses possesseurs).
  *
  * NB : lecture directe de process.env (pas de DEV depuis devConfig — cycle
- * d'import). Les cartes `dev` n'apparaissent jamais en boutique hors dev.
+ * d'import).
  */
 const DEV_MODE =
   process.env.NEXT_PUBLIC_DEV_MODE === "1" || process.env.NEXT_PUBLIC_DEV_MODE === "true";
 
-export const POWER_CARDS: PowerCardDef[] = Object.values(POWER_MODULES)
-  .filter((module) => DEV_MODE || !module.dev)
-  .map((module) => module.def);
+export const POWER_CARDS: PowerCardDef[] = [];
+export const POWER_CARDS_BY_ID: Record<PowerCardId, PowerCardDef> = {};
 
-export const POWER_CARDS_BY_ID: Record<PowerCardId, PowerCardDef> = Object.fromEntries(
-  Object.values(POWER_MODULES).map((module) => [module.def.id, module.def]),
-) as Record<PowerCardId, PowerCardDef>;
+function refresh() {
+  const modules = listPowerModules();
+  POWER_CARDS.splice(0, POWER_CARDS.length, ...modules
+    .filter((entry) => (DEV_MODE || !entry.dev) && !entry.def.archived)
+    .map((entry) => entry.def));
+  for (const key of Object.keys(POWER_CARDS_BY_ID)) delete POWER_CARDS_BY_ID[key];
+  for (const entry of modules) POWER_CARDS_BY_ID[entry.def.id] = entry.def;
+}
+refresh();
+subscribePowerCatalog(refresh);
 
 export const MAX_EQUIPPED_POWERS = 3;
 

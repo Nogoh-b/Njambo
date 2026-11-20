@@ -6,6 +6,9 @@ import type { DocumentReference, DocumentSnapshot, Transaction } from "./firesto
 import { GAME_CONFIG } from "../../config/gameConfig";
 import { POWER_CARDS_BY_ID } from "../../config/powerCards";
 import { PowerRuntimeState } from "../../engine/power/runtimeState";
+import { getPowerModule } from "../../config/powers/registry";
+import type { PowerScript } from "../../engine/power/types";
+import { ensurePowerCatalogFresh } from "./powerCatalog";
 import { botChooseCard } from "../../engine/bot";
 import { applyTrickPowerRewards, consumeNextCardModifiers } from "../../engine/power/rewards";
 import { loadEngineState, persistEngineState } from "./powerCommands";
@@ -209,6 +212,7 @@ export async function setRoomReadyHandler(request: CallableRequest<unknown>) {
 
 export async function startMatchHandler(request: CallableRequest<unknown>) {
   const uid = requireUid(request);
+  await ensurePowerCatalogFresh();
   const data = asObject(request.data);
   const mode = requiredString(data, "mode", 16) as MatchMode;
   if (!["bot", "online", "friends", "event"].includes(mode)) throw new HttpsError("invalid-argument", "INVALID_MODE");
@@ -385,7 +389,7 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     const powersDisabled = tableRules?.powersDisabled === true;
     const equippedByUid = new Map(realParticipants.map((participant, index) => [
       participant.uid,
-      powersDisabled ? [] : devPowerBypass ? allPowerIds : (inventorySnaps[index].get("equippedCards") ?? []) as PowerCardId[],
+      powersDisabled ? [] : devPowerBypass ? allPowerIds : ((inventorySnaps[index].get("equippedCards") ?? []) as PowerCardId[]).filter((id) => getPowerModule(id)),
     ]));
     const turnSeconds = tableRules?.turnSeconds ?? GAME_CONFIG.turnSeconds;
 
@@ -422,7 +426,14 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     }));
     // Pioche restante + état moteur des cartes pouvoir — doc privé illisible
     // par les clients (le segment `__engine` n'est jamais un uid participant).
-    persistEngineState(transaction, matchId, { deck: deck as EngineCard[], effects: [], runtime: {}, usedPowers: {}, updatedAt: now }, now);
+    /* Scripts des cartes équipées figés pour toute la partie (catalogue
+       dynamique : une modification admin ne change pas une partie en cours). */
+    const powerScripts: Record<string, PowerScript> = {};
+    for (const ids of equippedByUid.values()) for (const id of ids) {
+      const card = getPowerModule(id);
+      if (card) powerScripts[id] = card.script;
+    }
+    persistEngineState(transaction, matchId, { deck: deck as EngineCard[], effects: [], runtime: {}, usedPowers: {}, powerScripts, updatedAt: now }, now);
     if (roomRef) transaction.update(roomRef, { activeMatchId: matchId, status: "playing", updatedAt: now });
     if (eventQueueRef && eventQueueEntries) transaction.set(eventQueueRef, { entries: eventQueueEntries, updatedAt: now }, { merge: true });
     eventRunRefs.forEach((ref, index) => transaction.update(ref, {

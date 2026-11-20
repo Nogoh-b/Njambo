@@ -13,7 +13,8 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { asObject, db, requireUid, requiredString, runIdempotent, stableId } from "./core";
 import type { DocumentData, DocumentReference, Transaction } from "./firestoreTypes";
 import { GAME_CONFIG } from "../../config/gameConfig";
-import { POWER_MODULES, powerScriptOf } from "../../config/powers";
+import { getPowerModule } from "../../config/powers";
+import { ensurePowerCatalogFresh } from "./powerCatalog";
 import { canActivatePower } from "../../engine/power/canActivate";
 import { interpretPowerScript } from "../../engine/power/interpret";
 import { applyResolvedOps } from "../../engine/power/apply";
@@ -21,7 +22,7 @@ import { findBlockingEffect } from "../../engine/power/blocking";
 import { resolveTargets } from "../../engine/power/targets";
 import { PowerRuntimeState, type PowerRuntimeSnapshot } from "../../engine/power/runtimeState";
 import type { PlayRestriction, PowerStateAdapter } from "../../engine/power/adapter";
-import type { PowerChoices } from "../../engine/power/types";
+import type { PowerChoices, PowerScript } from "../../engine/power/types";
 import type {
   ActivePowerEffect, Card, GameState, Player, PowerCardActivation, PowerCardId,
 } from "../../types/game";
@@ -36,6 +37,8 @@ export interface EngineDocument {
   runtime: PowerRuntimeSnapshot;
   /** uid → cartes pouvoir consommées dans ce match. */
   usedPowers: Record<string, PowerCardId[]>;
+  /** Scripts des cartes équipées, figés au lancement de la partie (catalogue dynamique). */
+  powerScripts?: Record<PowerCardId, PowerScript>;
   updatedAt: number;
 }
 
@@ -51,6 +54,7 @@ export async function loadEngineState(transaction: Transaction, matchId: string)
     effects: [...((data.effects ?? []) as ActivePowerEffect[])],
     runtime: (data.runtime ?? {}) as PowerRuntimeSnapshot,
     usedPowers: { ...((data.usedPowers ?? {}) as Record<string, PowerCardId[]>) },
+    ...(data.powerScripts ? { powerScripts: data.powerScripts as Record<PowerCardId, PowerScript> } : {}),
     updatedAt: Number(data.updatedAt ?? 0),
   };
 }
@@ -141,8 +145,12 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     ? data.choices
     : undefined) as PowerChoices | undefined;
 
-  if (!(cardId in POWER_MODULES)) throw new HttpsError("invalid-argument", "UNKNOWN_POWER_CARD");
-  const script = powerScriptOf(cardId);
+  await ensurePowerCatalogFresh();
+  const card = getPowerModule(cardId);
+  if (!card) throw new HttpsError("invalid-argument", "UNKNOWN_POWER_CARD");
+  // Interrupteur d'urgence de l'admin : activation refusée pour tous.
+  if (card.def.disabled) throw new HttpsError("failed-precondition", "POWER_CARD_DISABLED");
+  const catalogScript = card.script;
 
   return runIdempotent(uid, "usePowerCard", data.idempotencyKey, async (transaction, now) => {
     const matchRef = db.doc(`matches/${matchId}`);
@@ -171,6 +179,9 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     if (!devBypass && !equipped.includes(cardId)) throw new HttpsError("failed-precondition", "POWER_NOT_EQUIPPED");
 
     const engine = await loadEngineState(transaction, matchId);
+    /* Instantané de la partie : une carte modifiée dans l'admin pendant une
+       partie garde, dans cette partie, le comportement du lancement. */
+    const script = engine.powerScripts?.[cardId] ?? catalogScript;
     if (!devBypass && (engine.usedPowers[uid] ?? []).includes(cardId)) {
       throw new HttpsError("failed-precondition", "POWER_ALREADY_USED");
     }

@@ -9,7 +9,7 @@
 
 | Phase | Contenu | Statut |
 | --- | --- | --- |
-| A | Fondations : registre dynamique des cartes, validation des scripts, migration des 21 cartes | ⬜ À faire |
+| A | Fondations : registre dynamique des cartes, validation des scripts, migration des 21 cartes | ✅ Terminé |
 | B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ⬜ À faire |
 | C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | ⬜ À faire |
 | D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ⬜ À faire |
@@ -86,28 +86,61 @@ du pli…
   seule lecture côté client, mis à jour à chaque publication)
 
 ### Tâches
-- [ ] `PowerCardId` → `string` + type `PowerCardRecord` ; registre
+- [x] `PowerCardId` → `string` + type `PowerCardRecord` ; registre
       `getPowerCard(id)` / `listPowerCards()` alimenté par la base, repli sur
       `config/powers` si vide
-- [ ] Adapter les ~20 fichiers qui lisent `POWER_CARDS` / `POWER_CARDS_BY_ID`
+- [x] Adapter les ~20 fichiers qui lisent `POWER_CARDS` / `POWER_CARDS_BY_ID`
       (boutique, collection, table, profil, barres d'équipement, serveur)
-- [ ] `domain/powerScript.ts` : `normalizePowerCard()` + `validatePowerCard()`
+- [x] `domain/powerScript.ts` : `normalizePowerCard()` + `validatePowerCard()`
       (même principe que `validateEventVersion` : erreurs par chemin de champ),
       **bornes de sécurité** (durées, nombre de cartes déplacées, montants,
       multiplicateurs, nombre d'étapes) + tests
-- [ ] Serveur : registre en mémoire rechargé à chaque publication (pas une
+- [x] Serveur : registre en mémoire rechargé à chaque publication (pas une
       lecture par coup joué) ; `usePowerCard`, `equipPowerCards`, boosters
       utilisent le registre
-- [ ] **Instantané par partie** : les scripts des cartes équipées sont
+- [x] **Instantané par partie** : les scripts des cartes équipées sont
       copiés dans l'état moteur du match au démarrage → modifier une carte
       n'affecte jamais une partie en cours
-- [ ] Commande `seedPowerCards` : copie les 21 cartes du code en base
+- [x] Commande `seedPowerCards` : copie les 21 cartes du code en base
       (idempotente) ; outil « Outils » de l'admin
-- [ ] Rareté : correspondance carte de pouvoir (commune → légendaire) ↔
+- [x] Rareté : correspondance carte de pouvoir (commune → légendaire) ↔
       rareté des livres (village → ancêtre) documentée et centralisée
 
 **Critère de fin** : le jeu fonctionne à l'identique avec les 21 cartes lues
 en base ; base vide → repli sur le code.
+
+### Implémenté
+
+| Élément | Où | Détail |
+| --- | --- | --- |
+| Identifiant libre | `types/game.ts` | `PowerCardId = string` ; `PowerCardDef` gagne `boosterTier`, `inShop`, `inBoosters`, `archived`, `disabled`, `translations` (facultatifs) |
+| Registre dynamique | `config/powers/registry.ts` | Démarre avec les cartes du code (`CODE_POWER_MODULES`), remplacé par `setPowerCatalog(cartes, révision)` ; `getPowerModule`, `listPowerModules`, `powerScriptOf`, `powerRequiresTarget`, `boosterTierOf`, `isInBoosters`, abonnement aux changements. Catalogue vide → repli sur le code |
+| Vue boutique | `config/powerCards.ts` | `POWER_CARDS` (proposées : ni test hors dev, ni archivées) et `POWER_CARDS_BY_ID` (toutes, archivées comprises) **mis à jour en place** : les ~20 fichiers existants n'ont pas changé |
+| Validation | `engine/power/validate.ts` (+ `tests/power-card-validation.test.ts`) | Fiche (textes, catégorie, rareté, visuel, prix…) et script (ciblage, conditions, briques, sélecteurs, choix, animations) ; **bornes** : 6 étapes, 8 briques et 10 animations par étape, durées ≤ 15 s, minuteur ± 30 s, multiplicateur de pot ≤ 5, bonus ≤ 100 000, 3 cibles… ; un « choix » référencé doit avoir été demandé. Les 21 cartes du code passent |
+| Données | `power_cards/{id}`, `power_card_versions/{id}_v{rev}`, `power_catalog/current` | Catalogue publié complet en un document (`revision`, `cards`) lisible par tous ; fiches et versions réservées aux admins (`authz.ts`, `firestore.rules`) |
+| Serveur | `functions/src/powerCatalog.ts` | `ensurePowerCatalogFresh()` : relit la révision au plus toutes les 30 s ; appelée par `startMatch`, `usePowerCard`, `equipPowerCards`, livres, grille du jour |
+| Partie figée | `matchCommands.ts`, `powerCommands.ts` | `startMatch` copie les scripts des cartes équipées dans l'état moteur (`powerScripts`) ; `usePowerCard` les utilise en priorité |
+| Interrupteur d'urgence | `usePowerCard` | `def.disabled` → `POWER_CARD_DISABLED` |
+| Livres | `economyCommands.ts` | L'ancienne table en dur est remplacée par `boosterCardPool(palier)` calculé depuis le catalogue ; les 21 cartes gardent **exactement** leurs paliers (Cauris Chanceux et Sceau d'Entrave restent hors livres) |
+| Commandes admin | `functions/src/powerCardAdminCommands.ts` | `seedPowerCards` (idempotente, n'écrase rien), `listAdminPowerCards`, `setPowerCardStatus { archived, disabled }`, `rebuildPowerCatalog` |
+| Client | `hooks/usePowerCatalog.ts`, `NjamboApp.tsx` | Écoute `power_catalog/current`, ignore les cartes invalides, re-rendu à chaque publication |
+| Admin | Outils | Bouton « Migrer les cartes de pouvoir en base » |
+
+**Limite connue** : l'*animation* d'une activation lit la carte dans le
+catalogue courant du client. Si l'admin modifie l'animation d'une carte
+pendant une partie, les joueurs voient la nouvelle animation, mais l'*effet*
+reste celui du lancement. Cela sera traité par les chorégraphies (phase C).
+
+Test `server/scripts/smoke-power-catalog.cjs` (Postgres jetable) — 18/18 :
+repli sur le code, migration réservée aux admins et idempotente, catalogue
+publié, registre serveur alimenté, 4 paliers de livres identiques à
+l'ancienne table, scripts figés dans la partie malgré une modification,
+archivage (hors livres, toujours équipable), interrupteur d'urgence,
+refus d'une carte inconnue. Les 8 autres suites passent toujours
+(20, 11, 13, 15, 16, 10, 14, 15).
+
+**Pour la mise en production** : après déploiement, cliquer une fois sur
+« Migrer les cartes de pouvoir en base » (Admin → Outils).
 
 ---
 
@@ -302,4 +335,5 @@ apparaît en retard pendant la donne.
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | A | Registre dynamique, validation avec bornes (6 tests), migration idempotente des 21 cartes, catalogue publié, scripts figés par partie, archivage / interrupteur d'urgence, livres calculés depuis le catalogue ; intégration 18/18 et aucune régression. |
 | 2026-11-20 | — | Ajout de la phase C « Chorégraphies spatiales » (repères, trajectoires, animations propres à chaque élément, ligne de temps) ; cible confirmée ; décisions : carte archivée toujours jouable par ses possesseurs, textes en français avec traductions prévues plus tard. |

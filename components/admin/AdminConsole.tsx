@@ -199,6 +199,10 @@ function Tools() {
             const result = await backendCallable("updateFeatureFlags")({ flags: { economy: true, authoritativeMatches: true, shop: true, events: true, simulatedPayments: true, admin: true, notifications: true } });
             return `Fonctionnalités activées : ${JSON.stringify(result.data)}`;
           })}>Activer la préversion</button>
+          <button type="button" className={styles.btn} onClick={() => void run(async () => {
+            const result = await backendCallable<Record<string, unknown>, { created: number; total: number; published: number; catalogRevision: number }>("seedPowerCards")({});
+            return `Cartes de pouvoir : ${result.data.created} migrée(s) sur ${result.data.total} ; catalogue publié (révision ${result.data.catalogRevision}, ${result.data.published} cartes).`;
+          })}>Migrer les cartes de pouvoir en base</button>
         </div>
       </section>
       <section className={styles.panel}>

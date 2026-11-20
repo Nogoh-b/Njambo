@@ -7,6 +7,7 @@ import { MOTION_DURATION_MS, MotionProfileProvider, reducedSceneVariants, sceneV
 import { GameProvider, useGame } from "@/contexts/GameContext";
 import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepLink";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
+import { usePowerCatalogLoader, usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
 import { markPerformance } from "@/lib/performanceMetrics";
@@ -61,6 +62,9 @@ function SceneRouter() {
   const { user } = useAuth();
   // Dos de carte équipé (phase 5) appliqué à toutes les cartes face cachée.
   useMyCosmetics(true);
+  // Cartes pouvoir publiées depuis l'admin : chargées puis re-rendu à chaque publication.
+  usePowerCatalogLoader();
+  usePowerCatalogRevision();
 
   /* État partagé entre TableScreen et ResultScreen */
   const [gameResult, setGameResult] = useState<Result | null>(null);

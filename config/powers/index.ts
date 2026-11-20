@@ -1,4 +1,4 @@
-import type { PowerCardId } from "../../types/game";
+import type { PowerBoosterTier, PowerCardId } from "../../types/game";
 import type { PowerModule } from "../../engine/power/types";
 
 import { oeilSorcier } from "./oeil_sorcier";
@@ -24,13 +24,14 @@ import { pacteMains } from "./pacte_mains";
 import { sceauEntrave } from "./sceau_entrave";
 
 /**
- * Registre unique des cartes pouvoir. `satisfies Record<PowerCardId, …>`
- * force l'exhaustivité : ajouter un littéral à PowerCardId sans module ici
- * (ou l'inverse) est une erreur de compilation.
+ * Cartes pouvoir livrées avec le code : catalogue de SECOURS (base vide) et
+ * source de la migration initiale en base (commande admin seedPowerCards).
+ * En jeu, on passe TOUJOURS par le registre dynamique (./registry), alimenté
+ * par le catalogue publié depuis l'admin.
  *
- * L'ordre d'insertion = l'ordre d'affichage en boutique (POWER_CARDS).
+ * L'ordre d'insertion = l'ordre d'affichage en boutique.
  */
-export const POWER_MODULES = {
+export const CODE_POWER_MODULES: Record<PowerCardId, PowerModule> = {
   oeil_sorcier: oeilSorcier,
   pluie_etoiles: pluieEtoiles,
   vent_nord: ventNord,
@@ -52,15 +53,23 @@ export const POWER_MODULES = {
   troc_cible: trocCible,
   pacte_mains: pacteMains,
   sceau_entrave: sceauEntrave,
-} satisfies Record<PowerCardId, PowerModule>;
+};
 
-/** Script d'une carte (raccourci typé). */
-export function powerScriptOf(cardId: PowerCardId) {
-  return POWER_MODULES[cardId].script;
-}
+/** Palier de livre historique des cartes du code (ancienne table CARD_POOL du serveur). */
+export const CODE_BOOSTER_TIERS: Record<PowerCardId, PowerBoosterTier> = {
+  oeil_sorcier: "village", pluie_etoiles: "village", vent_nord: "village", bouclier_village: "village", tambour_appel: "village",
+  benediction_chef: "notable", coupe_circuit: "notable", sable_temps: "notable", main_griot: "notable", feu_camp: "notable",
+  eclair_mfoundi: "chef", masque_bluffeur: "chef", filet_pecheur: "chef", pagne_changeant: "chef",
+  totem_ancetres: "ancetre", marche_nuit: "ancetre", cri_chef: "ancetre", pacte_mains: "ancetre",
+};
 
-/** La carte attend-elle un choix de cible de l'activateur (modale) ? */
-export function powerRequiresTarget(cardId: PowerCardId): boolean {
-  const target = POWER_MODULES[cardId].script.target;
-  return target.count !== "none" && target.chooser !== "engine";
-}
+export {
+  getPowerModule,
+  listPowerModules,
+  powerCatalogRevision,
+  powerRequiresTarget,
+  powerScriptOf,
+  setPowerCatalog,
+  subscribePowerCatalog,
+  boosterTierOf,
+} from "./registry";

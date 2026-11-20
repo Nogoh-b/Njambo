@@ -66,6 +66,11 @@ import {
   respondEventChallengeHandler,
   listMyChallengesHandler,
 } from "./challengeCommands";
+import {
+  seedPowerCardsHandler,
+  listAdminPowerCardsHandler,
+  setPowerCardStatusHandler,
+} from "./powerCardAdminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -119,6 +124,9 @@ export const publishAdminDraft = onCall(callable, publishAdminDraftHandler);
 export const seedLiveOps = onCall(callable, seedLiveOpsHandler);
 export const migrateLegacyPlayer = onCall(callable, migrateLegacyPlayerHandler);
 export const registerPushToken = onCall(callable, registerPushTokenHandler);
+export const seedPowerCards = onCall(callable, seedPowerCardsHandler);
+export const listAdminPowerCards = onCall(callable, listAdminPowerCardsHandler);
+export const setPowerCardStatus = onCall(callable, setPowerCardStatusHandler);
 export const getSeasons = onCall(callable, getSeasonsHandler);
 export const claimSeasonTier = onCall(callable, claimSeasonTierHandler);
 export const listSeasons = onCall(callable, listSeasonsHandler);

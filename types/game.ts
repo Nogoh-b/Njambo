@@ -86,28 +86,13 @@ export interface Profile {
 
 /* ───── Cartes Pouvoir ───── */
 
-export type PowerCardId =
-  | "oeil_sorcier"
-  | "pluie_etoiles"
-  | "vent_nord"
-  | "benediction_chef"
-  | "coupe_circuit"
-  | "sable_temps"
-  | "bouclier_village"
-  | "tambour_appel"
-  | "cauris_chanceux"
-  | "main_griot"
-  | "eclair_mfoundi"
-  | "totem_ancetres"
-  | "masque_bluffeur"
-  | "filet_pecheur"
-  | "marche_nuit"
-  | "cri_chef"
-  | "feu_camp"
-  | "pagne_changeant"
-  | "troc_cible"
-  | "pacte_mains"
-  | "sceau_entrave";
+/** Identifiant de carte pouvoir. Les cartes sont désormais un catalogue
+ *  dynamique (base de données, éditable dans l'admin) : n'importe quel
+ *  identifiant a-z0-9_ est possible. Voir config/powers/registry.ts. */
+export type PowerCardId = string;
+
+/** Palier de livre (booster) dans lequel une carte peut tomber. */
+export type PowerBoosterTier = "village" | "notable" | "chef" | "ancetre";
 
 export type PowerCategory = "offensive" | "defense" | "score" | "tactical" | "perturbation" | "economy";
 export type PowerRarity = "common" | "rare" | "epic" | "legendary";
@@ -181,6 +166,19 @@ export interface PowerCardDef {
   costNkap: number;
   /** Éléments animés influencés — voir PowerAnimTag pour la taxonomie complète. */
   animTags: PowerAnimTag[];
+  /* ── Catalogue dynamique (cartes de pouvoir pilotées par l'admin) ── */
+  /** Palier de livre où la carte peut tomber (absent = dérivé de la rareté). */
+  boosterTier?: PowerBoosterTier;
+  /** Vendue en boutique (défaut : oui). */
+  inShop?: boolean;
+  /** Peut tomber dans les livres (défaut : oui). */
+  inBoosters?: boolean;
+  /** Retirée de la boutique et des livres ; ses possesseurs peuvent encore la jouer. */
+  archived?: boolean;
+  /** Interrupteur d'urgence : activation refusée pour tous. */
+  disabled?: boolean;
+  /** Traductions futures (non éditées pour l'instant). */
+  translations?: Partial<Record<"en" | "dua", Partial<Pick<PowerCardDef, "name" | "description" | "activationTitle" | "activationText">>>>;
 }
 
 /** Carte pouvoir possédée par un joueur (cardId → quantité) */

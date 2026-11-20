@@ -62,6 +62,11 @@ import {
   respondEventChallengeHandler,
   listMyChallengesHandler,
 } from "../../functions/src/challengeCommands";
+import {
+  seedPowerCardsHandler,
+  listAdminPowerCardsHandler,
+  setPowerCardStatusHandler,
+} from "../../functions/src/powerCardAdminCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -109,6 +114,9 @@ export const commands: Record<string, Handler> = {
   seedLiveOps: seedLiveOpsHandler,
   migrateLegacyPlayer: migrateLegacyPlayerHandler,
   registerPushToken: registerPushTokenHandler,
+  seedPowerCards: seedPowerCardsHandler,
+  listAdminPowerCards: listAdminPowerCardsHandler,
+  setPowerCardStatus: setPowerCardStatusHandler,
   getSeasons: getSeasonsHandler,
   claimSeasonTier: claimSeasonTierHandler,
   listSeasons: listSeasonsHandler,
