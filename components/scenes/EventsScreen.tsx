@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { eventArt } from "@/lib/eventArt";
+import { eventCountdown } from "@/lib/eventCountdown";
 import { useEffect, useState } from "react";
 import { type EventVersion, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
@@ -230,7 +231,11 @@ export function EventsScreen() {
                         <NjamboIcon name={isPvp ? "users" : "bot"} tone={isPvp ? "teal" : "gold"} size={14} />
                         {isPvp ? "Tournoi PvP" : "Défi IA"}
                       </span>
-                      <span className={styles.datePill}>{eventDates(event)}</span>
+                      {(() => {
+                        const countdown = eventCountdown(event, now);
+                        if (!countdown || countdown.phase === "ended") return <span className={styles.datePill}>{eventDates(event)}</span>;
+                        return <span className={`${styles.datePill}${countdown.endingSoon ? ` ${styles.datePillSoon}` : ""}`}>{countdown.endingSoon ? "⏳ " : ""}{countdown.label}</span>;
+                      })()}
                     </div>
                     <h2>{event.title}</h2>
                     <p className={styles.posterDesc}>{event.description}</p>

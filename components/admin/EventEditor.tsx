@@ -16,7 +16,7 @@ import {
 } from "@/domain";
 import { adminApi, adminErrorText, issuesFromError, type AdminEventStats, type AdminEventSummary } from "./adminApi";
 import { ImageField } from "./ImageField";
-import { RewardPicker } from "./RewardPicker";
+import { RewardPicker, rewardSummary } from "./RewardPicker";
 import { LifecycleBadge, PREVIEW_MESSAGE, formatDateTime } from "./adminUi";
 import styles from "./AdminConsole.module.css";
 
@@ -313,6 +313,7 @@ export function EventEditor({ initial, summary, isNew, onClose, onChanged }: {
 
       {tab === "preview" && <PreviewTab event={event} />}
       {tab === "stats" && <StatsTab eventId={event.eventId} stages={event.stages} />}
+      {tab === "stats" && event.leaderboard.enabled && <LiveLeaderboard eventId={event.eventId} />}
 
       {tab !== "preview" && tab !== "stats" && issues.length > 0 && (
         <section className={styles.panel}>
@@ -552,6 +553,59 @@ function StatsTab({ eventId, stages }: { eventId: string; stages: EventStage[] }
               </div>
             );
           })}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ─────────────── Classement en direct (phase 2) ─────────────── */
+
+function formatRunDuration(ms: number) {
+  const minutes = Math.round(ms / 60_000);
+  if (minutes < 60) return `${minutes} min`;
+  const hours = Math.floor(minutes / 60);
+  return hours < 48 ? `${hours} h ${String(minutes % 60).padStart(2, "0")}` : `${Math.floor(hours / 24)} j ${hours % 24} h`;
+}
+
+function LiveLeaderboard({ eventId }: { eventId: string }) {
+  const [data, setData] = useState<Awaited<ReturnType<typeof adminApi.leaderboard>> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = useCallback(() => {
+    setError(null);
+    adminApi.leaderboard(eventId).then(setData).catch((cause) => setError(adminErrorText(cause)));
+  }, [eventId]);
+  useEffect(load, [load]);
+  return (
+    <section className={styles.panel}>
+      <div className={styles.row} style={{ marginBottom: 12 }}>
+        <h2 style={{ margin: 0 }}>Classement {data?.settledAt ? `final (réglé le ${formatDateTime(data.settledAt)})` : "en direct"}</h2>
+        <span className={styles.spacer} />
+        {data && <span className={styles.hint}>{data.participants} participant(s)</span>}
+        <button type="button" className={`${styles.btn} ${styles.small}`} onClick={load}>Actualiser</button>
+      </div>
+      {error && <div className={`${styles.notice} ${styles.error}`}>{error}</div>}
+      {!data ? <p className={styles.hint}>Chargement…</p> : data.top.length === 0 ? <p className={styles.hint}>Personne n’a encore marqué de points.</p> : (
+        <div className={styles.tableWrap}>
+          <table className={styles.table}>
+            <thead><tr><th>Rang</th><th>Joueur</th><th>Score</th><th>Tables</th><th>Vies</th><th>Durée</th><th>Récompense</th></tr></thead>
+            <tbody>
+              {data.top.map((entry) => {
+                const tier = data.rankRewards.find((t) => entry.rank >= t.fromRank && entry.rank <= t.toRank);
+                return (
+                  <tr key={entry.uid}>
+                    <td><strong>{entry.rank}</strong></td>
+                    <td>{entry.emoji} {entry.name}{entry.perfect ? " ★" : ""}<div className={styles.hint}><code>{entry.uid.slice(0, 10)}</code></div></td>
+                    <td><strong>{entry.score}</strong></td>
+                    <td>{entry.completed ? "Grand prix" : entry.stagesWon}</td>
+                    <td>{entry.livesLeft}</td>
+                    <td className={styles.hint}>{formatRunDuration(entry.durationMs)}</td>
+                    <td className={styles.hint}>{tier ? tier.reward.map(rewardSummary).join(", ") : "—"}</td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
       )}
     </section>

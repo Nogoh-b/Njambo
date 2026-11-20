@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | 0 | Socle déjà livré (retour parcours, animations, 1 ticket = 1 parcours) | ✅ Terminé |
 | 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | ✅ Code terminé — à valider en prod |
-| 2 | Classement + récompenses par rang + compte à rebours | 🟡 En cours |
+| 2 | Classement + récompenses par rang + compte à rebours | ✅ Code terminé — à valider en prod |
 | 3 | Notifications programmées (campagnes) | ⬜ À faire |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ⬜ À faire |
 | 5 | Cosmétiques (récompenses exclusives) | ⬜ À faire |
@@ -248,10 +248,10 @@ statistiques, audit.
 - [x] Façade Postgres : requête de **comptage** (`count()`) pour calculer le rang d'un joueur
 - [x] Lecture : top 50 + « mon rang » (commande `getEventLeaderboard`)
 - [x] Job `settleEventRankings` (toutes les 5 min) : événements terminés non réglés → récompenses par rang dans les inventaires + ledger + notification in-app ; respecte `minParticipants`
-- [ ] Client : onglet **Classement** sur le détail événement (podium, ma ligne épinglée, récompenses par rang)
-- [ ] Client : **compte à rebours** (liste + détail + carte du menu), état « se termine bientôt » < 2 h
-- [ ] Admin : onglet Classement de l'éditeur + vue classement en direct dans les stats
-- [ ] Animation de résultat : points gagnés et rang qui monte dans l'overlay de conséquences
+- [x] Client : onglet **Classement** sur le détail événement (podium, ma ligne épinglée, récompenses par rang)
+- [x] Client : **compte à rebours** (liste + détail + carte du menu), état « se termine bientôt » < 2 h
+- [x] Admin : onglet Classement de l'éditeur + vue classement en direct dans les stats
+- [x] Animation de résultat : points gagnés et rang qui monte dans l'overlay de conséquences
 
 **Critère de fin** : à la fin d'un événement, chaque joueur classé reçoit
 automatiquement la récompense de son rang, une seule fois.
@@ -292,6 +292,31 @@ Test d'intégration `server/scripts/smoke-event-leaderboard.cjs` (Postgres
 jetable) — 13/13 : vraies parties d'événement jouées par le serveur, score
 100 écrit au règlement, ordre et départage, rang par comptage, rien avant la
 fin, 77 cauris au 1er, notification, aucun double paiement.
+
+### Client — implémenté
+
+| Élément | Où | Détail |
+| --- | --- | --- |
+| Bascule **Parcours / Classement** | `EventDetailScreen.tsx` (en-tête du plateau) | Visible si `leaderboard.enabled` ; l'onglet affiche « Classement · 3e » quand le joueur est classé |
+| Panneau Classement | `EventLeaderboardPanel.tsx` (+ `.module.css`) | Podium animé 2-1-3, rangs 4 à 50, **ma ligne épinglée** si hors du top, « Tu es 57e avec 420 pts · à la clé : … », vue Récompenses (barème + tranches + minimum de participants) |
+| Données | `hooks/useEventLeaderboard.ts` | Commande `getEventLeaderboard` ; rechargée après chaque partie |
+| Points et rang après une partie | `EventOutcomeOverlay.tsx`, `lib/eventOutcome.ts` | Le run porte `score` ; la photo avant partie (`EventReturnSnapshot`) garde `score` et `rank` → bandeau « +100 pts · 7e → 3e ▲ 4 » animé |
+| Compte à rebours | `lib/eventCountdown.ts` (+ tests) | « Ouvre dans 35 min », « Fin dans 2 j 4 h » ; < 2 h : pastille rouge « Dernières heures ! » (détail), étiquette rouge (liste, carte du menu). Pas de compte à rebours pour un événement « permanent » (fin > 1 an) |
+| Notification de fin | `NotificationsScreen.tsx`, `lib/socialData.ts`, `types/game.ts` | Type `event` + `eventId` : un clic ouvre le détail de l'événement |
+| Admin | `EventEditor.tsx` → onglet Statistiques | Tableau du classement en direct (rang, joueur, score, tables, vies, durée, récompense prévue) ; « final » une fois réglé |
+
+Vérifié à 390 px (Chromium) : podium, ma ligne épinglée, overlay, écran de
+détail réel (pastille « Dernières heures ! », bascule), aucun débordement.
+
+![Classement](captures/classement/panel.webp)
+![Points et rang](captures/classement/overlay.webp)
+![Détail avec compte à rebours](captures/classement/detail.webp)
+
+**À valider en production** : activer le classement sur un événement court
+(ex. 1 h) avec des récompenses par rang ; jouer avec 2 comptes ; vérifier
+le classement, puis la récompense et la notification à la fin (job 5 min).
+Déployer aussi les index : `firebase deploy --only firestore:indexes`
+(utile seulement si le back tourne sur Firestore ; la façade Postgres n'en a pas besoin).
 
 ---
 
@@ -422,3 +447,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 1 | Console `/admin` reconstruite : tableau de bord, liste filtrable, éditeur en onglets avec validation en direct, `RewardPicker`, champ image (upload + bibliothèque), aperçu réel dans un iframe, statistiques, audit temps réel, outils historiques. |
 | 2026-11-20 | 1 | Section Joueurs (recherche, soldes, parcours, tickets offerts avec motif, réinitialiser/clôturer un parcours) ; test Postgres 11/11. **Phase 1 : code terminé**, validation en production à faire. |
 | 2026-11-20 | 2 | Serveur du classement : règles + 6 tests, score écrit au règlement de table, `count()` Postgres, `getEventLeaderboard` (top 50 + mon rang), job de distribution par rang idempotent avec notification ; test d'intégration 13/13 avec de vraies parties. |
+| 2026-11-20 | 2 | Client : onglet Classement (podium, top 50, ma ligne épinglée, récompenses), bandeau « +pts · ancien rang → nouveau rang », comptes à rebours (liste, détail, menu ; < 2 h mis en avant), notifications d'événement cliquables ; classement en direct dans l'admin. **Phase 2 : code terminé.** |

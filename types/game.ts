@@ -306,7 +306,7 @@ export interface FriendRequest {
 
 export interface NotificationEntry {
   id: string;
-  type: "friend_request" | "friend_accept" | "room_invite" | "message";
+  type: "friend_request" | "friend_accept" | "room_invite" | "message" | "event";
   actorUid: string;
   actorName: string;
   actorEmoji: string;
@@ -315,6 +315,8 @@ export interface NotificationEntry {
   read: boolean;
   roomId?: string;
   conversationId?: string;
+  /** Notification d'événement (fin, classement) : ouvre son détail. */
+  eventId?: string;
   createdAt: number;
 }
 

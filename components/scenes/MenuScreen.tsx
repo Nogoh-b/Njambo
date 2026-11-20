@@ -32,6 +32,7 @@ import { preloadScene } from "@/lib/scenePreload";
 import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
 import type { PlayerStats, PublicPlayerProfile, SceneName } from "@/types/game";
 import { eventArt } from "@/lib/eventArt";
+import { eventCountdown } from "@/lib/eventCountdown";
 import styles from "./MenuScreen.module.css";
 
 type SocialCounts = { notifications: number; messages: number; requests: number };
@@ -357,6 +358,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
   const featuredEvent = events.find((event) => event.published && event.startsAt <= now && event.endsAt > now) ?? events[0] ?? DEFAULT_EVENTS[0];
   const featuredReward = featuredEvent.finalReward.map(rewardLabel).join(" + ");
   const featuredEventArt = eventArt(featuredEvent, "thumb");
+  const featuredCountdown = eventCountdown(featuredEvent, now);
   const bronzeTickets = Number(inventory.tickets?.bronze ?? 0);
   const loyaltyPoints = Math.min(7, Math.max(0, economy?.daily.loyaltyPoints ?? 0));
   const energyValue = economy?.energy.unlimited ? "∞" : String(economy?.energy.available ?? 100);
@@ -854,6 +856,11 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
               <NjamboIcon name="sparkle" tone="gold" size={13} />
               {featuredReward}
             </span>
+            {featuredCountdown && featuredCountdown.phase !== "ended" && (
+              <span className={`${styles.eventBannerCountdown}${featuredCountdown.endingSoon ? ` ${styles.eventBannerCountdownSoon}` : ""}`}>
+                {featuredCountdown.endingSoon ? "⏳ " : ""}{featuredCountdown.label}
+              </span>
+            )}
           </span>
           <span className={styles.eventBannerChevron} aria-hidden="true">›</span>
         </button>

@@ -76,7 +76,7 @@ function request(id: string, raw: Record<string, unknown>): FriendRequest {
 }
 
 function notification(id: string, raw: Record<string, unknown>): NotificationEntry {
-  const type = raw.type === "friend_request" || raw.type === "friend_accept" || raw.type === "room_invite" || raw.type === "message"
+  const type = raw.type === "friend_request" || raw.type === "friend_accept" || raw.type === "room_invite" || raw.type === "message" || raw.type === "event"
     ? raw.type
     : "message";
   return {
@@ -90,6 +90,7 @@ function notification(id: string, raw: Record<string, unknown>): NotificationEnt
     read: raw.read === true,
     roomId: typeof raw.roomId === "string" ? raw.roomId : undefined,
     conversationId: typeof raw.conversationId === "string" ? raw.conversationId : undefined,
+    eventId: typeof raw.eventId === "string" ? raw.eventId : undefined,
     createdAt: typeof raw.createdAt === "number" ? raw.createdAt : 0,
   };
 }

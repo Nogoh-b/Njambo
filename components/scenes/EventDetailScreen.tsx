@@ -15,6 +15,9 @@ import { GameShell } from "@/components/ui/GameShell";
 import { NjamboIcon } from "@/components/ui/Art";
 import { resolveEventTheme } from "@/lib/eventTheme";
 import { eventArt } from "@/lib/eventArt";
+import { eventCountdown } from "@/lib/eventCountdown";
+import { useEventLeaderboard } from "@/hooks/useEventLeaderboard";
+import { EventLeaderboardPanel } from "./EventLeaderboardPanel";
 import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
 import { EventOutcomeOverlay, resolveEventOutcome, type EventOutcome } from "./EventOutcomeOverlay";
 import styles from "./EventDetailScreen.module.css";
@@ -70,6 +73,8 @@ export function EventDetailScreen({
   const [now, setNow] = useState(() => Date.now());
   const [selectedStageIndex, setSelectedStageIndex] = useState<number>(0);
   const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [boardView, setBoardView] = useState<"path" | "ranking">("path");
+  const [leaderboardRefresh, setLeaderboardRefresh] = useState(0);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -79,6 +84,13 @@ export function EventDetailScreen({
   const preview = Boolean(previewEvent);
   const event = previewEvent ?? events.find((candidate) => candidate.eventId === eventDetailId) ?? null;
   const theme = resolveEventTheme(event);
+  const rankingEnabled = Boolean(event?.leaderboard.enabled);
+  const { data: leaderboard, error: leaderboardError, reload: reloadLeaderboard } = useEventLeaderboard(
+    event?.eventId,
+    rankingEnabled && !preview && Boolean(user),
+    leaderboardRefresh,
+  );
+  const countdown = event ? eventCountdown(event, now) : null;
   const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) };
 
   /* Parcours affiché : d'abord un parcours en cours (active/matchmaking),
@@ -101,6 +113,7 @@ export function EventDetailScreen({
      Sans changement au bout de 8 s (partie annulée, abandon avant la
      donne…), la photo est simplement oubliée. */
   const [outcome, setOutcome] = useState<EventOutcome | null>(null);
+  const [rankBefore, setRankBefore] = useState<number | null>(null);
   const [freshUnlockIndex, setFreshUnlockIndex] = useState<number | null>(null);
   const [breakingLifeIndex, setBreakingLifeIndex] = useState<number | null>(null);
   const outcomeTimerRef = useRef<number | null>(null);
@@ -116,6 +129,8 @@ export function EventDetailScreen({
       }
       setEventReturn(null);
       setOutcome(result);
+      setRankBefore(eventReturn.rank ?? null);
+      if (rankingEnabled) setLeaderboardRefresh((key) => key + 1);
       if (result.kind === "advance") setFreshUnlockIndex(result.stageIndex + 1);
       if (result.kind === "life_lost" || result.kind === "eliminated") {
         setBreakingLifeIndex(Math.max(0, event.allowedLosses - result.losses));
@@ -130,7 +145,7 @@ export function EventDetailScreen({
         setEventReturn(null);
       }, remaining);
     }
-  }, [event, eventReturn, gxeSfx, runs, setEventReturn]);
+  }, [event, eventReturn, gxeSfx, rankingEnabled, runs, setEventReturn]);
 
   useEffect(() => () => {
     if (outcomeTimerRef.current !== null) window.clearTimeout(outcomeTimerRef.current);
@@ -146,13 +161,13 @@ export function EventDetailScreen({
     return () => window.clearTimeout(timer);
   }, [freshUnlockIndex, breakingLifeIndex]);
 
-  const rememberRunBeforeMatch = (runId: string, stageIndex: number, losses: number) => {
+  const rememberRunBeforeMatch = (runId: string, stageIndex: number, losses: number, score = 0) => {
     if (!event) return;
     if (outcomeTimerRef.current !== null) {
       window.clearTimeout(outcomeTimerRef.current);
       outcomeTimerRef.current = null;
     }
-    setEventReturn({ runId, eventId: event.eventId, stageIndex, losses, takenAt: Date.now() });
+    setEventReturn({ runId, eventId: event.eventId, stageIndex, losses, score, rank: leaderboard?.me?.rank ?? null, takenAt: Date.now() });
   };
 
   const isGuest = !user || user.isAnonymous;
@@ -236,7 +251,7 @@ export function EventDetailScreen({
          recherche — startMatch remet le joueur dans la file de l'étape.
          Aucun ticket n'est redemandé tant que le parcours n'est pas fini. */
       const stage = event.stages[run.stageIndex] ?? event.stages[0];
-      rememberRunBeforeMatch(run.id, run.stageIndex, run.losses);
+      rememberRunBeforeMatch(run.id, run.stageIndex, run.losses, Number(run.score ?? 0));
       onStart?.(
         run.id,
         event.mode,
@@ -437,12 +452,32 @@ export function EventDetailScreen({
           <div className={styles.mapHeader}>
             <span className={styles.mapModePill}>
               <NjamboIcon name={isPvp ? "users" : "bot"} tone={isPvp ? "teal" : "gold"} size={15} />
-              <span>{isPvp ? "Tournoi PvP" : "Campagne IA"} · {eventDates(event)}</span>
+              <span>{isPvp ? "Tournoi PvP" : "Campagne IA"} · {countdown && countdown.phase !== "ended" ? countdown.label : eventDates(event)}</span>
             </span>
-            <span className={styles.mapHintPill}>Touche une table pour l&apos;inspecter</span>
+            {countdown?.endingSoon && <span className={styles.endingSoonPill} role="status">Dernières heures !</span>}
+            {rankingEnabled ? (
+              <span className={styles.viewSwitch} role="tablist" aria-label="Affichage">
+                <button data-nj-skin="none" type="button" role="tab" aria-selected={boardView === "path"} onClick={() => setBoardView("path")}>Parcours</button>
+                <button data-nj-skin="none" type="button" role="tab" aria-selected={boardView === "ranking"} onClick={() => setBoardView("ranking")}>
+                  Classement{leaderboard?.me ? ` · ${leaderboard.me.rank}e` : ""}
+                </button>
+              </span>
+            ) : (
+              <span className={styles.mapHintPill}>Touche une table pour l&apos;inspecter</span>
+            )}
           </div>
 
-          {/* Sentier sinueux (Desktop) / Frise horizontale (Mobile) des mini-tables ovales */}
+          {boardView === "ranking" && rankingEnabled ? (
+            <EventLeaderboardPanel
+              event={event}
+              uid={user?.uid ?? null}
+              data={leaderboard}
+              error={leaderboardError}
+              reload={() => void reloadLeaderboard()}
+              preview={preview}
+            />
+          ) : (
+          /* Sentier sinueux (Desktop) / Frise horizontale (Mobile) des mini-tables ovales */
           <div className={styles.trailViewport}>
             <ol className={styles.trailList} aria-label="Étapes du parcours">
               {event.stages.map((stage, idx) => {
@@ -540,6 +575,7 @@ export function EventDetailScreen({
               </li>
             </ol>
           </div>
+          )}
         </section>
 
         {/* ─── DROITE (DESKTOP) / BAS (MOBILE) : CONSOLE INSPECTEUR + BILLET + CTA ─── */}
@@ -693,6 +729,7 @@ export function EventDetailScreen({
           outcome={outcome}
           event={event}
           tone={isPvp ? "teal" : "gold"}
+          ranking={rankingEnabled ? { rank: leaderboard?.me?.rank ?? null, previousRank: rankBefore } : undefined}
           onClose={() => setOutcome(null)}
           onContinue={outcome.kind === "advance" || outcome.kind === "life_lost"
             ? () => { setOutcome(null); handlePrimaryAction(); }

@@ -4,6 +4,7 @@
 
 import type { EventLifecycle, EventValidationIssue, EventVersion } from "@/domain";
 import { BACKEND_URL, BackendError, callBackend } from "@/lib/backend";
+import type { EventLeaderboardData } from "@/hooks/useEventLeaderboard";
 import { auth } from "@/lib/firebase";
 
 export interface AdminEventSummary {
@@ -103,6 +104,7 @@ export const adminApi = {
     call<{ uid: string; tickets: Record<string, number> }>("adminGrantTicket", { uid, tier, amount, reason }),
   resetRun: (runId: string, mode: "restart" | "close", reason: string) =>
     call<{ runId: string; status: string }>("adminResetEventRun", { runId, mode, reason }),
+  leaderboard: (eventId: string) => call<EventLeaderboardData>("getEventLeaderboard", { eventId }),
   uploads: (kind?: string) => call<{ uploads: AdminUpload[] }>("listAdminUploads", kind ? { kind } : {}),
 };
 

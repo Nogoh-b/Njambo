@@ -22,9 +22,11 @@ interface Props {
   onClose: () => void;
   /** Rejouer tout de suite (table suivante ou même table). */
   onContinue?: () => void;
+  /** Classement actif : rang après la partie (chargé en différé) et rang avant. */
+  ranking?: { rank: number | null; previousRank: number | null };
 }
 
-export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue }: Props) {
+export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue, ranking }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const total = event.stages.length;
   const livesLeft = Math.max(0, event.allowedLosses - outcome.losses);
@@ -144,6 +146,20 @@ export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue 
         </div>
 
         <p className={styles.body}>{copy.body}</p>
+
+        {ranking && (outcome.kind === "advance" || outcome.kind === "completed") && (outcome.pointsGained ?? 0) > 0 && (
+          <div className={styles.scoreStrip} aria-live="polite">
+            <strong className={styles.points}>+{outcome.pointsGained} pts</strong>
+            {ranking.rank !== null && (
+              <span className={styles.rankMove}>
+                {ranking.previousRank !== null && ranking.previousRank !== ranking.rank && <><span className={styles.rankOld}>{ranking.previousRank}e</span><span aria-hidden="true">→</span></>}
+                <span className={styles.rankNew}>{ranking.rank === 1 ? "1er" : `${ranking.rank}e`}</span>
+                {ranking.previousRank !== null && ranking.rank < ranking.previousRank && <span className={styles.rankUp} aria-label="en progression">▲ {ranking.previousRank - ranking.rank}</span>}
+                {ranking.previousRank === null && <span className={styles.rankUp}>entrée au classement</span>}
+              </span>
+            )}
+          </div>
+        )}
 
         {rewards.length > 0 && (
           <ul className={styles.rewards} aria-label="Gains">

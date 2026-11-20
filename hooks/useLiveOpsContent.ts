@@ -35,6 +35,8 @@ export interface PlayerEventRun {
   losses: number;
   currentMatchId?: string | null;
   claimedRewardKeys?: string[];
+  /** Score de classement du parcours (si le classement est actif). */
+  score?: number;
   /** Copie de la version de l'événement au moment de l'inscription. */
   versionSnapshot?: EventVersion;
   createdAt?: number;

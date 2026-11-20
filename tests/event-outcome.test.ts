@@ -31,3 +31,14 @@ describe("resolveEventOutcome", () => {
     expect(resolveEventOutcome(mboa, { stageIndex: 1, losses: 1 }, { status: "matchmaking", stageIndex: 1, losses: 1 })).toBeNull();
   });
 });
+
+describe("points de classement dans les conséquences", () => {
+  it("expose les points gagnés quand le run porte un score", () => {
+    const outcome = resolveEventOutcome(mboa, { stageIndex: 1, losses: 0, score: 100 }, { status: "active", stageIndex: 2, losses: 0, score: 200 });
+    expect(outcome).toMatchObject({ kind: "advance", pointsGained: 100 });
+  });
+  it("n'invente pas de points sans classement", () => {
+    const outcome = resolveEventOutcome(mboa, { stageIndex: 1, losses: 0 }, { status: "active", stageIndex: 2, losses: 0 });
+    expect(outcome && "pointsGained" in outcome).toBe(false);
+  });
+});

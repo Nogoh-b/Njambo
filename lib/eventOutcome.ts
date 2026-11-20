@@ -6,18 +6,20 @@ import type { EventVersion, Reward } from "@/domain";
 export interface EventRunBefore {
   stageIndex: number;
   losses: number;
+  score?: number;
 }
 
 export interface EventRunAfter {
   status: string;
   stageIndex: number;
   losses: number;
+  score?: number;
   versionSnapshot?: EventVersion;
 }
 
 export type EventOutcome =
-  | { kind: "advance"; stageIndex: number; losses: number; rewards: Reward[] }
-  | { kind: "completed"; stageIndex: number; losses: number; rewards: Reward[] }
+  | { kind: "advance"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number }
+  | { kind: "completed"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number }
   | { kind: "life_lost"; stageIndex: number; losses: number }
   | { kind: "eliminated"; stageIndex: number; losses: number };
 
@@ -31,6 +33,9 @@ export function resolveEventOutcome(
   const stages = version.stages;
   const losses = Number(after.losses ?? 0);
   const stageIndex = Number(after.stageIndex ?? 0);
+  /* Points de classement gagnés (présents seulement si le classement est actif). */
+  const gained = Number(after.score ?? 0) - Number(before.score ?? 0);
+  const points = gained > 0 ? { pointsGained: gained } : {};
 
   if (after.status === "completed") {
     const last = stages[stageIndex];
@@ -39,6 +44,7 @@ export function resolveEventOutcome(
       stageIndex,
       losses,
       rewards: [...(last?.reward ?? []), ...version.finalReward],
+      ...points,
     };
   }
   if (after.status === "eliminated" && losses > before.losses) {
@@ -46,7 +52,7 @@ export function resolveEventOutcome(
   }
   if (stageIndex > before.stageIndex) {
     const cleared = stages[before.stageIndex];
-    return { kind: "advance", stageIndex: before.stageIndex, losses, rewards: [...(cleared?.reward ?? [])] };
+    return { kind: "advance", stageIndex: before.stageIndex, losses, rewards: [...(cleared?.reward ?? [])], ...points };
   }
   if (losses > before.losses) {
     return { kind: "life_lost", stageIndex, losses };

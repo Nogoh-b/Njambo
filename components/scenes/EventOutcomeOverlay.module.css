@@ -319,3 +319,51 @@
   .overlay *, .overlay *::before, .overlay *::after { animation-duration: 1ms !important; animation-delay: 0ms !important; animation-iteration-count: 1 !important; }
   .confetti { display: none; }
 }
+
+/* ═══ Classement : points gagnés + rang qui monte ═══ */
+.scoreStrip {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 2px 0 12px;
+  animation: stripIn 520ms 700ms cubic-bezier(0.2, 1.5, 0.4, 1) both;
+}
+
+.points {
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe58a, #e4a514);
+  color: #2a1503;
+  font-size: 16px;
+  font-weight: 950;
+  box-shadow: 0 0 18px rgba(255, 207, 64, 0.55);
+}
+
+.rankMove {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 900;
+  font-size: 15px;
+}
+
+.rankOld { opacity: 0.55; text-decoration: line-through; }
+.rankNew { font-size: 20px; color: #ffe58a; animation: rankPop 700ms 1100ms cubic-bezier(0.2, 1.8, 0.4, 1) both; }
+.rankUp { color: #5fe3a1; font-size: 12px; font-weight: 900; }
+
+@keyframes stripIn {
+  from { opacity: 0; transform: translateY(10px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes rankPop {
+  0% { transform: scale(0.6); }
+  60% { transform: scale(1.35); }
+  100% { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .scoreStrip, .rankNew { animation: none; }
+}

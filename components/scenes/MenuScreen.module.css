@@ -1359,7 +1359,22 @@
     0 0 24px rgba(255, 71, 114, 0.35);
 }
 
-.eventBanner:hover .eventBannerChevron {
+.eventBanner:hover .eventBannerCountdown {
+  color: #d7e5de;
+  font-size: 10.5px;
+  font-weight: 800;
+}
+
+.eventBannerCountdownSoon {
+  align-self: flex-start;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: #ff4f6d;
+  color: #fff;
+  font-weight: 900;
+}
+
+.eventBannerChevron {
   transform: translateX(3px);
 }
 

@@ -14,7 +14,7 @@ import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { NotificationEntry } from "@/types/game";
 
 export function NotificationsScreen() {
-  const { navigateTo, setSocialTarget } = useGame();
+  const { navigateTo, setSocialTarget, setEventDetailId } = useGame();
   const { user } = useAuth();
   const motion = useMotionProfile();
   const { joinRoomById } = useLobby();
@@ -39,6 +39,11 @@ export function NotificationsScreen() {
     if (item.type === "room_invite" && item.roomId) {
       const joined = await joinRoomById(item.roomId);
       if (joined) navigateTo("lobby");
+      return;
+    }
+    if (item.type === "event" && item.eventId) {
+      setEventDetailId(item.eventId);
+      navigateTo("event_detail");
       return;
     }
     if (item.type === "message" && item.conversationId) {

@@ -61,6 +61,9 @@ export interface EventReturnSnapshot {
   eventId: string;
   stageIndex: number;
   losses: number;
+  /** Score du parcours et rang au classement avant la partie (phase 2). */
+  score?: number;
+  rank?: number | null;
   takenAt: number;
 }
 

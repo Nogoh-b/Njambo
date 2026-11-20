@@ -253,6 +253,47 @@
   font-weight: 750;
 }
 
+/* Bascule Parcours / Classement */
+.viewSwitch {
+  display: inline-flex;
+  padding: 3px;
+  border-radius: 999px;
+  background: rgba(8, 18, 15, 0.84);
+  border: 1px solid color-mix(in srgb, var(--ev-accent) 40%, rgba(255, 255, 255, 0.14));
+}
+.viewSwitch button {
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 11px;
+  background: transparent;
+  color: #c5ded5;
+  font: inherit;
+  font-size: 11px;
+  font-weight: 850;
+  cursor: pointer;
+}
+.viewSwitch button[aria-selected="true"] {
+  background: var(--ev-accent);
+  color: var(--ev-ink);
+}
+
+/* Moins de 2 h avant la fin */
+.endingSoonPill {
+  padding: 4px 10px;
+  border-radius: 999px;
+  background: #ff4f6d;
+  color: #fff;
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+  animation: soonPulse 1.6s ease-in-out infinite;
+}
+@keyframes soonPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(255, 79, 109, 0.55); }
+  50% { box-shadow: 0 0 0 6px rgba(255, 79, 109, 0); }
+}
+@media (prefers-reduced-motion: reduce) { .endingSoonPill { animation: none; } }
+
 /* Zone du sentier (Mobile : frise horizontale scrollable · Desktop : sentier sinueux vertical) */
 .trailViewport {
   position: relative;
