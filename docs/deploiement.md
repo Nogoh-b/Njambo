@@ -7,6 +7,9 @@ Le front et le back se déploient **indépendamment** :
 | **Front** | racine (Next.js) | Vercel | push sur la branche de prod **ou** script ci-dessous |
 | **Back** | `server/` + `functions/src/` + `domain/` + `engine/` + `config/` | VPS (Node + PM2 + PostgreSQL + Nginx) | script ci-dessous, exécuté **sur le VPS** |
 
+> 📋 **Liste à cocher de tout ce qui est à faire sur le serveur** (ffmpeg,
+> `.env`, Nginx, PM2, sauvegardes, vérifications) : **`docs/serveur-a-faire.md`**.
+
 > **Ordre à respecter** : si une modification du front dépend d'une nouvelle
 > commande / d'un changement d'API du back, **déployer le back d'abord**.
 >
@@ -112,12 +115,19 @@ sudo -u postgres psql -c "CREATE DATABASE njambo OWNER njambo;"
 sudo mkdir -p /opt/njambo && sudo chown "$USER" /opt/njambo
 
 # Conversion des sons uploadés depuis l'admin (cartes de pouvoir) : MP3 normalisé, 5 s max.
-# Facultatif : sans ffmpeg, les sons sont gardés tels quels.
+# Recommandé : sans ffmpeg, les sons sont gardés tels quels (volumes et formats hétérogènes).
 sudo apt install -y ffmpeg
 
 # Images uploadées depuis l'admin (événements, boss, cosmétiques) — hors du dépôt
 sudo mkdir -p /opt/njambo-uploads && sudo chown "$USER" /opt/njambo-uploads
 git clone git@github.com:nogoh-b/njambo.git /opt/njambo
+mkdir -p /opt/njambo/logs   # logs PM2 (voir ecosystem.config.js)
+
+# Rotation des logs PM2 (sinon logs/*.log grossit sans fin)
+pm2 install pm2-logrotate
+pm2 set pm2-logrotate:max_size 20M
+pm2 set pm2-logrotate:retain 14
+pm2 set pm2-logrotate:compress true
 ```
 
 Créer `/opt/njambo/server/.env` (**hors git**, `chmod 600`) :
@@ -126,10 +136,20 @@ Créer `/opt/njambo/server/.env` (**hors git**, `chmod 600`) :
 DATABASE_URL=postgres://njambo:MOT_DE_PASSE_FORT@localhost:5432/njambo
 GOOGLE_APPLICATION_CREDENTIALS=/opt/njambo-secrets/service-account.json
 PORT=8081
-# Upload d'images admin : dossier de stockage + URL publique du back
+# Upload admin (images + sons) : dossier de stockage + URL publique du back
 UPLOAD_DIR=/opt/njambo-uploads
 PUBLIC_BASE_URL=https://njambo-back.bysoft-corp.com
+# Secret du tirage de la grille du jour (openssl rand -hex 32) — ne plus le changer ensuite
+NJAMBO_GRID_SECRET=remplace-moi
 ```
+
+Le fichier est lu par le serveur lui-même au démarrage : rien à déclarer
+dans PM2. **Après chaque modification : `pm2 restart njambo-server`.**
+
+**Interdit en production** : `POWERS_DEV_BYPASS=1` et toute variable
+`NEXT_PUBLIC_DEV_*` (triches de développement). `deploy-back.sh` refuse de
+déployer s'il les trouve (sauf `ALLOW_DEV_FLAGS=1`, pour un serveur de test).
+Référence complète des variables : `docs/serveur-a-faire.md` § 3.
 
 La clé de service Firebase va dans `/opt/njambo-secrets/` (hors du dépôt).
 Le schéma Postgres est créé automatiquement au premier démarrage.
@@ -140,7 +160,7 @@ Nginx — `/etc/nginx/sites-available/njambo-back` :
 server {
     server_name njambo-back.bysoft-corp.com;
 
-    # Upload admin : 2 Mo max côté serveur, un peu de marge ici
+    # Upload admin : images 2 Mo, sons 500 Ko côté serveur, un peu de marge ici
     client_max_body_size 3m;
 
     # Images et sons uploadés : servis directement par Nginx (noms immuables)
@@ -182,6 +202,31 @@ sudo certbot --nginx -d njambo-back.bysoft-corp.com
 pm2 startup   # puis exécuter la commande affichée, pour relancer PM2 au reboot
 ```
 
+### PM2 — une seule instance
+
+`ecosystem.config.js` lance `njambo-server` en **1 instance, mode `fork`**.
+**Ne jamais passer en cluster** (`-i max`, `instances > 1`). Les tâches
+planifiées tournent **dans le process** (`server/src/jobs.ts`) :
+- coup automatique au timeout ;
+- publication programmée des événements ;
+- campagnes de notifications ;
+- défis entre amis ;
+- classements ;
+- remboursements ;
+- rappel d'énergie.
+
+Le temps réel (`/ws`) et le cache du catalogue des cartes y vivent aussi.
+Avec 2 instances, tout serait exécuté deux fois (notifications en double,
+récompenses ou remboursements traités deux fois en cas de course).
+
+| Besoin | Commande |
+| --- | --- |
+| Après modification de `server/.env` | `pm2 restart njambo-server` |
+| Après mise à jour du code | `./scripts/deploy-back.sh` (fait `pm2 reload` + `pm2 save`) |
+| Voir les erreurs | `pm2 logs njambo-server --err --lines 200` |
+| Mémoire / CPU | `pm2 monit` (redémarrage auto au-delà de 768 Mo) |
+| Relance au reboot | `pm2 startup` (une fois) puis `pm2 save` |
+
 ### Donner les droits admin à un compte
 
 La console `/admin` exige le custom claim Firebase `admin` :
@@ -200,8 +245,17 @@ Le compte doit se déconnecter / reconnecter pour que le droit s'applique.
 Lancer sur le VPS : `cd /opt/njambo && ./scripts/deploy-back.sh` (ou `npm run deploy:back`).
 Le contenu ci-dessous est une copie du fichier pour référence.
 
-Met à jour le code, recompile, recharge PM2, vérifie `/healthz`, et revient
-automatiquement au commit précédent en cas d'échec.
+Le script :
+1. **vérifie la machine** : il refuse si des triches de dev sont dans
+   `server/.env`, et prévient si ffmpeg, `UPLOAD_DIR`, `PUBLIC_BASE_URL`,
+   `NJAMBO_GRID_SECRET` ou le compte de service manquent ;
+2. met à jour le code ;
+3. recompile ;
+4. recharge PM2 et vérifie `/healthz` ;
+5. revient automatiquement au commit précédent en cas d'échec.
+
+Pour déployer une autre branche que `master` (serveur de test) :
+`./scripts/deploy-back.sh nom-de-branche`.
 
 ```bash
 #!/usr/bin/env bash
@@ -228,6 +282,34 @@ if [[ ! -f server/.env ]]; then
   echo "✖ server/.env introuvable (DATABASE_URL, GOOGLE_APPLICATION_CREDENTIALS, PORT)." >&2
   exit 1
 fi
+
+# ── Vérifications préalables de la machine (voir docs/serveur-a-faire.md) ──
+env_value() { grep -E "^\s*$1\s*=" server/.env | tail -1 | sed -E "s/^[^=]*=\s*//; s/^[\"']|[\"']\s*$//g" || true; }
+warn() { echo "⚠ $*" >&2; }
+
+echo "▶ Vérifications préalables…"
+# Bloquant : triches de développement actives sur le serveur de production.
+if [[ "$(env_value POWERS_DEV_BYPASS)" == "1" || -n "$(env_value NEXT_PUBLIC_DEV_MODE)" ]]; then
+  if [[ "${ALLOW_DEV_FLAGS:-}" != "1" ]]; then
+    echo "✖ server/.env contient POWERS_DEV_BYPASS=1 ou NEXT_PUBLIC_DEV_MODE (triches de dev)." >&2
+    echo "  Retire-les, ou relance avec ALLOW_DEV_FLAGS=1 pour un serveur de test." >&2
+    exit 1
+  fi
+  warn "Triches de dev actives (ALLOW_DEV_FLAGS=1)."
+fi
+[[ -n "$(env_value DATABASE_URL)" ]] || warn "DATABASE_URL absent : le serveur tournera sur Firestore, pas sur Postgres."
+credentials="$(env_value GOOGLE_APPLICATION_CREDENTIALS)"
+[[ -n "$credentials" && -r "$credentials" ]] || warn "GOOGLE_APPLICATION_CREDENTIALS absent ou illisible : vérification des comptes Firebase et notifications push impossibles."
+upload_dir="$(env_value UPLOAD_DIR)"
+if [[ -z "$upload_dir" ]]; then
+  warn "UPLOAD_DIR absent : les uploads admin iront dans server/uploads (hors du dossier servi par Nginx)."
+elif [[ ! -d "$upload_dir" || ! -w "$upload_dir" ]]; then
+  warn "UPLOAD_DIR=$upload_dir n'existe pas ou n'est pas accessible en écriture pour $(whoami)."
+fi
+[[ -n "$(env_value PUBLIC_BASE_URL)" ]] || warn "PUBLIC_BASE_URL absent : les URL des fichiers uploadés seront déduites de la requête."
+[[ -n "$(env_value NJAMBO_GRID_SECRET)" ]] || warn "NJAMBO_GRID_SECRET absent : la grille du jour utilise un secret par défaut (prévisible)."
+command -v ffmpeg >/dev/null 2>&1 || warn "ffmpeg absent : les sons uploadés ne seront ni convertis ni normalisés (sudo apt install -y ffmpeg)."
+mkdir -p logs
 
 PREVIOUS="$(git rev-parse HEAD)"
 echo "▶ Commit actuel : ${PREVIOUS:0:7}"
@@ -281,8 +363,27 @@ ssh utilisateur@ton-vps 'bash -s' -- master < scripts/deploy-back.sh
 ```bash
 pm2 status                       # état du process
 pm2 logs njambo-server           # logs en direct (aussi dans /opt/njambo/logs/)
+pm2 restart njambo-server        # après modification de server/.env
 curl https://njambo-back.bysoft-corp.com/healthz   # doit répondre {"ok":true}
+# Tâches planifiées en erreur ?
+pm2 logs njambo-server --err --lines 200 --nostream | grep -E "Impl failed|listener error"
+# En-têtes des fichiers uploadés (CORS indispensable pour les sons)
+curl -sI https://njambo-back.bysoft-corp.com/uploads/<dossier>/<fichier> | grep -iE "^HTTP|access-control"
 ```
+
+### Sauvegardes (base + uploads ensemble)
+
+```bash
+sudo mkdir -p /opt/njambo-backups && sudo chown "$USER" /opt/njambo-backups
+```
+
+```cron
+# crontab -e — base à 3 h 17, uploads à 3 h 27, 14 jours gardés
+17 3 * * * pg_dump "postgres://njambo:MOT_DE_PASSE_FORT@localhost:5432/njambo" -Fc -f /opt/njambo-backups/njambo-$(date +\%F).dump && find /opt/njambo-backups -name 'njambo-*.dump' -mtime +14 -delete
+27 3 * * * tar -czf /opt/njambo-backups/uploads-$(date +\%F).tar.gz -C /opt njambo-uploads && find /opt/njambo-backups -name 'uploads-*.tar.gz' -mtime +14 -delete
+```
+
+Restauration et copie hors du VPS : `docs/serveur-a-faire.md` § 10.
 
 ---
 
@@ -293,4 +394,8 @@ curl https://njambo-back.bysoft-corp.com/healthz   # doit répondre {"ok":true}
 - [ ] `NEXT_PUBLIC_BACKEND_URL` de prod configurée sur Vercel.
 - [ ] Rate limiting ajouté devant l'API (voir `docs/vps-migration.md`, points ouverts).
 - [ ] Sauvegarde Postgres planifiée (`pg_dump` en cron).
-- [ ] Sauvegarde de `/opt/njambo-uploads` (images des événements) avec la base.
+- [ ] Sauvegarde de `/opt/njambo-uploads` (images et sons) avec la base.
+- [ ] ffmpeg installé, en-têtes CORS Nginx sur `/uploads/`, `NJAMBO_GRID_SECRET` défini.
+- [ ] PM2 : 1 seule instance, `pm2-logrotate`, `pm2 startup` + `pm2 save`.
+- [ ] Après le 1er déploiement : Admin → Outils → « Migrer les cartes de pouvoir en base ».
+- [ ] Toute la liste détaillée : `docs/serveur-a-faire.md`.

@@ -701,6 +701,9 @@ donc vérifiés de bout en bout côté serveur.
 
 ## Validation en production (checklist unique)
 
+> Tout ce qui concerne le serveur (VPS, PM2, Nginx, `.env`, sauvegardes) est
+> regroupé dans **`docs/serveur-a-faire.md`**.
+
 ### Avant de déployer
 1. **`server/.env` (VPS)** : ajouter `UPLOAD_DIR=/opt/njambo-uploads` et
    `PUBLIC_BASE_URL=https://njambo-back.bysoft-corp.com` ; créer le dossier.

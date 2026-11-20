@@ -628,6 +628,9 @@ L'état exact, lui, est détaillé à gauche.
 
 ## Recette — à faire avant / après la mise en production
 
+> Tout ce qui concerne le serveur (VPS, PM2, Nginx, `.env`, sauvegardes) est
+> regroupé dans **`docs/serveur-a-faire.md`**.
+
 **Déploiement**
 - [ ] VPS : `sudo apt install -y ffmpeg` (conversion des sons uploadés).
 - [ ] Nginx : ajouter dans `location /uploads/` les en-têtes CORS de
