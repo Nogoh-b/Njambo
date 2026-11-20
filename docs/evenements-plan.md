@@ -15,7 +15,7 @@
 | 3 | Notifications programmées (campagnes) | ✅ Code terminé — à valider en prod |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ✅ Code terminé — à valider en prod |
 | 5 | Cosmétiques (récompenses exclusives) | ✅ Code terminé — à valider en prod |
-| 6 | Saison (passe gratuit + premium XAF) | ⬜ À faire |
+| 6 | Saison (passe gratuit + premium XAF) | 🟡 En cours |
 | 7 | Défis entre amis | ⬜ À faire |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
@@ -551,16 +551,50 @@ les équiper depuis le profil ; vérifier qu'un autre joueur les voit à la tabl
 - `season_progress/{seasonId}_{uid}` : `{ points, claimedFree: number[], claimedPremium: number[], premium: boolean }`
 
 ### Tâches
-- [ ] Points de saison crédités au règlement d'une table (`stage.seasonPoints`) — option : points pour les parties classiques
-- [ ] Commande `claimSeasonTier` (gratuit / premium)
-- [ ] Achat premium : offre `season_premium` dans le flux de paiement existant ; à `paid` → `premium = true` (paliers déjà atteints réclamables)
+- [x] Points de saison crédités au règlement d'une table (`stage.seasonPoints`) — option « parties classiques » non faite (à décider)
+- [x] Commande `claimSeasonTier` (gratuit / premium)
+- [x] Achat premium : offre `season_premium` dans le flux de paiement existant ; à `paid` → `premium = true` (paliers déjà atteints réclamables)
 - [ ] ⚠️ **Dépendance** : les fournisseurs de paiement sont aujourd'hui **simulés** (`functions/src/payments/providers.ts`). Le premium XAF réel nécessite les adaptateurs MTN MoMo / Orange Money (hors de ce plan, à planifier)
 - [ ] Écran **Saison** : piste de paliers, gratuit/premium, bouton d'achat
 - [ ] Admin : éditeur de saison (dates, paliers, récompenses, prix XAF) + stats (joueurs, premium vendus)
-- [ ] Fin de saison : paliers non réclamés perdus (ou réclamables X jours — à décider)
+- [x] Fin de saison : paliers réclamables pendant `claimGraceDays` jours (7 par défaut, réglable par saison), puis perdus
 
 **Critère de fin** : jouer des tables d'événement fait monter la saison ;
 l'achat premium (simulé) débloque les récompenses premium.
+
+### Serveur — implémenté
+
+**Règles** (`domain/seasons.ts`, tests `tests/seasons.test.ts`) : phases
+`upcoming` / `live` / `grace` (délai de réclamation) / `closed` ;
+`canClaimTier` (saison close, palier inconnu ou non atteint, premium
+requis, déjà réclamé, sans récompense) ; `seasonPointsFor` (seulement si
+publiée et en cours) ; `validateSeason` (paliers strictement croissants,
+au moins une récompense par palier, récompenses validées comme celles des
+événements, prix XAF 0 = pas de premium).
+
+**Points** : une fiche d'événement rattachée (`seasonId`) crédite
+`stage.seasonPoints` à chaque table **gagnée**, dans la transaction du
+règlement (lectures de la saison et de la progression faites avec les
+autres) ; le run garde `seasonPointsEarned` et `lastSeasonPoints`.
+
+**Commandes** (`functions/src/seasonCommands.ts`) : `getSeasons` (saisons en
+cours ou en délai + ma progression), `claimSeasonTier { seasonId,
+tierIndex, track }` (récompenses + ledger), admin `listSeasons`,
+`saveSeason`, `getSeasonStats` (joueurs, premium, revenus XAF payés, points
+moyens, paliers atteints / réclamés).
+
+**Premium** : `createPaymentIntent { offerId: "season_premium:{id}" }` crée
+une commande `kind: "season_premium"` au prix de la saison (adulte, saison
+en cours, pas déjà premium) ; `verifyStorePurchase` → `premium = true` ;
+remboursement → `premium = false` (paliers déjà réclamés conservés).
+⚠️ Les fournisseurs restent **simulés** (`functions/src/payments/providers.ts`) :
+MTN MoMo / Orange Money réels hors de ce plan.
+
+**Correctif** : `types/game.ts` importait `@/domain` (phase 5), alias
+inconnu de la compilation du back → remplacé par un chemin relatif.
+
+Test `server/scripts/smoke-seasons.cjs` (Postgres jetable, vraies parties,
+paiement simulé) — 14/14.
 
 ---
 
@@ -610,3 +644,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 4 | Serveur : règles de table (mise ×2, pouvoirs interdits, minuteur, boss), IA des bots du jeu local sur les tables d'événement, `eliminatedAt`, commande `reviveEventRun`, bonus parcours parfait, stats de rachats ; 8 tests + intégration 16/16. |
 | 2026-11-20 | 4 | Client : offre de rachat (overlay + bouton principal avec minuteur, gemme qui se reforme), variante « Parcours parfait », étiquettes de règles, intro du boss, KPI admin. **Phase 4 : code terminé.** |
 | 2026-11-20 | 5 | Cosmétiques : domaine + récompense `cosmetic` (doublon → cauris), catalogue admin, collection et équipement, affichage table / classement / profil, dos de carte ; réparation de `globals.css` tronqué ; intégration 10/10. **Phase 5 : code terminé.** |
+| 2026-11-20 | 6 | Serveur des saisons : règles + 5 tests, points au règlement des tables, réclamation des paliers, premium via le flux de paiement (achat, remboursement), commandes admin et stats ; correctif d'import du back ; intégration 14/14. |

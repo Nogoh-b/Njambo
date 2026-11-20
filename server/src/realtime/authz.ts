@@ -31,7 +31,7 @@ function hasArrayContains(target: SubscribeTarget, field: string, value: unknown
 }
 
 const PUBLISHED_COLLECTIONS = new Set([
-  "catalog_items", "offers", "reward_tables", "booster_definitions", "events", "event_versions", "cosmetics",
+  "catalog_items", "offers", "reward_tables", "booster_definitions", "events", "event_versions", "cosmetics", "seasons",
 ]);
 
 const publishedOnly: AuthzDecision = { kind: "filter", predicate: (data) => data.published === true };

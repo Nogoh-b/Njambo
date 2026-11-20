@@ -14,6 +14,8 @@ import {
   type BoosterDefinition,
   type CardRarity,
   normalizeEventVersion,
+  normalizeSeason,
+  seasonPhase,
   type EventVersion,
   type OfferDefinition,
   type PlayerEconomy,
@@ -36,6 +38,7 @@ import {
   stableId,
 } from "./core";
 import { paymentProvider } from "./payments/providers";
+import { SEASON_PREMIUM_PREFIX } from "./seasonCommands";
 import type { Transaction } from "./firestoreTypes";
 
 const CARD_POOL: Record<CardRarity, string[]> = {
@@ -441,6 +444,22 @@ export async function createPaymentIntentHandler(request: CallableRequest<unknow
   const adapter = paymentProvider(provider);
   if (!adapter) throw new HttpsError("invalid-argument", "INVALID_PROVIDER");
   return runIdempotent(uid, "createPaymentIntent", data.idempotencyKey, async (transaction, now) => {
+    /* Passe premium de saison (phase 6) : commande spéciale, prix lu sur la saison. */
+    if (offerId.startsWith(SEASON_PREMIUM_PREFIX)) {
+      const seasonId = offerId.slice(SEASON_PREMIUM_PREFIX.length);
+      const [userSnap, seasonSnap, progressSnap] = await Promise.all([
+        transaction.get(db.doc(`users/${uid}`)), transaction.get(db.doc(`seasons/${seasonId}`)), transaction.get(db.doc(`season_progress/${seasonId}_${uid}`)),
+      ]);
+      if (userSnap.get("ageBand") !== "18_plus") throw new HttpsError("permission-denied", "CHECKOUT_REQUIRES_ADULT_CONFIRMATION");
+      const season = normalizeSeason({ ...(seasonSnap.data() ?? {}), id: seasonId });
+      if (!seasonSnap.exists || !season.published || seasonPhase(season, now) !== "live" || season.premiumPriceXaf <= 0) throw new HttpsError("not-found", "SEASON_PREMIUM_UNAVAILABLE");
+      if (progressSnap.get("premium") === true) throw new HttpsError("already-exists", "SEASON_PREMIUM_OWNED");
+      const orderId = stableId(uid, offerId, String(data.idempotencyKey)).slice(0, 40);
+      const external = await adapter.createIntent({ orderId, amountXaf: season.premiumPriceXaf, uid });
+      transaction.create(db.doc(`orders/${orderId}`), { uid, offerId, kind: "season_premium", seasonId, amountXaf: season.premiumPriceXaf, provider, status: external.status, rewards: [], createdAt: now, updatedAt: now });
+      transaction.create(db.doc(`payment_intents/${orderId}`), { uid, orderId, provider, externalRef: external.externalRef, status: external.status, simulation: adapter.simulated, createdAt: now, updatedAt: now });
+      return { orderId, status: external.status, amountXaf: season.premiumPriceXaf, provider, simulated: adapter.simulated };
+    }
     const [userSnap, offerSnap] = await Promise.all([transaction.get(db.doc(`users/${uid}`)), transaction.get(db.doc(`offers/${offerId}`))]);
     if (userSnap.get("ageBand") !== "18_plus") throw new HttpsError("permission-denied", "CHECKOUT_REQUIRES_ADULT_CONFIRMATION");
     const offer = (offerSnap.exists ? offerSnap.data() : offerFallback(offerId)) as OfferDefinition | undefined;
@@ -467,6 +486,10 @@ export async function verifyStorePurchaseHandler(request: CallableRequest<unknow
     const intentRef = db.doc(`payment_intents/${orderId}`);
     const [state, orderSnap, intentSnap] = await Promise.all([economyAndInventory(transaction, uid, now), transaction.get(orderRef), transaction.get(intentRef)]);
     if (!orderSnap.exists || orderSnap.get("uid") !== uid || !intentSnap.exists) throw new HttpsError("not-found", "ORDER_NOT_FOUND");
+    /* Passe premium de saison : lu ici (toutes les lectures avant les écritures). */
+    const seasonId = orderSnap.get("kind") === "season_premium" ? String(orderSnap.get("seasonId")) : null;
+    const seasonProgressRef = seasonId ? db.doc(`season_progress/${seasonId}_${uid}`) : null;
+    if (seasonProgressRef) await transaction.get(seasonProgressRef);
     if (orderSnap.get("status") === "paid" && outcome === "refunded") {
       const rewards = (orderSnap.get("rewards") ?? []) as Reward[];
       const caurisToReverse = rewards.filter((reward) => reward.type === "cauris").reduce((sum, reward) => sum + (reward.type === "cauris" ? reward.amount : 0), 0);
@@ -480,6 +503,8 @@ export async function verifyStorePurchaseHandler(request: CallableRequest<unknow
       };
       transaction.set(state.economyRef, nextEconomy, { merge: false });
       transaction.update(orderRef, { status: "refunded", refundedAt: now, updatedAt: now });
+      // Remboursement d'un passe premium : le premium est retiré (les paliers déjà réclamés restent).
+      if (seasonProgressRef) transaction.set(seasonProgressRef, { premium: false, premiumRefundedAt: now, updatedAt: now }, { merge: true });
       transaction.update(intentRef, { status: "refunded", updatedAt: now });
       ledger(transaction, uid, stableId(uid, "refund", orderId), "refundPayment", { cauris: nextEconomy.cauris - available }, nextEconomy, now, { orderId, debtCreated: debt });
       return { orderId, status: "refunded", debtCauris: nextEconomy.debtCauris, spendingBlocked: nextEconomy.spendingBlocked };
@@ -499,6 +524,9 @@ export async function verifyStorePurchaseHandler(request: CallableRequest<unknow
     transaction.set(state.inventoryRef, { ...nextInventory, updatedAt: now }, { merge: false });
     transaction.update(orderRef, { status: "paid", paidAt: now, updatedAt: now });
     transaction.update(intentRef, { status: "paid", verifiedAt: now, updatedAt: now });
+    if (seasonProgressRef && seasonId) {
+      transaction.set(seasonProgressRef, { seasonId, uid, premium: true, premiumOrderId: orderId, premiumAt: now, updatedAt: now }, { merge: true });
+    }
     ledger(transaction, uid, stableId(uid, "payment", orderId), "verifyStorePurchase", { nkap: nextEconomy.nkap - state.economy.nkap, cauris: nextEconomy.cauris - state.economy.cauris }, nextEconomy, now, { orderId });
     return { orderId, status: "paid", rewards, economy: publicEconomy(nextEconomy, now) };
   });

@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { crownWinGain, displayCosmetics, isPerfectRun, readPlayerCosmetics, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, stageMatchRules, type EnergyState, type EventLeaderboardEntry, type PlayerCosmetics, type Reward, type ServerBotDifficulty, type StageMatchRules } from "../../domain";
+import { crownWinGain, displayCosmetics, isPerfectRun, normalizeSeason, readPlayerCosmetics, seasonPointsFor, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, stageMatchRules, type EnergyState, type EventLeaderboardEntry, type PlayerCosmetics, type Reward, type ServerBotDifficulty, type StageMatchRules } from "../../domain";
 import { applyReward, asObject, boundedNumber, db, economyFrom, integer, ledger, requireUid, requiredString, runIdempotent, stableId } from "./core";
 import type { DocumentReference, DocumentSnapshot, Transaction } from "./firestoreTypes";
 import { GAME_CONFIG } from "../../config/gameConfig";
@@ -509,6 +509,18 @@ export async function performGameAction(
       ? db.doc(`event_leaderboards/${String(snap.get("eventId"))}/entries/${realParticipants[index].uid}`)
       : null));
     const leaderboardSnaps = await Promise.all(leaderboardRefs.map((ref) => (ref ? transaction.get(ref) : Promise.resolve(null))));
+    /* Saison rattachée à l'événement (phase 6) : fiche + progression lues ici. */
+    const seasonIdOf = (index: number) => {
+      const snap = eventRunSnaps[index];
+      const seasonId = snap?.exists ? snap.get("versionSnapshot.seasonId") : null;
+      return typeof seasonId === "string" && seasonId ? seasonId : null;
+    };
+    const seasonReads = await Promise.all(eventRunSnaps.map((_, index) => {
+      const seasonId = seasonIdOf(index);
+      const participant = realParticipants[index];
+      if (!seasonId || !participant) return Promise.resolve(null);
+      return Promise.all([transaction.get(db.doc(`seasons/${seasonId}`)), transaction.get(db.doc(`season_progress/${seasonId}_${participant.uid}`))]);
+    }));
     const eliminated = new Set<string>(match.eliminatedUids ?? []);
     const hands = new Map(participants.map((participant, index) => [
       participant.uid,
@@ -774,6 +786,22 @@ export async function performGameAction(
       return { score: breakdown.total, scoreBreakdown: breakdown };
     };
 
+    /* Points de saison (phase 6) : table gagnée → stage.seasonPoints si la saison est en cours. */
+    const seasonUpdate = (index: number, stage: { seasonPoints?: number }) => {
+      const reads = seasonReads[index];
+      const seasonId = seasonIdOf(index);
+      if (!reads || !seasonId) return {};
+      const [seasonSnap, progressSnap] = reads;
+      if (!seasonSnap.exists) return {};
+      const gained = seasonPointsFor(normalizeSeason({ ...seasonSnap.data(), id: seasonId }), Number(stage.seasonPoints ?? 0), now);
+      if (gained <= 0) return {};
+      const uidForSeason = realParticipants[index].uid;
+      transaction.set(db.doc(`season_progress/${seasonId}_${uidForSeason}`), {
+        seasonId, uid: uidForSeason, points: Number(progressSnap.get("points") ?? 0) + gained, updatedAt: now,
+      }, { merge: true });
+      return { seasonPointsEarned: Number(eventRunSnaps[index].get("seasonPointsEarned") ?? 0) + gained, lastSeasonPoints: gained };
+    };
+
     if (finished && eventRunSnaps.length > 0) {
       const winnerUid = participants[finalWinnerIndex].uid;
       realParticipants.forEach((participant, index) => {
@@ -832,6 +860,7 @@ export async function performGameAction(
           completedAt: isFinal ? now : null,
           ...(perfect ? { perfect: true } : {}),
           ...leaderboardUpdate(index, progress, losses),
+          ...seasonUpdate(index, stage as { seasonPoints?: number }),
           updatedAt: now,
         });
         const runId = runIdsByUid[participant.uid];

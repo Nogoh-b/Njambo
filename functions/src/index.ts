@@ -54,6 +54,13 @@ import {
   getCosmeticCollectionHandler,
   equipCosmeticHandler,
 } from "./cosmeticCommands";
+import {
+  getSeasonsHandler,
+  claimSeasonTierHandler,
+  listSeasonsHandler,
+  saveSeasonHandler,
+  getSeasonStatsHandler,
+} from "./seasonCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -103,6 +110,11 @@ export const publishAdminDraft = onCall(callable, publishAdminDraftHandler);
 export const seedLiveOps = onCall(callable, seedLiveOpsHandler);
 export const migrateLegacyPlayer = onCall(callable, migrateLegacyPlayerHandler);
 export const registerPushToken = onCall(callable, registerPushTokenHandler);
+export const getSeasons = onCall(callable, getSeasonsHandler);
+export const claimSeasonTier = onCall(callable, claimSeasonTierHandler);
+export const listSeasons = onCall(callable, listSeasonsHandler);
+export const saveSeason = onCall(callable, saveSeasonHandler);
+export const getSeasonStats = onCall(callable, getSeasonStatsHandler);
 export const listCosmetics = onCall(callable, listCosmeticsHandler);
 export const saveCosmetic = onCall(callable, saveCosmeticHandler);
 export const getCosmeticCollection = onCall(callable, getCosmeticCollectionHandler);

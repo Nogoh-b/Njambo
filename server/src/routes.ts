@@ -50,6 +50,13 @@ import {
   getCosmeticCollectionHandler,
   equipCosmeticHandler,
 } from "../../functions/src/cosmeticCommands";
+import {
+  getSeasonsHandler,
+  claimSeasonTierHandler,
+  listSeasonsHandler,
+  saveSeasonHandler,
+  getSeasonStatsHandler,
+} from "../../functions/src/seasonCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -94,6 +101,11 @@ export const commands: Record<string, Handler> = {
   seedLiveOps: seedLiveOpsHandler,
   migrateLegacyPlayer: migrateLegacyPlayerHandler,
   registerPushToken: registerPushTokenHandler,
+  getSeasons: getSeasonsHandler,
+  claimSeasonTier: claimSeasonTierHandler,
+  listSeasons: listSeasonsHandler,
+  saveSeason: saveSeasonHandler,
+  getSeasonStats: getSeasonStatsHandler,
   listCosmetics: listCosmeticsHandler,
   saveCosmetic: saveCosmeticHandler,
   getCosmeticCollection: getCosmeticCollectionHandler,
