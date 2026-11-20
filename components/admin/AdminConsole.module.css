@@ -135,6 +135,11 @@
 .library button[aria-pressed="true"] { border-color: var(--gold); }
 .library img { display: block; width: 100%; aspect-ratio: 16 / 10; object-fit: cover; }
 
+.inlineSelect {
+  padding: 7px 10px; border: 1px solid var(--line); border-radius: 9px;
+  background: #0c0906; color: var(--ink); font: inherit; font-weight: 800; max-width: 100%;
+}
+
 .issues { margin: 0; padding-left: 18px; color: var(--danger); }
 .issues li + li { margin-top: 3px; }
 .issues code { color: var(--faint); }

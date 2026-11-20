@@ -66,6 +66,11 @@ import {
   seedPowerCardsHandler,
   listAdminPowerCardsHandler,
   setPowerCardStatusHandler,
+  getAdminPowerCardHandler,
+  savePowerCardDraftHandler,
+  publishPowerCardHandler,
+  duplicatePowerCardHandler,
+  discardPowerCardDraftHandler,
 } from "../../functions/src/powerCardAdminCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
@@ -117,6 +122,11 @@ export const commands: Record<string, Handler> = {
   seedPowerCards: seedPowerCardsHandler,
   listAdminPowerCards: listAdminPowerCardsHandler,
   setPowerCardStatus: setPowerCardStatusHandler,
+  getAdminPowerCard: getAdminPowerCardHandler,
+  savePowerCardDraft: savePowerCardDraftHandler,
+  publishPowerCard: publishPowerCardHandler,
+  duplicatePowerCard: duplicatePowerCardHandler,
+  discardPowerCardDraft: discardPowerCardDraftHandler,
   getSeasons: getSeasonsHandler,
   claimSeasonTier: claimSeasonTierHandler,
   listSeasons: listSeasonsHandler,

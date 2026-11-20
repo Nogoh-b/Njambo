@@ -10,7 +10,7 @@
 | Phase | Contenu | Statut |
 | --- | --- | --- |
 | A | Fondations : registre dynamique des cartes, validation des scripts, migration des 21 cartes | ✅ Terminé |
-| B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ⬜ À faire |
+| B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ✅ Terminé |
 | C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | ⬜ À faire |
 | D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ⬜ À faire |
 | E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ⬜ À faire |
@@ -160,16 +160,64 @@ direct comme pour les événements :
 | **Économie** | Prix en cauris / Nkap, présent en boutique, dans les livres (boosters), actif / test seulement |
 | **Aperçu** | Voir phase E |
 
-- [ ] Commandes admin : `listPowerCards`, `getPowerCard`, `savePowerCardDraft`,
+- [x] Commandes admin : `listPowerCards`, `getPowerCard`, `savePowerCardDraft`,
       `publishPowerCard`, `duplicatePowerCard`, `archivePowerCard` (audit)
-- [ ] Composants : `PowerScriptEditor` (étapes + briques), `AnimCueEditor`,
+- [x] Composants : `PowerScriptEditor` (étapes + briques), `AnimCueEditor`,
       `CardSelectorField`, `TargetField`, réutilisation de `ImageField`
-- [ ] Rendu de la carte telle qu'elle apparaîtra (motif de catégorie, rareté, visuel)
-- [ ] Archiver une carte : retirée de la boutique et des livres ; les joueurs
+- [x] Rendu de la carte telle qu'elle apparaîtra (motif de catégorie, rareté, visuel)
+- [x] Archiver une carte : retirée de la boutique et des livres ; les joueurs
       qui la possèdent la gardent et peuvent encore la jouer
 
 **Critère de fin** : un admin crée une carte inédite (combinaison de
 briques) sans toucher au code, et elle se joue en partie.
+
+### Implémenté
+
+**Serveur** (`functions/src/powerCardAdminCommands.ts`) :
+`getAdminPowerCard`, `savePowerCardDraft` (brouillon même invalide, crée la
+fiche si besoin, renvoie les erreurs), `publishPowerCard` (refus
+`POWER_CARD_INVALID` avec le détail ; nouvelle révision immuable ; le statut
+archivée / coupée n'est **jamais** écrasé par une publication ; catalogue
+republié), `duplicatePowerCard`, `discardPowerCardDraft` (supprime la fiche
+si jamais publiée). Toutes auditées. Upload d'images : nouveau type `power`.
+
+**Admin** (`components/admin/PowerCardsAdmin.tsx`, `PowerScriptEditor.tsx`, `powerLabels.ts`) :
+- **Catalogue** : grille des cartes (rendu réel `PowerCardView`), pastilles
+  (jamais publiée, brouillon, archivée, coupée, test, erreurs), filtres par
+  catégorie / statut, Modifier, Dupliquer, Archiver / Désarchiver,
+  **Couper / Réactiver** (avec confirmation) ; écran de première mise en
+  route qui propose la migration des 21 cartes.
+- **Éditeur** avec aperçu de la carte en direct et validation en direct
+  (pastille d'erreurs par onglet, liste « à corriger », Publier bloqué) :
+  - *Identité* : nom, catégorie (dont **Tactique**), rareté, teinte, icône,
+    affichage de cible, titre et texte d'activation, description, visuel
+    (upload / bibliothèque), éléments touchés ;
+  - *Cible* : qui est visé (aucun, un joueur, plusieurs, tous les
+    adversaires, un adversaire au hasard), qui choisit, nombre max, se viser
+    soi-même, conditions d'activation ;
+  - *Effet* : étapes ordonnables, « le joueur clique une carte » (où, de
+    qui, filtre, délai, que faire sans clic), **14 briques** avec formulaire
+    adapté (zones, joueurs, sélecteurs de cartes y compris « choisie par
+    clic », durées, secondes, montants, multiplicateur, bouclier…) ;
+  - *Animation* : animations de chaque étape (vol de cartes, révélation,
+    surbrillance, minuteur, pioche, pot, aura, message) + effet visuel,
+    teinte, intensité, pause ;
+  - *Économie* : prix cauris / Nkap, palier de livre, vendue en boutique,
+    dans les livres, carte de test.
+
+**Jeu** : la collection affiche aussi les cartes **archivées que le joueur
+possède** (toujours jouables) et se met à jour à chaque publication.
+
+Test `server/scripts/smoke-power-editor.cjs` (Postgres jetable) — 13/13 :
+brouillon invalide enregistré mais publication refusée, carte absente du
+jeu avant publication, **carte inédite** publiée (catalogue 22 cartes,
+livres « Chef »), révision immuable, républication qui conserve
+« archivée », puis **en vraie partie** : carte équipée, activée, +8 s au
+minuteur, carte consommée ; duplication et abandon de brouillon.
+
+![Identité](captures/cartes-pouvoir/identite.webp)
+![Effet](captures/cartes-pouvoir/effet.webp)
+![Animation](captures/cartes-pouvoir/animation.webp)
 
 ---
 
@@ -335,5 +383,6 @@ apparaît en retard pendant la donne.
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | B | Console admin des cartes : catalogue, éditeur en 5 onglets avec aperçu et validation en direct, 14 briques et 8 animations configurables, brouillon / publication versionnée / duplication / archivage / coupure ; collection qui garde les cartes archivées possédées ; intégration 13/13 (carte inédite jouée en vraie partie). |
 | 2026-11-20 | A | Registre dynamique, validation avec bornes (6 tests), migration idempotente des 21 cartes, catalogue publié, scripts figés par partie, archivage / interrupteur d'urgence, livres calculés depuis le catalogue ; intégration 18/18 et aucune régression. |
 | 2026-11-20 | — | Ajout de la phase C « Chorégraphies spatiales » (repères, trajectoires, animations propres à chaque élément, ligne de temps) ; cible confirmée ; décisions : carte archivée toujours jouable par ses possesseurs, textes en français avec traductions prévues plus tard. |

@@ -105,6 +105,29 @@ export interface AdminCampaign {
   stats?: { targeted: number; inApp: number; pushSent: number; pushFailed: number; optedOut: number; tokensInvalidated: number };
 }
 
+export interface AdminPowerCardRow {
+  id: string;
+  def: import("@/types/game").PowerCardDef;
+  script: import("@/engine/power/types").PowerScript;
+  dev: boolean;
+  published: boolean;
+  revision: number;
+  source: string;
+  hasDraft: boolean;
+  updatedAt: number;
+  issues: Array<{ path: string; message: string }>;
+}
+
+export interface AdminPowerCardDetail {
+  cardId: string;
+  published: boolean;
+  revision: number;
+  current: import("@/engine/power/types").PowerModule | null;
+  draft: import("@/engine/power/types").PowerModule | null;
+  working: import("@/engine/power/types").PowerModule | null;
+  issues: Array<{ path: string; message: string }>;
+}
+
 const call = async <T,>(name: string, payload: Record<string, unknown> = {}) => (await callBackend<T>(name, payload)).data;
 
 export const adminApi = {
@@ -134,10 +157,18 @@ export const adminApi = {
   seasons: () => call<{ seasons: SeasonDefinition[]; now: number }>("listSeasons"),
   saveSeason: (season: SeasonDefinition) => call<{ season: SeasonDefinition }>("saveSeason", { season }),
   seasonStats: (seasonId: string) => call<{ players: number; premium: number; premiumRevenueXaf: number; averagePoints: number; tiers: Array<{ points: number; reached: number; claimedFree: number; claimedPremium: number }> }>("getSeasonStats", { seasonId }),
+  powerCards: () => call<{ cards: AdminPowerCardRow[]; seeded: boolean }>("listAdminPowerCards"),
+  powerCard: (cardId: string) => call<AdminPowerCardDetail>("getAdminPowerCard", { cardId }),
+  savePowerCardDraft: (card: Pick<import("@/engine/power/types").PowerModule, "def" | "script" | "dev">) => call<{ cardId: string; issues: Array<{ path: string; message: string }> }>("savePowerCardDraft", { card }),
+  publishPowerCard: (cardId: string) => call<{ cardId: string; revision: number; catalogRevision: number }>("publishPowerCard", { cardId }),
+  duplicatePowerCard: (cardId: string, newCardId: string) => call<{ cardId: string }>("duplicatePowerCard", { cardId, newCardId }),
+  discardPowerCardDraft: (cardId: string) => call<{ cardId: string }>("discardPowerCardDraft", { cardId }),
+  setPowerCardStatus: (cardId: string, status: { archived?: boolean; disabled?: boolean }) => call<{ cardId: string }>("setPowerCardStatus", { cardId, ...status }),
+  seedPowerCards: () => call<{ created: number; total: number; published: number; catalogRevision: number }>("seedPowerCards"),
   uploads: (kind?: string) => call<{ uploads: AdminUpload[] }>("listAdminUploads", kind ? { kind } : {}),
 };
 
-export async function uploadImage(file: File, kind: "event" | "boss" | "cosmetic" | "season") {
+export async function uploadImage(file: File, kind: "event" | "boss" | "cosmetic" | "season" | "power") {
   const user = auth.currentUser;
   if (!user) throw new BackendError("unauthenticated", "AUTH_REQUIRED");
   if (file.size > 2 * 1024 * 1024) throw new BackendError("invalid-argument", "FILE_TOO_LARGE");
@@ -168,6 +199,11 @@ const ERROR_LABELS: Record<string, string> = {
   COSMETIC_INVALID: "Le cosmétique contient des erreurs.",
   COSMETIC_TYPE_LOCKED: "Le type d’un cosmétique existant ne peut pas changer.",
   SEASON_INVALID: "La saison contient des erreurs.",
+  POWER_CARD_INVALID: "La carte contient des erreurs : corrige-les avant de publier.",
+  POWER_CARD_ID_TAKEN: "Cet identifiant de carte est déjà utilisé.",
+  POWER_CARD_NOT_FOUND: "Carte introuvable.",
+  INVALID_CARDID: "Identifiant invalide (a-z, 0-9, _ ; 3 à 48 caractères).",
+  INVALID_NEWCARDID: "Nouvel identifiant invalide (a-z, 0-9, _ ; 3 à 48 caractères).",
   PLAYER_NOT_FOUND: "Joueur introuvable.",
   RUN_IN_MATCH: "Le joueur est en pleine partie : attends la fin de la partie.",
   INVALID_REASON: "Indique un motif (200 caractères max).",

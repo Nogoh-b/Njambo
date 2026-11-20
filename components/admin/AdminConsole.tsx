@@ -14,19 +14,21 @@ import { collection, limit, onSnapshot, orderBy, query } from "@/lib/firestoreCl
 import { adminApi, adminErrorText, type AdminEventSummary } from "./adminApi";
 import { EventsAdmin } from "./EventsAdmin";
 import { PlayersAdmin } from "./PlayersAdmin";
+import { PowerCardsAdmin } from "./PowerCardsAdmin";
 import { SeasonsAdmin } from "./SeasonsAdmin";
 import { CosmeticsAdmin } from "./CosmeticsAdmin";
 import { NotificationsAdmin } from "./NotificationsAdmin";
 import { LIFECYCLE_LABELS, LifecycleBadge, formatDateTime } from "./adminUi";
 import styles from "./AdminConsole.module.css";
 
-type Section = "dashboard" | "events" | "seasons" | "cosmetics" | "notifications" | "players" | "audit" | "tools";
+type Section = "dashboard" | "events" | "seasons" | "cosmetics" | "powers" | "notifications" | "players" | "audit" | "tools";
 
 const NAV: Array<{ key: Section; label: string; soon?: string }> = [
   { key: "dashboard", label: "Tableau de bord" },
   { key: "events", label: "Événements" },
   { key: "seasons", label: "Saisons" },
   { key: "cosmetics", label: "Cosmétiques" },
+  { key: "powers", label: "Cartes de pouvoir" },
   { key: "notifications", label: "Notifications" },
   { key: "players", label: "Joueurs" },
   { key: "audit", label: "Audit" },
@@ -87,6 +89,7 @@ function ConsoleBody() {
         {section === "notifications" && <NotificationsAdmin events={events} />}
         {section === "seasons" && <SeasonsAdmin />}
         {section === "cosmetics" && <CosmeticsAdmin />}
+        {section === "powers" && <PowerCardsAdmin />}
         {section === "players" && <PlayersAdmin />}
         {section === "audit" && <AuditLog />}
         {section === "tools" && <Tools />}

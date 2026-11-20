@@ -10,7 +10,7 @@ import styles from "./AdminConsole.module.css";
 export function ImageField({ value, onChange, kind, label = "Image", error }: {
   value: string | undefined;
   onChange: (url: string | undefined) => void;
-  kind: "event" | "boss" | "cosmetic" | "season";
+  kind: "event" | "boss" | "cosmetic" | "season" | "power";
   label?: string;
   error?: string;
 }) {

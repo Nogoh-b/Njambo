@@ -70,6 +70,11 @@ import {
   seedPowerCardsHandler,
   listAdminPowerCardsHandler,
   setPowerCardStatusHandler,
+  getAdminPowerCardHandler,
+  savePowerCardDraftHandler,
+  publishPowerCardHandler,
+  duplicatePowerCardHandler,
+  discardPowerCardDraftHandler,
 } from "./powerCardAdminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
@@ -127,6 +132,11 @@ export const registerPushToken = onCall(callable, registerPushTokenHandler);
 export const seedPowerCards = onCall(callable, seedPowerCardsHandler);
 export const listAdminPowerCards = onCall(callable, listAdminPowerCardsHandler);
 export const setPowerCardStatus = onCall(callable, setPowerCardStatusHandler);
+export const getAdminPowerCard = onCall(callable, getAdminPowerCardHandler);
+export const savePowerCardDraft = onCall(callable, savePowerCardDraftHandler);
+export const publishPowerCard = onCall(callable, publishPowerCardHandler);
+export const duplicatePowerCard = onCall(callable, duplicatePowerCardHandler);
+export const discardPowerCardDraft = onCall(callable, discardPowerCardDraftHandler);
 export const getSeasons = onCall(callable, getSeasonsHandler);
 export const claimSeasonTier = onCall(callable, claimSeasonTierHandler);
 export const listSeasons = onCall(callable, listSeasonsHandler);

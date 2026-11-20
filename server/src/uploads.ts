@@ -20,7 +20,7 @@ import { db, requireAdmin } from "../../functions/src/core";
 import { buildCallableRequest } from "./auth";
 import { sendError } from "./httpError";
 
-export const UPLOAD_KINDS = ["event", "boss", "cosmetic", "season"] as const;
+export const UPLOAD_KINDS = ["event", "boss", "cosmetic", "season", "power"] as const;
 type UploadKind = typeof UPLOAD_KINDS[number];
 const MAX_BYTES = 2 * 1024 * 1024;
 const MAX_WIDTH = 1600;

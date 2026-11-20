@@ -15,6 +15,7 @@ import { AnimatePresence, motion } from "motion/react";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useAuth } from "@/hooks/useAuth";
+import { usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
 import { POWER_CARDS, POWER_CARDS_BY_ID, MAX_EQUIPPED_POWERS } from "@/config/powerCards";
 import { useMotionProfile } from "@/lib/motion";
 import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
@@ -114,18 +115,29 @@ export function PowerCollectionScreen() {
     [rawEquipped, inventory],
   );
 
+  /* Catalogue dynamique : cartes proposées + cartes archivées que le joueur
+     possède encore (toujours jouables). Recalculé à chaque publication admin. */
+  const catalogRevision = usePowerCatalogRevision();
+  const collectionCards = useMemo(() => {
+    void catalogRevision;
+    return [
+      ...POWER_CARDS,
+      ...Object.values(POWER_CARDS_BY_ID).filter((card) => card.archived && (inventory[card.id] ?? 0) > 0),
+    ];
+  }, [catalogRevision, inventory]);
+
   const ownedCount = useMemo(
-    () => POWER_CARDS.filter((card) => (inventory[card.id] ?? 0) > 0).length,
-    [inventory],
+    () => collectionCards.filter((card) => (inventory[card.id] ?? 0) > 0).length,
+    [collectionCards, inventory],
   );
 
   const visibleCards = useMemo(() => {
-    return POWER_CARDS.filter((card) => {
+    return collectionCards.filter((card) => {
       if (filter === "all") return true;
       if (filter === "owned") return (inventory[card.id] ?? 0) > 0;
       return card.category === filter;
     });
-  }, [filter, inventory]);
+  }, [collectionCards, filter, inventory]);
 
   const showNotice = useCallback((msg: string) => {
     setFeedback(msg);
@@ -503,7 +515,7 @@ export function PowerCollectionScreen() {
             <span className={styles.backLabel}>Salon</span>
           </button>
           <div className={styles.hudCopy}>
-            <span className={styles.hudKicker}>Grimoire Ndop · {ownedCount}/{POWER_CARDS.length}</span>
+            <span className={styles.hudKicker}>Grimoire Ndop · {ownedCount}/{collectionCards.length}</span>
             <h1>Cartes Pouvoir</h1>
           </div>
         </div>
