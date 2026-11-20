@@ -24,6 +24,7 @@
 
 import type { ComponentType } from "react";
 import type { Card, GameState, PowerCardDef, PowerCardId } from "../../types/game";
+import type { Choreography } from "./choreography";
 
 /**
  * Référence de joueur ABSTRAITE — résolue en « seat » (index dans l'ordre du
@@ -237,6 +238,9 @@ export interface PowerStep {
   ops?: PowerOp[];
   /** Cues d'animation de l'étape. */
   anim?: AnimCue[];
+  /** Chorégraphie spatiale (facultative) : remplace la mise en scène VISUELLE
+   *  des cues ; les cues fonctionnels (révélation, conseil, aura) restent joués. */
+  choreo?: Choreography;
 }
 
 export interface PowerScript {

@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | A | Fondations : registre dynamique des cartes, validation des scripts, migration des 21 cartes | ✅ Terminé |
 | B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ✅ Terminé |
-| C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | ⬜ À faire |
+| C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | 🟡 En cours |
 | D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ⬜ À faire |
 | E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ⬜ À faire |
 | F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ⬜ À faire |
@@ -272,10 +272,10 @@ Chaque zone de la table expose une fonction générique
 inconnu d'une ancienne version du jeu est simplement ignoré.
 
 ### Tâches
-- [ ] `engine/power/choreography.ts` : types (`Choreography`, pistes,
+- [x] `engine/power/choreography.ts` : types (`Choreography`, pistes,
       repères, points de passage, effets par élément) + validation et bornes
       (durée totale ≤ 6 s, nombre de pistes, points de passage) + tests
-- [ ] Conversion des cues existants en chorégraphies-modèles (les 21 cartes
+- [x] Conversion des cues existants en chorégraphies-modèles (les 21 cartes
       gardent exactement leur rendu)
 - [ ] `ZoneRegistry` : résolution des repères (rect + décalage) ;
       `play(effet)` sur chaque zone (main, dépôt, pioche, minuteur/avatar,
@@ -296,6 +296,37 @@ inconnu d'une ancienne version du jeu est simplement ignoré.
 carte quitte la main de la cible, monte au centre de l'écran en se
 retournant, s'y fend en deux, pendant que le minuteur de la cible gèle et
 que la pioche tremble — sans écrire de code.
+
+### C1 — Modèle (implémenté, `engine/power/choreography.ts`)
+
+- `PowerStep.choreo?: Choreography` (`{ tracks }`), validée avec la carte.
+- **Repères** : zone (`main` / `dépôt` / `minuteur` d'un joueur, `pioche`,
+  `pot`, `révélation`), écran (`centre`, `centre de la table`, `haut`,
+  `bas`, `gauche`, `droite`, `hors-écran` ×4), ou la carte elle-même ;
+  décalage `dx` / `dy` en % de l'écran.
+- **Pistes** (départ + durée en ms, superposables, 8 s au total, 20 pistes) :
+  `cardPath` (cartes sortantes / entrantes / mise en valeur ou **fantôme**
+  décorative, réelle ou visuelle, 2 à 6 points de passage avec pause,
+  échelle, rotation, face visible / cachée, courbe, bombé, décalage entre
+  cartes, traînée), `element` (effet propre à l'élément, intensité 1-3,
+  teinte, texte), `screen` (flash, tremblement, assombrissement,
+  particules), `text`, `sound` (phase D).
+- **Bibliothèque par élément** : carte (soulever, pulser, briller, trembler,
+  se retourner, se fendre, se dissoudre, s'enflammer, geler, rétrécir,
+  grandir) · main (s'ouvrir, se resserrer, trembler, briller, se voiler,
+  vague) · dépôt (pulser, aspirer, éjecter, briller, sceller) · pioche
+  (pulser, mélanger, cracher, trembler, briller) · minuteur (geler,
+  accélérer, reculer, se fissurer, clignoter, teinter, ± secondes) · avatar
+  (4 auras, trembler, halo, rebond) · pot (éclat, pluie de pièces, grossir,
+  montant).
+- **Règle de sécurité** : une chorégraphie remplace la mise en scène
+  *visuelle* ; les cues **fonctionnels** (`revealOverlay` = vraie main
+  révélée, `highlightHandCard` = vraie carte conseillée, `avatarAura` =
+  protection active) restent toujours joués.
+- `choreographyFromCues()` : convertit les cues visuels d'une étape en
+  chorégraphie de départ (bouton « Convertir » de l'éditeur) ; testé sur les
+  21 cartes.
+- Tests : `tests/choreography.test.ts` (5) — dont l'exemple du critère de fin.
 
 ---
 
@@ -383,6 +414,7 @@ apparaît en retard pendant la donne.
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | C1 | Modèle des chorégraphies (repères, points de passage, 5 types de pistes, 49 effets répartis sur 7 éléments), validation et bornes, règle « cues fonctionnels toujours joués », conversion des cues ; 5 tests. |
 | 2026-11-20 | B | Console admin des cartes : catalogue, éditeur en 5 onglets avec aperçu et validation en direct, 14 briques et 8 animations configurables, brouillon / publication versionnée / duplication / archivage / coupure ; collection qui garde les cartes archivées possédées ; intégration 13/13 (carte inédite jouée en vraie partie). |
 | 2026-11-20 | A | Registre dynamique, validation avec bornes (6 tests), migration idempotente des 21 cartes, catalogue publié, scripts figés par partie, archivage / interrupteur d'urgence, livres calculés depuis le catalogue ; intégration 18/18 et aucune régression. |
 | 2026-11-20 | — | Ajout de la phase C « Chorégraphies spatiales » (repères, trajectoires, animations propres à chaque élément, ligne de temps) ; cible confirmée ; décisions : carte archivée toujours jouable par ses possesseurs, textes en français avec traductions prévues plus tard. |

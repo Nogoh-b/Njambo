@@ -6,6 +6,7 @@
    montants, multiplicateurs, nombre d'étapes…). Erreurs { path, message }. */
 
 import type { PowerCardDef } from "../../types/game";
+import { validateChoreography } from "./choreography";
 import type { AnimCue, CardSelector, ChoiceRequest, PowerModule, PowerOp, PowerStep, ZoneRef } from "./types";
 
 export interface PowerValidationIssue {
@@ -267,6 +268,7 @@ export function validatePowerCard(card: Pick<PowerModule, "def" | "script">): Po
     if (anim.length > POWER_LIMITS.cuesPerStep) issues.push({ path: `${base}.anim`, message: `${POWER_LIMITS.cuesPerStep} animations maximum par étape.` });
     if (ops.length > 0) hasEffect = true;
     ops.forEach((op, opIndex) => validateOp(op, `${base}.ops.${opIndex}`, issues, choiceIds));
+    if (step.choreo !== undefined) issues.push(...validateChoreography(step.choreo, `${base}.choreo`));
     anim.forEach((cue, cueIndex) => validateCue(cue, `${base}.anim.${cueIndex}`, issues, choiceIds));
   });
   if (steps.length > 0 && !hasEffect) issues.push({ path: "script.steps", message: "La carte doit avoir au moins une brique d'effet." });
