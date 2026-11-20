@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | A | Fondations : registre dynamique des cartes, validation des scripts, migration des 21 cartes | ✅ Terminé |
 | B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ✅ Terminé |
-| C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | 🟡 En cours |
+| C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | ✅ Terminé (à valider en jeu réel) |
 | D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ⬜ À faire |
 | E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ⬜ À faire |
 | F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ⬜ À faire |
@@ -284,7 +284,7 @@ inconnu d'une ancienne version du jeu est simplement ignoré.
       de passage, courbes, retournement, synchronisation entre pistes ;
       repli instantané si « Animations » est désactivé dans les Options ou
       en mode performance
-- [ ] Admin, onglet **Animation** : éditeur de **ligne de temps** (pistes
+- [x] Admin, onglet **Animation** : éditeur de **ligne de temps** (pistes
       en barres déplaçables), formulaire de chaque piste, choix des repères
       sur un **schéma de la table** cliquable, modèles de départ, bouton
       « Rejouer » dans l'aperçu
@@ -351,6 +351,43 @@ critère de fin :
 | 250 ms | 700 ms | 1,3 s |
 | --- | --- | --- |
 | ![](captures/choregraphies/demo-250.webp) | ![](captures/choregraphies/demo-700.webp) | ![](captures/choregraphies/demo-1300.webp) |
+
+### C3 — Éditeur (implémenté, `components/admin/ChoreographyEditor.tsx`)
+
+Dans l'onglet **Animation** de chaque carte, chaque étape propose
+« Créer depuis les animations de l'étape » (conversion) ou « Partir de
+zéro », puis :
+
+- **Ligne de temps** (0 à 8 s, graduée) : une barre par piste, colorée par
+  type (trajectoire, élément, écran, texte, son) ; **glisser** la barre
+  change le départ, **étirer** son bord droit change la durée (pas de
+  50 ms) ; pistes en erreur entourées de rouge ; ajout rapide
+  « + Trajectoire / Élément / Écran / Texte / Son » ; dupliquer, supprimer,
+  renommer (les références « carte en vol » suivent).
+- **Formulaire de piste** : trajectoire (cartes, nature, courbe, bombé,
+  traînée, décalage entre cartes, **points de passage** avec repère,
+  pause, échelle, rotation, face) ; élément (élément, joueur, animation de
+  sa bibliothèque, intensité, teinte, texte) ; écran ; texte ; son.
+- **Repères** : bouton 📍 qui ouvre un **schéma de table cliquable**
+  (mains, dépôts, minuteurs, pioche, pot, centre, bords et hors-écran) +
+  liste complète + curseurs de décalage horizontal / vertical.
+- **Aperçu** : la table de démonstration (collante pendant le défilement)
+  rejoue la chorégraphie en cours d'édition, même non enregistrée.
+- Règle rappelée dans l'éditeur : la chorégraphie remplace les animations
+  visuelles ; révélation, conseil et auras restent joués.
+
+Serveur : une chorégraphie invalide bloque la publication (détail par
+chemin) ; une valide est publiée et diffusée au catalogue
+(`smoke-power-editor.cjs` : 15/15).
+
+| Ligne de temps et aperçu | Choix d'un repère |
+| --- | --- |
+| ![](captures/choregraphies/editeur-editor.webp) | ![](captures/choregraphies/editeur-anchor.webp) |
+
+**À valider en jeu réel** : créer une carte avec une chorégraphie (par ex.
+vol de carte de la main de la cible vers le centre puis vers ta main),
+la publier, l'activer en partie avec deux comptes et vérifier le rendu
+chez le lanceur et chez la cible (portrait et paysage).
 
 ---
 
@@ -438,6 +475,7 @@ apparaît en retard pendant la donne.
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | C3 | Éditeur de chorégraphie : ligne de temps à barres déplaçables et étirables, formulaires par piste, schéma de table cliquable pour les repères, aperçu sur la table de démonstration ; publication validée côté serveur (15/15). **Phase C terminée.** |
 | 2026-11-20 | C2 | Lecteur de chorégraphies (calque, trajectoires multi-points, retournements 3D, effets d'éléments et d'écran, textes), branché dans l'orchestrateur sans changer les étapes existantes ; table de démonstration ; vérifié visuellement. |
 | 2026-11-20 | C1 | Modèle des chorégraphies (repères, points de passage, 5 types de pistes, 49 effets répartis sur 7 éléments), validation et bornes, règle « cues fonctionnels toujours joués », conversion des cues ; 5 tests. |
 | 2026-11-20 | B | Console admin des cartes : catalogue, éditeur en 5 onglets avec aperçu et validation en direct, 14 briques et 8 animations configurables, brouillon / publication versionnée / duplication / archivage / coupure ; collection qui garde les cartes archivées possédées ; intégration 13/13 (carte inédite jouée en vraie partie). |

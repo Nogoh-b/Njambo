@@ -176,9 +176,9 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
   const errorFor = useCallback((path: string) => issues.find((issue) => issue.path === path)?.message, [issues]);
   const tabCount = (key: Tab) => {
     const prefixes = TABS.find((entry) => entry.key === key)?.prefixes ?? [];
-    if (key === "animation") return issues.filter((issue) => /^script\.steps\.\d+\.anim/.test(issue.path)).length;
+    if (key === "animation") return issues.filter((issue) => /^script\.steps\.\d+\.(anim|choreo)/.test(issue.path)).length;
     return issues.filter((issue) => prefixes.some((prefix) => issue.path === prefix || issue.path.startsWith(`${prefix}.`))
-      && !(key === "effect" && /^script\.steps\.\d+\.anim/.test(issue.path))).length;
+      && !(key === "effect" && /^script\.steps\.\d+\.(anim|choreo)/.test(issue.path))).length;
   };
   const def = card.def;
   const patchDef = (next: Partial<PowerCardDef>) => setCard((current) => ({ ...current, def: { ...current.def, ...next } }));
@@ -266,7 +266,7 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
           )}
           {tab === "target" && <section className={styles.panel}><TargetEditor script={card.script} onChange={setScript} errorFor={errorFor} /></section>}
           {tab === "effect" && <section className={styles.panel}><p className={styles.hint} style={{ marginTop: 0 }}>Chaque étape s’exécute dans l’ordre. Les briques modifient réellement la partie (côté serveur).</p><StepsEditor mode="effect" script={card.script} onChange={setScript} errorFor={errorFor} /></section>}
-          {tab === "animation" && <section className={styles.panel}><p className={styles.hint} style={{ marginTop: 0 }}>Mise en scène de chaque étape, rejouée chez tous les joueurs. (Les trajectoires libres et animations par élément arrivent avec les chorégraphies.)</p><StepsEditor mode="animation" script={card.script} onChange={setScript} errorFor={errorFor} /></section>}
+          {tab === "animation" && <section className={styles.panel}><p className={styles.hint} style={{ marginTop: 0 }}>Mise en scène de chaque étape, rejouée chez tous les joueurs. Pour aller plus loin, ajoute une chorégraphie spatiale à l’étape (repères, trajectoires, effets par élément).</p><StepsEditor mode="animation" script={card.script} onChange={setScript} errorFor={errorFor} tone={def.tone} /></section>}
           {tab === "economy" && (
             <section className={styles.panel}>
               <div className={styles.grid2}>

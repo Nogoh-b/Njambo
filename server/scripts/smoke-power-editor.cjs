@@ -54,6 +54,22 @@ if (!process.env.DATABASE_URL) { console.error("DATABASE_URL requis (base jetabl
   assert(pub2.revision === 2 && registry.getPowerModule(id).def.archived === true && registry.getPowerModule(id).def.costCauris === 60, "révision 2 publiée, statut « archivée » conservé");
   await cards.setPowerCardStatusHandler(as("adm", { cardId: id, archived: false }, true));
 
+  // Chorégraphie spatiale : invalide refusée, valide publiée et diffusée au catalogue
+  const v3 = JSON.parse(JSON.stringify(v2));
+  v3.script.steps[0].choreo = { tracks: [{ id: "x", kind: "element", startMs: 0, durationMs: 500, target: { element: "timer", player: "self" }, effect: "coinRain" }] };
+  await cards.savePowerCardDraftHandler(as("adm", { card: v3 }, true));
+  const badChoreo = await refused(() => cards.publishPowerCardHandler(as("adm", { cardId: id }, true)), "POWER_CARD_INVALID");
+  assert(badChoreo && badChoreo.details.issues.some((issue) => issue.path === "script.steps.0.choreo.tracks.0.effect"), "chorégraphie invalide refusée (effet inconnu pour le minuteur)");
+  v3.script.steps[0].choreo = { tracks: [
+    { id: "sablier", kind: "element", startMs: 0, durationMs: 900, target: { element: "timer", player: "self" }, effect: "rewind", intensity: 3, tone: "teal" },
+    { id: "mot", kind: "text", startMs: 100, durationMs: 1200, text: "+8 s !", at: { kind: "zone", zone: "timer", player: "self", dy: -6 }, size: "l" },
+    { id: "fantome", kind: "cardPath", startMs: 200, durationMs: 800, cards: "ghost", mode: "display", easing: "back", waypoints: [{ at: { kind: "zone", zone: "deck" } }, { at: { kind: "screen", at: "center" }, scale: 1.6, face: "up" }] },
+  ] };
+  await cards.savePowerCardDraftHandler(as("adm", { card: v3 }, true));
+  const pub3 = await cards.publishPowerCardHandler(as("adm", { cardId: id }, true));
+  const inCatalog = (await core.db.doc("power_catalog/current").get()).data().cards.find((c) => c.def.id === id);
+  assert(pub3.revision === 3 && inCatalog.script.steps[0].choreo.tracks.length === 3, "chorégraphie publiée et diffusée au catalogue (révision 3)");
+
   // En vraie partie
   const uid = "joueurBaobab0000000001";
   await core.db.doc(`players/${uid}`).set({ uid, name: "Ewane", emoji: "🎴" });

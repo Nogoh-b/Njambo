@@ -5,7 +5,9 @@
    les erreurs viennent de validatePowerCard (chemins `script.steps.N…`). */
 
 import type { ReactNode } from "react";
-import type { AnimCue, CardSelector, ChoiceRequest, PlayerRef, PowerOp, PowerScript, PowerStep, ZoneRef } from "@/engine/power/types";
+import type { AnimCue, CardSelector, ChoiceRequest, PlayerRef, PowerFxTone, PowerOp, PowerScript, PowerStep, ZoneRef } from "@/engine/power/types";
+import { choreographyFromCues } from "@/engine/power/choreography";
+import { ChoreographyEditor } from "./ChoreographyEditor";
 import { CONDITION_KINDS, CUE_KINDS, FX_PRESETS, OP_KINDS, PLAYER_REFS, POWER_TONES, SELECTOR_KINDS, SHIELD_TAGS, TARGET_COUNTS } from "@/engine/power/validate";
 import {
   CONDITION_LABELS, CUE_LABELS, FX_PRESET_LABELS, OP_LABELS, PLAYER_LABELS, SELECTOR_LABELS, SHIELD_LABELS,
@@ -334,7 +336,7 @@ export function TargetEditor({ script, onChange, errorFor }: { script: PowerScri
 }
 
 /** Étapes : mode « effet » (clic + briques) ou « animation » (cues). */
-export function StepsEditor({ script, onChange, errorFor, mode }: { script: PowerScript; onChange: (script: PowerScript) => void; errorFor: ErrorFor; mode: "effect" | "animation" }) {
+export function StepsEditor({ script, onChange, errorFor, mode, tone = "gold" }: { script: PowerScript; onChange: (script: PowerScript) => void; errorFor: ErrorFor; mode: "effect" | "animation"; tone?: PowerFxTone }) {
   const setStep = (index: number, step: PowerStep) => onChange({ ...script, steps: script.steps.map((item, i) => (i === index ? step : item)) });
   const move = (from: number, to: number) => {
     if (to < 0 || to >= script.steps.length) return;
@@ -409,6 +411,23 @@ export function StepsEditor({ script, onChange, errorFor, mode }: { script: Powe
                   </div>
                 ))}
                 <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => setStep(index, { ...step, anim: [...anim, defaultCue("toast")] })}>+ Animation</button>
+
+                <h3>Chorégraphie spatiale</h3>
+                {step.choreo ? (
+                  <>
+                    <p className={styles.hint} style={{ marginTop: 0 }}>
+                      La chorégraphie remplace les animations visuelles ci-dessus. Restent jouées : la fenêtre de révélation, la carte conseillée et les auras (ce sont de vraies informations de jeu).
+                    </p>
+                    <ChoreographyEditor choreo={step.choreo} tone={tone} errorFor={errorFor} path={`${base}.choreo`} onChange={(choreo) => setStep(index, { ...step, choreo })} />
+                    <button type="button" className={`${styles.btn} ${styles.small} ${styles.danger}`} style={{ marginTop: 8 }} onClick={() => { if (window.confirm("Retirer la chorégraphie de cette étape ?")) setStep(index, { ...step, choreo: undefined }); }}>Retirer la chorégraphie</button>
+                  </>
+                ) : (
+                  <div className={styles.row}>
+                    <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => setStep(index, { ...step, choreo: choreographyFromCues(anim as never) })}>Créer depuis les animations de l’étape</button>
+                    <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => setStep(index, { ...step, choreo: { tracks: [{ id: "t1", kind: "screen", startMs: 0, durationMs: 300, effect: "flash", intensity: 2 }] } })}>Partir de zéro</button>
+                    <span className={styles.hint}>Trajectoires libres, repères, animations propres à chaque élément.</span>
+                  </div>
+                )}
               </>
             )}
           </div>
