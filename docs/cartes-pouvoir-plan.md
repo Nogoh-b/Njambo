@@ -10,10 +10,11 @@
 | Phase | Contenu | Statut |
 | --- | --- | --- |
 | A | Fondations : registre dynamique des cartes, validation des scripts, migration des 21 cartes | ⬜ À faire |
-| B | Console admin des cartes : identité, cible, effet (briques), animation, économie, publication | ⬜ À faire |
-| C | Sons des cartes : upload, bibliothèque, lecture en jeu | ⬜ À faire |
-| D | Chargeur d'assets : manifeste, préchargement, écran de chargement | ⬜ À faire |
-| E | Aperçu / bac à sable, sécurité en partie, tests de bout en bout | ⬜ À faire |
+| B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ⬜ À faire |
+| C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | ⬜ À faire |
+| D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ⬜ À faire |
+| E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ⬜ À faire |
+| F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ⬜ À faire |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -28,10 +29,10 @@ Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 | 21 cartes actuelles | **Migrées en base et éditables**. Le code reste un filet de secours si la base est vide. |
 | Chargeur | **Hybride** : préchargement discret en approche d'un écran ; écran de chargement (progression + astuces) seulement si l'indispensable n'est pas prêt, avec un délai maximum. |
 
-### Point à confirmer
-- « *Sur quelle langue ça va attaquer* » : compris comme **la cible** (soi,
-  un adversaire choisi, tous les adversaires, au hasard). À corriger si tu
-  pensais à autre chose (par exemple la langue des textes : voir « Langues » ci-dessous).
+| Cible | « Sur quelle langue ça va attaquer » = **la cible** (confirmé). |
+| Animations | Aller au-delà des cues prédéfinis : **repères de déplacement** (main, centre de l'écran, dépôt, pioche, minuteur, pot…), **trajectoires** de cartes, et une **animation propre à chaque élément** (carte, main, dépôt, pioche, minuteur…), le tout sur une **ligne de temps** (phase C). |
+| Carte archivée *(décidé)* | Retirée de la boutique et des livres ; les joueurs qui la possèdent la **gardent et peuvent encore la jouer** (rien de payé n'est perdu). L'**interrupteur d'urgence** (phase F) est distinct : il bloque l'activation pour tous. |
+| Langues *(décidé)* | Textes en français pour l'instant ; le modèle prévoit un champ `translations` facultatif (anglais, duala) pour plus tard, non édité dans ce plan. |
 
 ---
 
@@ -121,7 +122,7 @@ direct comme pour les événements :
 | **Identité** | Nom, description, titre et texte d'activation, catégorie (offensive, défense, score, **tactique**, perturbation, économie), **rareté**, icône et teinte, **visuel** (upload WebP) |
 | **Cible** | Aucune / soi / un adversaire (choisi par le joueur ou au hasard) / plusieurs / tous ; conditions d'activation |
 | **Effet** | Constructeur d'**étapes** : chaque étape = une brique choisie dans la liste + ses réglages (formulaire adapté), et éventuellement un **clic du joueur** (choisir une carte dans sa main, un dépôt, une main révélée) |
-| **Animation** | Pour chaque étape : cues (vol de cartes, révélation, effet sur le minuteur, aura d'avatar, éclat du pot, message…), **préréglage d'effet** et intensité, durées |
+| **Animation** | Chorégraphie de chaque étape (phase C) : ligne de temps, repères, trajectoires, animations des éléments ; en phase B, édition des cues existants en attendant |
 | **Son** | Voir phase C |
 | **Économie** | Prix en cauris / Nkap, présent en boutique, dans les livres (boosters), actif / test seulement |
 | **Aperçu** | Voir phase E |
@@ -132,15 +133,92 @@ direct comme pour les événements :
       `CardSelectorField`, `TargetField`, réutilisation de `ImageField`
 - [ ] Rendu de la carte telle qu'elle apparaîtra (motif de catégorie, rareté, visuel)
 - [ ] Archiver une carte : retirée de la boutique et des livres ; les joueurs
-      qui la possèdent la gardent mais ne peuvent plus l'équiper (ou la
-      gardent jouable : **à décider**)
+      qui la possèdent la gardent et peuvent encore la jouer
 
 **Critère de fin** : un admin crée une carte inédite (combinaison de
 briques) sans toucher au code, et elle se joue en partie.
 
 ---
 
-## Phase C — Sons des cartes
+## Phase C — Chorégraphies spatiales
+
+### Idée
+Aujourd'hui une étape de carte joue des **cues** figés (« vol de cartes »,
+« révélation »…). On ajoute, à côté, une **chorégraphie** : une ligne de
+temps de **pistes** qui disent *quoi bouge, d'où, par où, vers où, quand,
+et comment chaque élément réagit*. Les cues existants deviennent des
+**modèles** de chorégraphie (rien n'est perdu, les 21 cartes continuent de
+marcher).
+
+### Repères (points d'ancrage)
+Calculés à chaque lecture à partir des zones déjà enregistrées par la table
+(`components/table/zones/ZoneRegistry.tsx`), donc justes sur mobile comme
+sur ordinateur, en portrait comme en paysage :
+
+| Repère | Exemples |
+| --- | --- |
+| Zones de joueur | `main:lanceur`, `main:cible`, `main:tous`, `dépôt:lanceur`, `dépôt:cible`, `minuteur:cible`, `avatar:lanceur` |
+| Zones communes | `pioche`, `pot`, `révélation`, `centre de l'écran`, `centre de la table` |
+| Bords | `hors-écran haut / bas / gauche / droite` |
+| Précision | carte précise (« la carte choisie », « la plus forte »…), **décalage** (x, y en % de la zone), au-dessus / au-dessous |
+
+### Pistes de la ligne de temps
+| Piste | Réglages |
+| --- | --- |
+| **Trajectoire de carte** | Quelles cartes (celles calculées par le moteur : données, prises, choisies, piochées…), **points de passage** successifs (repère + décalage + pause), durée, courbe (linéaire, douce, rebond, élastique), arc, rotation, échelle, **retournement** (face visible / cachée / au milieu du trajet), traînée d'effet |
+| **Animation d'élément** | Élément ciblé (une **carte**, une **main**, un **dépôt**, la **pioche**, le **minuteur**, un **avatar**, le **pot**, l'écran) + effet de sa bibliothèque propre (ci-dessous), départ, durée, intensité, couleur |
+| **Effet d'écran** | Flash, tremblement, assombrissement, particules (préréglages existants : mystique, vent, givre, temps, pluie d'or…) |
+| **Texte** | Message flottant ancré sur un repère (« VISION ! », « −3 s ») |
+| **Son** | Son (phase D) déclenché à un instant donné |
+
+Les pistes ont un **départ** et une **durée** (en ms) : elles peuvent
+s'enchaîner ou se superposer. Une piste peut dépendre de la précédente
+(« au moment où la carte arrive »).
+
+### Bibliothèque d'animations propres à chaque élément
+| Élément | Animations |
+| --- | --- |
+| Carte | soulever, pulser, briller, trembler, se retourner, se fendre, se dissoudre, s'enflammer, geler, rétrécir / grandir |
+| Main | s'ouvrir en éventail, se resserrer, trembler, briller, se voiler (cachée), s'illuminer carte par carte |
+| Dépôt | pulser, aspirer (les cartes rentrent), éjecter, s'illuminer, se verrouiller (sceau) |
+| Pioche (distribution) | pulser, se mélanger, cracher une carte, trembler, briller |
+| Minuteur | geler, accélérer (tourne vite), reculer, se fissurer, clignoter, changer de couleur, afficher ± secondes |
+| Avatar | aura (bouclier, masque, totem, chance), secousse, halo de couleur, rebond |
+| Pot | éclat, pluie de pièces, grossir, afficher un montant |
+
+Chaque zone de la table expose une fonction générique
+`play(effet, réglages)` en plus de ses fonctions actuelles ; un effet
+inconnu d'une ancienne version du jeu est simplement ignoré.
+
+### Tâches
+- [ ] `engine/power/choreography.ts` : types (`Choreography`, pistes,
+      repères, points de passage, effets par élément) + validation et bornes
+      (durée totale ≤ 6 s, nombre de pistes, points de passage) + tests
+- [ ] Conversion des cues existants en chorégraphies-modèles (les 21 cartes
+      gardent exactement leur rendu)
+- [ ] `ZoneRegistry` : résolution des repères (rect + décalage) ;
+      `play(effet)` sur chaque zone (main, dépôt, pioche, minuteur/avatar,
+      pot, révélation) et sur les cartes en vol
+- [ ] Lecteur de chorégraphie (GSAP déjà chargé) : trajectoires à points
+      de passage, courbes, retournement, synchronisation entre pistes ;
+      repli instantané si « Animations » est désactivé dans les Options ou
+      en mode performance
+- [ ] Admin, onglet **Animation** : éditeur de **ligne de temps** (pistes
+      en barres déplaçables), formulaire de chaque piste, choix des repères
+      sur un **schéma de la table** cliquable, modèles de départ, bouton
+      « Rejouer » dans l'aperçu
+- [ ] Le moteur reste l'autorité : la chorégraphie ne fait qu'**animer** les
+      cartes réellement déplacées par les briques (`resolved:*`) ; une
+      trajectoire ne peut pas inventer un déplacement de carte
+
+**Critère de fin** : un admin construit une animation où, par exemple, la
+carte quitte la main de la cible, monte au centre de l'écran en se
+retournant, s'y fend en deux, pendant que le minuteur de la cible gèle et
+que la pioche tremble — sans écrire de code.
+
+---
+
+## Phase D — Sons des cartes
 
 - [ ] Upload audio : `POST /admin/upload?kind=audio` — MP3 / OGG / M4A / WAV,
       ≤ 500 Ko, signature vérifiée, durée ≤ 5 s ; conversion en **OGG +
@@ -152,7 +230,7 @@ briques) sans toucher au code, et elle se joue en partie.
 - [ ] Lecteur audio dans le runtime GXE : décodage WebAudio, cache des sons
       décodés, respect du réglage « Effets sonores », pas de lecture avant
       le premier geste (déverrouillage audio déjà géré par GXE)
-- [ ] Lecture à l'activation, synchronisée avec le premier cue d'animation
+- [ ] Lecture à l'activation, ou à un instant précis via une **piste son** de la chorégraphie (phase C)
 - [ ] `docs/deploiement.md` : installer `ffmpeg` sur le VPS (facultatif)
 
 **Critère de fin** : un son uploadé dans l'admin est joué chez tous les
@@ -160,7 +238,7 @@ joueurs quand la carte est activée, sans latence perceptible.
 
 ---
 
-## Phase D — Chargeur d'assets
+## Phase E — Chargeur d'assets
 
 ### Principe (hybride)
 1. **Manifeste** : chaque écran déclare ses assets **indispensables**
@@ -201,7 +279,7 @@ apparaît en retard pendant la donne.
 
 ---
 
-## Phase E — Aperçu, sécurité, tests
+## Phase F — Aperçu, sécurité, tests
 
 - [ ] **Bac à sable** dans l'admin : une mini-table locale (moteur local +
       bots) où l'on active la carte en cours d'édition, avec son animation et
@@ -217,12 +295,6 @@ apparaît en retard pendant la donne.
 
 ---
 
-## Langues
-
-Les textes des cartes (nom, description, activation) sont aujourd'hui en
-français. Si besoin, l'éditeur peut porter une version par langue
-(français, anglais, duala) — **non prévu** dans ce plan, à décider.
-
 ---
 
 ## Journal
@@ -230,3 +302,4 @@ français. Si besoin, l'éditeur peut porter une version par langue
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | — | Ajout de la phase C « Chorégraphies spatiales » (repères, trajectoires, animations propres à chaque élément, ligne de temps) ; cible confirmée ; décisions : carte archivée toujours jouable par ses possesseurs, textes en français avec traductions prévues plus tard. |
