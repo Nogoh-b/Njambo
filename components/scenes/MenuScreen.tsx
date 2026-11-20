@@ -31,6 +31,7 @@ import { rankAssetSrc } from "@/lib/playerRank";
 import { preloadScene } from "@/lib/scenePreload";
 import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
 import type { PlayerStats, PublicPlayerProfile, SceneName } from "@/types/game";
+import { eventArt } from "@/lib/eventArt";
 import styles from "./MenuScreen.module.css";
 
 type SocialCounts = { notifications: number; messages: number; requests: number };
@@ -46,11 +47,6 @@ const ZERO_STATS: PlayerStats = { played: 0, won: 0, bestWin: 0 };
 const RESUME_SCENE: Record<"online" | "friends", SceneName> = {
   online: "online_setup",
   friends: "friends_invite",
-};
-
-const EVENT_THUMBS: Record<string, string> = {
-  defi_du_mboa: "/assets/njambo/events/defi-du-mboa-480.webp",
-  tournoi_du_ter: "/assets/njambo/events/tournoi-du-ter-480.webp",
 };
 
 const RIGHT_LINKS: Array<{ scene: SceneName; icon: NjamboIconName; tone: NjamboIconTone; enamel: string; label: string; sub: string }> = [
@@ -360,7 +356,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
   const now = useMemo(() => Date.now(), []);
   const featuredEvent = events.find((event) => event.published && event.startsAt <= now && event.endsAt > now) ?? events[0] ?? DEFAULT_EVENTS[0];
   const featuredReward = featuredEvent.finalReward.map(rewardLabel).join(" + ");
-  const featuredEventThumb = EVENT_THUMBS[featuredEvent.eventId] ?? "/assets/njambo/events/event-fallback.webp";
+  const featuredEventArt = eventArt(featuredEvent, "thumb");
   const bronzeTickets = Number(inventory.tickets?.bronze ?? 0);
   const loyaltyPoints = Math.min(7, Math.max(0, economy?.daily.loyaltyPoints ?? 0));
   const energyValue = economy?.energy.unlimited ? "∞" : String(economy?.energy.available ?? 100);
@@ -845,7 +841,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
         >
           <span className={styles.bannerSheen} aria-hidden="true" />
           <span className={styles.eventBannerThumb} aria-hidden="true">
-            <Image src={featuredEventThumb} alt="" fill sizes="120px" />
+            <Image src={featuredEventArt.src} unoptimized={featuredEventArt.remote} alt="" fill sizes="120px" />
             <span className={styles.livePulse} />
           </span>
           <span className={styles.eventBannerCopy}>

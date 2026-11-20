@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { eventArt } from "@/lib/eventArt";
 import { useEffect, useState } from "react";
 import { type EventVersion, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,11 +23,6 @@ const EVENT_STATES: Record<EventState, { label: string; className: string }> = {
   ended: { label: "Terminé", className: "stateEnded" },
   full: { label: "Complet", className: "stateEnded" },
   eliminated: { label: "Éliminé", className: "stateEliminated" },
-};
-
-const EVENT_ART: Record<string, string> = {
-  defi_du_mboa: "/assets/njambo/events/defi-du-mboa.webp",
-  tournoi_du_ter: "/assets/njambo/events/tournoi-du-ter.webp",
 };
 
 const TICKET_ART: Record<"bronze" | "argent" | "or", string> = {
@@ -184,7 +180,7 @@ export function EventsScreen() {
             const state: EventState = run?.status === "eliminated" ? "eliminated" : availability;
             const status = EVENT_STATES[state];
             const ticketCount = tickets[event.ticketTier] ?? 0;
-            const art = EVENT_ART[event.eventId] ?? "/assets/njambo/events/event-fallback.webp";
+            const art = eventArt(event);
             const isPvp = event.mode === "pvp";
             const stageCount = event.stages.length;
             const completedStages = run?.status === "eliminated" ? 0 : (run?.stageIndex ?? 0);
@@ -200,7 +196,8 @@ export function EventsScreen() {
                 {/* ─── PARTIE HAUTE : AFFICHE ILLUSTRÉE + SENTIER MINI-TABLES ─── */}
                 <div className={styles.posterTopZone}>
                   <Image
-                    src={art}
+                    src={art.src}
+                    unoptimized={art.remote}
                     alt=""
                     fill
                     priority={index === 0}

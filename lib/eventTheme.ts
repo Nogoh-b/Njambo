@@ -52,9 +52,39 @@ const PREFIX_RULES: Array<{ test: RegExp; theme: EventTheme }> = [
   { test: /ter|tambour|cercle|duel|arena/i, theme: KNOWN_THEMES.tournoi_du_ter },
 ];
 
-export function resolveEventTheme(eventId: string | null | undefined): EventTheme {
-  if (!eventId) return DEFAULT_THEME;
-  if (KNOWN_THEMES[eventId]) return KNOWN_THEMES[eventId];
-  const rule = PREFIX_RULES.find((entry) => entry.test.test(eventId));
-  return rule?.theme ?? DEFAULT_THEME;
+const HUB_TONES: GameHubTone[] = ["gold", "teal", "pink", "cobalt", "home", "play", "events", "shop", "wallet", "social"];
+const HEX = /^#[0-9a-fA-F]{6}$/;
+
+/** Accent adouci (≈ 30 % de la couleur sur blanc) pour halos et connecteurs. */
+function softenHex(hex: string): string {
+  const value = parseInt(hex.slice(1), 16);
+  const mix = (channel: number) => Math.round(channel + (255 - channel) * 0.7);
+  const r = mix((value >> 16) & 255), g = mix((value >> 8) & 255), b = mix(value & 255);
+  return `#${((r << 16) | (g << 8) | b).toString(16).padStart(6, "0")}`;
+}
+
+type ThemeSource = string | null | undefined | {
+  eventId: string;
+  theme?: { accent?: string; label?: string; tone?: string } | null;
+};
+
+/**
+ * Thème d'un événement : celui de la fiche admin (`event.theme`) s'il est
+ * renseigné, sinon l'inférence historique par eventId.
+ */
+export function resolveEventTheme(source: ThemeSource): EventTheme {
+  const eventId = typeof source === "string" ? source : source?.eventId;
+  const configured = typeof source === "object" && source ? source.theme : null;
+  let base = DEFAULT_THEME;
+  if (eventId) {
+    base = KNOWN_THEMES[eventId] ?? PREFIX_RULES.find((entry) => entry.test.test(eventId))?.theme ?? DEFAULT_THEME;
+  }
+  if (!configured) return base;
+  const accent = configured.accent && HEX.test(configured.accent) ? configured.accent : null;
+  return {
+    tone: HUB_TONES.includes(configured.tone as GameHubTone) ? configured.tone as GameHubTone : base.tone,
+    accent: accent ?? base.accent,
+    accentSoft: accent ? softenHex(accent) : base.accentSoft,
+    label: configured.label?.trim() || base.label,
+  };
 }

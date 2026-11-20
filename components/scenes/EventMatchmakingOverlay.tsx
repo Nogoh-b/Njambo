@@ -10,6 +10,7 @@ import styles from "./EventMatchmakingOverlay.module.css";
 type RunStatus = "active" | "matchmaking" | "completed" | "eliminated" | "left";
 
 interface RunDoc {
+  versionSnapshot?: { eventId: string; theme?: { accent?: string; label?: string; tone?: string } };
   status: RunStatus;
   currentMatchId?: string;
   stageIndex: number;
@@ -41,12 +42,14 @@ export interface EventMatchmakingOverlayProps {
 export function EventMatchmakingOverlay({ runId, eventId, stageTitle, requiredPlayers, onMatchStart, onAbort }: EventMatchmakingOverlayProps) {
   const [status, setStatus] = useState<RunStatus>("matchmaking");
   const [elapsed, setElapsed] = useState(0);
-  const theme = resolveEventTheme(eventId);
+  const [snapshotTheme, setSnapshotTheme] = useState<RunDoc["versionSnapshot"] | null>(null);
+  const theme = resolveEventTheme(snapshotTheme ?? eventId);
 
   useEffect(() => {
     const unsub = onSnapshot(doc(db, "event_runs", runId), (snapshot) => {
       if (!snapshot.exists()) { onAbort(); return; }
       const data = snapshot.data() as RunDoc;
+      if (data.versionSnapshot?.theme) setSnapshotTheme(data.versionSnapshot);
       setStatus(data.status);
       if (typeof data.currentMatchId === "string" && data.currentMatchId) {
         onMatchStart();

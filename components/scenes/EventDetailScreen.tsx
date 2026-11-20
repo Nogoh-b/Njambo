@@ -14,16 +14,12 @@ import { GameModal } from "@/components/ui/GameModal";
 import { GameShell } from "@/components/ui/GameShell";
 import { NjamboIcon } from "@/components/ui/Art";
 import { resolveEventTheme } from "@/lib/eventTheme";
+import { eventArt } from "@/lib/eventArt";
 import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
 import { EventOutcomeOverlay, resolveEventOutcome, type EventOutcome } from "./EventOutcomeOverlay";
 import styles from "./EventDetailScreen.module.css";
 
 type StageState = "completed" | "current" | "locked";
-
-const EVENT_ART: Record<string, string> = {
-  defi_du_mboa: "/assets/njambo/events/defi-du-mboa.webp",
-  tournoi_du_ter: "/assets/njambo/events/tournoi-du-ter.webp",
-};
 
 const DIFFICULTY_META: Record<
   EventStage["difficulty"],
@@ -78,7 +74,7 @@ export function EventDetailScreen({
   }, []);
 
   const event = events.find((candidate) => candidate.eventId === eventDetailId) ?? null;
-  const theme = resolveEventTheme(event?.eventId);
+  const theme = resolveEventTheme(event);
   const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) };
 
   /* Parcours affiché : d'abord un parcours en cours (active/matchmaking),
@@ -289,7 +285,7 @@ export function EventDetailScreen({
     );
   }
 
-  const art = EVENT_ART[event.eventId] ?? "/assets/njambo/events/event-fallback.webp";
+  const art = eventArt(event).src;
   const isPvp = event.mode === "pvp";
   const lossesUsed = run?.losses ?? 0;
   const lossesLeft = Math.max(0, event.allowedLosses - lossesUsed);
