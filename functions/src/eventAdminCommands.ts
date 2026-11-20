@@ -251,6 +251,18 @@ export async function discardEventDraftHandler(request: CallableRequest<unknown>
   });
 }
 
+/* ─────────────── Bibliothèque d'images (uploads) ─────────────── */
+
+export async function listAdminUploadsHandler(request: CallableRequest<unknown>) {
+  requireAdmin(request);
+  const data = asObject(request.data ?? {});
+  const kind = typeof data.kind === "string" ? data.kind : null;
+  let query = db.collection("admin_uploads").orderBy("createdAt", "desc").limit(60);
+  if (kind) query = db.collection("admin_uploads").where("kind", "==", kind).orderBy("createdAt", "desc").limit(60);
+  const snap = await query.get();
+  return { uploads: snap.docs.map((doc) => ({ id: doc.id, ...doc.data() })) };
+}
+
 /* ─────────────── Statistiques ─────────────── */
 
 export async function getAdminEventStatsHandler(request: CallableRequest<unknown>) {

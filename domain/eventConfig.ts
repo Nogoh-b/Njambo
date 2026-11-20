@@ -143,7 +143,9 @@ export interface EventValidationIssue {
 
 const ID_PATTERN = /^[a-z0-9_]{3,64}$/;
 const HEX_COLOR = /^#[0-9a-fA-F]{6}$/;
-const IMAGE_URL = /^(\/[\w\-./]+|https:\/\/[\w\-.]+(:\d+)?\/[\w\-./%]*)$/;
+/* Chemin local (/assets/…, /uploads/…) ou URL absolue (upload servi par le VPS ;
+   http toléré pour le développement local). */
+const IMAGE_URL = /^(\/[\w\-./]+|https?:\/\/[\w\-.]+(:\d+)?\/[\w\-./%]*)$/;
 const isInt = (value: unknown, min: number, max: number) => Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
 
 export function validateReward(reward: unknown, path: string): EventValidationIssue[] {
@@ -184,7 +186,7 @@ export function validateEventVersion(event: EventVersion): EventValidationIssue[
   if (!isInt(event.revision, 1, 1_000_000)) push("revision", "Révision invalide.");
   if (event.title.trim().length < 3 || event.title.length > 60) push("title", "Titre : 3 à 60 caractères.");
   if (event.description.length > 280) push("description", "Description : 280 caractères maximum.");
-  if (event.imageUrl && !IMAGE_URL.test(event.imageUrl)) push("imageUrl", "Image : chemin /… ou URL https.");
+  if (event.imageUrl && !IMAGE_URL.test(event.imageUrl)) push("imageUrl", "Image : chemin /… ou URL http(s).");
   if (!HEX_COLOR.test(event.theme.accent)) push("theme.accent", "Couleur au format #rrggbb.");
   if (event.theme.label.length > 40) push("theme.label", "Libellé d'ambiance : 40 caractères maximum.");
   if (!Number.isFinite(event.startsAt) || event.startsAt < 0) push("startsAt", "Date de début invalide.");
@@ -214,7 +216,7 @@ export function validateEventVersion(event: EventVersion): EventValidationIssue[
     if (stage.boss) {
       if (stage.boss.name.trim().length < 2 || stage.boss.name.length > 32) push(`${base}.boss.name`, "Nom du boss : 2 à 32 caractères.");
       if (!isInt(stage.boss.botLevel, 1, 5)) push(`${base}.boss.botLevel`, "Niveau du boss : 1 à 5.");
-      if (stage.boss.avatarUrl && !IMAGE_URL.test(stage.boss.avatarUrl)) push(`${base}.boss.avatarUrl`, "Avatar : chemin /… ou URL https.");
+      if (stage.boss.avatarUrl && !IMAGE_URL.test(stage.boss.avatarUrl)) push(`${base}.boss.avatarUrl`, "Avatar : chemin /… ou URL http(s).");
     }
     issues.push(...validateRewardList(stage.reward, `${base}.reward`, false));
   });

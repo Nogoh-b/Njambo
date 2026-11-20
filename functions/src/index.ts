@@ -32,6 +32,7 @@ import {
   archiveEventHandler,
   discardEventDraftHandler,
   getAdminEventStatsHandler,
+  listAdminUploadsHandler,
 } from "./eventAdminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
@@ -89,6 +90,7 @@ export const duplicateEvent = onCall(callable, duplicateEventHandler);
 export const archiveEvent = onCall(callable, archiveEventHandler);
 export const discardEventDraft = onCall(callable, discardEventDraftHandler);
 export const getAdminEventStats = onCall(callable, getAdminEventStatsHandler);
+export const listAdminUploads = onCall(callable, listAdminUploadsHandler);
 
 export const createRoom = onCall(callable, createRoomHandler);
 export const joinRoom = onCall(callable, joinRoomHandler);

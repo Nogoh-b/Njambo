@@ -110,6 +110,9 @@ sudo -u postgres psql -c "CREATE DATABASE njambo OWNER njambo;"
 
 # Code
 sudo mkdir -p /opt/njambo && sudo chown "$USER" /opt/njambo
+
+# Images uploadées depuis l'admin (événements, boss, cosmétiques) — hors du dépôt
+sudo mkdir -p /opt/njambo-uploads && sudo chown "$USER" /opt/njambo-uploads
 git clone git@github.com:nogoh-b/njambo.git /opt/njambo
 ```
 
@@ -119,6 +122,9 @@ Créer `/opt/njambo/server/.env` (**hors git**, `chmod 600`) :
 DATABASE_URL=postgres://njambo:MOT_DE_PASSE_FORT@localhost:5432/njambo
 GOOGLE_APPLICATION_CREDENTIALS=/opt/njambo-secrets/service-account.json
 PORT=8081
+# Upload d'images admin : dossier de stockage + URL publique du back
+UPLOAD_DIR=/opt/njambo-uploads
+PUBLIC_BASE_URL=https://njambo-back.bysoft-corp.com
 ```
 
 La clé de service Firebase va dans `/opt/njambo-secrets/` (hors du dépôt).
@@ -129,6 +135,18 @@ Nginx — `/etc/nginx/sites-available/njambo-back` :
 ```nginx
 server {
     server_name njambo-back.bysoft-corp.com;
+
+    # Upload admin : 2 Mo max côté serveur, un peu de marge ici
+    client_max_body_size 3m;
+
+    # Images uploadées : servies directement par Nginx (noms immuables)
+    location /uploads/ {
+        alias /opt/njambo-uploads/;
+        expires 365d;
+        add_header Cache-Control "public, immutable";
+        add_header X-Content-Type-Options nosniff;
+        try_files $uri =404;
+    }
 
     location / {
         proxy_pass http://127.0.0.1:8081;
@@ -156,6 +174,19 @@ sudo nginx -t && sudo systemctl reload nginx
 sudo certbot --nginx -d njambo-back.bysoft-corp.com
 pm2 startup   # puis exécuter la commande affichée, pour relancer PM2 au reboot
 ```
+
+### Donner les droits admin à un compte
+
+La console `/admin` exige le custom claim Firebase `admin` :
+
+```bash
+cd /opt/njambo/server
+node scripts/set-admin.cjs ton.email@exemple.com           # accorder
+node scripts/set-admin.cjs ton.email@exemple.com --remove  # retirer
+node scripts/set-admin.cjs --list                          # lister les admins
+```
+
+Le compte doit se déconnecter / reconnecter pour que le droit s'applique.
 
 ### Script : `scripts/deploy-back.sh` (à lancer **sur le VPS**)
 
@@ -255,3 +286,4 @@ curl https://njambo-back.bysoft-corp.com/healthz   # doit répondre {"ok":true}
 - [ ] `NEXT_PUBLIC_BACKEND_URL` de prod configurée sur Vercel.
 - [ ] Rate limiting ajouté devant l'API (voir `docs/vps-migration.md`, points ouverts).
 - [ ] Sauvegarde Postgres planifiée (`pg_dump` en cron).
+- [ ] Sauvegarde de `/opt/njambo-uploads` (images des événements) avec la base.

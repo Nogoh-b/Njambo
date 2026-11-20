@@ -11,6 +11,7 @@ import { commands } from "./routes";
 import { sendError } from "./httpError";
 import { startJobs } from "./jobs";
 import { attachRealtime } from "./realtime/server";
+import { mountUploads } from "./uploads";
 
 /* Charge server/.env s'il existe (DATABASE_URL, PORT, GOOGLE_APPLICATION_
    CREDENTIALS…). Les variables déjà présentes dans l'environnement priment —
@@ -37,6 +38,7 @@ if (getApps().length === 0) initializeApp();
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+mountUploads(app);
 
 app.post("/api/:command", async (req, res) => {
   const handler = commands[req.params.command];

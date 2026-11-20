@@ -28,6 +28,7 @@ import {
   archiveEventHandler,
   discardEventDraftHandler,
   getAdminEventStatsHandler,
+  listAdminUploadsHandler,
 } from "../../functions/src/eventAdminCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
@@ -82,6 +83,7 @@ export const commands: Record<string, Handler> = {
   archiveEvent: archiveEventHandler,
   discardEventDraft: discardEventDraftHandler,
   getAdminEventStats: getAdminEventStatsHandler,
+  listAdminUploads: listAdminUploadsHandler,
 
   createRoom: createRoomHandler,
   joinRoom: joinRoomHandler,

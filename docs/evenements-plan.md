@@ -121,8 +121,8 @@ passent par `normalizeEventVersion`. Tests : `tests/event-config.test.ts`.
 - [x] `validateEventVersion()` dans `domain/` (dates cohérentes, ≥ 1 table, vies ≥ 1, récompenses valides, rangs sans chevauchement…) + tests
 - [x] Commandes admin : `listAdminEvents`, `getAdminEvent`, `saveEventDraft`, `publishEventDraft` (maintenant ou programmé), `duplicateEvent`, `archiveEvent` — validation serveur + audit
 - [x] Publication programmée : statut `scheduled` + job serveur (1 min) qui rend visible à l'heure choisie (`publishAt`)
-- [ ] **Upload d'images** : endpoint `POST /admin/upload` (admin uniquement, PNG/JPEG/WebP, ≤ 2 Mo, conversion WebP avec `sharp`, nom aléatoire) → fichier dans `UPLOAD_DIR` (ex. `/opt/njambo-uploads`) servi en `/uploads/…` par le serveur (cache long) ; config Nginx ajoutée à `docs/deploiement.md`
-- [ ] Script `server/scripts/setAdmin.ts` (attribue le custom claim `admin` à un compte)
+- [x] **Upload d'images** : endpoint `POST /admin/upload` (admin uniquement, PNG/JPEG/WebP, ≤ 2 Mo, conversion WebP avec `sharp`, nom aléatoire) → fichier dans `UPLOAD_DIR` (ex. `/opt/njambo-uploads`) servi en `/uploads/…` par le serveur (cache long) ; config Nginx ajoutée à `docs/deploiement.md`
+- [x] Script `server/scripts/set-admin.cjs` (attribue / retire / liste le custom claim `admin`)
 - [ ] Console `/admin` reconstruite : navigation latérale (Tableau de bord, Événements, Saisons, Cosmétiques, Notifications, Joueurs, Audit) — sections futures en « bientôt »
 - [ ] Liste des événements (filtres brouillon / programmé / en ligne / terminé)
 - [ ] Éditeur en onglets : Général · Entrée & vies · Tables (ajout, suppression, glisser-réordonner) · Récompenses · Classement · Notifications · Défis
@@ -132,7 +132,7 @@ passent par `normalizeEventVersion`. Tests : `tests/event-config.test.ts`.
 - [ ] Section Joueurs (minimale) : recherche, parcours d'un joueur, rendre un ticket, réinitialiser un parcours (audit)
 - [ ] Client : les écrans événements utilisent `imageUrl` / `theme` de la fiche (fini les tables `EVENT_ART` en dur)
 - [x] `authz.ts` : lecture des nouvelles collections admin réservée aux admins (`event_drafts`, + règle `firestore.rules`)
-- [ ] Mise à jour `docs/deploiement.md` (UPLOAD_DIR, Nginx `/uploads`)
+- [x] Mise à jour `docs/deploiement.md` (UPLOAD_DIR, PUBLIC_BASE_URL, Nginx `/uploads`, `set-admin.cjs`)
 
 **Critère de fin** : un admin crée un événement complet (image incluse), le
 prévisualise, le programme ; il apparaît à l'heure dite chez les joueurs.
@@ -165,6 +165,23 @@ dont `scheduledAt` est passé (audit `uid: "system"`).
 
 Les erreurs serveur transmettent désormais `details` (`server/src/httpError.ts`
 → `BackendError.details` côté client) pour afficher les erreurs de validation.
+
+### Upload d'images — implémenté (`server/src/uploads.ts`)
+
+- `POST /admin/upload?kind=event|boss|cosmetic|season`, en-tête
+  `Authorization: Bearer <idToken admin>`, corps = fichier brut
+  (`Content-Type` PNG/JPEG/WebP), **2 Mo max** (413 au-delà).
+- Contrôle de la **signature binaire** (un faux PNG est refusé), ré-encodage
+  WebP par `sharp` (qualité 82, 1600 px de large max, rotation EXIF appliquée,
+  métadonnées retirées), nom aléatoire `UUID.webp`, jamais d'écrasement.
+- Stockage `UPLOAD_DIR/<kind>/…`, servi en `GET /uploads/<kind>/…`
+  (cache immuable 1 an ; en prod Nginx sert le dossier directement).
+- Réponse `{ url, path, width, height, bytes }` ; `url` = `PUBLIC_BASE_URL + path`.
+- Chaque upload est inscrit dans `admin_uploads` (bibliothèque, commande
+  `listAdminUploads { kind? }`) et dans `admin_audit`.
+- Vérifié de bout en bout (Express + sharp + Postgres) : 403 non-admin, type
+  refusé, faux PNG refusé, `kind` invalide refusé, 413 > 2 Mo, redimension
+  2400 → 1600 px, WebP servi avec cache immuable, pas de traversée de dossier.
 
 Test d'intégration (Postgres réel, base **jetable**) :
 `npm --prefix server run build && DATABASE_URL=… node server/scripts/smoke-event-admin.cjs`
@@ -318,3 +335,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | — | Plan créé ; décisions validées (cauris, premium XAF, upload admin, barème 100/30/50, petite récompense des défis). |
 | 2026-11-20 | 1 | Modèle `EventVersion` v2 + `normalizeEventVersion` / `validateEventVersion` / `eventLifecycle` / `blankEventVersion` (`domain/eventConfig.ts`), 11 tests ; lectures serveur et client normalisées. |
 | 2026-11-20 | 1 | Commandes admin événements (liste, détail, brouillon, publication immédiate/programmée, annulation, duplication, archivage, abandon de brouillon, stats) + job de promotion (1 min) + `event_drafts` réservé aux admins ; test d'intégration Postgres 20/20. |
+| 2026-11-20 | 1 | Upload d'images admin (`/admin/upload`, sharp → WebP, `/uploads` cache immuable, bibliothèque `admin_uploads`) ; script `set-admin.cjs` ; guide de déploiement mis à jour (UPLOAD_DIR, PUBLIC_BASE_URL, Nginx). |

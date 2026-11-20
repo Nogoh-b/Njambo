@@ -13,6 +13,8 @@
 !.yarn/versions
 /server/node_modules
 /server/dist
+/server/uploads
+/uploads
 /tmp
 # testing
 /coverage
