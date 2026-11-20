@@ -7,6 +7,7 @@ import {
   DEFAULT_EVENTS,
   DEFAULT_OFFERS,
   doualaDayKey,
+  normalizeEventVersion,
   type BoosterDefinition,
   type EventVersion,
   type OfferDefinition,
@@ -92,7 +93,7 @@ export function useLiveOpsContent(): LiveOpsContent {
           const versions = await Promise.all(snapshot.docs.map(async (item) => {
             const revision = Number(item.get("activeRevision") ?? 1);
             const version = await getDoc(doc(db, "event_versions", `${item.id}_v${revision}`));
-            return version.exists() ? ({ eventId: item.id, ...version.data() } as EventVersion) : null;
+            return version.exists() ? normalizeEventVersion({ eventId: item.id, ...version.data() }) : null;
           }));
           if (!active) return;
           const next = versions.filter((event): event is EventVersion => Boolean(event?.published));

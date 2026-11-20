@@ -3,14 +3,14 @@
 > Document de **plan et de suivi**. Il est mis à jour à chaque implémentation :
 > cases cochées, statut de phase, journal en bas de page.
 >
-> Branche : `ccr-915a352f-mzjh26`
+> Branches : `ccr-915a352f-mzjh26` (phase 0, plan) → `ccr-d50eb567-ocrmnv` (phase 1 →)
 
 ## Suivi global
 
 | Phase | Contenu | Statut |
 | --- | --- | --- |
 | 0 | Socle déjà livré (retour parcours, animations, 1 ticket = 1 parcours) | ✅ Terminé |
-| 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | ⬜ À faire |
+| 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | 🟡 En cours |
 | 2 | Classement + récompenses par rang + compte à rebours | ⬜ À faire |
 | 3 | Notifications programmées (campagnes) | ⬜ À faire |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ⬜ À faire |
@@ -101,10 +101,24 @@ EventStage {
 Les blocs des phases suivantes sont ajoutés **optionnels** dès la phase 1
 (valeurs par défaut = désactivé), pour que l'éditeur ait sa structure finale.
 
+**Implémenté** dans `domain/events.ts` (types) et `domain/eventConfig.ts`
+(règles pures) :
+
+| Fonction | Rôle |
+| --- | --- |
+| `normalizeEventVersion(raw)` | Complète n'importe quelle fiche (v1, partielle, JSON admin) avec les valeurs v2 par défaut ; trie les tables par `order` ; reprend `rankingRewardsEnabled` (v1) dans `leaderboard.enabled`. Idempotente. |
+| `validateEventVersion(event)` | Renvoie la liste des erreurs `{ path, message }` (ex. `stages.0.reward.0.amount`) ; liste vide = publiable. Les blocs désactivés (rachat, classement, défis) ne sont pas vérifiés. |
+| `eventLifecycle(event, now)` | `draft` · `scheduled` · `live` · `ended` · `archived` (filtres de la liste admin). |
+| `blankEventVersion(id)` | Fiche vierge valide (début J+1, durée 7 j, 1 table). |
+
+`theme` = `{ accent: "#rrggbb", label, tone? }`. `DEFAULT_EVENTS` porte
+désormais `imageUrl` + `theme`. Les lectures (`joinEvent`, `useLiveOpsContent`)
+passent par `normalizeEventVersion`. Tests : `tests/event-config.test.ts`.
+
 ### Tâches
 
-- [ ] Étendre `EventVersion` / `EventStage` + fonction `normalizeEventVersion()` (valeurs par défaut, compatibilité anciennes fiches)
-- [ ] `validateEventVersion()` dans `domain/` (dates cohérentes, ≥ 1 table, vies ≥ 1, récompenses valides, rangs sans chevauchement…) + tests
+- [x] Étendre `EventVersion` / `EventStage` + fonction `normalizeEventVersion()` (valeurs par défaut, compatibilité anciennes fiches)
+- [x] `validateEventVersion()` dans `domain/` (dates cohérentes, ≥ 1 table, vies ≥ 1, récompenses valides, rangs sans chevauchement…) + tests
 - [ ] Commandes admin : `listAdminEvents`, `getAdminEvent`, `saveEventDraft`, `publishEventDraft` (maintenant ou programmé), `duplicateEvent`, `archiveEvent` — validation serveur + audit
 - [ ] Publication programmée : statut `scheduled` + job serveur (1 min) qui rend visible à `startsAt`
 - [ ] **Upload d'images** : endpoint `POST /admin/upload` (admin uniquement, PNG/JPEG/WebP, ≤ 2 Mo, conversion WebP avec `sharp`, nom aléatoire) → fichier dans `UPLOAD_DIR` (ex. `/opt/njambo-uploads`) servi en `/uploads/…` par le serveur (cache long) ; config Nginx ajoutée à `docs/deploiement.md`
@@ -267,3 +281,4 @@ gagnant reçoit automatiquement sa récompense.
 | --- | --- | --- |
 | 2026-11-20 | 0 | Retour au détail après partie/abandon ; overlay de conséquences (table validée, vie perdue, éliminé, grand prix) ; un ticket couvre tout le parcours (annulation, PvP, abandon corrigés). |
 | 2026-11-20 | — | Plan créé ; décisions validées (cauris, premium XAF, upload admin, barème 100/30/50, petite récompense des défis). |
+| 2026-11-20 | 1 | Modèle `EventVersion` v2 + `normalizeEventVersion` / `validateEventVersion` / `eventLifecycle` / `blankEventVersion` (`domain/eventConfig.ts`), 11 tests ; lectures serveur et client normalisées. |

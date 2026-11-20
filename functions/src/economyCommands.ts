@@ -13,6 +13,7 @@ import {
   reservedTicketIsRefundable,
   type BoosterDefinition,
   type CardRarity,
+  normalizeEventVersion,
   type EventVersion,
   type OfferDefinition,
   type PlayerEconomy,
@@ -392,7 +393,8 @@ export async function joinEventHandler(request: CallableRequest<unknown>) {
     const activeRevision = Number(eventSnap.get("activeRevision") ?? 1);
     const versionRef = db.doc(`event_versions/${eventId}_v${activeRevision}`);
     const versionSnap = await transaction.get(versionRef);
-    const version = (versionSnap.exists ? versionSnap.data() : eventFallback(eventId)) as EventVersion | undefined;
+    const rawVersion = versionSnap.exists ? versionSnap.data() : eventFallback(eventId);
+    const version: EventVersion | undefined = rawVersion ? normalizeEventVersion(rawVersion) : undefined;
     if (!version?.published || version.startsAt > now || version.endsAt <= now) throw new HttpsError("not-found", "EVENT_UNAVAILABLE");
     const tickets = { bronze: 0, argent: 0, or: 0, ...(state.inventory.tickets ?? {}) };
     if (Number(tickets[version.ticketTier]) < 1) throw new HttpsError("resource-exhausted", "TICKET_REQUIRED");
