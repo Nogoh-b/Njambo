@@ -123,12 +123,12 @@ passent par `normalizeEventVersion`. Tests : `tests/event-config.test.ts`.
 - [x] Publication programmée : statut `scheduled` + job serveur (1 min) qui rend visible à l'heure choisie (`publishAt`)
 - [x] **Upload d'images** : endpoint `POST /admin/upload` (admin uniquement, PNG/JPEG/WebP, ≤ 2 Mo, conversion WebP avec `sharp`, nom aléatoire) → fichier dans `UPLOAD_DIR` (ex. `/opt/njambo-uploads`) servi en `/uploads/…` par le serveur (cache long) ; config Nginx ajoutée à `docs/deploiement.md`
 - [x] Script `server/scripts/set-admin.cjs` (attribue / retire / liste le custom claim `admin`)
-- [ ] Console `/admin` reconstruite : navigation latérale (Tableau de bord, Événements, Saisons, Cosmétiques, Notifications, Joueurs, Audit) — sections futures en « bientôt »
-- [ ] Liste des événements (filtres brouillon / programmé / en ligne / terminé)
-- [ ] Éditeur en onglets : Général · Entrée & vies · Tables (ajout, suppression, glisser-réordonner) · Récompenses · Classement · Notifications · Défis
-- [ ] Composant réutilisable `RewardPicker` (type → champs adaptés)
-- [ ] **Aperçu** : rend le vrai `EventDetailScreen` avec la fiche brouillon
-- [ ] Statistiques d'un événement : inscrits, actifs, éliminés, complétés, entonnoir par table — ✅ commande `getAdminEventStats` ; ⬜ affichage admin
+- [x] Console `/admin` reconstruite : navigation latérale (Tableau de bord, Événements, Saisons, Cosmétiques, Notifications, Joueurs, Audit, Outils) — sections futures en « bientôt »
+- [x] Liste des événements (filtres brouillon / programmé / en ligne / terminé / archivé)
+- [x] Éditeur en onglets : Général · Entrée & vies · Tables (ajout, suppression, glisser-réordonner) · Récompenses · Classement · Notifications · Défis
+- [x] Composant réutilisable `RewardPicker` (type → champs adaptés)
+- [x] **Aperçu** : rend le vrai `EventDetailScreen` avec la fiche brouillon
+- [x] Statistiques d'un événement : inscrits, actifs, éliminés, complétés, entonnoir par table — ✅ commande `getAdminEventStats` + onglet Statistiques (KPI + entonnoir)
 - [ ] Section Joueurs (minimale) : recherche, parcours d'un joueur, rendre un ticket, réinitialiser un parcours (audit)
 - [x] Client : les écrans événements utilisent `imageUrl` / `theme` de la fiche (fini les tables `EVENT_ART` en dur) — `lib/eventArt.ts` (image distante = `unoptimized`, vignette -480 pour les assets locaux), `resolveEventTheme(event)` lit `event.theme` (accent hex → accent doux calculé), l'overlay de matchmaking prend le thème du `versionSnapshot`
 - [x] `authz.ts` : lecture des nouvelles collections admin réservée aux admins (`event_drafts`, + règle `firestore.rules`)
@@ -165,6 +165,30 @@ dont `scheduledAt` est passé (audit `uid: "system"`).
 
 Les erreurs serveur transmettent désormais `details` (`server/src/httpError.ts`
 → `BackendError.details` côté client) pour afficher les erreurs de validation.
+
+### Console admin — implémenté (`components/admin/`)
+
+| Fichier | Rôle |
+| --- | --- |
+| `AdminConsole.tsx` | Coquille : contrôle du claim `admin`, navigation latérale, **Tableau de bord** (compteurs par statut, en ligne, à venir, fin < 48 h), **Audit** (100 dernières actions, temps réel), **Outils** (données de base, préversion, JSON brut pour offres/boosters/tables) |
+| `EventsAdmin.tsx` | Liste filtrable ; actions Modifier, Dupliquer, Annuler la programmation, Supprimer le brouillon, Archiver / Désarchiver ; création avec choix de l'identifiant |
+| `EventEditor.tsx` | Onglets Général · Entrée & vies · Tables · Récompenses · Classement · Notifications · Défis · Aperçu · Statistiques ; validation du domaine **en direct** (pastille d'erreurs par onglet + liste « à corriger ») ; « Publier… » bloqué tant qu'il reste une erreur ; dialogue maintenant / programmer ; alerte si on quitte sans enregistrer |
+| `RewardPicker.tsx` | Liste de récompenses, champs selon le type (Nkap, cauris, ticket, énergie, livre, carte) |
+| `ImageField.tsx` | Upload (→ WebP sur le VPS) ou choix dans la bibliothèque, ou chemin manuel |
+| `EventPreviewHost.tsx` + `app/admin/apercu` | Le **vrai** `EventDetailScreen` (mêmes providers que le jeu) dans un iframe 390 px, alimenté par `postMessage` ; prop `previewEvent` : pas de parcours réel, actions désactivées |
+| `adminApi.ts` / `adminUi.tsx` | Appels typés, upload, messages d'erreur en français ; badges de statut, dates |
+
+Les réglages des phases suivantes (rachat, parcours parfait, classement,
+notifications, défis, modificateurs, boss, points de saison) sont déjà
+éditables et enregistrés ; l'éditeur indique la phase où ils prennent effet.
+
+Vérifié dans Chromium (Playwright) : liste, onglets, erreurs par chemin,
+bouton Publier désactivé si erreurs, aperçu réel, aucune barre de défilement
+horizontale à 390 px. Captures : `docs/captures/admin-evenements/`.
+
+![Liste](captures/admin-evenements/liste.webp)
+![Erreurs en direct](captures/admin-evenements/editeur-erreurs.webp)
+![Aperçu joueur](captures/admin-evenements/apercu.webp)
 
 ### Upload d'images — implémenté (`server/src/uploads.ts`)
 
@@ -337,3 +361,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 1 | Commandes admin événements (liste, détail, brouillon, publication immédiate/programmée, annulation, duplication, archivage, abandon de brouillon, stats) + job de promotion (1 min) + `event_drafts` réservé aux admins ; test d'intégration Postgres 20/20. |
 | 2026-11-20 | 1 | Upload d'images admin (`/admin/upload`, sharp → WebP, `/uploads` cache immuable, bibliothèque `admin_uploads`) ; script `set-admin.cjs` ; guide de déploiement mis à jour (UPLOAD_DIR, PUBLIC_BASE_URL, Nginx). |
 | 2026-11-20 | 1 | Écrans joueurs (liste, détail, carte du menu, matchmaking) : image et thème lus depuis la fiche ; suppression de `EVENT_ART` / `EVENT_THUMBS`. |
+| 2026-11-20 | 1 | Console `/admin` reconstruite : tableau de bord, liste filtrable, éditeur en onglets avec validation en direct, `RewardPicker`, champ image (upload + bibliothèque), aperçu réel dans un iframe, statistiques, audit temps réel, outils historiques. |

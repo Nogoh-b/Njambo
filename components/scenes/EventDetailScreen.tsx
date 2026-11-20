@@ -43,7 +43,10 @@ function eventDates(event: EventVersion) {
 
 export function EventDetailScreen({
   onStart,
+  previewEvent,
 }: {
+  /** Aperçu admin : affiche cette fiche (brouillon) au lieu des données en ligne ; actions désactivées. */
+  previewEvent?: EventVersion | null;
   onStart?: (
     runId: string,
     mode: "pve" | "pvp",
@@ -73,7 +76,8 @@ export function EventDetailScreen({
     return () => window.clearInterval(timer);
   }, []);
 
-  const event = events.find((candidate) => candidate.eventId === eventDetailId) ?? null;
+  const preview = Boolean(previewEvent);
+  const event = previewEvent ?? events.find((candidate) => candidate.eventId === eventDetailId) ?? null;
   const theme = resolveEventTheme(event);
   const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) };
 
@@ -81,7 +85,7 @@ export function EventDetailScreen({
      sinon le plus récent terminé (éliminé ou grand prix) pour afficher son
      bilan. L'ordre des documents n'est pas garanti : on trie explicitement. */
   const run = useMemo(() => {
-    if (!event) return undefined;
+    if (!event || preview) return undefined;
     const mine = runs
       .filter((candidate) => candidate.eventId === event.eventId)
       .sort((a, b) => Number(b.updatedAt ?? 0) - Number(a.updatedAt ?? 0));
@@ -89,7 +93,7 @@ export function EventDetailScreen({
       mine.find((candidate) => candidate.status === "active" || candidate.status === "matchmaking")
       ?? mine.find((candidate) => candidate.status === "eliminated" || candidate.status === "completed")
     );
-  }, [event, runs]);
+  }, [event, runs, preview]);
 
   /* ── Conséquences de la dernière partie ──────────────────────────────
      eventReturn = photo du run prise avant la partie. Dès que le run à jour
@@ -218,6 +222,10 @@ export function EventDetailScreen({
 
   const handlePrimaryAction = () => {
     if (!event) return;
+    if (preview) {
+      setMessage({ severity: "warning", text: "Aperçu admin : les actions sont désactivées." });
+      return;
+    }
     if (availability !== "active") return;
     if (isGuest) {
       setAuthModalOpen(true);
@@ -245,7 +253,7 @@ export function EventDetailScreen({
   };
 
   /* État chargement ou introuvable */
-  if (contentLoading || !event) {
+  if ((contentLoading && !preview) || !event) {
     return (
       <GameShell active="events" dock={false} scroll={false} className={styles.scene} contentClassName={styles.frame}>
         <header className={styles.hudBar}>
