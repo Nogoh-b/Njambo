@@ -13,8 +13,8 @@
 | B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ✅ Terminé |
 | C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | ✅ Terminé (à valider en jeu réel) |
 | D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ✅ Terminé |
-| E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ✅ Fait |
-| F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ⬜ À faire |
+| E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ✅ Terminé |
+| F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ✅ Terminé |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -544,19 +544,129 @@ apparaît en retard pendant la donne.
 
 ## Phase F — Aperçu, sécurité, tests
 
-- [ ] **Bac à sable** dans l'admin : une mini-table locale (moteur local +
+- [x] **Bac à sable** dans l'admin : une mini-table locale (moteur local +
       bots) où l'on active la carte en cours d'édition, avec son animation et
       son son ; rejouer
-- [ ] Interrupteur d'urgence : désactiver une carte instantanément
+- [x] Interrupteur d'urgence : désactiver une carte instantanément
       (refusée à l'activation, retirée de la boutique)
-- [ ] Tests du domaine : validation, bornes, normalisation, migration des 21
+- [x] Tests du domaine : validation, bornes, normalisation, migration des 21
       cartes (scripts identiques)
-- [ ] Test d'intégration Postgres : carte créée en admin → achetée →
+- [x] Test d'intégration Postgres : carte créée en admin → achetée →
       équipée → activée en vraie partie ; modification pendant une partie
       (instantané respecté) ; carte archivée
-- [ ] Vérification visuelle (Playwright) de l'éditeur et du chargeur
+- [x] Vérification visuelle (Playwright) de l'éditeur et du chargeur
+
+### Implémenté
+- **Moteur du bac à sable** (`engine/power/sandbox.ts`, pur et testé) :
+  - donne reproductible à partir d'un numéro : 4 joueurs, 4 cartes en main,
+    une carte déjà déposée au 1er pli, pioche, pot de 600, minuteurs à 15 s.
+    Option « pli entamé » : le joueur précédent a ouvert le pli et une couleur
+    est demandée ;
+  - activation par **exactement le chemin du jeu** : ciblage, validation
+    (mêmes messages de refus), bouclier de la cible, interprétation, puis
+    application des briques par un adaptateur en mémoire ;
+  - les étapes à choix prennent automatiquement les premières cartes
+    admissibles ;
+  - en sortie : refus / contrée / sans effet / effet, l'état avant et après,
+    et un journal lisible en français (« Toi : 3♥ part au fond de la pioche,
+    8♦ arrive en main »).
+- **Onglet « Bac à sable »** de l'éditeur (`components/admin/PowerSandbox.tsx`) :
+  - joue la carte **telle qu'elle est à l'écran**, même non enregistrée,
+    sans rien envoyer au serveur ;
+  - réglages : numéro de donne / nouvelle donne, cible, pli entamé,
+    bouclier sur la cible ;
+  - par joueur : sa main avant → après (cartes parties en rouge, arrivées en
+    vert), son minuteur (delta, gel, pénalité différée) et ses restrictions ;
+    en bas, le pot, la pioche et les effets ajoutés ;
+  - à droite : le son d'activation, puis l'animation de chaque étape
+    (chorégraphie, ou conversion des animations simples) sur la table de
+    démonstration, **avec les vraies cartes déplacées**. Bouton « Rejouer
+    l'animation ».
+- **Interrupteur d'urgence complété** :
+  - côté serveur, c'était déjà fait en A : activation refusée
+    (`POWER_CARD_DISABLED`), carte retirée des livres ;
+  - désormais aussi en partie locale contre l'IA : le joueur reçoit un refus
+    et les bots ne jouent pas une carte coupée ;
+  - à la table, une carte coupée s'affiche comme indisponible.
+- **Tests du domaine** (`tests/power-sandbox.test.ts`, 7 tests) :
+  - donne reproductible ;
+  - les 21 cartes activées sur 3 donnes, sans erreur et sans modifier la
+    table d'origine ;
+  - **migration** : pour chaque carte, la version stockée en base (JSON) se
+    comporte exactement comme le code (même plan, même état final) ;
+  - « pli entamé » ;
+  - refus sans cible ;
+  - bouclier ;
+  - effets réellement appliqués.
+  En plus de la validation (A, 6 tests) et des chorégraphies (C, 6 tests).
+- **Intégration Postgres** (`server/scripts/smoke-power-lifecycle.cjs`,
+  19/19) :
+  - une carte créée en admin tombe dans un livre payé 20 cauris, est
+    choisie, équipée puis jouée en vraie partie ;
+  - la révision 2 (+12 s) est publiée **pendant** la partie : celle-ci
+    applique son instantané (+6 s exactement) ;
+  - interrupteur d'urgence : activation refusée en pleine partie, carte
+    retirée des livres, puis rétablie ;
+  - archivage : carte absente des 4 paliers de livres mais toujours
+    équipable par son possesseur, statut diffusé au catalogue.
+  Les intégrations précédentes repassent : catalogue, éditeur (15/15) et
+  sons (9/9).
+- **Vérifications visuelles (Playwright)** :
+  - éditeur et chorégraphies : `docs/captures/choregraphies/` (C) ;
+  - chargeur : `docs/captures/chargeur/` (E) ;
+  - bac à sable (`docs/captures/bac-a-sable/`) : Vent du Nord (échange
+    main ↔ pioche, carte en vol sur la table de démonstration), Pacte des
+    Mains (échange entre joueurs), Œil du Sorcier contré par un bouclier.
+
+**Limite connue** : sur la table de démonstration, la main affichée reste
+celle de la démo. Seules les cartes déplacées par l'effet sont les vraies.
+L'état exact, lui, est détaillé à gauche.
 
 ---
+
+---
+
+## Recette — à faire avant / après la mise en production
+
+**Déploiement**
+- [ ] VPS : `sudo apt install -y ffmpeg` (conversion des sons uploadés).
+- [ ] Nginx : ajouter dans `location /uploads/` les en-têtes CORS de
+      `docs/deploiement.md` (`Access-Control-Allow-Origin "*"` et
+      `Cross-Origin-Resource-Policy cross-origin`), puis
+      `sudo nginx -t && sudo systemctl reload nginx`.
+- [ ] Déployer le serveur et le front.
+- [ ] Admin → Outils : **« Migrer les cartes de pouvoir en base »**, une seule fois.
+      C'est sans risque si on le relance. Les 21 cartes apparaissent dans
+      « Cartes de pouvoir ».
+
+**Console des cartes**
+- [ ] Ouvrir une carte existante, changer son texte, enregistrer, publier :
+      le nouveau texte apparaît dans la collection d'un joueur sans recharger
+      la page.
+- [ ] Créer une carte (bouton « + Nouvelle carte » ou « Dupliquer ») : visuel
+      uploadé, son (préréglage ou fichier MP3), cible, briques d'effet.
+- [ ] Onglet **Bac à sable** : activer la carte, changer de donne, tester
+      avec un bouclier et avec un pli entamé ; l'animation et le son se
+      jouent à droite.
+- [ ] Onglet **Animation** : ajouter une chorégraphie spatiale (carte qui
+      part de la main vers le centre, minuteur qui se fige, pioche qui
+      tremble). L'aperçu la rejoue.
+- [ ] Publier, puis jouer la carte dans une vraie partie, en ligne et contre
+      l'IA : effet, animation et son identiques à l'aperçu.
+- [ ] « Couper » une carte : elle est refusée en partie et grisée à la table.
+      La rétablir.
+- [ ] Archiver une carte possédée : elle disparaît des livres mais reste dans
+      la collection de son possesseur, qui peut toujours la jouer.
+
+**Chargement**
+- [ ] Sur un téléphone en 3G lente (outils du navigateur → réseau
+      « Slow 3G ») : en lançant une partie, l'écran « Préparation de la
+      table » s'affiche, puis la donne démarre avec tous les visuels.
+- [ ] Revenir sur une table déjà visitée : aucun écran de chargement
+      (assets en cache).
+- [ ] Boutique, collection, événements : pas d'image qui apparaît en retard.
+- [ ] Un son uploadé se joue à la table (sinon, vérifier l'en-tête CORS
+      Nginx).
 
 ---
 
@@ -565,6 +675,7 @@ apparaît en retard pendant la donne.
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | F | Bac à sable dans l'éditeur (vrai moteur sur une donne reproductible, avant/après, journal, animation et son avec les vraies cartes), interrupteur d'urgence étendu au mode local, 7 tests du domaine dont la migration à l'identique des 21 cartes, cycle de vie complet en base (19/19), vérification visuelle. **Plan terminé.** |
 | 2026-11-20 | E | Chargeur d'assets : file à priorités avec décodage, manifestes par écran (table calculée depuis le dos de carte et les pouvoirs équipés), écran de chargement sans flash avec délai maximum, préchargement d'approche, cache des uploads dans le service worker, CORS sur /uploads, mesures ; 4 tests et vérification visuelle. **Phase E terminée.** |
 | 2026-11-20 | D | Sons des cartes : upload audio converti par ffmpeg, lecture d'échantillons dans le moteur sonore, 11 sons de synthèse, son d'activation et pistes son des chorégraphies, champ Son dans l'admin ; intégration 9/9. |
 | 2026-11-20 | C3 | Éditeur de chorégraphie : ligne de temps à barres déplaçables et étirables, formulaires par piste, schéma de table cliquable pour les repères, aperçu sur la table de démonstration ; publication validée côté serveur (15/15). **Phase C terminée.** |

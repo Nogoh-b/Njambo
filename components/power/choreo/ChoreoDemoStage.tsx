@@ -107,7 +107,11 @@ function DemoCenter() {
   );
 }
 
-export interface ChoreoDemoHandle { play(): Promise<void> }
+export interface ChoreoDemoHandle {
+  /** Rejoue la chorégraphie (ou celle passée en paramètre). `cards` remplace
+   *  les cartes de démonstration par les cartes calculées (bac à sable). */
+  play(override?: Choreography | null, cards?: Partial<Record<string, Card[]>>): Promise<void>;
+}
 
 export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreography | null; tone?: PowerFxTone; width?: number }>(function ChoreoDemoStage({ choreo, tone = "gold", width = 340 }, ref) {
   const registry = useMemo(() => new ZoneRegistry(), []);
@@ -116,11 +120,14 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
   const [hidden, setHidden] = useState<Record<number, Set<number>>>({});
   const busy = useRef(false);
 
-  const play = useCallback(async () => {
-    if (!choreo || busy.current || !layerRef.current) return;
+  const play = useCallback(async (override?: Choreography | null, cards?: Partial<Record<string, Card[]>>) => {
+    const current = override ?? choreo;
+    if (!current || busy.current || !layerRef.current) return;
     busy.current = true;
     const resolveRefUi = (playerRef: PlayerRef): number[] => ({ self: [0], target: [1], each_target: [1], all_opponents: [1, 2, 3], all: [0, 1, 2, 3] })[playerRef];
-    const cardsOf = (key: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight"): ChoreoCards => key === "resolved:outgoing"
+    const cardsOf = (key: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight"): ChoreoCards => cards?.[key]?.length
+      ? { ids: cards[key]!.map((item) => item.id), snapshots: cards[key]!, fromIndexes: cards[key]!.map((_, index) => index + 1), toIndexes: cards[key]!.map((_, index) => index + 1) }
+      : key === "resolved:outgoing"
       ? { ids: [STOLEN.id], snapshots: [STOLEN], fromIndexes: [2], toIndexes: [2] }
       : key === "resolved:incoming" ? { ids: [GIVEN.id], snapshots: [GIVEN], fromIndexes: [1], toIndexes: [1] }
         : { ids: [MY_HAND[1].id], snapshots: [MY_HAND[1]], fromIndexes: [1], toIndexes: [1] };
@@ -155,7 +162,7 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
             setHidden((current) => ({ ...current, [ui]: new Set([...(current[ui] ?? []), ...cards.fromIndexes]) }));
           }
         },
-      }, choreo, (text) => text.replace("{activator}", "Toi").replace("{target}", "La cible"));
+      }, current, (text) => text.replace("{activator}", "Toi").replace("{target}", "La cible"));
     } finally {
       setTimeout(() => setHidden({}), 400);
       busy.current = false;

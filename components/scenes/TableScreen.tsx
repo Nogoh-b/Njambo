@@ -2169,7 +2169,7 @@ export function TableScreen({
             equippedPowers.map((cardId, idx) => {
               const def = POWER_CARDS_BY_ID[cardId];
               if (!def) return null;
-              const used = !DEV.unlimitedPowers && usedPowers.has(cardId);
+              const used = Boolean(def.disabled) || (!DEV.unlimitedPowers && usedPowers.has(cardId));
               const active = targetingCard === cardId || previewPowerCard === cardId;
               const mid = (equippedPowers.length - 1) / 2;
               const rot = (idx - mid) * 7;
@@ -2257,7 +2257,7 @@ export function TableScreen({
               {filteredTestPowers.map((cardId) => {
                 const def = POWER_CARDS_BY_ID[cardId];
                 if (!def) return null;
-                const used = !DEV.unlimitedPowers && usedPowers.has(cardId);
+                const used = Boolean(def.disabled) || (!DEV.unlimitedPowers && usedPowers.has(cardId));
                 const active = targetingCard === cardId || previewPowerCard === cardId;
                 return (
                   <button
@@ -2294,7 +2294,7 @@ export function TableScreen({
       {previewPowerCard && (() => {
         const def = POWER_CARDS_BY_ID[previewPowerCard];
         if (!def) return null;
-        const used = !DEV.unlimitedPowers && usedPowers.has(previewPowerCard);
+        const used = Boolean(def.disabled) || (!DEV.unlimitedPowers && usedPowers.has(previewPowerCard));
         const canActivateNow = isYourTurn && !used && !animatingRef.current;
         return (
           <div className={styles.modalBackdrop} onClick={() => setPreviewPowerCard(null)}>

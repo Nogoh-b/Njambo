@@ -4,6 +4,7 @@
    cible, effet, animation, économie), publication versionnée, archivage et
    interrupteur d'urgence. Validation en direct par validatePowerCard. */
 
+import { PowerSandbox } from "./PowerSandbox";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import { NJAMBO_ICON_NAMES } from "@/components/ui/Art";
@@ -18,7 +19,7 @@ import { BOOSTER_TIER_LABELS, CATEGORY_LABELS, RARITY_LABELS, TARGET_MODE_LABELS
 import styles from "./AdminConsole.module.css";
 
 type Card = Pick<PowerModule, "def" | "script" | "dev">;
-type Tab = "identity" | "target" | "effect" | "animation" | "economy";
+type Tab = "identity" | "target" | "effect" | "animation" | "economy" | "sandbox";
 
 const TABS: Array<{ key: Tab; label: string; prefixes: string[] }> = [
   { key: "identity", label: "Identité", prefixes: ["def.id", "def.name", "def.description", "def.activationTitle", "def.activationText", "def.category", "def.rarity", "def.icon", "def.tone", "def.art", "def.targetMode", "def.animTags", "def.sound", "script.id"] },
@@ -26,6 +27,7 @@ const TABS: Array<{ key: Tab; label: string; prefixes: string[] }> = [
   { key: "effect", label: "Effet", prefixes: ["script.steps"] },
   { key: "animation", label: "Animation", prefixes: [] },
   { key: "economy", label: "Économie", prefixes: ["def.costCauris", "def.costNkap", "def.boosterTier"] },
+  { key: "sandbox", label: "Bac à sable", prefixes: [] },
 ];
 
 const ANIM_TAG_LABELS: Record<string, string> = {
@@ -177,6 +179,7 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
   const errorFor = useCallback((path: string) => issues.find((issue) => issue.path === path)?.message, [issues]);
   const tabCount = (key: Tab) => {
     const prefixes = TABS.find((entry) => entry.key === key)?.prefixes ?? [];
+    if (key === "sandbox") return 0;
     if (key === "animation") return issues.filter((issue) => /^script\.steps\.\d+\.(anim|choreo)/.test(issue.path)).length;
     return issues.filter((issue) => prefixes.some((prefix) => issue.path === prefix || issue.path.startsWith(`${prefix}.`))
       && !(key === "effect" && /^script\.steps\.\d+\.(anim|choreo)/.test(issue.path))).length;
@@ -286,6 +289,8 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
               </div>
             </section>
           )}
+
+          {tab === "sandbox" && <PowerSandbox card={card} hasIssues={issues.length > 0} />}
 
           {issues.length > 0 && (
             <section className={styles.panel}>

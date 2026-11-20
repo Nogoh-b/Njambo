@@ -305,6 +305,11 @@ export class LocalGameSync implements GameSyncActions {
     requestedTarget?: number,
     choices?: PowerChoices,
   ): boolean {
+    // Interrupteur d'urgence (admin) : carte coupée = refusée partout, bots compris.
+    if (POWER_CARDS_BY_ID[cardId]?.disabled) {
+      if (activatedBy === 0) this.flashBanner("Cette carte est temporairement désactivée.", 2000);
+      return false;
+    }
     const script = powerScriptOf(cardId);
     const targets = resolveTargets(script.target, {
       activatedBy,
@@ -647,7 +652,7 @@ export class LocalGameSync implements GameSyncActions {
     if (Math.random() > chance) return false;
 
     const powers = this.players[botIdx]?.equippedPowers ?? [];
-    const cardId = powers.find((id) => !(this.players[botIdx].powerActivations ?? []).some((a) => a.cardId === id && a.used));
+    const cardId = powers.find((id) => !POWER_CARDS_BY_ID[id]?.disabled && !(this.players[botIdx].powerActivations ?? []).some((a) => a.cardId === id && a.used));
     if (!cardId) return false;
 
     // Cible : si le script attend un choix de l'activateur, le bot tire un
