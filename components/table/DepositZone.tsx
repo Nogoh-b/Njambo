@@ -38,6 +38,7 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
 
   useRegisterZone(seatIdx !== undefined ? (`deposit:${seatIdx}` as ZoneKey) : undefined, {
     getRect: () => rootRef.current?.getBoundingClientRect() ?? null,
+    getElement: () => rootRef.current,
     getTopCardRect: () =>
       topCardRef.current?.getBoundingClientRect() ??
       rootRef.current?.getBoundingClientRect() ??

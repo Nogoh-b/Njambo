@@ -97,6 +97,7 @@ export const Fan = memo(function Fan({
 
   useRegisterZone(`hand:${seatIdx}` as ZoneKey, {
     getRect: () => rootRef.current?.getBoundingClientRect() ?? null,
+    getElement: () => rootRef.current,
     getCardRect: cardRect,
     highlightCards: ({ cardIdx, cardIds, style, durationMs }) => {
       setHighlight({ style, cardIdx, cardIds });

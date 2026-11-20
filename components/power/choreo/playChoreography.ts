@@ -1,0 +1,425 @@
+/* ═══════════════ Lecteur de chorégraphies ═══════════════
+   Joue une `Choreography` (engine/power/choreography.ts) sur la table réelle
+   ou sur la table de démonstration de l'admin : mêmes repères (zones du
+   registre + écran), mêmes pistes. Uniquement transform / opacity / filter
+   (composité GPU) via la Web Animations API ; aucune dépendance au moteur.
+   Animations désactivées → les pistes sont sautées (les effets réels du jeu
+   ne dépendent jamais de la mise en scène). */
+
+import type { ZoneRegistry } from "@/components/table/zones/ZoneRegistry";
+import type { Anchor, ChoreoTrack, Choreography, ElementTarget, Easing, Waypoint } from "@/engine/power/choreography";
+import type { PlayerRef, PowerFxIntensity, PowerFxPreset, PowerFxTone } from "@/engine/power/types";
+import type { Card } from "@/types/game";
+import type { ChoreoLayerHandle } from "./ChoreoLayer";
+
+export interface ChoreoCards {
+  ids: string[];
+  snapshots: Card[];
+  fromIndexes: number[];
+  toIndexes: number[];
+}
+
+export interface ChoreoContext {
+  registry: ZoneRegistry;
+  layer: ChoreoLayerHandle;
+  /** Joueur abstrait → index(es) UI. */
+  resolveRefUi(ref: PlayerRef): number[];
+  /** Cartes calculées par le moteur pour une piste. */
+  cardsOf(ref: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight"): ChoreoCards;
+  /** Carte à montrer face visible (null = dos). */
+  visibleCard(cardId: string, index: number, cards: ChoreoCards): Card | null;
+  /** Rect d'une carte précise dans une main, si connue. */
+  handCardRect?(ui: number, cardIndex: number): DOMRect | null;
+  burst(preset: PowerFxPreset, rect: DOMRect | null, tone: PowerFxTone, intensity: PowerFxIntensity, durationMs: number): void;
+  impactShake(intensity?: number): void;
+  playSound?(sound: string, volume: number): void;
+  defaultTone: PowerFxTone;
+  /** Zone de référence des repères d'écran (défaut : la fenêtre). La table de démonstration de l'admin passe son cadre. */
+  viewport?(): DOMRect;
+  motionEnabled: boolean;
+  lite: boolean;
+  /** Appelé quand une piste « move » démarre / se termine (masquage de la source). */
+  onMoveStart?(track: ChoreoTrack & { kind: "cardPath" }, cards: ChoreoCards): void;
+  onMoveEnd?(track: ChoreoTrack & { kind: "cardPath" }): void;
+}
+
+const TONE_COLORS: Record<PowerFxTone, string> = { gold: "#f2bb45", teal: "#1de4be", pink: "#ff5b82", cobalt: "#6fa8ff" };
+const EASING_CSS: Record<Easing, string> = {
+  linear: "linear",
+  smooth: "cubic-bezier(.45,0,.25,1)",
+  accelerate: "cubic-bezier(.55,0,1,.45)",
+  decelerate: "cubic-bezier(0,.55,.45,1)",
+  back: "cubic-bezier(.34,1.56,.64,1)",
+  elastic: "cubic-bezier(.5,1.8,.5,.8)",
+  bounce: "cubic-bezier(.22,1.6,.36,1)",
+};
+const INTENSITY: Record<1 | 2 | 3, PowerFxIntensity> = { 1: "subtle", 2: "standard", 3: "spectacular" };
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+const finished = (animation: Animation) => animation.finished.then(() => undefined, () => undefined);
+
+/* ─────────────── Repères ─────────────── */
+
+function viewportOf(ctx: ChoreoContext): DOMRect {
+  return ctx.viewport?.() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight);
+}
+
+function screenRect(at: string, view: DOMRect): DOMRect {
+  const w = view.width;
+  const h = view.height;
+  const point = (x: number, y: number) => new DOMRect(view.left + x - 1, view.top + y - 1, 2, 2);
+  switch (at) {
+    case "center": return point(w / 2, h / 2);
+    case "tableCenter": return point(w / 2, h * 0.46);
+    case "top": return point(w / 2, h * 0.12);
+    case "bottom": return point(w / 2, h * 0.88);
+    case "left": return point(w * 0.1, h / 2);
+    case "right": return point(w * 0.9, h / 2);
+    case "offTop": return point(w / 2, -h * 0.25);
+    case "offBottom": return point(w / 2, h * 1.25);
+    case "offLeft": return point(-w * 0.25, h / 2);
+    case "offRight": return point(w * 1.25, h / 2);
+    default: return point(w / 2, h / 2);
+  }
+}
+
+function zoneRect(ctx: ChoreoContext, zone: string, player?: PlayerRef): DOMRect | null {
+  const ui = player ? ctx.resolveRefUi(player)[0] : undefined;
+  switch (zone) {
+    case "hand": return ui === undefined ? null : ctx.registry.hand(ui)?.getRect() ?? null;
+    case "deposit": return ui === undefined ? null : ctx.registry.deposit(ui)?.getRect() ?? null;
+    case "timer": return ui === undefined ? null : ctx.registry.timer(ui)?.getRect() ?? null;
+    case "deck": return ctx.registry.deck()?.getRect() ?? null;
+    case "pot": return ctx.registry.pot()?.getRect() ?? null;
+    case "reveal": return ctx.registry.reveal()?.getRect() ?? screenRect("center", viewportOf(ctx));
+    default: return null;
+  }
+}
+
+/** Centre (x, y) d'un repère ; `current` = position actuelle de la carte (repère « card »). */
+export function anchorPoint(ctx: ChoreoContext, anchor: Anchor, current?: { x: number; y: number }, cardRect?: DOMRect | null): { x: number; y: number } {
+  const view = viewportOf(ctx);
+  let x = view.left + view.width / 2;
+  let y = view.top + view.height / 2;
+  if (anchor.kind === "card" && current) ({ x, y } = current);
+  else {
+    const rect = anchor.kind === "screen" ? screenRect(anchor.at, view)
+      : anchor.kind === "zone" ? (cardRect ?? zoneRect(ctx, anchor.zone, "player" in anchor ? anchor.player : undefined)) : null;
+    if (rect) { x = rect.left + rect.width / 2; y = rect.top + rect.height / 2; }
+  }
+  return { x: x + ((anchor.dx ?? 0) / 100) * view.width, y: y + ((anchor.dy ?? 0) / 100) * view.height };
+}
+
+/* ─────────────── Pistes ─────────────── */
+
+async function playCardPath(ctx: ChoreoContext, track: ChoreoTrack & { kind: "cardPath" }, spriteEls: Map<string, HTMLElement[]>) {
+  const cards: ChoreoCards = track.cards === "ghost" ? { ids: ["ghost"], snapshots: [], fromIndexes: [], toIndexes: [] } : ctx.cardsOf(track.cards);
+  if (cards.ids.length === 0) return;
+  if (track.mode === "move") ctx.onMoveStart?.(track, cards);
+  const els: HTMLElement[] = [];
+  spriteEls.set(track.id, els);
+  try {
+    await Promise.all(cards.ids.map(async (cardId, index) => {
+      if (track.staggerMs && index > 0) await sleep(track.staggerMs * index);
+      // Point de départ précis : la carte dans la main si on la connaît.
+      const first = track.waypoints[0];
+      const firstHandUi = first.at.kind === "zone" && first.at.zone === "hand" ? ctx.resolveRefUi(first.at.player)[0] : undefined;
+      const startCardRect = firstHandUi !== undefined && cards.fromIndexes[index] !== undefined ? ctx.handCardRect?.(firstHandUi, cards.fromIndexes[index]) ?? null : null;
+      const lastPoint = track.waypoints[track.waypoints.length - 1];
+      const lastHandUi = lastPoint.at.kind === "zone" && lastPoint.at.zone === "hand" ? ctx.resolveRefUi(lastPoint.at.player)[0] : undefined;
+      const endCardRect = lastHandUi !== undefined && cards.toIndexes[index] !== undefined ? ctx.handCardRect?.(lastHandUi, cards.toIndexes[index]) ?? null : null;
+      const width = Math.max(40, Math.min(96, (startCardRect?.width ?? 62)));
+      const spriteId = `${track.id}_${index}_${Math.random().toString(36).slice(2, 7)}`;
+      const card = track.cards === "ghost" ? null : ctx.visibleCard(cardId, index, cards);
+      const nodes = await ctx.layer.spawnCard({ id: spriteId, card, width });
+      if (!nodes) return;
+      els.push(nodes.root);
+      const height = width * 1.45;
+
+      // Points absolus (centres), en tenant compte de la position courante.
+      let current: { x: number; y: number } | undefined;
+      const points = track.waypoints.map((point: Waypoint, pointIndex) => {
+        const rect = pointIndex === 0 ? startCardRect : pointIndex === track.waypoints.length - 1 ? endCardRect : null;
+        current = anchorPoint(ctx, point.at, current, rect);
+        return { ...current, point };
+      });
+      // Temps : durée répartie au prorata des distances, + pauses.
+      const distances = points.slice(1).map((p, i) => Math.hypot(p.x - points[i].x, p.y - points[i].y) || 1);
+      const totalDistance = distances.reduce((sum, d) => sum + d, 0);
+      const holds = points.map((p) => p.point.holdMs ?? 0);
+      const totalMs = track.durationMs + holds.reduce((sum, h) => sum + h, 0);
+      const frames: Keyframe[] = [];
+      let t = 0;
+      let face = points[0].point.face ?? (card ? "up" : "down");
+      let scale = points[0].point.scale ?? 1;
+      let rotate = points[0].point.rotate ?? 0;
+      const frame = (x: number, y: number, offset: number, extra: Partial<Keyframe> = {}) => frames.push({
+        offset: Math.min(1, Math.max(0, offset)),
+        transform: `translate3d(${x - width / 2}px, ${y - height / 2}px, 0) rotate(${rotate}deg) scale(${scale})`,
+        easing: EASING_CSS[track.easing] ?? EASING_CSS.smooth,
+        opacity: 1,
+        ...extra,
+      });
+      const flipFrames: Keyframe[] = [];
+      const flipFrame = (offset: number) => flipFrames.push({ offset: Math.min(1, Math.max(0, offset)), transform: `rotateY(${face === "up" ? 0 : 180}deg)` });
+      frame(points[0].x, points[0].y, 0, { opacity: 0 });
+      frame(points[0].x, points[0].y, 0.04 * (track.durationMs / totalMs));
+      flipFrame(0);
+      t += holds[0];
+      if (holds[0]) { frame(points[0].x, points[0].y, t / totalMs); flipFrame(t / totalMs); }
+      points.slice(1).forEach((p, i) => {
+        const segMs = (distances[i] / totalDistance) * track.durationMs;
+        const prev = points[i];
+        // Bombé : point de contrôle perpendiculaire au milieu du segment.
+        if (track.arc) {
+          const mx = (prev.x + p.x) / 2;
+          const my = (prev.y + p.y) / 2;
+          const nx = -(p.y - prev.y) / distances[i];
+          const ny = (p.x - prev.x) / distances[i];
+          const bulge = (track.arc / 100) * distances[i] * 0.5;
+          frame(mx + nx * bulge, my + ny * bulge, (t + segMs / 2) / totalMs);
+        }
+        t += segMs;
+        scale = p.point.scale ?? scale;
+        rotate = p.point.rotate ?? rotate;
+        const nextFace = p.point.face ?? face;
+        if (nextFace !== face) { flipFrame((t - segMs) / totalMs); face = nextFace; flipFrame(t / totalMs); }
+        frame(p.x, p.y, t / totalMs);
+        if (holds[i + 1]) { t += holds[i + 1]; frame(p.x, p.y, t / totalMs); }
+      });
+      frames[frames.length - 1].opacity = track.mode === "move" ? 1 : 0.95;
+      flipFrame(1);
+      frames.sort((a, b) => Number(a.offset) - Number(b.offset));
+      flipFrames.sort((a, b) => Number(a.offset) - Number(b.offset));
+      const fromRect = new DOMRect(points[0].x - width / 2, points[0].y - height / 2, width, height);
+      if (track.trail) ctx.burst(track.trail, fromRect, ctx.defaultTone, "standard", Math.min(900, totalMs));
+      const move = nodes.root.animate(frames, { duration: totalMs, fill: "forwards" });
+      const flip = nodes.flipper.animate(flipFrames, { duration: totalMs, fill: "forwards" });
+      await Promise.all([finished(move), finished(flip)]);
+      const end = points[points.length - 1];
+      if (track.trail) ctx.burst(track.trail, new DOMRect(end.x - width / 2, end.y - height / 2, width, height), ctx.defaultTone, "spectacular", 900);
+    }));
+  } finally {
+    if (track.mode === "move") ctx.onMoveEnd?.(track);
+  }
+}
+
+/* Effets génériques appliqués à l'élément lui-même (Web Animations). */
+function elementKeyframes(effect: string, intensity: number, color: string): Keyframe[] | null {
+  const k = intensity;
+  switch (effect) {
+    case "shake": return [0, -1, 1, -1, 1, 0].map((s, i, all) => ({ transform: `translateX(${s * 5 * k}px) rotate(${s * k}deg)`, offset: i / (all.length - 1) }));
+    case "pulse": return [{ transform: "scale(1)" }, { transform: `scale(${1 + 0.06 * k})` }, { transform: "scale(1)" }];
+    case "glow": case "halo": case "ripple": return [{ filter: "drop-shadow(0 0 0 transparent)" }, { filter: `drop-shadow(0 0 ${8 * k}px ${color}) brightness(${1 + 0.12 * k})` }, { filter: "drop-shadow(0 0 0 transparent)" }];
+    case "bounce": return [{ transform: "translateY(0)" }, { transform: `translateY(${-10 * k}px)` }, { transform: "translateY(0)" }, { transform: `translateY(${-4 * k}px)` }, { transform: "translateY(0)" }];
+    case "grow": return [{ transform: "scale(1)" }, { transform: `scale(${1 + 0.15 * k})` }, { transform: "scale(1)" }];
+    case "shrink": return [{ transform: "scale(1)" }, { transform: `scale(${1 - 0.15 * k})` }, { transform: "scale(1)" }];
+    case "lift": return [{ transform: "translateY(0)" }, { transform: `translateY(${-14 * k}px) scale(1.05)` }, { transform: "translateY(0)" }];
+    case "blink": return [1, 0.2, 1, 0.2, 1].map((opacity) => ({ opacity }));
+    case "tint": return [{ filter: "none" }, { filter: `sepia(1) saturate(4) hue-rotate(${color === TONE_COLORS.cobalt ? 180 : color === TONE_COLORS.teal ? 120 : 0}deg)` }, { filter: "none" }];
+    case "veil": return [{ opacity: 1, filter: "blur(0)" }, { opacity: 0.25, filter: `blur(${2 * k}px)` }, { opacity: 0.25, filter: `blur(${2 * k}px)` }, { opacity: 1, filter: "blur(0)" }];
+    case "fanOpen": return [{ transform: "scaleX(1)" }, { transform: `scaleX(${1 + 0.08 * k})` }, { transform: "scaleX(1)" }];
+    case "tighten": return [{ transform: "scaleX(1)" }, { transform: `scaleX(${1 - 0.1 * k})` }, { transform: "scaleX(1)" }];
+    case "suck": return [{ transform: "scale(1)" }, { transform: `scale(${1 - 0.12 * k}) rotate(-4deg)` }, { transform: "scale(1)" }];
+    case "eject": return [{ transform: "scale(1)" }, { transform: `scale(${1 + 0.12 * k}) translateY(${-8 * k}px)` }, { transform: "scale(1)" }];
+    case "shuffle": return [0, 1, -1, 1, -1, 0].map((s, i, all) => ({ transform: `translateX(${s * 6 * k}px) rotate(${s * 6}deg)`, offset: i / (all.length - 1) }));
+    case "spit": return [{ transform: "translateY(0)" }, { transform: `translateY(${-6 * k}px) scale(1.06)` }, { transform: "translateY(0)" }];
+    case "flash": return [{ filter: "brightness(1)" }, { filter: `brightness(${1 + 0.6 * k})` }, { filter: "brightness(1)" }];
+    case "flip": return [{ transform: "rotateY(0)" }, { transform: "rotateY(180deg)" }, { transform: "rotateY(360deg)" }];
+    case "speedUp": return [{ filter: "none", transform: "rotate(0)" }, { filter: `drop-shadow(0 0 ${6 * k}px ${color})`, transform: `rotate(${12 * k}deg)` }, { filter: "none", transform: "rotate(0)" }];
+    case "rewind": return [{ transform: "rotate(0)" }, { transform: `rotate(${-14 * k}deg)` }, { transform: "rotate(0)" }];
+    default: return null;
+  }
+}
+
+/** Calque superposé à un rect (fissure, givre, flammes, sceau, dissolution…). */
+function overlayAt(ctx: ChoreoContext, rect: DOMRect, effect: string, color: string, durationMs: number, intensity: number): Animation | null {
+  const host = ctx.layer.container();
+  if (!host) return null;
+  const node = document.createElement("div");
+  node.setAttribute("data-choreo-fx", effect);
+  const pad = Math.max(rect.width, rect.height) * 0.1;
+  Object.assign(node.style, {
+    position: "absolute", left: `${rect.left - pad}px`, top: `${rect.top - pad}px`, width: `${rect.width + pad * 2}px`, height: `${rect.height + pad * 2}px`,
+    borderRadius: "12px", pointerEvents: "none", display: "grid", placeItems: "center", fontWeight: "900", color: "#fff",
+  } satisfies Partial<CSSStyleDeclaration>);
+  switch (effect) {
+    case "crack":
+      node.innerHTML = `<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none"><path d="M50 0 L44 28 L58 44 L40 62 L54 80 L48 100" stroke="#fff" stroke-width="${2 + intensity}" fill="none" stroke-linejoin="bevel" style="filter:drop-shadow(0 0 4px ${color})"/><path d="M58 44 L80 52 M40 62 L18 70" stroke="#fff" stroke-width="${1 + intensity / 2}" fill="none"/></svg>`;
+      break;
+    case "freeze":
+      node.style.background = "radial-gradient(circle, rgba(185,235,255,.55), rgba(120,190,255,.15) 60%, transparent 72%)";
+      node.style.boxShadow = "inset 0 0 18px rgba(220,245,255,.9)";
+      node.textContent = "❄";
+      node.style.fontSize = `${Math.min(rect.width, rect.height) * 0.5}px`;
+      break;
+    case "burn":
+      node.style.background = "radial-gradient(circle at 50% 80%, rgba(255,160,40,.85), rgba(255,60,20,.4) 45%, transparent 70%)";
+      node.style.mixBlendMode = "screen";
+      break;
+    case "dissolve":
+      node.style.background = `radial-gradient(circle, ${color}, transparent 70%)`;
+      node.style.filter = "blur(6px)";
+      break;
+    case "seal":
+      node.textContent = "🔒";
+      node.style.fontSize = `${Math.min(rect.width, rect.height) * 0.45}px`;
+      node.style.boxShadow = `0 0 0 3px ${color}, 0 0 18px ${color}`;
+      break;
+    case "label":
+    case "delta":
+      return null;
+    default:
+      node.style.boxShadow = `0 0 0 3px ${color}, 0 0 ${10 * intensity}px ${color}`;
+  }
+  host.appendChild(node);
+  const animation = node.animate(
+    effect === "crack" ? [{ opacity: 0, transform: "scale(.9)" }, { opacity: 1, transform: "scale(1)", offset: 0.2 }, { opacity: 1, offset: 0.8 }, { opacity: 0 }]
+      : [{ opacity: 0, transform: "scale(.85)" }, { opacity: 1, transform: "scale(1)", offset: 0.25 }, { opacity: 1, offset: 0.75 }, { opacity: 0, transform: "scale(1.05)" }],
+    { duration: durationMs, fill: "forwards" },
+  );
+  void finished(animation).then(() => node.remove());
+  return animation;
+}
+
+async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
+  const intensity = track.intensity ?? 2;
+  const tone = track.tone ?? ctx.defaultTone;
+  const color = TONE_COLORS[tone];
+  const target: ElementTarget = track.target;
+  type Hit = { el: HTMLElement | null; rect: DOMRect | null; ui?: number };
+  const hits: Hit[] = [];
+  if (target.element === "card") {
+    for (const el of spriteEls.get(target.trackId) ?? []) hits.push({ el: (el.firstElementChild as HTMLElement) ?? el, rect: el.getBoundingClientRect() });
+  } else if (target.element === "deck") {
+    const handle = ctx.registry.deck();
+    hits.push({ el: handle?.getElement?.() ?? null, rect: handle?.getRect() ?? null });
+  } else if (target.element === "pot") {
+    const handle = ctx.registry.pot();
+    hits.push({ el: handle?.getElement?.() ?? null, rect: handle?.getRect() ?? null });
+  } else if ("player" in target) {
+    for (const ui of ctx.resolveRefUi(target.player)) {
+      const handle = target.element === "hand" ? ctx.registry.hand(ui) : target.element === "deposit" ? ctx.registry.deposit(ui) : ctx.registry.timer(ui);
+      hits.push({ el: handle?.getElement?.() ?? null, rect: handle?.getRect() ?? null, ui });
+    }
+  }
+  const effect = String(track.effect);
+  const jobs: Promise<void>[] = [];
+  for (const hit of hits) {
+    // Effets « métier » délégués aux zones (rendu propre déjà existant).
+    if (target.element === "timer" || target.element === "avatar") {
+      const timer = hit.ui !== undefined ? ctx.registry.timer(hit.ui) : null;
+      if (effect === "freeze") timer?.showFreeze(track.durationMs);
+      if (effect === "delta") {
+        const seconds = Number.parseInt(String(track.label ?? "").replace("−", "-"), 10);
+        if (Number.isFinite(seconds)) timer?.showDelta(seconds);
+      }
+      if (effect.startsWith("aura")) timer?.showAura(effect.slice(4).toLowerCase() as "shield" | "mask" | "totem" | "lucky");
+    }
+    if (target.element === "pot" && (effect === "flash" || effect === "label")) ctx.registry.pot()?.flash(track.label);
+    if (target.element === "pot" && effect === "coinRain") ctx.burst("goldRain", hit.rect, "gold", INTENSITY[intensity], track.durationMs);
+    if (target.element === "deck" && effect === "spit" && hit.rect) {
+      // Une carte fantôme jaillit de la pioche.
+      jobs.push(playCardPath(ctx, {
+        id: `${track.id}_spit`, kind: "cardPath", startMs: 0, durationMs: Math.min(700, track.durationMs), cards: "ghost", mode: "display", easing: "back",
+        waypoints: [{ at: { kind: "zone", zone: "deck" } }, { at: { kind: "zone", zone: "deck", dy: -8 }, scale: 1.2 }],
+      }, spriteEls));
+    }
+    const frames = elementKeyframes(effect, intensity, color);
+    if (frames && hit.el && !ctx.lite) jobs.push(finished(hit.el.animate(frames, { duration: track.durationMs, easing: "ease-in-out" })));
+    if (hit.rect && ["crack", "freeze", "burn", "dissolve", "seal", "halo", "glow"].includes(effect) && !(target.element === "timer" && effect === "freeze")) {
+      const overlay = overlayAt(ctx, hit.rect, effect, color, track.durationMs, intensity);
+      if (overlay) jobs.push(finished(overlay));
+    }
+    if (effect === "dissolve" && hit.el) jobs.push(finished(hit.el.animate([{ opacity: 1, filter: "blur(0)" }, { opacity: 0, filter: "blur(6px)" }], { duration: track.durationMs, fill: "forwards" })));
+    if (intensity === 3 && hit.rect && !ctx.lite) ctx.burst(effect === "freeze" ? "frost" : effect === "burn" ? "boost" : "mystic", hit.rect, tone, "standard", Math.min(1200, track.durationMs));
+  }
+  await Promise.all(jobs);
+}
+
+async function playScreen(ctx: ChoreoContext, track: ChoreoTrack & { kind: "screen" }) {
+  const intensity = track.intensity ?? 2;
+  const color = TONE_COLORS[track.tone ?? ctx.defaultTone];
+  if (track.effect === "shake") { ctx.impactShake(intensity); await sleep(track.durationMs); return; }
+  if (track.effect === "particles") {
+    const rect = track.at ? (() => { const p = anchorPoint(ctx, track.at!); return new DOMRect(p.x - 40, p.y - 40, 80, 80); })() : viewportOf(ctx);
+    ctx.burst(track.preset ?? "mystic", rect, track.tone ?? ctx.defaultTone, INTENSITY[intensity], track.durationMs);
+    await sleep(track.durationMs);
+    return;
+  }
+  const host = ctx.layer.container();
+  if (!host) return;
+  const node = document.createElement("div");
+  node.setAttribute("data-choreo-fx", track.effect);
+  const view = viewportOf(ctx);
+  Object.assign(node.style, { position: "absolute", left: `${view.left}px`, top: `${view.top}px`, width: `${view.width}px`, height: `${view.height}px`, pointerEvents: "none", background: track.effect === "flash" ? color : "#000" });
+  host.appendChild(node);
+  const peak = track.effect === "flash" ? 0.25 + 0.15 * intensity : 0.25 + 0.12 * intensity;
+  await finished(node.animate([{ opacity: 0 }, { opacity: peak, offset: track.effect === "flash" ? 0.15 : 0.3 }, { opacity: peak * (track.effect === "flash" ? 0.3 : 1), offset: 0.7 }, { opacity: 0 }], { duration: track.durationMs, fill: "forwards" }));
+  node.remove();
+}
+
+async function playText(ctx: ChoreoContext, track: ChoreoTrack & { kind: "text" }, fill: (text: string) => string) {
+  const host = ctx.layer.container();
+  if (!host) return;
+  const point = anchorPoint(ctx, track.at);
+  const node = document.createElement("div");
+  node.setAttribute("data-choreo-fx", "text");
+  node.textContent = fill(track.text);
+  const size = track.size === "l" ? 34 : track.size === "s" ? 15 : 22;
+  Object.assign(node.style, {
+    position: "absolute", left: `${point.x}px`, top: `${point.y}px`, transform: "translate(-50%, -50%)", whiteSpace: "nowrap",
+    font: `900 ${size}px var(--font-display, sans-serif)`, color: "#fff", letterSpacing: "0.02em",
+    textShadow: `0 0 12px ${TONE_COLORS[track.tone ?? ctx.defaultTone]}, 0 3px 0 rgba(0,0,0,.45)`, pointerEvents: "none",
+  });
+  host.appendChild(node);
+  await finished(node.animate([
+    { opacity: 0, transform: "translate(-50%, -30%) scale(.7)" },
+    { opacity: 1, transform: "translate(-50%, -50%) scale(1.08)", offset: 0.18 },
+    { opacity: 1, transform: "translate(-50%, -50%) scale(1)", offset: 0.75 },
+    { opacity: 0, transform: "translate(-50%, -70%) scale(1)" },
+  ], { duration: track.durationMs, easing: "ease-out", fill: "forwards" }));
+  node.remove();
+}
+
+/** Joue toute la chorégraphie ; se résout quand la dernière piste est finie. */
+export async function playChoreography(ctx: ChoreoContext, choreo: Choreography, fill: (text: string) => string = (t) => t): Promise<void> {
+  if (!ctx.motionEnabled) {
+    // Animations coupées : on ne garde que les pistes qui accompagnent un vrai déplacement (pour libérer l'état).
+    choreo.tracks.filter((track) => track.kind === "cardPath" && track.mode === "move").forEach((track) => {
+      const path = track as ChoreoTrack & { kind: "cardPath" };
+      ctx.onMoveStart?.(path, ctx.cardsOf(path.cards as "resolved:outgoing"));
+      ctx.onMoveEnd?.(path);
+    });
+    return;
+  }
+  const spriteEls = new Map<string, HTMLElement[]>();
+  const ordered = [...choreo.tracks].sort((a, b) => a.startMs - b.startMs);
+  // Les effets sur « la carte d'une trajectoire » doivent attendre que ses sprites existent.
+  const pathStarted = new Map<string, Promise<void>>();
+  const runs = ordered.map(async (track) => {
+    await sleep(track.startMs);
+    switch (track.kind) {
+      case "cardPath": {
+        let markStarted: () => void = () => undefined;
+        pathStarted.set(track.id, new Promise((resolve) => { markStarted = resolve; }));
+        const done = playCardPath(ctx, track, spriteEls);
+        setTimeout(markStarted, 60);
+        await done;
+        return;
+      }
+      case "element":
+        if (track.target.element === "card") await pathStarted.get(track.target.trackId);
+        return playElement(ctx, track, spriteEls);
+      case "screen": return playScreen(ctx, track);
+      case "text": return playText(ctx, track, fill);
+      case "sound":
+        ctx.playSound?.(track.sound, track.volume ?? 1);
+        return;
+    }
+  });
+  try {
+    await Promise.all(runs);
+  } finally {
+    ctx.layer.clear();
+  }
+}

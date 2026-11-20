@@ -21,6 +21,8 @@ export type ZoneKey =
 export type HandHighlightStyle = "recommend" | "swapped" | "locked" | "boosted";
 
 export interface HandHandle {
+  /** Élément racine à l'écran (chorégraphies : animations propres à la zone). */
+  getElement?(): HTMLElement | null;
   getRect(): DOMRect | null;
   getCardRect(cardIdx: number): DOMRect | null;
   /** Surligne des cartes (par index ou par id) pendant durationMs. */
@@ -42,6 +44,8 @@ export interface HandHandle {
 }
 
 export interface DepositHandle {
+  /** Élément racine à l'écran (chorégraphies : animations propres à la zone). */
+  getElement?(): HTMLElement | null;
   getRect(): DOMRect | null;
   getTopCardRect(): DOMRect | null;
   getCardRect(cardIdx: number): DOMRect | null;
@@ -52,18 +56,24 @@ export interface DepositHandle {
 }
 
 export interface DeckHandle {
+  /** Élément racine à l'écran (chorégraphies : animations propres à la zone). */
+  getElement?(): HTMLElement | null;
   getRect(): DOMRect | null;
   /** Pulse visuel de la pioche (échange en cours…). */
   pulse(durationMs?: number): void;
 }
 
 export interface PotHandle {
+  /** Élément racine à l'écran (chorégraphies : animations propres à la zone). */
+  getElement?(): HTMLElement | null;
   getRect(): DOMRect | null;
   /** Flash du pot avec un label (« +200 », « ×2 »…). */
   flash(label?: string): void;
 }
 
 export interface TimerHandle {
+  /** Élément racine à l'écran (chorégraphies : animations propres à la zone). */
+  getElement?(): HTMLElement | null;
   getRect(): DOMRect | null;
   /** Visuel « gelé » sur l'anneau pendant durationMs. */
   showFreeze(durationMs: number): void;
@@ -74,6 +84,8 @@ export interface TimerHandle {
 }
 
 export interface RevealHandle {
+  /** Élément racine à l'écran (chorégraphies : animations propres à la zone). */
+  getElement?(): HTMLElement | null;
   /** Ouvre l'overlay de révélation. `pick` le rend cliquable : la promesse se
    *  résout avec la carte cliquée, ou null (fermeture/timeout). */
   open(req: {

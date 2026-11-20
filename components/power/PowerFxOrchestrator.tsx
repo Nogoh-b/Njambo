@@ -19,6 +19,9 @@ import {
   type PowerParticleBurst,
 } from "@/components/power/PowerParticleLayer";
 import { getPowerModule } from "@/config/powers";
+import { FUNCTIONAL_CUES } from "@/engine/power/choreography";
+import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
+import { playChoreography, type ChoreoCards } from "@/components/power/choreo/playChoreography";
 import type { PowerModule } from "@/engine/power/types";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { T } from "@/config/theme";
@@ -107,6 +110,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
   const burstTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const depsRef = useRef(deps);
   depsRef.current = deps;
+  const choreoLayerRef = useRef<ChoreoLayerHandle | null>(null);
 
   useEffect(() => () => {
     burstTimersRef.current.forEach((timer) => clearTimeout(timer));
@@ -196,9 +200,9 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     }
     if (!activation.used) return; // sans effet → pas de cues
 
-    const hasStatefulFlight = powerModule.script.steps.some((step) =>
-      (step.anim ?? []).some((cue) => cue.cue === "flyCards" && cue.mode === "move"),
-    );
+    const hasStatefulFlight = powerModule.script.steps.some((step) => step.choreo
+      ? step.choreo.tracks.some((track) => track.kind === "cardPath" && track.mode === "move")
+      : (step.anim ?? []).some((cue) => cue.cue === "flyCards" && cue.mode === "move"));
     // Les vols `move` sont fonctionnels : même le profil lite doit les jouer,
     // avec FlyingCard sans traînée/effets coûteux. Seul le toggle global ou la
     // préférence reduced-motion peut les désactiver entièrement.
@@ -355,8 +359,9 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
 
     const beats = script.beats ?? {};
     const movingCueCount = script.steps.reduce(
-      (count, step) =>
-        count + (step.anim ?? []).filter((cue) => cue.cue === "flyCards" && cue.mode === "move").length,
+      (count, step) => count + (step.choreo
+        ? step.choreo.tracks.filter((track) => track.kind === "cardPath" && track.mode === "move").length
+        : (step.anim ?? []).filter((cue) => cue.cue === "flyCards" && cue.mode === "move").length),
       0,
     );
     let movingCuesDone = 0;
@@ -375,6 +380,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
 
       for (const step of script.steps) {
         for (const cue of step.anim ?? []) {
+          // Étape chorégraphiée : seuls les cues FONCTIONNELS restent joués ici.
+          if (step.choreo && !(FUNCTIONAL_CUES as readonly string[]).includes(cue.cue)) continue;
           switch (cue.cue) {
           case "flyCards": {
             // Cosmétique — uniquement avec animations actives.
@@ -536,6 +543,45 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
             ?? (cue.cue === "flyCards" && cue.to.zone === "deck" ? 180 : 0);
           if (afterMs > 0) await sleep(afterMs);
         }
+        if (step.choreo && choreoLayerRef.current) {
+          const layer = choreoLayerRef.current;
+          const asCards = (ref: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight"): ChoreoCards => cardsOf(ref);
+          await playChoreography({
+            registry: d.registry,
+            layer,
+            resolveRefUi,
+            cardsOf: asCards,
+            visibleCard: (cardId, index, cards) => {
+              // Identité visible seulement si la carte concerne MA main et que j'ai lancé le pouvoir.
+              if (!mine) return null;
+              return cards.snapshots[index] ?? players[0]?.hand.find((candidate) => candidate.id === cardId) ?? null;
+            },
+            handCardRect: (ui, index) => d.registry.hand(ui)?.getCardRect(index) ?? null,
+            burst: (preset, rect, tone, intensity, durationMs) => emitBurst(preset, rect, tone, intensity, durationMs),
+            impactShake: (intensity) => d.impactShake(intensity),
+            defaultTone: (def.tone as PowerFxTone) ?? "gold",
+            motionEnabled: d.motionEnabled,
+            lite: d.liteMotion,
+            onMoveStart: (track, cards) => {
+              const first = track.waypoints[0]?.at;
+              if (!first || first.kind !== "zone" || first.zone !== "hand") return;
+              const sourceUi = resolveRefUi(first.player)[0];
+              const hidden = hiddenHands.get(sourceUi) ?? new Set<number>();
+              cards.ids.forEach((cardId, index) => {
+                const idx = cards.fromIndexes[index]
+                  ?? players[sourceUi]?.hand.findIndex((candidate) => candidate.id === cardId)
+                  ?? -1;
+                if (idx >= 0) hidden.add(idx);
+              });
+              if (hidden.size > 0) {
+                hiddenHands.set(sourceUi, hidden);
+                d.registry.hand(sourceUi)?.setHiddenCards([...hidden]);
+              }
+            },
+            onMoveEnd: () => { movingCuesDone += 1; },
+          }, step.choreo, fillPlaceholders);
+          if (movingCuesDone >= movingCueCount) await commitTransition();
+        }
         if (beats.stepGapMs) await sleep(beats.stepGapMs);
       }
       await commitTransition();
@@ -550,6 +596,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
 
   const element: ReactNode = (
     <>
+      <ChoreoLayer ref={choreoLayerRef} />
       {deps.motionEnabled && bursts.length > 0 && (
         <PowerParticleLayer
           bursts={bursts}

@@ -74,6 +74,7 @@ export const Avatar = memo(function Avatar({
 
   useRegisterZone(seatIdx !== undefined ? (`timer:${seatIdx}` as ZoneKey) : undefined, {
     getRect: () => rootRef.current?.getBoundingClientRect() ?? null,
+    getElement: () => rootRef.current,
     showFreeze: (durationMs: number) => {
       setFrozen(true);
       if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current);

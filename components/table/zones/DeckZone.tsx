@@ -44,6 +44,7 @@ export const DeckZone = memo(function DeckZone({
 
   useRegisterZone("deck", {
     getRect: () => deckRef.current?.getBoundingClientRect() ?? null,
+    getElement: () => deckRef.current,
     pulse: (durationMs = 900) => {
       setPulsing(true);
       if (pulseTimer.current) clearTimeout(pulseTimer.current);
@@ -53,6 +54,7 @@ export const DeckZone = memo(function DeckZone({
 
   useRegisterZone("pot", {
     getRect: () => potRef.current?.getBoundingClientRect() ?? null,
+    getElement: () => potRef.current,
     flash: (label?: string) => {
       setPotFlash({ key: `pot-${Date.now()}`, label });
       if (flashTimer.current) clearTimeout(flashTimer.current);

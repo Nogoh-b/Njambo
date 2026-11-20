@@ -44,6 +44,7 @@ export const RevealOverlay = memo(function RevealOverlay() {
   }, []);
 
   useRegisterZone("reveal", {
+    getElement: () => rootRef.current,
     open: (req: RevealRequest) => {
       // Une révélation remplace la précédente (sa promesse se résout null).
       resolveRef.current?.(null);

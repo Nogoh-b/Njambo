@@ -277,10 +277,10 @@ inconnu d'une ancienne version du jeu est simplement ignoré.
       (durée totale ≤ 6 s, nombre de pistes, points de passage) + tests
 - [x] Conversion des cues existants en chorégraphies-modèles (les 21 cartes
       gardent exactement leur rendu)
-- [ ] `ZoneRegistry` : résolution des repères (rect + décalage) ;
+- [x] `ZoneRegistry` : résolution des repères (rect + décalage) ;
       `play(effet)` sur chaque zone (main, dépôt, pioche, minuteur/avatar,
       pot, révélation) et sur les cartes en vol
-- [ ] Lecteur de chorégraphie (GSAP déjà chargé) : trajectoires à points
+- [x] Lecteur de chorégraphie (GSAP déjà chargé) : trajectoires à points
       de passage, courbes, retournement, synchronisation entre pistes ;
       repli instantané si « Animations » est désactivé dans les Options ou
       en mode performance
@@ -288,7 +288,7 @@ inconnu d'une ancienne version du jeu est simplement ignoré.
       en barres déplaçables), formulaire de chaque piste, choix des repères
       sur un **schéma de la table** cliquable, modèles de départ, bouton
       « Rejouer » dans l'aperçu
-- [ ] Le moteur reste l'autorité : la chorégraphie ne fait qu'**animer** les
+- [x] Le moteur reste l'autorité : la chorégraphie ne fait qu'**animer** les
       cartes réellement déplacées par les briques (`resolved:*`) ; une
       trajectoire ne peut pas inventer un déplacement de carte
 
@@ -327,6 +327,30 @@ que la pioche tremble — sans écrire de code.
   chorégraphie de départ (bouton « Convertir » de l'éditeur) ; testé sur les
   21 cartes.
 - Tests : `tests/choreography.test.ts` (5) — dont l'exemple du critère de fin.
+
+### C2 — Lecteur (implémenté, `components/power/choreo/`)
+
+| Fichier | Rôle |
+| --- | --- |
+| `ChoreoLayer.tsx` | Calque fixe au-dessus de la table : cartes volantes rendues avec le **vrai** `PlayCard` (recto + verso pour les retournements 3D), conteneur des textes et effets |
+| `playChoreography.ts` | Lecteur : repères calculés depuis les zones réelles (et une « fenêtre de référence » pour les repères d'écran), trajectoires multi-points (durée répartie selon les distances, pauses, bombé, échelle, rotation, retournement, courbes, décalage entre cartes, traînée), effets d'éléments (Web Animations sur l'élément lui-même + calques : fissure, givre, flammes, dissolution, sceau, halo ; effets métier délégués aux zones : gel et ± secondes du minuteur, auras, montant du pot), effets d'écran, textes (avec `{activator}` / `{target}`), pistes son (phase D). Animations coupées → pistes sautées (les effets réels du jeu n'en dépendent jamais) |
+| `ChoreoDemoStage.tsx` | **Table de démonstration** (cadre téléphone) : mains, dépôts, avatars/minuteurs, pioche, pot, enregistrés dans son propre registre ; joue la chorégraphie avec le même lecteur que le jeu |
+
+Zones : chaque handle expose `getElement()` (main, dépôt, avatar/minuteur,
+pioche, pot, révélation).
+
+Jeu (`PowerFxOrchestrator.tsx`) : une étape **avec** `choreo` joue ses cues
+fonctionnels puis la chorégraphie ; les pistes « déplacement réel »
+masquent les cartes source et libèrent l'état à la fin, exactement comme
+les vols actuels. Une étape **sans** `choreo` est jouée comme avant (les 21
+cartes ne changent pas).
+
+Vérifié dans Chromium sur la table de démonstration avec l'exemple du
+critère de fin :
+
+| 250 ms | 700 ms | 1,3 s |
+| --- | --- | --- |
+| ![](captures/choregraphies/demo-250.webp) | ![](captures/choregraphies/demo-700.webp) | ![](captures/choregraphies/demo-1300.webp) |
 
 ---
 
@@ -414,6 +438,7 @@ apparaît en retard pendant la donne.
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | C2 | Lecteur de chorégraphies (calque, trajectoires multi-points, retournements 3D, effets d'éléments et d'écran, textes), branché dans l'orchestrateur sans changer les étapes existantes ; table de démonstration ; vérifié visuellement. |
 | 2026-11-20 | C1 | Modèle des chorégraphies (repères, points de passage, 5 types de pistes, 49 effets répartis sur 7 éléments), validation et bornes, règle « cues fonctionnels toujours joués », conversion des cues ; 5 tests. |
 | 2026-11-20 | B | Console admin des cartes : catalogue, éditeur en 5 onglets avec aperçu et validation en direct, 14 briques et 8 animations configurables, brouillon / publication versionnée / duplication / archivage / coupure ; collection qui garde les cartes archivées possédées ; intégration 13/13 (carte inédite jouée en vraie partie). |
 | 2026-11-20 | A | Registre dynamique, validation avec bornes (6 tests), migration idempotente des 21 cartes, catalogue publié, scripts figés par partie, archivage / interrupteur d'urgence, livres calculés depuis le catalogue ; intégration 18/18 et aucune régression. |
