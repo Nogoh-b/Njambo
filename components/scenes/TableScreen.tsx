@@ -96,6 +96,7 @@ interface TableScreenProps {
   roomHostId?: string;
   eventRunId?: string;
   onNextRoundRef: { current: (() => void) | null };
+  onBackRequestRef?: { current: (() => "stay" | "handled") | null };
   paused?: boolean;
 }
 
@@ -443,6 +444,7 @@ export function TableScreen({
   roomHostId,
   eventRunId,
   onNextRoundRef,
+  onBackRequestRef,
   paused = false,
 }: TableScreenProps) {
   useEffect(() => {
@@ -1481,6 +1483,33 @@ export function TableScreen({
     // l'identite de session arrive/change, pas quand le solde ou le viewport bouge.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameMode, roomId, roomSessionReady, sessionAuthKey]);
+
+  /* ----- Bouton Retour navigateur exposé au router ----- */
+  useEffect(() => {
+    if (!onBackRequestRef) return;
+    onBackRequestRef.current = () => {
+      if (confirmQuit) { setConfirmQuit(false); return "stay"; }
+      if (showQuickHelp) { setShowQuickHelp(false); return "stay"; }
+      if (previewPowerCard) { setPreviewPowerCard(null); return "stay"; }
+      if (testDrawerOpen) { setTestDrawerOpen(false); return "stay"; }
+      if (targetingCard) { setTargetingCard(null); return "stay"; }
+      if (reactionsOpen) { setReactionsOpen(false); return "stay"; }
+      if (matchInProgress) { setConfirmQuit(true); return "stay"; }
+      onMenu();
+      return "handled";
+    };
+    return () => { onBackRequestRef.current = null; };
+  }, [
+    confirmQuit,
+    matchInProgress,
+    onBackRequestRef,
+    onMenu,
+    previewPowerCard,
+    reactionsOpen,
+    showQuickHelp,
+    targetingCard,
+    testDrawerOpen,
+  ]);
 
   /* ----- nextRound exposé au router ----- */
   useEffect(() => {

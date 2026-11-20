@@ -1,0 +1,465 @@
+/* ═══════════════ RematchView — Écran de Revanche Salon Royal ═══════════════ */
+
+.wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: clamp(8px, 1.4vh, 14px);
+  text-align: center;
+}
+
+/* ── Top row ── */
+.topRow {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.peekBtn {
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 10px;
+  border: 1px solid rgba(255, 214, 96, 0.34);
+  background: rgba(14, 34, 28, 0.85);
+  color: #f6ecd6;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 850;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  transition: transform 0.13s ease, border-color 0.15s ease;
+}
+
+.peekBtn:hover {
+  border-color: #ffd86b;
+  transform: translateY(-1px);
+}
+
+.modeTag {
+  padding: 3px 10px;
+  border-radius: 999px;
+  background: rgba(6, 20, 15, 0.72);
+  border: 1px solid rgba(255, 218, 128, 0.28);
+  color: #ffe896;
+  font-size: 10px;
+  font-weight: 900;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.clockPill {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(8, 26, 20, 0.84);
+  border: 1px solid rgba(62, 228, 152, 0.36);
+  color: #c2fae0;
+  font-size: 11.5px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.clockDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #3ee48a;
+  box-shadow: 0 0 8px rgba(62, 228, 138, 0.9);
+}
+
+.clockDotPulse {
+  animation: rematchPulse 1.6s ease-in-out infinite;
+}
+
+@keyframes rematchPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.35); opacity: 0.65; }
+}
+
+/* ── Hero Radar ── */
+.hero {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+
+.radar {
+  position: relative;
+  width: 68px;
+  height: 68px;
+  display: grid;
+  place-items: center;
+  margin-bottom: 2px;
+}
+
+.radarRing {
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255, 214, 96, 0.65);
+  animation: rematchSonar 2.2s ease-out infinite;
+  pointer-events: none;
+}
+
+.radarRingDelay {
+  animation-delay: 1.1s;
+}
+
+.radarReady .radarRing {
+  border-color: rgba(62, 228, 152, 0.78);
+}
+
+@keyframes rematchSonar {
+  0% { transform: scale(0.84); opacity: 0.9; }
+  100% { transform: scale(1.75); opacity: 0; }
+}
+
+.radarCore {
+  position: relative;
+  z-index: 1;
+  width: 58px;
+  height: 58px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 34% 26%, #563313 0%, #261307 68%, #150903 100%);
+  border: 2px solid #ffd86b;
+  box-shadow:
+    0 6px 18px rgba(0, 0, 0, 0.56),
+    0 0 24px rgba(255, 207, 64, 0.42),
+    inset 0 1px 0 rgba(255, 246, 206, 0.55);
+}
+
+.radarReady .radarCore {
+  background: radial-gradient(circle at 34% 26%, #1f6c49 0%, #0d3a26 70%, #071e14 100%);
+  border-color: #82ffbe;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.56), 0 0 24px rgba(62, 228, 152, 0.48);
+}
+
+.radarEnded .radarCore {
+  background: radial-gradient(circle at 34% 26%, #4a222c 0%, #241016 70%, #14080c 100%);
+  border-color: rgba(255, 134, 162, 0.62);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(20px, 5.4vw, 28px);
+  font-weight: 950;
+  line-height: 1.08;
+  background: linear-gradient(180deg, #fff8d4 0%, #ffd86b 58%, #df9b22 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.sub {
+  margin: 0;
+  max-width: 34ch;
+  color: rgba(212, 234, 226, 0.84);
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.4;
+  text-wrap: balance;
+}
+
+/* ── Bandeau Mise & Code ── */
+.metaStrip {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.stakeChip {
+  height: 32px;
+  padding: 0 11px 0 7px;
+  border-radius: 999px;
+  background: rgba(10, 32, 24, 0.86);
+  border: 1px solid rgba(255, 214, 96, 0.36);
+  color: #ffe896;
+  font-size: 12px;
+  font-weight: 900;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.coinImg {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.codeChip {
+  height: 32px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(34, 22, 12, 0.86);
+  border: 1px solid rgba(255, 214, 96, 0.44);
+  color: #fff6dc;
+  font: inherit;
+  font-size: 11.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.13s ease;
+}
+
+.codeChip:hover {
+  border-color: #ffe27a;
+  transform: translateY(-1px);
+}
+
+.codeChip strong {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  letter-spacing: 0.1em;
+  color: #ffe578;
+}
+
+.codeLabel {
+  color: rgba(255, 232, 168, 0.68);
+  font-size: 10.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.copyTag {
+  color: #7df9c4;
+  font-size: 10.5px;
+  font-weight: 900;
+}
+
+/* ── Progression ── */
+.progressWrap {
+  flex: 0 0 auto;
+  padding-inline: 6px;
+}
+
+.progressTrack {
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.09);
+  overflow: hidden;
+  border: 1px solid rgba(255, 214, 96, 0.18);
+}
+
+.progressFill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #24c66d, #ffd86b);
+  box-shadow: 0 0 12px rgba(255, 214, 96, 0.6);
+  transition: width 360ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* ── Liste des joueurs ── */
+.roster {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 2px 2px 4px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.4) transparent;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 11px;
+  border-radius: 15px;
+  border: 1.5px solid rgba(242, 187, 69, 0.22);
+  background: linear-gradient(155deg, rgba(28, 22, 18, 0.9), rgba(10, 20, 17, 0.95));
+  text-align: left;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+
+.playerReady {
+  border-color: rgba(62, 228, 152, 0.56);
+  background:
+    radial-gradient(ellipse 60% 100% at 8% 50%, rgba(46, 224, 150, 0.18), transparent 64%),
+    linear-gradient(155deg, rgba(16, 46, 34, 0.94), rgba(9, 24, 19, 0.97));
+}
+
+.playerHostWait {
+  border-color: rgba(255, 214, 96, 0.42);
+}
+
+.playerLeft {
+  border-style: dashed;
+  border-color: rgba(255, 130, 156, 0.3);
+}
+
+.avatarWrap {
+  position: relative;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+}
+
+.avatarGlow {
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(62, 228, 152, 0.65);
+  pointer-events: none;
+}
+
+.playerInfo {
+  min-width: 0;
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.playerNameRow {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  min-width: 0;
+}
+
+.playerNameRow strong {
+  color: #fff8ea;
+  font-size: 13.5px;
+  font-weight: 900;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.youTag,
+.hostTag {
+  flex: 0 0 auto;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.youTag {
+  color: #9effea;
+  background: rgba(20, 108, 92, 0.52);
+  border: 1px solid rgba(46, 232, 196, 0.52);
+}
+
+.hostTag {
+  color: #ffe896;
+  background: rgba(94, 62, 14, 0.64);
+  border: 1px solid rgba(255, 214, 96, 0.54);
+}
+
+.playerSub {
+  color: rgba(196, 220, 212, 0.72);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.stateBadge {
+  flex: 0 0 auto;
+  padding: 4px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 900;
+  white-space: nowrap;
+}
+
+.stateReady {
+  color: #052614;
+  background: linear-gradient(180deg, #6ef8ac, #24c66d);
+  box-shadow: 0 0 12px rgba(62, 228, 152, 0.42);
+}
+
+.stateHost {
+  color: #ffe896;
+  background: rgba(78, 52, 14, 0.78);
+  border: 1px solid rgba(255, 214, 96, 0.48);
+}
+
+.statePending {
+  color: #ffd88a;
+  background: rgba(66, 46, 16, 0.55);
+  border: 1px solid rgba(255, 200, 92, 0.36);
+}
+
+.stateLeft {
+  color: #ffb0c4;
+  background: rgba(74, 18, 32, 0.62);
+  border: 1px solid rgba(255, 114, 148, 0.36);
+}
+
+/* ── Footer actions ── */
+.footer {
+  flex: 0 0 auto;
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  padding-top: 4px;
+}
+
+.footer > button {
+  flex: 1 1 0;
+  min-height: 46px;
+  border-radius: 15px;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 950;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  cursor: pointer;
+  transition: transform 0.14s ease, filter 0.14s ease;
+}
+
+.footer > button:hover {
+  transform: translateY(-1px);
+  filter: brightness(1.07);
+}
+
+.footer > button:active {
+  transform: translateY(2px);
+}
+
+.ctaGold {
+  color: #2b1604;
+  border: 1.5px solid #fff2b6;
+  background: linear-gradient(180deg, #ffe98a 0%, #f4be44 52%, #cf8818 100%);
+  box-shadow: 0 4px 0 #7b4908, 0 10px 20px rgba(0, 0, 0, 0.45);
+}
+
+.ctaSecondary {
+  color: #f6eed8;
+  border: 1.5px solid rgba(242, 187, 69, 0.36);
+  background: linear-gradient(180deg, rgba(24, 62, 50, 0.94), rgba(11, 32, 26, 0.98));
+  box-shadow: 0 4px 0 rgba(4, 14, 11, 0.92);
+}
+
+.ctaDanger {
+  color: #ffe2ea;
+  border: 1.5px solid rgba(255, 134, 162, 0.52);
+  background: linear-gradient(180deg, rgba(132, 26, 54, 0.94), rgba(76, 14, 32, 0.98));
+  box-shadow: 0 4px 0 rgba(42, 8, 18, 0.92);
+}
