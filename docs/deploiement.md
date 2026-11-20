@@ -38,7 +38,10 @@ qui provient d'un dépôt voisin `../gxe` lié localement et **non déclaré dan
 (publication npm, dépendance git, ou code copié dans ce dépôt), le build
 Vercel échoue. Le script ci-dessous le détecte avant de déployer.
 
-### Script : `deploy-front.sh` (à lancer depuis ta machine, à la racine du projet)
+### Script : `scripts/deploy-front.sh` (à lancer depuis ta machine, à la racine du projet)
+
+Lancer : `npm run deploy:front` (ou `npm run deploy:front -- --preview`).
+Le contenu ci-dessous est une copie du fichier pour référence.
 
 Prérequis : `npm i -g vercel` puis `vercel login` et `vercel link` (une fois).
 
@@ -152,7 +155,10 @@ sudo certbot --nginx -d njambo-back.bysoft-corp.com
 pm2 startup   # puis exécuter la commande affichée, pour relancer PM2 au reboot
 ```
 
-### Script : `deploy-back.sh` (à lancer **sur le VPS**)
+### Script : `scripts/deploy-back.sh` (à lancer **sur le VPS**)
+
+Lancer sur le VPS : `cd /opt/njambo && ./scripts/deploy-back.sh` (ou `npm run deploy:back`).
+Le contenu ci-dessous est une copie du fichier pour référence.
 
 Met à jour le code, recompile, recharge PM2, vérifie `/healthz`, et revient
 automatiquement au commit précédent en cas d'échec.
@@ -219,7 +225,7 @@ fi
 Pour déployer depuis ta machine sans ouvrir de session :
 
 ```bash
-ssh utilisateur@ton-vps 'bash -s' -- master < deploy-back.sh
+ssh utilisateur@ton-vps 'bash -s' -- master < scripts/deploy-back.sh
 ```
 
 ### Commandes utiles

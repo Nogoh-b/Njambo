@@ -16,7 +16,9 @@
     "build:functions": "npm --prefix functions run build",
     "install:server": "npm --prefix functions ci --omit=dev && npm --prefix server ci --include=dev",
     "build:server": "npm run install:server && npm --prefix server run build",
-    "emulators": "firebase emulators:start --only auth,firestore,functions"
+    "emulators": "firebase emulators:start --only auth,firestore,functions",
+    "deploy:front": "bash scripts/deploy-front.sh",
+    "deploy:back": "bash scripts/deploy-back.sh"
   },
   "dependencies": {
     "@tsparticles/engine": "^4.3.1",
