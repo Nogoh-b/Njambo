@@ -265,7 +265,9 @@ Le script :
 1. **vérifie la machine** : il refuse si des triches de dev sont dans
    `server/.env`, et prévient si ffmpeg, `UPLOAD_DIR`, `PUBLIC_BASE_URL`,
    `NJAMBO_GRID_SECRET` ou le compte de service manquent ;
-2. met le code à jour ;
+2. met le code à jour **en conservant ton `server/.env`**. Le dépôt contient
+   aussi un `server/.env` de développement (avec `POWERS_DEV_BYPASS=1`) :
+   sans cette protection, le `git reset --hard` écraserait celui du VPS ;
 3. installe les dépendances et compile `functions/` et `server/`. Cela
    inclut `sharp` (conversion d'images en WebP) ;
 4. recharge PM2 et vérifie `/healthz` ;
@@ -354,7 +356,27 @@ pm2 restart njambo-server
 - [ ] Cron de sauvegarde en place
 - [ ] Copie hors du VPS
 
-## 11. Dépannage
+## 11. Point de vigilance : fichiers secrets suivis par git
+
+À ce jour, le dépôt **suit** des fichiers qui devraient rester locaux :
+
+| Fichier | Contenu | Risque |
+| --- | --- | --- |
+| `server/.env` | mot de passe Postgres, `POWERS_DEV_BYPASS=1` | écrasement du `.env` du VPS (désormais évité par le script) ; mot de passe visible dans l'historique |
+| `server/service-account.json`, `server/njambo-firebase-adminsdk-*.json` | clés privées Firebase | accès admin complet au projet Firebase pour qui lit le dépôt |
+| `.env.local` (front) | `NEXT_PUBLIC_DEV_MODE=1` et triches | lu par Next.js au **build Vercel** : triches actives en production si Vercel ne définit pas lui-même `NEXT_PUBLIC_DEV_MODE` |
+
+Correction recommandée (à décider, voir la checklist de `docs/deploiement.md`) :
+1. Sauvegarder ces fichiers hors du dépôt sur chaque machine. Retirer un
+   fichier suivi **le supprime chez les autres au prochain `git pull`**.
+2. `git rm --cached server/.env .env.local server/service-account.json server/njambo-firebase-adminsdk-*.json`
+   et décommenter `.env*.local` et `.env` dans `.gitignore`.
+3. **Renouveler** la clé Firebase et le mot de passe Postgres : ils restent
+   dans l'historique git.
+4. En attendant, sur Vercel : définir `NEXT_PUBLIC_DEV_MODE=0` en
+   Production, pour neutraliser le `.env.local` du dépôt.
+
+## 12. Dépannage
 
 | Symptôme | Cause probable | Correction |
 | --- | --- | --- |

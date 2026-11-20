@@ -249,7 +249,9 @@ Le script :
 1. **vérifie la machine** : il refuse si des triches de dev sont dans
    `server/.env`, et prévient si ffmpeg, `UPLOAD_DIR`, `PUBLIC_BASE_URL`,
    `NJAMBO_GRID_SECRET` ou le compte de service manquent ;
-2. met à jour le code ;
+2. met à jour le code **en conservant le `server/.env` du VPS** (le fichier
+   est aussi dans le dépôt avec des valeurs de dev : il est sauvegardé avant
+   le `git reset --hard` puis remis, y compris en cas de retour arrière) ;
 3. recompile ;
 4. recharge PM2 et vérifie `/healthz` ;
 5. revient automatiquement au commit précédent en cas d'échec.
@@ -311,13 +313,24 @@ fi
 command -v ffmpeg >/dev/null 2>&1 || warn "ffmpeg absent : les sons uploadés ne seront ni convertis ni normalisés (sudo apt install -y ffmpeg)."
 mkdir -p logs
 
+# server/.env est (encore) suivi par git dans le dépôt, avec des valeurs de
+# développement : le `git reset --hard` l'écraserait. On garde TOUJOURS la
+# version du VPS, sauvegardée ici et remise après chaque reset.
+ENV_BACKUP="$(mktemp)"
+cp server/.env "$ENV_BACKUP"
+restore_env() {
+  cp "$ENV_BACKUP" server/.env
+  chmod 600 server/.env
+}
+
 PREVIOUS="$(git rev-parse HEAD)"
 echo "▶ Commit actuel : ${PREVIOUS:0:7}"
 
 echo "▶ Récupération de origin/${BRANCH}…"
 git fetch origin "$BRANCH"
-git checkout -q "$BRANCH"
+git checkout -q -f "$BRANCH"   # -f : server/.env local modifié (restauré juste après)
 git reset --hard "origin/${BRANCH}"
+restore_env
 echo "▶ Nouveau commit : $(git rev-parse --short HEAD)"
 
 build_and_reload() {
@@ -346,6 +359,7 @@ if build_and_reload && health_check; then
 else
   echo "✖ Échec du déploiement — retour à ${PREVIOUS:0:7}…" >&2
   git reset --hard "$PREVIOUS"
+  restore_env
   build_and_reload
   health_check && echo "↩ Rollback OK." || echo "✖ Rollback échoué : voir pm2 logs njambo-server" >&2
   exit 1
