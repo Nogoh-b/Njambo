@@ -48,8 +48,8 @@ Prérequis : `npm i -g vercel` puis `vercel login` et `vercel link` (une fois).
 ```bash
 #!/usr/bin/env bash
 # Déploie le front Next.js sur Vercel (production).
-# Usage : ./deploy-front.sh            → build local de vérification + déploiement prod
-#         ./deploy-front.sh --preview  → déploiement de prévisualisation
+# Usage : npm run deploy:front           → build local de vérification + déploiement prod
+#         npm run deploy:front -- --preview → déploiement de prévisualisation
 set -euo pipefail
 
 TARGET="--prod"
@@ -166,8 +166,16 @@ automatiquement au commit précédent en cas d'échec.
 ```bash
 #!/usr/bin/env bash
 # Déploie le back (server/) sur le VPS.
-# Usage : ./deploy-back.sh [branche]   (défaut : master)
+# Usage : ./scripts/deploy-back.sh [branche]   (défaut : master)
 set -euo pipefail
+
+# Le script fait `git reset --hard` sur son propre dépôt : on s'exécute depuis
+# une copie temporaire pour que bash ne lise pas un fichier modifié en cours.
+if [[ -z "${DEPLOY_BACK_COPY:-}" && -f "$0" ]]; then
+  tmp="$(mktemp)"
+  cp "$0" "$tmp"
+  DEPLOY_BACK_COPY=1 exec bash "$tmp" "$@"
+fi
 
 APP_DIR="${APP_DIR:-/opt/njambo}"
 BRANCH="${1:-master}"
