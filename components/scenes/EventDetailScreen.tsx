@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { AnimatePresence, motion } from "motion/react";
 import { useSfx } from "@gxe/react";
 import { canRevive, normalizeEventVersion, type EventStage, type EventVersion } from "@/domain";
 import { TICKET_ART, rewardVisual } from "@/lib/eventRewards";
@@ -9,6 +10,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useGame } from "@/contexts/GameContext";
 import { useLiveOpsContent, usePlayerEventRuns } from "@/hooks/useLiveOpsContent";
+import { useMotionProfile, usePageActive } from "@/lib/motion";
+import { EventCountdown } from "@/components/events/EventCountdown";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { GameModal } from "@/components/ui/GameModal";
 import { GameShell } from "@/components/ui/GameShell";
@@ -23,6 +26,15 @@ import { EventChallenges, useEventChallenges } from "./EventChallenges";
 import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
 import { EventOutcomeOverlay, resolveEventOutcome, type EventOutcome } from "./EventOutcomeOverlay";
 import styles from "./EventDetailScreen.module.css";
+
+const MAP_SPARKS: Array<{ x: string; size: string; dur: string; delay: string; sway: string }> = [
+  { x: "12%", size: "3.5px", dur: "7.8s", delay: "-1.1s", sway: "16px" },
+  { x: "28%", size: "4.5px", dur: "8.9s", delay: "-4.4s", sway: "-14px" },
+  { x: "45%", size: "3px", dur: "7.2s", delay: "-2.3s", sway: "18px" },
+  { x: "61%", size: "4px", dur: "9.4s", delay: "-6.2s", sway: "-16px" },
+  { x: "76%", size: "3.5px", dur: "8.1s", delay: "-0.8s", sway: "14px" },
+  { x: "88%", size: "4.5px", dur: "7.5s", delay: "-3.5s", sway: "-12px" },
+];
 
 type StageState = "completed" | "current" | "locked";
 
@@ -67,6 +79,10 @@ export function EventDetailScreen({
   const { runs, error: runsError } = usePlayerEventRuns(
     user && !user.isAnonymous ? user.uid : undefined,
   );
+  const motionProfile = useMotionProfile();
+  const pageActive = usePageActive();
+  const decorOn = motionProfile.enabled && motionProfile.allowDecorativeLoop && pageActive;
+  const cascadeOn = motionProfile.enabled && motionProfile.allowEntranceCascade;
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<{
     severity: "success" | "warning" | "error";
@@ -81,6 +97,8 @@ export function EventDetailScreen({
   const [bossIntro, setBossIntro] = useState<{ stage: EventStage; start: () => void } | null>(null);
   const [challengesOpen, setChallengesOpen] = useState(false);
   const [leaderboardRefresh, setLeaderboardRefresh] = useState(0);
+
+  const refreshNow = useCallback(() => setNow(Date.now()), []);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -453,21 +471,28 @@ export function EventDetailScreen({
       dock={false}
       scroll={false}
       className={`${styles.scene} ${themeClass}`}
-      contentClassName={styles.frame}
+      contentClassName={`${styles.frame}${decorOn ? ` ${styles.decorOn}` : ""}`}
     >
       {/* ═══ 1. HUD HAUT COMPACT ═══ */}
-      <header className={styles.hudBar}>
+      <motion.header
+        className={styles.hudBar}
+        initial={cascadeOn ? { opacity: 0, y: -12 } : false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 420, damping: 30 }}
+      >
         <div className={styles.hudLeft}>
-          <button
+          <motion.button
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
             onClick={() => navigateTo("events")}
             aria-label="Retour aux événements"
+            whileHover={motionProfile.enabled ? { y: -1, scale: 1.03 } : undefined}
+            whileTap={motionProfile.enabled ? { scale: 0.94 } : undefined}
           >
             <span aria-hidden="true">←</span>
             <span className={styles.backLabel}>Événements</span>
-          </button>
+          </motion.button>
 
           <div className={styles.hudCopy}>
             <span className={styles.hudKicker}>{theme.label}</span>
@@ -491,28 +516,37 @@ export function EventDetailScreen({
           </div>
 
           {/* Billet requis en stock */}
-          <button
+          <motion.button
             data-nj-skin="none"
             type="button"
             className={`${styles.ticketHudPill} ${styles[`tier_${ticketTier}`]}`}
             onClick={() => navigateTo("shop")}
             aria-label={`Ticket ${ticketTier} en stock : ${ticketCount}`}
+            whileHover={motionProfile.enabled ? { y: -2, scale: 1.04 } : undefined}
+            whileTap={motionProfile.enabled ? { scale: 0.93 } : undefined}
           >
             <Image src={TICKET_ART[ticketTier]} alt="" width={20} height={20} />
             <strong>×{ticketCount}</strong>
-          </button>
+          </motion.button>
         </div>
-      </header>
+      </motion.header>
 
       {/* Alertes ponctuelles */}
-      {(message || contentError || runsError) && (
-        <div
-          className={`${styles.bannerToast} ${styles[`toast_${message?.severity ?? "warning"}`]}`}
-          role="alert"
-        >
-          {message?.text ?? runsError ?? contentError}
-        </div>
-      )}
+      <AnimatePresence>
+        {(message || contentError || runsError) && (
+          <motion.div
+            key="event-toast"
+            className={`${styles.bannerToast} ${styles[`toast_${message?.severity ?? "warning"}`]}`}
+            role="alert"
+            initial={motionProfile.enabled ? { opacity: 0, y: -8, scale: 0.98 } : false}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={motionProfile.enabled ? { opacity: 0, y: -6 } : undefined}
+            transition={{ duration: 0.2 }}
+          >
+            {message?.text ?? runsError ?? contentError}
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ═══ 2. ARÈNE CAMPAGNE : PLATEAU DE MINI-TABLES + CONSOLE INSPECTEUR ═══ */}
       <div className={styles.campaignGrid}>
@@ -521,23 +555,54 @@ export function EventDetailScreen({
           <div className={styles.mapArtLayer} aria-hidden="true" />
           <div className={styles.mapVignette} aria-hidden="true" />
 
-          {/* En-tête du plateau */}
+          {decorOn && (
+            <div className={styles.mapSparks} aria-hidden="true">
+              {MAP_SPARKS.map((spark, idx) => (
+                <span
+                  key={idx}
+                  className={styles.mapSpark}
+                  style={
+                    {
+                      "--mx": spark.x,
+                      "--ms": spark.size,
+                      "--md": spark.dur,
+                      "--mdelay": spark.delay,
+                      "--msway": spark.sway,
+                    } as CSSProperties
+                  }
+                />
+              ))}
+            </div>
+          )}
+
+          {/* En-tête du plateau : mode + chronomètre live animé */}
           <div className={styles.mapHeader}>
-            <span className={styles.mapModePill}>
-              <NjamboIcon name={isPvp ? "users" : "bot"} tone={isPvp ? "teal" : "gold"} size={15} />
-              <span>{isPvp ? "Tournoi PvP" : "Campagne IA"} · {countdown && countdown.phase !== "ended" ? countdown.label : eventDates(event)}</span>
-            </span>
-            {countdown?.endingSoon && <span className={styles.endingSoonPill} role="status">Dernières heures !</span>}
-            {rankingEnabled ? (
-              <span className={styles.viewSwitch} role="tablist" aria-label="Affichage">
-                <button data-nj-skin="none" type="button" role="tab" aria-selected={boardView === "path"} onClick={() => setBoardView("path")}>Parcours</button>
-                <button data-nj-skin="none" type="button" role="tab" aria-selected={boardView === "ranking"} onClick={() => setBoardView("ranking")}>
-                  Classement{leaderboard?.me ? ` · ${leaderboard.me.rank}e` : ""}
-                </button>
+            <div className={styles.mapHeaderTop}>
+              <span className={styles.mapModePill}>
+                <NjamboIcon name={isPvp ? "users" : "bot"} tone={isPvp ? "teal" : "gold"} size={15} />
+                <span>{isPvp ? "Tournoi PvP" : "Campagne IA"} · {countdown && countdown.phase !== "ended" ? countdown.label : eventDates(event)}</span>
               </span>
-            ) : (
-              <span className={styles.mapHintPill}>Touche une table pour l&apos;inspecter</span>
-            )}
+              {countdown?.endingSoon && <span className={styles.endingSoonPill} role="status">Dernières heures !</span>}
+              {rankingEnabled ? (
+                <span className={styles.viewSwitch} role="tablist" aria-label="Affichage">
+                  <button data-nj-skin="none" type="button" role="tab" aria-selected={boardView === "path"} onClick={() => setBoardView("path")}>Parcours</button>
+                  <button data-nj-skin="none" type="button" role="tab" aria-selected={boardView === "ranking"} onClick={() => setBoardView("ranking")}>
+                    Classement{leaderboard?.me ? ` · ${leaderboard.me.rank}e` : ""}
+                  </button>
+                </span>
+              ) : (
+                <span className={styles.mapHintPill}>Touche une table pour l&apos;inspecter</span>
+              )}
+            </div>
+
+            <EventCountdown
+              startsAt={event.startsAt}
+              endsAt={event.endsAt}
+              accent={isPvp ? "teal" : "gold"}
+              variant="banner"
+              className={styles.detailCountdown}
+              onBoundaryReached={refreshNow}
+            />
           </div>
 
           {boardView === "ranking" && rankingEnabled ? (
@@ -562,19 +627,32 @@ export function EventDetailScreen({
                 const firstReward = stage.reward[0] ? rewardVisual(stage.reward[0]) : null;
 
                 return (
-                  <li
+                  <motion.li
                     key={stage.id}
                     className={`${styles.trailItem} ${laneClass}`}
                     aria-current={state === "current" ? "step" : undefined}
+                    initial={cascadeOn ? { opacity: 0, y: 16, scale: 0.94 } : false}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    transition={{
+                      type: "spring",
+                      stiffness: 380,
+                      damping: 26,
+                      delay: cascadeOn ? Math.min(idx, 5) * 0.065 : 0,
+                    }}
                   >
-                    <button
+                    <motion.button
                       data-nj-skin="none"
                       type="button"
                       aria-pressed={selected}
                       className={`${styles.tableNodeBtn} ${styles[`state_${state}`]}${selected ? ` ${styles.nodeSelected}` : ""}${isBoss ? ` ${styles.nodeBoss}` : ""}${idx === freshUnlockIndex ? ` ${styles.nodeJustUnlocked}` : ""}`}
                       onClick={() => setSelectedStageIndex(idx)}
                       aria-label={`Table ${stage.order} : ${stage.title}, ${diff.label}, ${stage.playerCount} joueurs`}
+                      whileTap={motionProfile.enabled ? { scale: 0.95 } : undefined}
                     >
+                      {state === "current" && (
+                        <span className={styles.currentBeacon} aria-hidden="true" />
+                      )}
+
                       {/* Étiquette flottante "PROCHAINE" sur l'étape active */}
                       {state === "current" && (
                         <span className={styles.nextBadge}>
@@ -617,20 +695,32 @@ export function EventDetailScreen({
                           )}
                         </span>
                       </span>
-                    </button>
+                    </motion.button>
 
                     {/* Connecteur doré vers l'étape suivante */}
                     <span
                       className={`${styles.goldenWire}${state === "completed" ? ` ${styles.goldenWireLit}` : ""}${freshUnlockIndex !== null && idx === freshUnlockIndex - 1 ? ` ${styles.goldenWireIgnite}` : ""}`}
                       aria-hidden="true"
                     />
-                  </li>
+                  </motion.li>
                 );
               })}
 
               {/* ── SOMMET DU SENTIER : PIÉDESTAL DU COFFRE GRAND PRIX ── */}
-              <li className={`${styles.trailItem} ${styles.laneCenter}`}>
+              <motion.li
+                className={`${styles.trailItem} ${styles.laneCenter}`}
+                initial={cascadeOn ? { opacity: 0, y: 18, scale: 0.92 } : false}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 340,
+                  damping: 24,
+                  delay: cascadeOn ? Math.min(event.stages.length, 5) * 0.065 + 0.05 : 0,
+                }}
+              >
                 <div className={styles.grandPrizePedestal} aria-label="Coffre du Grand Prix final">
+                  <span className={styles.pedestalRays} aria-hidden="true" />
+                  <span className={styles.pedestalSheen} aria-hidden="true" />
                   <span className={styles.pedestalGlow} aria-hidden="true" />
                   <span className={styles.pedestalCrown}>GRAND PRIX</span>
                   <div className={styles.pedestalLootIcons}>
@@ -645,88 +735,105 @@ export function EventDetailScreen({
                     })}
                   </div>
                 </div>
-              </li>
+              </motion.li>
             </ol>
           </div>
           )}
         </section>
 
         {/* ─── DROITE (DESKTOP) / BAS (MOBILE) : CONSOLE INSPECTEUR + BILLET + CTA ─── */}
-        <section className={styles.consolePane} aria-label="Détail de la table et participation">
+        <motion.section
+          className={styles.consolePane}
+          aria-label="Détail de la table et participation"
+          initial={cascadeOn ? { opacity: 0, y: 16 } : false}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 360, damping: 28, delay: cascadeOn ? 0.1 : 0 }}
+        >
           {/* 1. INSPECTEUR DE LA TABLE SÉLECTIONNÉE */}
           <article className={styles.inspectorCard}>
-            <div className={styles.inspectorTop}>
-              <span className={styles.inspectorStepTag}>
-                Table {inspectedStage.order} / {event.stages.length}
-              </span>
-              <span className={`${styles.inspectorStatePill} ${styles[`pill_${inspectedState}`]}`}>
-                {inspectedState === "completed"
-                  ? "Validée ✓"
-                  : inspectedState === "current"
-                  ? "Prochaine table"
-                  : "À débloquer"}
-              </span>
-            </div>
+            <AnimatePresence mode="wait" initial={false}>
+              <motion.div
+                key={inspectedStage.id}
+                className={styles.inspectorInner}
+                initial={motionProfile.enabled ? { opacity: 0, x: 10 } : false}
+                animate={{ opacity: 1, x: 0 }}
+                exit={motionProfile.enabled ? { opacity: 0, x: -10 } : undefined}
+                transition={{ duration: 0.18, ease: [0.22, 1, 0.36, 1] }}
+              >
+                <div className={styles.inspectorTop}>
+                  <span className={styles.inspectorStepTag}>
+                    Table {inspectedStage.order} / {event.stages.length}
+                  </span>
+                  <span className={`${styles.inspectorStatePill} ${styles[`pill_${inspectedState}`]}`}>
+                    {inspectedState === "completed"
+                      ? "Validée ✓"
+                      : inspectedState === "current"
+                      ? "Prochaine table"
+                      : "À débloquer"}
+                  </span>
+                </div>
 
-            <h2 className={styles.inspectorTitle}>{inspectedStage.title}</h2>
+                <h2 className={styles.inspectorTitle}>{inspectedStage.title}</h2>
 
-            {/* Éléments physiques de cette étape */}
-            <div className={styles.inspectorSpecs}>
-              <span className={`${styles.specCrest} ${styles[inspectedDiff.className]}`}>
-                <span className={styles.specStars}>{inspectedDiff.stars}</span>
-                <strong>{inspectedDiff.label}</strong>
-              </span>
+                {/* Éléments physiques de cette étape */}
+                <div className={styles.inspectorSpecs}>
+                  <span className={`${styles.specCrest} ${styles[inspectedDiff.className]}`}>
+                    <span className={styles.specStars}>{inspectedDiff.stars}</span>
+                    <strong>{inspectedDiff.label}</strong>
+                  </span>
 
-              <span className={styles.specPill}>
-                <NjamboIcon name={isPvp ? "users" : "bot"} tone={isPvp ? "teal" : "gold"} size={15} />
-                <span>{inspectedStage.playerCount} joueurs</span>
-              </span>
+                  <span className={styles.specPill}>
+                    <NjamboIcon name={isPvp ? "users" : "bot"} tone={isPvp ? "teal" : "gold"} size={15} />
+                    <span>{inspectedStage.playerCount} joueurs</span>
+                  </span>
 
-              {inspectedStage.crownsEnabled && (
-                <span className={`${styles.specPill} ${styles.specGold}`}>
-                  <NjamboIcon name="crown" tone="gold" size={14} />
-                  <span>Couronnes</span>
-                </span>
-              )}
-
-              {inspectedStage.powersAllowed && !inspectedStage.modifiers.includes("no_powers") && (
-                <span className={styles.specPill}>
-                  <NjamboIcon name="sparkle" tone="cobalt" size={14} />
-                  <span>Pouvoirs</span>
-                </span>
-              )}
-              {(inspectedStage.modifiers.includes("no_powers") || !inspectedStage.powersAllowed) && (
-                <span className={`${styles.specPill} ${styles.specRule}`}>🚫 Sans pouvoirs</span>
-              )}
-              {inspectedStage.modifiers.includes("double_stake") && (
-                <span className={`${styles.specPill} ${styles.specRule}`}>×2 Mise doublée</span>
-              )}
-              {inspectedStage.modifiers.includes("turn_timer") && (
-                <span className={`${styles.specPill} ${styles.specRule}`}>⏱ {inspectedStage.turnTimerSeconds ?? 15} s par tour</span>
-              )}
-              {event.seasonId && inspectedStage.seasonPoints > 0 && (
-                <span className={`${styles.specPill} ${styles.specGold}`}>🏵️ +{inspectedStage.seasonPoints} pts de saison</span>
-              )}
-              {inspectedStage.boss && (
-                <span className={`${styles.specPill} ${styles.specBoss}`}>👑 Boss : {inspectedStage.boss.name}</span>
-              )}
-            </div>
-
-            {/* Récompense de l'étape inspectée */}
-            <div className={styles.stageLootBox}>
-              <small>Récompense de cette table</small>
-              <div className={styles.stageLootChips}>
-                {inspectedStage.reward.map((reward, rIdx) => {
-                  const vis = rewardVisual(reward);
-                  return (
-                    <span key={rIdx} className={styles.lootChip}>
-                      <Image src={vis.src} unoptimized={vis.src.startsWith("http")} alt="" width={22} height={22} />
-                      <strong>{vis.label}</strong>
+                  {inspectedStage.crownsEnabled && (
+                    <span className={`${styles.specPill} ${styles.specGold}`}>
+                      <NjamboIcon name="crown" tone="gold" size={14} />
+                      <span>Couronnes</span>
                     </span>
-                  );
-                })}
-              </div>
-            </div>
+                  )}
+
+                  {inspectedStage.powersAllowed && !inspectedStage.modifiers.includes("no_powers") && (
+                    <span className={styles.specPill}>
+                      <NjamboIcon name="sparkle" tone="cobalt" size={14} />
+                      <span>Pouvoirs</span>
+                    </span>
+                  )}
+                  {(inspectedStage.modifiers.includes("no_powers") || !inspectedStage.powersAllowed) && (
+                    <span className={`${styles.specPill} ${styles.specRule}`}>🚫 Sans pouvoirs</span>
+                  )}
+                  {inspectedStage.modifiers.includes("double_stake") && (
+                    <span className={`${styles.specPill} ${styles.specRule}`}>×2 Mise doublée</span>
+                  )}
+                  {inspectedStage.modifiers.includes("turn_timer") && (
+                    <span className={`${styles.specPill} ${styles.specRule}`}>⏱ {inspectedStage.turnTimerSeconds ?? 15} s par tour</span>
+                  )}
+                  {event.seasonId && inspectedStage.seasonPoints > 0 && (
+                    <span className={`${styles.specPill} ${styles.specGold}`}>🏵️ +{inspectedStage.seasonPoints} pts de saison</span>
+                  )}
+                  {inspectedStage.boss && (
+                    <span className={`${styles.specPill} ${styles.specBoss}`}>👑 Boss : {inspectedStage.boss.name}</span>
+                  )}
+                </div>
+
+                {/* Récompense de l'étape inspectée */}
+                <div className={styles.stageLootBox}>
+                  <small>Récompense de cette table</small>
+                  <div className={styles.stageLootChips}>
+                    {inspectedStage.reward.map((reward, rIdx) => {
+                      const vis = rewardVisual(reward);
+                      return (
+                        <span key={rIdx} className={styles.lootChip}>
+                          <Image src={vis.src} unoptimized={vis.src.startsWith("http")} alt="" width={22} height={22} />
+                          <strong>{vis.label}</strong>
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              </motion.div>
+            </AnimatePresence>
           </article>
 
           {/* 2. SOUCHE DE BILLET PERFORÉ + VIES & PROGRESSION */}
@@ -796,12 +903,14 @@ export function EventDetailScreen({
           )}
 
           {/* 3. GROS BOUTON 3D D'ACTION */}
-          <button
+          <motion.button
             data-nj-skin="none"
             type="button"
             disabled={ctaDisabled}
             className={styles.actionCta}
             onClick={handlePrimaryAction}
+            whileHover={motionProfile.enabled && !ctaDisabled ? { y: -2, scale: 1.01 } : undefined}
+            whileTap={motionProfile.enabled && !ctaDisabled ? { scale: 0.975 } : undefined}
           >
             <span className={styles.ctaSheen} aria-hidden="true" />
             <span className={styles.ctaIcon} aria-hidden="true">
@@ -816,8 +925,8 @@ export function EventDetailScreen({
               <small>{ctaContent.sub}</small>
             </span>
             <span className={styles.ctaArrow} aria-hidden="true">→</span>
-          </button>
-        </section>
+          </motion.button>
+        </motion.section>
       </div>
 
       {challengesOpen && user && (

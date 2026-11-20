@@ -1,0 +1,396 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   SALON ROYAL VIBRANT — Chronomètre Animé du Ter (EventCountdown)
+   Tick live 1s · Segments verre-ébène & or · États d'urgence dynamiques
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.root {
+  --cd-accent: #ffcf40;
+  --cd-accent-soft: rgba(255, 207, 64, 0.24);
+  --cd-border: rgba(255, 212, 92, 0.48);
+  --cd-text: #fff7dd;
+  --cd-bg: rgba(12, 18, 16, 0.86);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  border-radius: 13px;
+  border: 1px solid var(--cd-border);
+  background:
+    radial-gradient(ellipse 90% 120% at 10% 0%, var(--cd-accent-soft), transparent 60%),
+    linear-gradient(145deg, rgba(24, 18, 15, 0.92), var(--cd-bg));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 224, 0.16),
+    0 6px 16px rgba(0, 0, 0, 0.42);
+  overflow: hidden;
+  isolation: isolate;
+}
+
+/* ── Variantes de taille ── */
+.variant_card {
+  padding: 6px 10px 7px;
+}
+
+.variant_banner {
+  padding: 7px 12px 8px;
+  border-radius: 14px;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 250, 224, 0.2),
+    0 8px 20px rgba(0, 0, 0, 0.46),
+    0 0 22px var(--cd-accent-soft);
+}
+
+/* ── Palettes d'accent / urgence ── */
+.tone_gold {
+  --cd-accent: #ffcf40;
+  --cd-accent-soft: rgba(255, 207, 64, 0.22);
+  --cd-border: rgba(255, 207, 64, 0.52);
+  --cd-text: #fff4c6;
+}
+
+.tone_teal {
+  --cd-accent: #1de4be;
+  --cd-accent-soft: rgba(29, 228, 190, 0.22);
+  --cd-border: rgba(29, 228, 190, 0.52);
+  --cd-text: #d6fff6;
+}
+
+.tone_upcoming {
+  --cd-accent: #66a6ff;
+  --cd-accent-soft: rgba(102, 166, 255, 0.24);
+  --cd-border: rgba(102, 166, 255, 0.58);
+  --cd-text: #dcebff;
+}
+
+.tone_soon {
+  --cd-accent: #ffaa2b;
+  --cd-accent-soft: rgba(255, 170, 43, 0.28);
+  --cd-border: rgba(255, 182, 66, 0.68);
+  --cd-text: #ffebc2;
+}
+
+.tone_critical {
+  --cd-accent: #ff4772;
+  --cd-accent-soft: rgba(255, 71, 114, 0.34);
+  --cd-border: rgba(255, 92, 130, 0.8);
+  --cd-text: #ffdce5;
+}
+
+.tone_ended {
+  --cd-accent: #c4a975;
+  --cd-accent-soft: rgba(196, 169, 117, 0.14);
+  --cd-border: rgba(196, 169, 117, 0.34);
+  --cd-text: #dfd2b6;
+}
+
+/* Battement discret pour la dernière heure */
+.animated.tone_critical {
+  animation: cdUrgentGlow 1.5s ease-in-out infinite;
+}
+
+@keyframes cdUrgentGlow {
+  0%, 100% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 224, 232, 0.2),
+      0 6px 16px rgba(0, 0, 0, 0.44),
+      0 0 12px rgba(255, 71, 114, 0.28);
+  }
+  50% {
+    box-shadow:
+      inset 0 1px 0 rgba(255, 224, 232, 0.34),
+      0 6px 18px rgba(0, 0, 0, 0.5),
+      0 0 26px rgba(255, 71, 114, 0.62);
+  }
+}
+
+/* Reflet diagonal lent sur le boîtier du chrono */
+.glassGlint {
+  position: absolute;
+  inset: 0;
+  width: 36%;
+  background: linear-gradient(108deg, transparent, rgba(255, 255, 255, 0.14) 50%, transparent);
+  transform: translateX(-160%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+.animated .glassGlint {
+  animation: cdGlassSweep 6.4s ease-in-out infinite;
+}
+
+@keyframes cdGlassSweep {
+  0%, 72% { transform: translateX(-160%); }
+  94%, 100% { transform: translateX(360%); }
+}
+
+/* ── Ligne principale : label + segments digitaux ── */
+.mainRow {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 6px 10px;
+}
+
+.labelGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.clockBadge {
+  position: relative;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--cd-border);
+  background: radial-gradient(circle, var(--cd-accent-soft), rgba(10, 12, 12, 0.92));
+  display: grid;
+  place-items: center;
+  flex: 0 0 auto;
+  color: var(--cd-accent);
+}
+
+.animated .clockSvg {
+  animation: cdIconTick 2s ease-in-out infinite;
+}
+
+.animated.tone_critical .clockSvg {
+  animation: cdIconUrgent 0.9s ease-in-out infinite;
+}
+
+@keyframes cdIconTick {
+  0%, 100% { transform: rotate(0deg) scale(1); }
+  50% { transform: rotate(10deg) scale(1.06); }
+}
+
+@keyframes cdIconUrgent {
+  0%, 100% { transform: rotate(-10deg) scale(1); }
+  50% { transform: rotate(10deg) scale(1.14); }
+}
+
+.pulseHalo {
+  position: absolute;
+  inset: -3px;
+  border-radius: 50%;
+  border: 1.5px solid var(--cd-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.animated .pulseHalo {
+  animation: cdRadarPulse 2.1s cubic-bezier(0.2, 0.8, 0.3, 1) infinite;
+}
+
+.animated.tone_critical .pulseHalo {
+  animation-duration: 1.05s;
+}
+
+@keyframes cdRadarPulse {
+  0% { transform: scale(0.84); opacity: 0.72; }
+  100% { transform: scale(1.58); opacity: 0; }
+}
+
+.labelText {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.08;
+}
+
+.kicker {
+  color: var(--cd-accent);
+  font-size: 9.5px;
+  font-weight: 950;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.endDateHint {
+  color: rgba(232, 240, 236, 0.72);
+  font-size: 9.5px;
+  font-weight: 750;
+  white-space: nowrap;
+}
+
+/* ── Cadran digital sculpté ── */
+.digitsGroup {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  font-variant-numeric: tabular-nums;
+  margin-left: auto;
+}
+
+.unitBox {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 1.5px;
+  padding: 2.5px 6px;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 245, 214, 0.16);
+  background: linear-gradient(180deg, rgba(36, 28, 22, 0.94), rgba(10, 12, 12, 0.96));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 2px 5px rgba(0, 0, 0, 0.42);
+}
+
+.variant_banner .unitBox {
+  padding: 3.5px 7px;
+  border-radius: 9px;
+}
+
+.unitSeconds {
+  border-color: var(--cd-border);
+  background:
+    radial-gradient(circle at 50% 0%, var(--cd-accent-soft), transparent 72%),
+    linear-gradient(180deg, rgba(38, 26, 20, 0.96), rgba(10, 12, 12, 0.98));
+}
+
+.unitValue {
+  display: inline-block;
+  color: var(--cd-text);
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 950;
+  line-height: 1;
+  letter-spacing: 0.02em;
+}
+
+.variant_banner .unitValue {
+  font-size: 14.5px;
+}
+
+.unitSeconds .unitValue {
+  color: var(--cd-accent);
+  text-shadow: 0 0 10px var(--cd-accent-soft);
+}
+
+.animated .secPop {
+  animation: cdSecFlip 340ms cubic-bezier(0.22, 1.25, 0.36, 1) both;
+}
+
+@keyframes cdSecFlip {
+  0% {
+    opacity: 0.42;
+    transform: translateY(-4px) scale(0.88);
+  }
+  55% {
+    opacity: 1;
+    transform: translateY(0.5px) scale(1.1);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.unitSuffix {
+  color: rgba(214, 228, 222, 0.72);
+  font-size: 9px;
+  font-weight: 850;
+  text-transform: lowercase;
+}
+
+.colon {
+  color: var(--cd-accent);
+  font-size: 11px;
+  font-weight: 900;
+  opacity: 0.78;
+  line-height: 1;
+}
+
+.animated .colon {
+  animation: cdColonBlink 1s steps(2, start) infinite;
+}
+
+@keyframes cdColonBlink {
+  0% { opacity: 0.92; }
+  100% { opacity: 0.34; }
+}
+
+.endedBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  border: 1px solid rgba(196, 169, 117, 0.42);
+  background: rgba(24, 18, 14, 0.85);
+  color: #e4d5b4;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+/* ── Jauge de temps vivante en bas du boîtier ── */
+.track {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 3.5px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+}
+
+.trackFill {
+  position: relative;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--cd-accent) 68%, #ffffff), var(--cd-accent));
+  box-shadow: 0 0 8px var(--cd-accent-soft);
+  transition: width 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  overflow: hidden;
+}
+
+.trackShimmer {
+  position: absolute;
+  inset: 0;
+  width: 45%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.72), transparent);
+  transform: translateX(-120%);
+}
+
+.animated .trackShimmer {
+  animation: cdTrackGlide 2.4s ease-in-out infinite;
+}
+
+@keyframes cdTrackGlide {
+  0% { transform: translateX(-120%); }
+  100% { transform: translateX(320%); }
+}
+
+@media (max-width: 460px) {
+  .variant_card {
+    padding: 5px 8px 6px;
+  }
+  .variant_banner {
+    padding: 6px 9px 7px;
+  }
+  .unitBox {
+    padding: 2px 4.5px;
+  }
+  .unitValue {
+    font-size: 12px;
+  }
+  .variant_banner .unitValue {
+    font-size: 13px;
+  }
+  .endDateHint {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animated.tone_critical,
+  .animated .glassGlint,
+  .animated .clockSvg,
+  .animated .pulseHalo,
+  .animated .secPop,
+  .animated .colon,
+  .animated .trackShimmer {
+    animation: none !important;
+  }
+}

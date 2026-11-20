@@ -5,12 +5,15 @@ import { eventArt } from "@/lib/eventArt";
 import { eventCountdown } from "@/lib/eventCountdown";
 import { useSeasons } from "@/hooks/useSeasons";
 import { canClaimTier, reachedTiers } from "@/domain";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { motion } from "motion/react";
 import { type EventVersion, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useGame } from "@/contexts/GameContext";
 import { useLiveOpsContent, usePlayerEventRuns } from "@/hooks/useLiveOpsContent";
+import { useMotionProfile, usePageActive } from "@/lib/motion";
+import { EventCountdown } from "@/components/events/EventCountdown";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { GameModal } from "@/components/ui/GameModal";
 import { GameShell } from "@/components/ui/GameShell";
@@ -19,6 +22,17 @@ import { t } from "@/lib/i18n";
 import styles from "./EventsScreen.module.css";
 import { prefetchAssets } from "@/lib/assets/AssetLoader";
 import { eventDetailManifest, eventsManifest } from "@/lib/assets/manifests";
+
+const TER_SPARKS: Array<{ x: string; size: string; dur: string; delay: string; sway: string; color: string }> = [
+  { x: "9%", size: "4px", dur: "8.4s", delay: "-1.2s", sway: "18px", color: "#ffcf40" },
+  { x: "21%", size: "3px", dur: "9.8s", delay: "-5.1s", sway: "-14px", color: "#ff7296" },
+  { x: "35%", size: "5px", dur: "7.6s", delay: "-2.9s", sway: "22px", color: "#ffe388" },
+  { x: "48%", size: "3.5px", dur: "10.2s", delay: "-6.4s", sway: "-18px", color: "#1de4be" },
+  { x: "62%", size: "4.5px", dur: "8.9s", delay: "-0.7s", sway: "15px", color: "#ffcf40" },
+  { x: "75%", size: "3px", dur: "9.4s", delay: "-4.3s", sway: "-20px", color: "#ff7296" },
+  { x: "86%", size: "4.5px", dur: "7.8s", delay: "-3.6s", sway: "16px", color: "#ffe388" },
+  { x: "93%", size: "3.5px", dur: "10.6s", delay: "-7.2s", sway: "-12px", color: "#1de4be" },
+];
 
 type EventState = "active" | "upcoming" | "ended" | "full" | "eliminated";
 
@@ -96,6 +110,8 @@ export function EventsScreen() {
   const { inventory } = useEconomy();
   const { events, error: contentError } = useLiveOpsContent();
   const { runs, error: runsError } = usePlayerEventRuns(user && !user.isAnonymous ? user.uid : undefined);
+  const motionProfile = useMotionProfile();
+  const pageActive = usePageActive();
   const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) };
   const [now, setNow] = useState(() => Date.now());
   const { seasons } = useSeasons();
@@ -105,6 +121,10 @@ export function EventsScreen() {
     || canClaimTier(activeSeason.season, activeSeason.progress, index, "premium", now).ok));
   const [authOpen, setAuthOpen] = useState(false);
   const isGuest = !user || user.isAnonymous;
+  const decorOn = motionProfile.enabled && motionProfile.allowDecorativeLoop && pageActive;
+  const cascadeOn = motionProfile.enabled && motionProfile.allowEntranceCascade;
+
+  const refreshNow = useCallback(() => setNow(Date.now()), []);
 
   /* Chargeur d'assets : vignettes de la liste, puis illustrations plein
      format (détail d'un événement) en arrière-plan. */
@@ -127,20 +147,55 @@ export function EventsScreen() {
   };
 
   return (
-    <GameShell active="events" dock={false} scroll={false} className={styles.scene} contentClassName={styles.frame}>
+    <GameShell
+      active="events"
+      dock={false}
+      scroll={false}
+      className={styles.scene}
+      contentClassName={`${styles.frame}${decorOn ? ` ${styles.decorOn}` : ""}`}
+    >
+      {/* ═══ AMBIANCE GALA SALON ROYAL ═══ */}
+      <div className={`${styles.terAmbient}${decorOn ? ` ${styles.ambientActive}` : ""}`} aria-hidden="true">
+        <span className={styles.terSpotlight} />
+        {decorOn &&
+          TER_SPARKS.map((spark, idx) => (
+            <span
+              key={idx}
+              className={styles.terSpark}
+              style={
+                {
+                  "--sx": spark.x,
+                  "--ss": spark.size,
+                  "--sd": spark.dur,
+                  "--sdelay": spark.delay,
+                  "--sway": spark.sway,
+                  "--sc": spark.color,
+                } as CSSProperties
+              }
+            />
+          ))}
+      </div>
+
       {/* ═══ HUD HAUT : RETOUR + TITRE + PORTE-BILLETS PHYSIQUES ═══ */}
-      <header className={styles.hudBar}>
+      <motion.header
+        className={styles.hudBar}
+        initial={cascadeOn ? { opacity: 0, y: -12 } : false}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ type: "spring", stiffness: 420, damping: 30 }}
+      >
         <div className={styles.hudLeft}>
-          <button
+          <motion.button
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
             onClick={() => navigateTo("menu")}
             aria-label="Retour au salon"
+            whileHover={motionProfile.enabled ? { y: -1, scale: 1.03 } : undefined}
+            whileTap={motionProfile.enabled ? { scale: 0.94 } : undefined}
           >
             <span aria-hidden="true">←</span>
             <span className={styles.backLabel}>Salon</span>
-          </button>
+          </motion.button>
 
           <div className={styles.hudCopy}>
             <span className={styles.hudKicker}>{t("events.kicker")}</span>
@@ -150,34 +205,38 @@ export function EventsScreen() {
 
         <div className={styles.hudRight}>
           {isGuest && (
-            <button
+            <motion.button
               data-nj-skin="none"
               type="button"
               className={styles.guestMiniBtn}
               onClick={() => setAuthOpen(true)}
+              whileHover={motionProfile.enabled ? { y: -1, scale: 1.03 } : undefined}
+              whileTap={motionProfile.enabled ? { scale: 0.94 } : undefined}
             >
               <NjamboIcon name="profile" tone="teal" size={15} />
               <span>Connexion</span>
-            </button>
+            </motion.button>
           )}
 
           <div className={styles.ticketRack} aria-label="Tes billets d'entrée">
             {(["bronze", "argent", "or"] as const).map((tier) => (
-              <button
+              <motion.button
                 key={tier}
                 data-nj-skin="none"
                 type="button"
                 className={`${styles.ticketStubPill} ${styles[`tier_${tier}`]}`}
                 onClick={() => navigateTo("shop")}
                 title={`Tickets ${tier} : ${tickets[tier]} — Ouvrir la boutique`}
+                whileHover={motionProfile.enabled ? { y: -2, scale: 1.05 } : undefined}
+                whileTap={motionProfile.enabled ? { scale: 0.93 } : undefined}
               >
                 <Image src={TICKET_ART[tier]} alt="" width={19} height={19} />
                 <strong>{tickets[tier]}</strong>
-              </button>
+              </motion.button>
             ))}
           </div>
         </div>
-      </header>
+      </motion.header>
 
       {(contentError || runsError) && (
         <div className={styles.errorStrip} role="alert">{runsError ?? contentError}</div>
@@ -220,11 +279,24 @@ export function EventsScreen() {
             const livesLeft = Math.max(0, event.allowedLosses - lossesUsed);
 
             return (
-              <article
+              <motion.article
                 key={event.eventId}
                 className={`${styles.galaTicket} ${isPvp ? styles.themeTeal : styles.themeGold}`}
+                style={{ "--foil-delay": `${0.7 + index * 2.1}s` } as CSSProperties}
                 onClick={() => openDetail(event.eventId)}
+                initial={cascadeOn ? { opacity: 0, y: 24, scale: 0.97 } : false}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                transition={{
+                  type: "spring",
+                  stiffness: 340,
+                  damping: 26,
+                  delay: cascadeOn ? Math.min(index, 4) * 0.09 : 0,
+                }}
+                whileHover={motionProfile.enabled ? { y: -5 } : undefined}
+                whileTap={motionProfile.enabled ? { scale: 0.988 } : undefined}
               >
+                <span className={styles.ticketFoilSheen} aria-hidden="true" />
+
                 {/* ─── PARTIE HAUTE : AFFICHE ILLUSTRÉE + SENTIER MINI-TABLES ─── */}
                 <div className={styles.posterTopZone}>
                   <Image
@@ -255,7 +327,7 @@ export function EventsScreen() {
                     </div>
                   </div>
 
-                  {/* Bandeau milieu : titre + mode + vies en médaillons */}
+                  {/* Bandeau milieu : titre + mode */}
                   <div className={styles.posterTitleBlock}>
                     <div className={styles.modeMetaRow}>
                       <span className={styles.modePill}>
@@ -271,6 +343,16 @@ export function EventsScreen() {
                     <h2>{event.title}</h2>
                     <p className={styles.posterDesc}>{event.description}</p>
                   </div>
+
+                  {/* Chronomètre live animé (temps restant ou ouverture prochaine) */}
+                  <EventCountdown
+                    startsAt={event.startsAt}
+                    endsAt={event.endsAt}
+                    accent={isPvp ? "teal" : "gold"}
+                    variant="card"
+                    className={styles.cardCountdown}
+                    onBoundaryReached={refreshNow}
+                  />
 
                   {/* Mini-sentier de tables ovales en aperçu vivant sur l'affiche */}
                   <div className={styles.miniTrailBar} aria-label={`Parcours de ${stageCount} tables`}>
@@ -289,7 +371,10 @@ export function EventsScreen() {
                             >
                               {done ? "✓" : stage.order}
                             </span>
-                            <span className={styles.miniTrailWire} aria-hidden="true" />
+                            <span
+                              className={`${styles.miniTrailWire}${done ? ` ${styles.miniTrailWireLit}` : ""}`}
+                              aria-hidden="true"
+                            />
                           </div>
                         );
                       })}
@@ -362,7 +447,7 @@ export function EventsScreen() {
                     <span className={styles.ctaArrow} aria-hidden="true">→</span>
                   </button>
                 </div>
-              </article>
+              </motion.article>
             );
           })}
         </div>
