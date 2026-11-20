@@ -160,11 +160,11 @@ automatiquement au commit précédent en cas d'échec.
 ```bash
 #!/usr/bin/env bash
 # Déploie le back (server/) sur le VPS.
-# Usage : ./deploy-back.sh [branche]   (défaut : main)
+# Usage : ./deploy-back.sh [branche]   (défaut : master)
 set -euo pipefail
 
 APP_DIR="${APP_DIR:-/opt/njambo}"
-BRANCH="${1:-main}"
+BRANCH="${1:-master}"
 PORT="${PORT:-8081}"
 HEALTH_URL="http://127.0.0.1:${PORT}/healthz"
 
@@ -219,7 +219,7 @@ fi
 Pour déployer depuis ta machine sans ouvrir de session :
 
 ```bash
-ssh utilisateur@ton-vps 'bash -s' -- main < deploy-back.sh
+ssh utilisateur@ton-vps 'bash -s' -- master < deploy-back.sh
 ```
 
 ### Commandes utiles
