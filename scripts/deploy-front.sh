@@ -15,13 +15,16 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-echo "▶ Vérification de la dépendance @gxe…"
-if grep -rqE "from ['\"]@gxe/" app components lib 2>/dev/null \
-   && ! grep -q '"@gxe/' package.json; then
-  echo "✖ Le code importe @gxe/* mais package.json ne le déclare pas :" >&2
-  echo "  le build Vercel échouera. Voir docs/deploiement.md." >&2
-  exit 1
-fi
+echo "▶ Vérification des imports @gxe/*…"
+# @gxe/react est un alias local (tsconfig.json → lib/gxe/react.tsx). Tout autre
+# @gxe/* doit être soit aliasé dans tsconfig.json, soit déclaré dans package.json.
+for pkg in $(grep -rhoE "from ['\"]@gxe/[a-z-]+" app components lib hooks contexts 2>/dev/null | sed -E "s/.*(@gxe\/[a-z-]+)/\1/" | sort -u); do
+  if ! grep -q "\"$pkg\"" tsconfig.json package.json; then
+    echo "✖ $pkg est importé mais ni aliasé (tsconfig.json) ni déclaré (package.json) :" >&2
+    echo "  le build Vercel échouera." >&2
+    exit 1
+  fi
+done
 
 echo "▶ Installation des dépendances…"
 npm ci

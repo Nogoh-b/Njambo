@@ -30,13 +30,12 @@ Le front et le back se déploient **indépendamment** :
 Les `NEXT_PUBLIC_*` sont figées **au build** : après les avoir modifiées,
 il faut redéployer.
 
-### ⚠️ Dépendance `@gxe/*`
+### Imports `@gxe/*`
 
-Le front importe `@gxe/...` (`components/GxeRoot.tsx`, `lib/gxeSfx.ts`, …),
-qui provient d'un dépôt voisin `../gxe` lié localement et **non déclaré dans
-`package.json`**. Tant que ce paquet n'est pas récupérable par Vercel
-(publication npm, dépendance git, ou code copié dans ce dépôt), le build
-Vercel échoue. Le script ci-dessous le détecte avant de déployer.
+`@gxe/react` est un **alias local** : `tsconfig.json` le redirige vers
+`lib/gxe/react.tsx`, donc Vercel le résout sans dépendance externe. Si un autre
+`@gxe/*` est importé un jour, il faudra l'aliaser de la même façon ou le déclarer
+dans `package.json` ; le script ci-dessous le vérifie avant de déployer.
 
 ### Script : `scripts/deploy-front.sh` (à lancer depuis ta machine, à la racine du projet)
 
@@ -63,13 +62,16 @@ if [[ -n "$(git status --porcelain)" ]]; then
   exit 1
 fi
 
-echo "▶ Vérification de la dépendance @gxe…"
-if grep -rqE "from ['\"]@gxe/" app components lib 2>/dev/null \
-   && ! grep -q '"@gxe/' package.json; then
-  echo "✖ Le code importe @gxe/* mais package.json ne le déclare pas :" >&2
-  echo "  le build Vercel échouera. Voir docs/deploiement.md." >&2
-  exit 1
-fi
+echo "▶ Vérification des imports @gxe/*…"
+# @gxe/react est un alias local (tsconfig.json → lib/gxe/react.tsx). Tout autre
+# @gxe/* doit être soit aliasé dans tsconfig.json, soit déclaré dans package.json.
+for pkg in $(grep -rhoE "from ['\"]@gxe/[a-z-]+" app components lib hooks contexts 2>/dev/null | sed -E "s/.*(@gxe\/[a-z-]+)/\1/" | sort -u); do
+  if ! grep -q "\"$pkg\"" tsconfig.json package.json; then
+    echo "✖ $pkg est importé mais ni aliasé (tsconfig.json) ni déclaré (package.json) :" >&2
+    echo "  le build Vercel échouera." >&2
+    exit 1
+  fi
+done
 
 echo "▶ Installation des dépendances…"
 npm ci
@@ -250,7 +252,6 @@ curl https://njambo-back.bysoft-corp.com/healthz   # doit répondre {"ok":true}
 
 - [ ] Secrets **retirés du dépôt** (`server/.env`, `server/*service-account*.json`,
       `.env.local`) et clés Firebase / mot de passe Postgres **renouvelés**.
-- [ ] Dépendance `@gxe/*` rendue récupérable par Vercel.
 - [ ] `NEXT_PUBLIC_BACKEND_URL` de prod configurée sur Vercel.
 - [ ] Rate limiting ajouté devant l'API (voir `docs/vps-migration.md`, points ouverts).
 - [ ] Sauvegarde Postgres planifiée (`pg_dump` en cron).
