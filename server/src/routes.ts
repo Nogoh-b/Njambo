@@ -30,6 +30,12 @@ import {
   getAdminEventStatsHandler,
   listAdminUploadsHandler,
 } from "../../functions/src/eventAdminCommands";
+import {
+  adminSearchPlayersHandler,
+  adminGetPlayerHandler,
+  adminGrantTicketHandler,
+  adminResetEventRunHandler,
+} from "../../functions/src/playerAdminCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -84,6 +90,10 @@ export const commands: Record<string, Handler> = {
   discardEventDraft: discardEventDraftHandler,
   getAdminEventStats: getAdminEventStatsHandler,
   listAdminUploads: listAdminUploadsHandler,
+  adminSearchPlayers: adminSearchPlayersHandler,
+  adminGetPlayer: adminGetPlayerHandler,
+  adminGrantTicket: adminGrantTicketHandler,
+  adminResetEventRun: adminResetEventRunHandler,
 
   createRoom: createRoomHandler,
   joinRoom: joinRoomHandler,

@@ -10,7 +10,7 @@
 | Phase | Contenu | Statut |
 | --- | --- | --- |
 | 0 | Socle déjà livré (retour parcours, animations, 1 ticket = 1 parcours) | ✅ Terminé |
-| 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | 🟡 En cours |
+| 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | ✅ Code terminé — à valider en prod |
 | 2 | Classement + récompenses par rang + compte à rebours | ⬜ À faire |
 | 3 | Notifications programmées (campagnes) | ⬜ À faire |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ⬜ À faire |
@@ -129,7 +129,7 @@ passent par `normalizeEventVersion`. Tests : `tests/event-config.test.ts`.
 - [x] Composant réutilisable `RewardPicker` (type → champs adaptés)
 - [x] **Aperçu** : rend le vrai `EventDetailScreen` avec la fiche brouillon
 - [x] Statistiques d'un événement : inscrits, actifs, éliminés, complétés, entonnoir par table — ✅ commande `getAdminEventStats` + onglet Statistiques (KPI + entonnoir)
-- [ ] Section Joueurs (minimale) : recherche, parcours d'un joueur, rendre un ticket, réinitialiser un parcours (audit)
+- [x] Section Joueurs (minimale) : recherche, parcours d'un joueur, rendre un ticket, réinitialiser un parcours (audit)
 - [x] Client : les écrans événements utilisent `imageUrl` / `theme` de la fiche (fini les tables `EVENT_ART` en dur) — `lib/eventArt.ts` (image distante = `unoptimized`, vignette -480 pour les assets locaux), `resolveEventTheme(event)` lit `event.theme` (accent hex → accent doux calculé), l'overlay de matchmaking prend le thème du `versionSnapshot`
 - [x] `authz.ts` : lecture des nouvelles collections admin réservée aux admins (`event_drafts`, + règle `firestore.rules`)
 - [x] Mise à jour `docs/deploiement.md` (UPLOAD_DIR, PUBLIC_BASE_URL, Nginx `/uploads`, `set-admin.cjs`)
@@ -189,6 +189,27 @@ horizontale à 390 px. Captures : `docs/captures/admin-evenements/`.
 ![Liste](captures/admin-evenements/liste.webp)
 ![Erreurs en direct](captures/admin-evenements/editeur-erreurs.webp)
 ![Aperçu joueur](captures/admin-evenements/apercu.webp)
+
+### Section Joueurs — implémenté (`functions/src/playerAdminCommands.ts`, `components/admin/PlayersAdmin.tsx`)
+
+| Commande | Effet |
+| --- | --- |
+| `adminSearchPlayers { query }` | Par e-mail (Firebase Auth), par uid, ou par début de nom (sensible à la casse) — 20 résultats max |
+| `adminGetPlayer { uid }` | Profil, Nkap, cauris, couronnes, tickets, 50 derniers parcours (avec « partie en cours ») |
+| `adminGrantTicket { uid, tier, amount ≤ 10, reason }` | Crédite des tickets ; **motif obligatoire** ; idempotent |
+| `adminResetEventRun { runId, mode, reason }` | `restart` : table 1, toutes les vies, sans nouveau ticket ; `close` : termine le parcours. Refusé pendant une partie (`RUN_IN_MATCH`) |
+
+Chaque écriture est consignée dans `admin_audit` avec le motif. Test :
+`node server/scripts/smoke-player-admin.cjs` (Postgres jetable) — 11/11.
+
+### Reste à faire pour valider la phase 1 (en production)
+
+1. Déployer le back (`scripts/deploy-back.sh`) après avoir ajouté `UPLOAD_DIR`,
+   `PUBLIC_BASE_URL` dans `server/.env` et le bloc Nginx `/uploads/` + `client_max_body_size`.
+2. `node scripts/set-admin.cjs <ton e-mail>` puis se reconnecter.
+3. Déployer le front, ouvrir `/admin` → créer un événement avec image,
+   le prévisualiser, le **programmer** dans quelques minutes et vérifier
+   qu'il apparaît chez un joueur à l'heure dite (critère de fin).
 
 ### Upload d'images — implémenté (`server/src/uploads.ts`)
 
@@ -362,3 +383,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 1 | Upload d'images admin (`/admin/upload`, sharp → WebP, `/uploads` cache immuable, bibliothèque `admin_uploads`) ; script `set-admin.cjs` ; guide de déploiement mis à jour (UPLOAD_DIR, PUBLIC_BASE_URL, Nginx). |
 | 2026-11-20 | 1 | Écrans joueurs (liste, détail, carte du menu, matchmaking) : image et thème lus depuis la fiche ; suppression de `EVENT_ART` / `EVENT_THUMBS`. |
 | 2026-11-20 | 1 | Console `/admin` reconstruite : tableau de bord, liste filtrable, éditeur en onglets avec validation en direct, `RewardPicker`, champ image (upload + bibliothèque), aperçu réel dans un iframe, statistiques, audit temps réel, outils historiques. |
+| 2026-11-20 | 1 | Section Joueurs (recherche, soldes, parcours, tickets offerts avec motif, réinitialiser/clôturer un parcours) ; test Postgres 11/11. **Phase 1 : code terminé**, validation en production à faire. |

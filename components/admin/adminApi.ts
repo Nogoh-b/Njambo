@@ -54,6 +54,36 @@ export interface AdminUpload {
   createdAt: number;
 }
 
+export interface AdminPlayerHit { uid: string; name: string; emoji: string; email: string | null }
+
+export interface AdminPlayerRun {
+  runId: string;
+  eventId: string;
+  eventTitle: string;
+  revision: number;
+  status: string;
+  stageIndex: number;
+  stageCount: number;
+  losses: number;
+  allowedLosses: number;
+  inMatch: boolean;
+  ticketTier: string;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface AdminPlayerDetail {
+  uid: string;
+  email: string | null;
+  name: string;
+  emoji: string;
+  crowns: number;
+  nkap: number;
+  cauris: number;
+  tickets: Record<"bronze" | "argent" | "or", number>;
+  runs: AdminPlayerRun[];
+}
+
 const call = async <T,>(name: string, payload: Record<string, unknown> = {}) => (await callBackend<T>(name, payload)).data;
 
 export const adminApi = {
@@ -67,6 +97,12 @@ export const adminApi = {
   archive: (eventId: string, archived: boolean) => call<{ eventId: string; archived: boolean }>("archiveEvent", { eventId, archived }),
   discardDraft: (eventId: string) => call<{ eventId: string }>("discardEventDraft", { eventId }),
   stats: (eventId: string) => call<AdminEventStats>("getAdminEventStats", { eventId }),
+  searchPlayers: (query: string) => call<{ players: AdminPlayerHit[] }>("adminSearchPlayers", { query }),
+  getPlayer: (uid: string) => call<AdminPlayerDetail>("adminGetPlayer", { uid }),
+  grantTicket: (uid: string, tier: string, amount: number, reason: string) =>
+    call<{ uid: string; tickets: Record<string, number> }>("adminGrantTicket", { uid, tier, amount, reason }),
+  resetRun: (runId: string, mode: "restart" | "close", reason: string) =>
+    call<{ runId: string; status: string }>("adminResetEventRun", { runId, mode, reason }),
   uploads: (kind?: string) => call<{ uploads: AdminUpload[] }>("listAdminUploads", kind ? { kind } : {}),
 };
 
@@ -96,6 +132,10 @@ const ERROR_LABELS: Record<string, string> = {
   UNSUPPORTED_TYPE: "Format accepté : PNG, JPEG ou WebP.",
   UNREADABLE_IMAGE: "Image illisible.",
   INVALID_EVENTID: "Identifiant invalide (a-z, 0-9, _ ; 3 à 64 caractères).",
+  PLAYER_NOT_FOUND: "Joueur introuvable.",
+  RUN_IN_MATCH: "Le joueur est en pleine partie : attends la fin de la partie.",
+  INVALID_REASON: "Indique un motif (200 caractères max).",
+  EVENT_RUN_NOT_FOUND: "Parcours introuvable.",
   INVALID_NEWEVENTID: "Nouvel identifiant invalide (a-z, 0-9, _ ; 3 à 64 caractères).",
 };
 

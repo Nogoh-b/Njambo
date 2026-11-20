@@ -34,6 +34,12 @@ import {
   getAdminEventStatsHandler,
   listAdminUploadsHandler,
 } from "./eventAdminCommands";
+import {
+  adminSearchPlayersHandler,
+  adminGetPlayerHandler,
+  adminGrantTicketHandler,
+  adminResetEventRunHandler,
+} from "./playerAdminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -91,6 +97,10 @@ export const archiveEvent = onCall(callable, archiveEventHandler);
 export const discardEventDraft = onCall(callable, discardEventDraftHandler);
 export const getAdminEventStats = onCall(callable, getAdminEventStatsHandler);
 export const listAdminUploads = onCall(callable, listAdminUploadsHandler);
+export const adminSearchPlayers = onCall(callable, adminSearchPlayersHandler);
+export const adminGetPlayer = onCall(callable, adminGetPlayerHandler);
+export const adminGrantTicket = onCall(callable, adminGrantTicketHandler);
+export const adminResetEventRun = onCall(callable, adminResetEventRunHandler);
 
 export const createRoom = onCall(callable, createRoomHandler);
 export const joinRoom = onCall(callable, joinRoomHandler);
