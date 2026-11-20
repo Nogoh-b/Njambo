@@ -7,7 +7,9 @@ import { NjamboIcon } from "@/components/ui/Art";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { ResultActions, ResultLayout } from "@/components/ui/ResultLayout";
 import { SettlementArena, type Seat } from "@/components/result/SettlementArena";
+import { RematchView } from "@/components/result/RematchView";
 import { useAuth } from "@/hooks/useAuth";
+import { useLobby } from "@/contexts/LobbyContext";
 
 import { NKAP } from "@/data/mock";
 import { getNextRoundPresentation, getResultReasonLabels } from "@/lib/gamePresentation";
@@ -30,6 +32,7 @@ export interface ResultScreenProps {
   onMenu: () => void;
   canNext: boolean;
   nextRequiresConsensus?: boolean;
+  onBackRequestRef?: { current: (() => boolean) | null };
 }
 
 function getModeLabel(mode: GameMode | undefined, hasCrowns: boolean): string | null {
@@ -55,20 +58,49 @@ export function ResultScreen({
   onMenu,
   canNext,
   nextRequiresConsensus = false,
+  onBackRequestRef,
 }: ResultScreenProps) {
   const { user } = useAuth();
+  const { currentRoom } = useLobby();
   const gxeSfx = useSfx();
 
   const motion = useMotionProfile();
   const win = result.winner;
   const [nextRequested, setNextRequested] = useState(false);
+  const [showRematchScreen, setShowRematchScreen] = useState(false);
   const titleId = useId();
   const summaryId = useId();
   const totalGain = result.gain + (result.doubles ? mise * (result.playersCount - 1) : 0);
   const scriptedMotion = motion.enabled && motion.allowEntranceCascade;
   const reasonLabels = getResultReasonLabels(result);
-  const nextRound = getNextRoundPresentation(canNext, nextRequiresConsensus, nextRequested);
+
+  /* Suivi en direct de la salle pour la revanche (en ligne / entre amis). */
+  const roomPlayers = currentRoom?.players ?? [];
+  const roomDissolved = nextRequiresConsensus && (!currentRoom || roomPlayers.length < 2);
+  const effectiveCanNext = canNext && !roomDissolved;
+  const incomingRematchRequester = useMemo(() => {
+    if (!nextRequiresConsensus || !currentRoom || currentRoom.status !== "waiting") return null;
+    const hostId = currentRoom.hostId;
+    return currentRoom.players.find(
+      (p) => p.uid !== user?.uid && p.uid !== hostId && p.ready,
+    ) ?? null;
+  }, [currentRoom, nextRequiresConsensus, user?.uid]);
+
+  const nextRound = getNextRoundPresentation(effectiveCanNext, nextRequiresConsensus, nextRequested);
   const [friendUids, setFriendUids] = useState<ReadonlySet<string>>(new Set());
+
+  useEffect(() => {
+    if (!onBackRequestRef) return;
+    onBackRequestRef.current = () => {
+      if (showRematchScreen) {
+        setShowRematchScreen(false);
+        return true;
+      }
+      onMenu();
+      return false;
+    };
+    return () => { onBackRequestRef.current = null; };
+  }, [onBackRequestRef, onMenu, showRematchScreen]);
 
   useEffect(() => {
     if (!user?.uid) return undefined;
@@ -157,8 +189,13 @@ export function ResultScreen({
   }, [gxeSfx, win.isYou]);
 
   const handleNext = () => {
-    if (!canNext || nextRequested) return;
+    if (!effectiveCanNext) return;
+    if (nextRequested) {
+      if (nextRequiresConsensus) setShowRematchScreen(true);
+      return;
+    }
     setNextRequested(true);
+    if (nextRequiresConsensus) setShowRematchScreen(true);
     onNext();
   };
 
@@ -257,19 +294,38 @@ export function ResultScreen({
             <span>Remboursement Cauris : + {NKAP(result.refund ?? 0)}</span>
           </div>
         )}
+
+        {incomingRematchRequester && !nextRequested && !roomDissolved && (
+          <div className={styles.rematchInvitePill} role="status" aria-live="polite">
+            <span className={styles.rematchInviteDot} aria-hidden="true" />
+            <span><strong>{incomingRematchRequester.name}</strong> demande une revanche !</span>
+          </div>
+        )}
+
+        {roomDissolved && (
+          <div className={styles.roomGonePill} role="status" aria-live="polite">
+            Les autres joueurs ont quitté la table
+          </div>
+        )}
       </div>
 
-      <ResultActions status={nextRound.status}>
+      <ResultActions status={roomDissolved ? null : nextRound.status}>
         <button
           type="button"
           data-nj-skin="none"
-          className={`${styles.ctaPrimary}${win.isYou ? ` ${styles.ctaPrimaryWin}` : ""}`}
+          className={`${styles.ctaPrimary}${win.isYou || incomingRematchRequester ? ` ${styles.ctaPrimaryWin}` : ""}`}
           onClick={handleNext}
-          disabled={!canNext || nextRequested}
+          disabled={!effectiveCanNext || (nextRequested && !nextRequiresConsensus)}
           aria-label={nextRound.label}
         >
           <span className={styles.ctaGlyph} aria-hidden="true">{nextRequested ? "✓" : "↻"}</span>
-          <span>{nextRound.short}</span>
+          <span>
+            {nextRequested && nextRequiresConsensus
+              ? "Voir la revanche"
+              : incomingRematchRequester && !nextRequested
+                ? "Accepter"
+                : nextRound.short}
+          </span>
         </button>
 
         <button
@@ -286,6 +342,19 @@ export function ResultScreen({
     </>
   );
 
+  const rematchMain = (
+    <RematchView
+      room={currentRoom}
+      currentUid={user?.uid}
+      gameMode={gameMode}
+      mise={mise}
+      previousPlayers={result.players}
+      motionProfile={motion}
+      onShowResult={() => setShowRematchScreen(false)}
+      onLeave={onMenu}
+    />
+  );
+
   return (
     <ResultLayout
       ref={rootRef}
@@ -295,7 +364,7 @@ export function ResultScreen({
       motionMode={motion.mode}
       reducedMotion={motion.reduced}
       scriptedMotion={scriptedMotion}
-      main={main}
+      main={showRematchScreen && nextRequiresConsensus ? rematchMain : main}
       outcome={win.isYou ? "win" : "loss"}
       decoration={(
         <>

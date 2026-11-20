@@ -8,6 +8,7 @@
 }
 
 .frame {
+  position: relative;
   width: 100%;
   height: 100%;
   min-height: 0;
@@ -15,10 +16,76 @@
   flex-direction: column;
   gap: 10px;
   overflow: hidden;
+  isolation: isolate;
+}
+
+/* ═══ AMBIANCE GALA SALON ROYAL (SPOTLIGHT + ÉTINCELLES FLOTTANTES) ═══ */
+.terAmbient {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 0;
+}
+
+.terSpotlight {
+  position: absolute;
+  top: -18%;
+  left: 50%;
+  width: min(760px, 130vw);
+  height: 55%;
+  transform: translateX(-50%);
+  background:
+    radial-gradient(ellipse 68% 58% at 50% 28%, rgba(255, 207, 64, 0.16), rgba(255, 71, 114, 0.08) 46%, transparent 74%);
+  opacity: 0.78;
+}
+
+.ambientActive .terSpotlight {
+  animation: terSpotlightBreathe 6.5s ease-in-out infinite;
+}
+
+@keyframes terSpotlightBreathe {
+  0%, 100% { opacity: 0.62; transform: translateX(-50%) scale(1); }
+  50% { opacity: 0.96; transform: translateX(-50%) scale(1.06); }
+}
+
+.terSpark {
+  position: absolute;
+  bottom: -14px;
+  left: var(--sx, 50%);
+  width: var(--ss, 4px);
+  height: var(--ss, 4px);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8d4 0%, var(--sc, #ffcf40) 58%, transparent 100%);
+  box-shadow: 0 0 10px var(--sc, rgba(255, 207, 64, 0.8));
+  opacity: 0;
+}
+
+.ambientActive .terSpark {
+  animation: terSparkDrift var(--sd, 8s) linear var(--sdelay, 0s) infinite;
+}
+
+@keyframes terSparkDrift {
+  0% {
+    opacity: 0;
+    transform: translate3d(0, 0, 0) scale(0.5);
+  }
+  18% {
+    opacity: 0.82;
+  }
+  75% {
+    opacity: 0.45;
+  }
+  100% {
+    opacity: 0;
+    transform: translate3d(var(--sway, 16px), -92vh, 0) scale(1.15);
+  }
 }
 
 /* ═══ HUD HAUT ═══ */
 .hudBar {
+  position: relative;
+  z-index: 2;
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -153,6 +220,8 @@
 
 /* ═══ VITRINE DES BILLETS DE GALA (seule cette zone défile si nécessaire) ═══ */
 .galaStage {
+  position: relative;
+  z-index: 2;
   flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
@@ -195,14 +264,41 @@
     0 0 32px color-mix(in srgb, var(--ev-glow) 70%, transparent);
   overflow: hidden;
   cursor: pointer;
-  transition: transform 180ms cubic-bezier(0.2, 0.88, 0.25, 1.1), box-shadow 180ms ease;
+  transition: box-shadow 220ms ease, border-color 220ms ease;
 }
 
 .galaTicket:hover {
-  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--ev-accent) 92%, #ffffff);
   box-shadow:
     0 26px 54px rgba(0, 0, 0, 0.64),
-    0 0 42px var(--ev-glow);
+    0 0 46px var(--ev-glow);
+}
+
+/* Reflet holographique de gala balayant le billet */
+.ticketFoilSheen {
+  position: absolute;
+  inset: 0;
+  width: 42%;
+  background: linear-gradient(
+    112deg,
+    transparent 0%,
+    rgba(255, 248, 224, 0.08) 42%,
+    color-mix(in srgb, var(--ev-accent) 22%, rgba(255, 255, 255, 0.16)) 50%,
+    rgba(255, 248, 224, 0.08) 58%,
+    transparent 100%
+  );
+  transform: translateX(-160%);
+  pointer-events: none;
+  z-index: 4;
+}
+
+.decorOn .ticketFoilSheen {
+  animation: ticketFoilSweep 7.6s ease-in-out var(--foil-delay, 0.8s) infinite;
+}
+
+@keyframes ticketFoilSweep {
+  0%, 72% { transform: translateX(-160%); }
+  95%, 100% { transform: translateX(340%); }
 }
 
 .themeGold {
@@ -288,11 +384,26 @@
 }
 
 .statusDot {
+  position: relative;
   width: 7px;
   height: 7px;
   border-radius: 50%;
   background: #46ff9c;
   box-shadow: 0 0 10px #46ff9c;
+}
+
+.decorOn .stateLive .statusDot::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  border: 1.5px solid #46ff9c;
+  animation: liveBeacon 1.9s cubic-bezier(0.2, 0.85, 0.3, 1) infinite;
+}
+
+@keyframes liveBeacon {
+  0% { transform: scale(0.7); opacity: 0.9; }
+  100% { transform: scale(2.15); opacity: 0; }
 }
 
 .stateSoon { border-color: rgba(75, 142, 255, 0.72); color: #bed6ff; }
@@ -437,16 +548,53 @@
 }
 
 .miniOvalNow {
+  position: relative;
   border-color: #fff2b2;
   background: radial-gradient(circle, #28ba8c, #0f6249);
   color: #fff0a8;
   box-shadow: 0 0 12px var(--ev-glow), 0 0 0 2px color-mix(in srgb, var(--ev-accent) 45%, transparent);
 }
 
+.decorOn .miniOvalNow::after {
+  content: "";
+  position: absolute;
+  inset: -4px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ev-accent);
+  animation: miniNodeBeacon 2.2s ease-out infinite;
+  pointer-events: none;
+}
+
+@keyframes miniNodeBeacon {
+  0% { transform: scale(0.86); opacity: 0.78; }
+  100% { transform: scale(1.38); opacity: 0; }
+}
+
 .miniTrailWire {
+  position: relative;
   width: 12px;
   height: 2px;
   background: linear-gradient(90deg, rgba(255, 207, 64, 0.7), rgba(255, 207, 64, 0.3));
+  overflow: hidden;
+}
+
+.miniTrailWireLit {
+  background: linear-gradient(90deg, #42f7d6, #ffcf40);
+  box-shadow: 0 0 8px rgba(255, 207, 64, 0.65);
+}
+
+.decorOn .miniTrailWireLit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 7px;
+  background: linear-gradient(90deg, transparent, #ffffff, transparent);
+  animation: miniWireFlow 1.7s linear infinite;
+}
+
+@keyframes miniWireFlow {
+  0% { transform: translateX(-8px); }
+  100% { transform: translateX(16px); }
 }
 
 .miniTrophyGoal {
@@ -455,8 +603,23 @@
   border-radius: 50%;
   border: 1.5px solid #ffe070;
   background: radial-gradient(circle, rgba(255, 207, 64, 0.35), rgba(28, 18, 8, 0.94));
+  box-shadow: 0 0 12px rgba(255, 207, 64, 0.34);
   display: inline-grid;
   place-items: center;
+}
+
+.decorOn .miniTrophyGoal {
+  animation: trophyFloat 3.1s ease-in-out infinite;
+}
+
+@keyframes trophyFloat {
+  0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 0 10px rgba(255, 207, 64, 0.3); }
+  50% { transform: translateY(-2.5px) scale(1.07); box-shadow: 0 0 18px rgba(255, 207, 64, 0.62); }
+}
+
+.cardCountdown {
+  position: relative;
+  z-index: 3;
 }
 
 .livesPips {
@@ -558,6 +721,12 @@
   color: #fffaf0;
   font-size: 12.5px;
   font-weight: 900;
+  transition: transform 160ms ease, border-color 160ms ease, box-shadow 160ms ease;
+}
+
+.galaTicket:hover .prizeItemChip {
+  border-color: rgba(255, 224, 118, 0.72);
+  box-shadow: 0 4px 12px rgba(255, 207, 64, 0.16);
 }
 
 .prizeItemChip img {
@@ -635,6 +804,11 @@
   place-items: center;
   font-size: 17px;
   font-weight: 900;
+  transition: transform 160ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.galaCta:hover .ctaArrow {
+  transform: translateX(3px);
 }
 
 .authDone {
@@ -649,4 +823,17 @@
   .backBtn { width: 36px; padding: 0; justify-content: center; }
   .posterTopZone { min-height: 195px; padding: 12px 13px 10px; }
   .ticketStubBody { padding: 5px 13px 13px; gap: 9px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ambientActive .terSpotlight,
+  .ambientActive .terSpark,
+  .decorOn .ticketFoilSheen,
+  .decorOn .stateLive .statusDot::after,
+  .decorOn .miniOvalNow::after,
+  .decorOn .miniTrailWireLit::after,
+  .decorOn .miniTrophyGoal,
+  .ctaSheen {
+    animation: none !important;
+  }
 }

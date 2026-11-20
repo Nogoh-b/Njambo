@@ -132,6 +132,15 @@
   text-shadow: 0 0 8px rgba(255, 71, 114, 0.8);
 }
 
+.decorOn .lifeGemOn {
+  animation: lifeGemPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes lifeGemPulse {
+  0%, 100% { text-shadow: 0 0 6px rgba(255, 71, 114, 0.68); opacity: 0.92; }
+  50% { text-shadow: 0 0 13px rgba(255, 110, 148, 1); opacity: 1; }
+}
+
 .lifeGemOff {
   color: rgba(255, 255, 255, 0.18);
 }
@@ -223,6 +232,47 @@
   z-index: 1;
 }
 
+.decorOn .mapVignette {
+  animation: mapGlowBreathe 7s ease-in-out infinite;
+}
+
+@keyframes mapGlowBreathe {
+  0%, 100% { opacity: 0.92; }
+  50% { opacity: 1; }
+}
+
+/* Étincelles ambiantes sur le plateau de campagne */
+.mapSparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  z-index: 2;
+}
+
+.mapSpark {
+  position: absolute;
+  bottom: -10px;
+  left: var(--mx, 50%);
+  width: var(--ms, 4px);
+  height: var(--ms, 4px);
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8d6 0%, var(--ev-accent) 60%, transparent 100%);
+  box-shadow: 0 0 9px var(--ev-glow);
+  opacity: 0;
+}
+
+.decorOn .mapSpark {
+  animation: mapSparkFloat var(--md, 7.5s) linear var(--mdelay, 0s) infinite;
+}
+
+@keyframes mapSparkFloat {
+  0% { opacity: 0; transform: translate3d(0, 0, 0) scale(0.5); }
+  20% { opacity: 0.78; }
+  80% { opacity: 0.42; }
+  100% { opacity: 0; transform: translate3d(var(--msway, 14px), -420px, 0) scale(1.1); }
+}
+
 .mapHeader {
   position: relative;
   z-index: 3;
@@ -231,7 +281,19 @@
   align-items: center;
   justify-content: space-between;
   flex-wrap: wrap;
+  gap: 8px;
+}
+
+.mapHeaderTop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
   gap: 6px;
+}
+
+.detailCountdown {
+  flex: 1 1 250px;
+  max-width: 420px;
 }
 
 .mapModePill {
@@ -326,6 +388,24 @@
     0 12px 24px rgba(0, 0, 0, 0.52);
 }
 
+.currentBeacon {
+  position: absolute;
+  inset: -4px;
+  border-radius: 21px;
+  border: 2px solid var(--ev-accent);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.decorOn .currentBeacon {
+  animation: nodeSonarPulse 2.3s cubic-bezier(0.2, 0.85, 0.3, 1) infinite;
+}
+
+@keyframes nodeSonarPulse {
+  0% { transform: scale(0.96); opacity: 0.76; }
+  100% { transform: scale(1.13, 1.18); opacity: 0; }
+}
+
 .nodeSelected {
   transform: translateY(-4px) scale(1.04);
   border-color: #fff4be !important;
@@ -338,6 +418,15 @@
 .nodeBoss .miniTableShell {
   border-color: #ffe270;
   box-shadow: 0 0 16px rgba(255, 207, 64, 0.45), 0 6px 14px rgba(0, 0, 0, 0.52);
+}
+
+.decorOn .nodeBoss .miniTableShell {
+  animation: bossHaloBreathe 3.2s ease-in-out infinite;
+}
+
+@keyframes bossHaloBreathe {
+  0%, 100% { box-shadow: 0 0 14px rgba(255, 207, 64, 0.4), 0 6px 14px rgba(0, 0, 0, 0.52); }
+  50% { box-shadow: 0 0 26px rgba(255, 214, 86, 0.78), 0 6px 16px rgba(0, 0, 0, 0.56); }
 }
 
 .nextBadge {
@@ -354,6 +443,16 @@
   letter-spacing: 0.08em;
   white-space: nowrap;
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.48);
+  z-index: 3;
+}
+
+.decorOn .nextBadge {
+  animation: nextBadgeBob 2.1s ease-in-out infinite;
+}
+
+@keyframes nextBadgeBob {
+  0%, 100% { transform: translate(-50%, 0); }
+  50% { transform: translate(-50%, -3px); }
 }
 
 /* Mini-Table Ovale Acajou & Émeraude */
@@ -473,9 +572,12 @@
 
 /* Fil d'or reliant deux mini-tables */
 .goldenWire {
+  position: relative;
   width: 24px;
   height: 3px;
   flex: 0 0 auto;
+  overflow: hidden;
+  border-radius: 999px;
   background: repeating-linear-gradient(
     90deg,
     rgba(255, 207, 64, 0.72) 0 5px,
@@ -486,6 +588,20 @@
 .goldenWireLit {
   background: linear-gradient(90deg, #4df5d8, #ffcf40);
   box-shadow: 0 0 10px rgba(255, 207, 64, 0.72);
+}
+
+.decorOn .goldenWireLit::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 10px;
+  background: linear-gradient(90deg, transparent, #ffffff, transparent);
+  animation: wirePulseH 1.8s linear infinite;
+}
+
+@keyframes wirePulseH {
+  0% { transform: translateX(-12px); }
+  100% { transform: translateX(30px); }
 }
 
 /* Piédestal Grand Prix au bout du sentier */
@@ -503,6 +619,54 @@
   flex-direction: column;
   align-items: center;
   gap: 6px;
+  overflow: hidden;
+  isolation: isolate;
+}
+
+.pedestalRays {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 240px;
+  height: 240px;
+  margin-top: -120px;
+  margin-left: -120px;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 214, 92, 0.14) 0deg 14deg,
+    transparent 14deg 30deg
+  );
+  pointer-events: none;
+  z-index: 0;
+  opacity: 0.65;
+}
+
+.decorOn .pedestalRays {
+  animation: pedestalSpin 24s linear infinite;
+}
+
+@keyframes pedestalSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.pedestalSheen {
+  position: absolute;
+  inset: 0;
+  width: 40%;
+  background: linear-gradient(108deg, transparent, rgba(255, 245, 205, 0.34) 50%, transparent);
+  transform: translateX(-160%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+.decorOn .pedestalSheen {
+  animation: pedestalSweep 5.2s ease-in-out infinite;
+}
+
+@keyframes pedestalSweep {
+  0%, 66% { transform: translateX(-160%); }
+  92%, 100% { transform: translateX(360%); }
 }
 
 .pedestalGlow {
@@ -511,9 +675,12 @@
   border-radius: inherit;
   box-shadow: inset 0 1px 0 rgba(255, 250, 224, 0.4);
   pointer-events: none;
+  z-index: 2;
 }
 
 .pedestalCrown {
+  position: relative;
+  z-index: 2;
   padding: 2px 9px;
   border-radius: 999px;
   background: linear-gradient(180deg, #ffe573, #e69210);
@@ -524,6 +691,8 @@
 }
 
 .pedestalLootIcons {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-wrap: wrap;
   justify-content: center;
@@ -536,11 +705,20 @@
   gap: 5px;
   padding: 3px 8px 3px 5px;
   border-radius: 10px;
-  background: rgba(12, 18, 16, 0.82);
-  border: 1px solid rgba(255, 207, 64, 0.42);
+  background: rgba(12, 18, 16, 0.86);
+  border: 1px solid rgba(255, 207, 64, 0.46);
   color: #fff6d2;
   font-size: 11px;
   font-weight: 900;
+}
+
+.decorOn .pedestalLootItem img {
+  animation: pedestalIconBob 3.2s ease-in-out infinite;
+}
+
+@keyframes pedestalIconBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-2.5px); }
 }
 
 /* ═══ 3. CONSOLE INSPECTEUR + BILLET + CTA ═══ */
@@ -560,12 +738,17 @@
 
 /* Inspecteur de table */
 .inspectorCard {
-  display: grid;
-  gap: 8px;
+  position: relative;
   padding: 11px 13px;
   border-radius: 16px;
   border: 1px solid rgba(255, 212, 92, 0.28);
   background: linear-gradient(160deg, rgba(16, 30, 25, 0.92), rgba(10, 17, 15, 0.95));
+  overflow: hidden;
+}
+
+.inspectorInner {
+  display: grid;
+  gap: 8px;
 }
 
 .inspectorTop {
@@ -889,6 +1072,11 @@
   place-items: center;
   font-size: 17px;
   font-weight: 900;
+  transition: transform 160ms cubic-bezier(0.22, 1.2, 0.36, 1);
+}
+
+.actionCta:hover:not(:disabled) .ctaArrow {
+  transform: translateX(3px);
 }
 
 /* Fallback / Auth */
@@ -1005,6 +1193,17 @@
     );
   }
 
+  .goldenWireLit {
+    background: linear-gradient(180deg, #4df5d8, #ffcf40);
+  }
+
+  .decorOn .goldenWireLit::after {
+    width: 100%;
+    height: 9px;
+    background: linear-gradient(180deg, transparent, #ffffff, transparent);
+    animation: wirePulseV 1.8s linear infinite;
+  }
+
   .laneLeft .goldenWire {
     transform: rotate(-42deg);
   }
@@ -1026,8 +1225,16 @@
 
   .inspectorCard {
     padding: 15px 16px;
+  }
+
+  .inspectorInner {
     gap: 11px;
   }
+}
+
+@keyframes wirePulseV {
+  0% { transform: translateY(-10px); }
+  100% { transform: translateY(22px); }
 }
 
 @media (max-width: 520px) {
@@ -1037,4 +1244,21 @@
   .tableNodeBtn { width: 112px; padding: 8px 6px 7px; }
   .miniTableShell { width: 78px; height: 46px; }
   .actionCta { min-height: 48px; }
+  .detailCountdown { flex-basis: 100%; max-width: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .decorOn .lifeGemOn,
+  .decorOn .mapVignette,
+  .decorOn .mapSpark,
+  .decorOn .currentBeacon,
+  .decorOn .nodeBoss .miniTableShell,
+  .decorOn .nextBadge,
+  .decorOn .goldenWireLit::after,
+  .decorOn .pedestalRays,
+  .decorOn .pedestalSheen,
+  .decorOn .pedestalLootItem img,
+  .ctaSheen {
+    animation: none !important;
+  }
 }

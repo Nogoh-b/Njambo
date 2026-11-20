@@ -51,7 +51,7 @@ const SCENE_TRANSITION_MS = MOTION_DURATION_MS.navigation;
    ResultScreen s'affiche en overlay plein écran quand un résultat est prêt. */
 
 function SceneRouter() {
-  const { scene, navigateTo, endTransition, profile, setProfile, cfg } = useGame();
+  const { scene, navigateTo, registerBackInterceptor, endTransition, profile, setProfile, cfg } = useGame();
   const { animationsOn } = useSettings();
   const motionProfile = useMotionProfile();
   const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, leaveRoom } = useLobby();
@@ -73,8 +73,10 @@ function SceneRouter() {
   const [eventRequiredPlayers, setEventRequiredPlayers] = useState<number>(4);
   /* True quand une session de jeu est active (table montée) */
   const [gameActive, setGameActive] = useState(false);
-  /* Ref vers nextRound de TableScreen pour le bouton "manche suivante" */
+  /* Ref vers nextRound / back de TableScreen & ResultScreen */
   const nextRoundRef = useRef<(() => void) | null>(null);
+  const tableBackRef = useRef<(() => "stay" | "handled") | null>(null);
+  const resultBackRef = useRef<(() => boolean) | null>(null);
   const tableEntryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* Dérivés du lobby (partagés via LobbyContext) */
@@ -199,8 +201,41 @@ function SceneRouter() {
     // contaminait la partie suivante (roomId injecté dans une table bot) et
     // ré-armait l'affordance « Reprendre ».
     if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
-    navigateTo("menu");
+    navigateTo("menu", { replace: true });
   }, [navigateTo, currentRoom, leaveRoom, refreshActiveRoomHint]);
+
+  /* Interception propre du bouton Retour navigateur (Chrome/Safari/Android) :
+     - Sur ResultScreen / Revanche : revient au résultat puis quitte proprement.
+     - Sur TableScreen en cours : ferme une modale ou ouvre « Quitter la partie ? »
+       au lieu d'abandonner brutalement la page.
+     - Sur LobbyScreen : quitte proprement la salle Firestore avant de reculer. */
+  useEffect(() => {
+    registerBackInterceptor(() => {
+      if (gameResult) {
+        const stayedOnResult = resultBackRef.current?.() ?? false;
+        return stayedOnResult ? "stay" : "handled";
+      }
+      if (gameActive || scene === "table") {
+        if (eventMatchmaking) return "stay";
+        return tableBackRef.current?.() ?? "stay";
+      }
+      if (scene === "lobby") {
+        if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
+        return false;
+      }
+      return false;
+    });
+    return () => registerBackInterceptor(null);
+  }, [
+    currentRoom,
+    eventMatchmaking,
+    gameActive,
+    gameResult,
+    leaveRoom,
+    refreshActiveRoomHint,
+    registerBackInterceptor,
+    scene,
+  ]);
 
   /* Rendu de la scène courante (hors table/result, gérés séparément en overlay). */
   const renderScene = (): ReactNode => {
@@ -280,6 +315,7 @@ function SceneRouter() {
           }}
           onMenu={handleMenu}
           onNextRoundRef={nextRoundRef}
+          onBackRequestRef={tableBackRef}
           paused={Boolean(gameResult)}
         />
       )}
@@ -310,6 +346,7 @@ function SceneRouter() {
           onMenu={handleMenu}
           canNext={!!profile && profile.balance >= gameMise}
           nextRequiresConsensus={gameMode === "online" || gameMode === "friends"}
+          onBackRequestRef={resultBackRef}
         />
       )}
       <PerformanceHud />
