@@ -15,7 +15,7 @@
 | 3 | Notifications programmées (campagnes) | ✅ Code terminé — à valider en prod |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ✅ Code terminé — à valider en prod |
 | 5 | Cosmétiques (récompenses exclusives) | ✅ Code terminé — à valider en prod |
-| 6 | Saison (passe gratuit + premium XAF) | 🟡 En cours |
+| 6 | Saison (passe gratuit + premium XAF) | ✅ Code terminé — à valider en prod (paiement réel à brancher) |
 | 7 | Défis entre amis | ⬜ À faire |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
@@ -555,8 +555,8 @@ les équiper depuis le profil ; vérifier qu'un autre joueur les voit à la tabl
 - [x] Commande `claimSeasonTier` (gratuit / premium)
 - [x] Achat premium : offre `season_premium` dans le flux de paiement existant ; à `paid` → `premium = true` (paliers déjà atteints réclamables)
 - [ ] ⚠️ **Dépendance** : les fournisseurs de paiement sont aujourd'hui **simulés** (`functions/src/payments/providers.ts`). Le premium XAF réel nécessite les adaptateurs MTN MoMo / Orange Money (hors de ce plan, à planifier)
-- [ ] Écran **Saison** : piste de paliers, gratuit/premium, bouton d'achat
-- [ ] Admin : éditeur de saison (dates, paliers, récompenses, prix XAF) + stats (joueurs, premium vendus)
+- [x] Écran **Saison** : piste de paliers, gratuit/premium, bouton d'achat
+- [x] Admin : éditeur de saison (dates, paliers, récompenses, prix XAF) + stats (joueurs, premium vendus)
 - [x] Fin de saison : paliers réclamables pendant `claimGraceDays` jours (7 par défaut, réglable par saison), puis perdus
 
 **Critère de fin** : jouer des tables d'événement fait monter la saison ;
@@ -595,6 +595,22 @@ inconnu de la compilation du back → remplacé par un chemin relatif.
 
 Test `server/scripts/smoke-seasons.cjs` (Postgres jetable, vraies parties,
 paiement simulé) — 14/14.
+
+### Client — implémenté
+
+| Élément | Où | Détail |
+| --- | --- | --- |
+| Écran Saison | `components/scenes/SeasonScreen.tsx` (scène `season`) | Bannière (image de la saison), compte à rebours ou date limite de réclamation, points + barre vers le palier suivant, carte **Passe premium** (achat XAF, simulé), piste **Gratuit / Premium 👑** : « Récupérer » (vert) / « ✓ Récupéré » / 🔒 ; plusieurs saisons → sélecteur. Affichage séparé (`SeasonPassBody`) des données (`hooks/useSeasons.ts`) |
+| Accès | `EventsScreen.tsx` | Bandeau violet « Passe de saison · titre · points · palier · à récupérer ! » en haut des événements |
+| Points visibles | Inspecteur de table, overlay de conséquences | « 🏵️ +25 pts de saison » sur les tables qui en rapportent, et après une table gagnée (`run.lastSeasonPoints`) |
+| Admin | `components/admin/SeasonsAdmin.tsx` + onglet Général de l'événement | Liste (statut, période, prix) ; éditeur (dates, prix XAF, délai de réclamation, bannière, publication, paliers gratuit / premium avec `RewardPicker`, validation en direct) ; stats (joueurs, passes premium, revenus, points moyens, atteints / réclamés par palier) ; sélecteur « Saison rattachée » dans l'événement |
+
+![Saison](captures/phase6/saison.webp)
+
+**À valider en production** : créer une saison publiée avec 3-4 paliers,
+la rattacher à un événement dont les tables donnent des points, gagner une
+table, réclamer un palier, acheter le premium (simulé) et réclamer la
+colonne dorée.
 
 ---
 
@@ -645,3 +661,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 4 | Client : offre de rachat (overlay + bouton principal avec minuteur, gemme qui se reforme), variante « Parcours parfait », étiquettes de règles, intro du boss, KPI admin. **Phase 4 : code terminé.** |
 | 2026-11-20 | 5 | Cosmétiques : domaine + récompense `cosmetic` (doublon → cauris), catalogue admin, collection et équipement, affichage table / classement / profil, dos de carte ; réparation de `globals.css` tronqué ; intégration 10/10. **Phase 5 : code terminé.** |
 | 2026-11-20 | 6 | Serveur des saisons : règles + 5 tests, points au règlement des tables, réclamation des paliers, premium via le flux de paiement (achat, remboursement), commandes admin et stats ; correctif d'import du back ; intégration 14/14. |
+| 2026-11-20 | 6 | Client : écran Saison (paliers gratuit / premium, achat du passe), bandeau d'accès dans les événements, points de saison dans l'inspecteur et l'overlay, admin Saisons + rattachement d'un événement. **Phase 6 : code terminé** (paiement réel MTN / Orange à brancher). |
