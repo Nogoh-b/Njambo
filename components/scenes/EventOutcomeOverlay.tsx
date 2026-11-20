@@ -24,9 +24,11 @@ interface Props {
   onContinue?: () => void;
   /** Classement actif : rang après la partie (chargé en différé) et rang avant. */
   ranking?: { rank: number | null; previousRank: number | null };
+  /** Éliminé avec rachat possible (phase 4). */
+  revive?: { price: number; clock: string; remaining: number; affordable: boolean; busy: boolean; onRevive: () => void };
 }
 
-export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue, ranking }: Props) {
+export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue, ranking, revive }: Props) {
   const panelRef = useRef<HTMLDivElement>(null);
   const total = event.stages.length;
   const livesLeft = Math.max(0, event.allowedLosses - outcome.losses);
@@ -50,7 +52,12 @@ export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue,
           cta: "Table suivante",
         };
       case "completed":
-        return {
+        return outcome.perfect ? {
+          kicker: `${event.title} · ${total} / ${total} · sans perdre une vie`,
+          title: "Parcours parfait !",
+          body: "Aucune vie perdue : le bonus des légendes est pour toi.",
+          cta: null,
+        } : {
           kicker: `${event.title} · ${total} / ${total}`,
           title: "Grand prix !",
           body: "Tu as traversé toutes les tables du parcours.",
@@ -67,7 +74,9 @@ export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue,
         return {
           kicker: `${event.title}`,
           title: "Éliminé",
-          body: `Plus aucune vie : ton parcours s’arrête à la table ${outcome.stageIndex + 1} / ${total}.`,
+          body: revive
+            ? `Plus aucune vie à la table ${outcome.stageIndex + 1} / ${total}… mais tu peux encore sauver ton parcours.`
+            : `Plus aucune vie : ton parcours s’arrête à la table ${outcome.stageIndex + 1} / ${total}.`,
           cta: null,
         };
     }
@@ -175,14 +184,27 @@ export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue,
           </ul>
         )}
 
+        {revive && outcome.kind === "eliminated" && (
+          <div className={styles.reviveBox}>
+            <button type="button" data-nj-skin="none" className={styles.reviveBtn} disabled={revive.busy} onClick={revive.onRevive}>
+              <span className={styles.reviveGem} aria-hidden="true">♦</span>
+              <span>
+                <strong>{revive.busy ? "Rachat…" : `Continuer · ${revive.price} cauris`}</strong>
+                <small>{revive.affordable ? `Une vie rendue · encore ${revive.clock}` : `Pas assez de cauris · encore ${revive.clock}`}</small>
+              </span>
+            </button>
+            <span className={styles.reviveNote}>{revive.remaining} rachat{revive.remaining > 1 ? "s" : ""} possible{revive.remaining > 1 ? "s" : ""} sur ce parcours</span>
+          </div>
+        )}
+
         <div className={styles.actions}>
           {copy.cta && onContinue && (
             <button type="button" data-nj-skin="none" className={styles.primary} onClick={onContinue}>
               {copy.cta} <span aria-hidden="true">→</span>
             </button>
           )}
-          <button type="button" data-nj-skin="none" className={copy.cta && onContinue ? styles.secondary : styles.primary} onClick={onClose}>
-            {outcome.kind === "completed" ? "Récupérer" : copy.cta && onContinue ? "Plus tard" : "Voir le parcours"}
+          <button type="button" data-nj-skin="none" className={(copy.cta && onContinue) || revive ? styles.secondary : styles.primary} onClick={onClose}>
+            {outcome.kind === "completed" ? "Récupérer" : copy.cta && onContinue ? "Plus tard" : revive ? "Abandonner le parcours" : "Voir le parcours"}
           </button>
         </div>
       </div>

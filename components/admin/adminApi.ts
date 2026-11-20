@@ -40,6 +40,9 @@ export interface AdminEventStats {
   eliminated: number;
   completed: number;
   abandoned: number;
+  revives: number;
+  reviveCauris: number;
+  perfect: number;
   byStatus: Record<string, number>;
   funnel: number[];
 }

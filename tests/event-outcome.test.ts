@@ -42,3 +42,13 @@ describe("points de classement dans les conséquences", () => {
     expect(outcome && "pointsGained" in outcome).toBe(false);
   });
 });
+
+describe("parcours parfait dans les conséquences", () => {
+  it("ajoute le bonus parfait et marque la variante", () => {
+    const event = { ...mboa, perfectRun: { reward: [{ type: "cauris" as const, amount: 33 }] } };
+    const last = event.stages.length - 1;
+    const outcome = resolveEventOutcome(event, { stageIndex: last, losses: 0 }, { status: "completed", stageIndex: last, losses: 0, perfect: true });
+    expect(outcome).toMatchObject({ kind: "completed", perfect: true });
+    expect(outcome && "rewards" in outcome ? outcome.rewards.at(-1) : null).toEqual({ type: "cauris", amount: 33 });
+  });
+});

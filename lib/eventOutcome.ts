@@ -14,12 +14,13 @@ export interface EventRunAfter {
   stageIndex: number;
   losses: number;
   score?: number;
+  perfect?: boolean;
   versionSnapshot?: EventVersion;
 }
 
 export type EventOutcome =
   | { kind: "advance"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number }
-  | { kind: "completed"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number }
+  | { kind: "completed"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number; perfect?: boolean }
   | { kind: "life_lost"; stageIndex: number; losses: number }
   | { kind: "eliminated"; stageIndex: number; losses: number };
 
@@ -43,8 +44,9 @@ export function resolveEventOutcome(
       kind: "completed",
       stageIndex,
       losses,
-      rewards: [...(last?.reward ?? []), ...version.finalReward],
+      rewards: [...(last?.reward ?? []), ...version.finalReward, ...(after.perfect ? version.perfectRun?.reward ?? [] : [])],
       ...points,
+      ...(after.perfect ? { perfect: true } : {}),
     };
   }
   if (after.status === "eliminated" && losses > before.losses) {

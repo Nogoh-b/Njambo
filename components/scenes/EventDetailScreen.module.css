@@ -1136,3 +1136,31 @@
 @media (prefers-reduced-motion: reduce) {
   .lifeGemBreaking, .nodeJustUnlocked .miniTableShell, .nodeJustUnlocked::after, .goldenWireIgnite { animation: none; }
 }
+
+/* Gemme qui se reforme après un rachat de vie (phase 4). */
+.lifeGemReviving {
+  display: inline-block;
+  animation: hudGemReform 1400ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
+}
+
+@keyframes hudGemReform {
+  0% { transform: scale(0.2) rotate(-40deg); opacity: 0; color: #5fe3a1; }
+  55% { transform: scale(1.9) rotate(8deg); opacity: 1; color: #5fe3a1; text-shadow: 0 0 16px rgba(95, 227, 161, 1); }
+  100% { transform: scale(1) rotate(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lifeGemReviving { animation: none; }
+}
+
+/* Règles spéciales de la table (phase 4). */
+.specRule {
+  border-color: rgba(255, 140, 90, 0.55);
+  color: #ffd2bd;
+}
+.specBoss {
+  border-color: rgba(255, 79, 109, 0.7);
+  background: rgba(120, 14, 30, 0.55);
+  color: #ffe3e8;
+  font-weight: 900;
+}

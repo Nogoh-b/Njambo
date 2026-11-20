@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSfx } from "@gxe/react";
-import { type EventStage, type EventVersion } from "@/domain";
+import { canRevive, normalizeEventVersion, type EventStage, type EventVersion } from "@/domain";
 import { TICKET_ART, rewardVisual } from "@/lib/eventRewards";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
@@ -18,6 +18,7 @@ import { eventArt } from "@/lib/eventArt";
 import { eventCountdown } from "@/lib/eventCountdown";
 import { useEventLeaderboard } from "@/hooks/useEventLeaderboard";
 import { EventLeaderboardPanel } from "./EventLeaderboardPanel";
+import { EventBossIntro } from "./EventBossIntro";
 import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
 import { EventOutcomeOverlay, resolveEventOutcome, type EventOutcome } from "./EventOutcomeOverlay";
 import styles from "./EventDetailScreen.module.css";
@@ -60,7 +61,7 @@ export function EventDetailScreen({
   const { navigateTo, eventDetailId, eventReturn, setEventReturn } = useGame();
   const gxeSfx = useSfx();
   const { user } = useAuth();
-  const { inventory, loading: economyLoading, command } = useEconomy();
+  const { economy, inventory, loading: economyLoading, command, refresh: refreshEconomy } = useEconomy();
   const { events, loading: contentLoading, error: contentError } = useLiveOpsContent();
   const { runs, error: runsError } = usePlayerEventRuns(
     user && !user.isAnonymous ? user.uid : undefined,
@@ -74,6 +75,9 @@ export function EventDetailScreen({
   const [selectedStageIndex, setSelectedStageIndex] = useState<number>(0);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [boardView, setBoardView] = useState<"path" | "ranking">("path");
+  /** Gemme qui se reforme après un rachat de vie (phase 4). */
+  const [revivedGemIndex, setRevivedGemIndex] = useState<number | null>(null);
+  const [bossIntro, setBossIntro] = useState<{ stage: EventStage; start: () => void } | null>(null);
   const [leaderboardRefresh, setLeaderboardRefresh] = useState(0);
 
   useEffect(() => {
@@ -106,6 +110,14 @@ export function EventDetailScreen({
       ?? mine.find((candidate) => candidate.status === "eliminated" || candidate.status === "completed")
     );
   }, [event, runs, preview]);
+
+  /* Compte à rebours du rachat de vie : rafraîchi chaque seconde tant qu'il court. */
+  const eliminatedAt = run?.status === "eliminated" ? run.eliminatedAt ?? null : null;
+  useEffect(() => {
+    if (!eliminatedAt) return;
+    const timer = window.setInterval(() => setNow(Date.now()), 1_000);
+    return () => window.clearInterval(timer);
+  }, [eliminatedAt]);
 
   /* ── Conséquences de la dernière partie ──────────────────────────────
      eventReturn = photo du run prise avant la partie. Dès que le run à jour
@@ -172,6 +184,12 @@ export function EventDetailScreen({
 
   const isGuest = !user || user.isAnonymous;
 
+  /** Table de boss : présentation du boss, puis entrée à la table. */
+  const withBossIntro = (stage: EventStage | undefined, start: () => void) => {
+    if (stage?.boss) setBossIntro({ stage, start });
+    else start();
+  };
+
   useEffect(() => {
     if (!isGuest && authModalOpen) setAuthModalOpen(false);
   }, [isGuest, authModalOpen]);
@@ -213,12 +231,12 @@ export function EventDetailScreen({
       });
       const stage0 = event.stages[0];
       rememberRunBeforeMatch(result.runId, 0, 0);
-      onStart?.(
+      withBossIntro(stage0, () => onStart?.(
         result.runId,
         event.mode,
         event.eventId,
         stage0 ? { title: stage0.title, playerCount: stage0.playerCount } : undefined,
-      );
+      ));
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : "";
       const missingTicket = /ticket|insufficient/i.test(reason);
@@ -246,18 +264,22 @@ export function EventDetailScreen({
       setAuthModalOpen(true);
       return;
     }
+    if (reviveOk) {
+      void reviveRun();
+      return;
+    }
     if (hasActiveRun && run) {
       /* « matchmaking » = le run attend une table PvP : on (re)lance la
          recherche — startMatch remet le joueur dans la file de l'étape.
          Aucun ticket n'est redemandé tant que le parcours n'est pas fini. */
       const stage = event.stages[run.stageIndex] ?? event.stages[0];
       rememberRunBeforeMatch(run.id, run.stageIndex, run.losses, Number(run.score ?? 0));
-      onStart?.(
+      withBossIntro(stage, () => onStart?.(
         run.id,
         event.mode,
         event.eventId,
         stage ? { title: stage.title, playerCount: stage.playerCount } : undefined,
-      );
+      ));
       return;
     }
     if (!hasTicket) {
@@ -315,6 +337,44 @@ export function EventDetailScreen({
   const activeStageIndex = run?.status === "eliminated" ? -1 : (run?.stageIndex ?? 0);
   const runCompleted = run?.status === "completed";
 
+  /* Sauver une vie (phase 4) : règles du parcours (version figée à l'inscription). */
+  const runVersion = run?.versionSnapshot ? normalizeEventVersion(run.versionSnapshot) : event;
+  const reviveCheck = run && !preview ? canRevive(run, runVersion.revive, now) : null;
+  const reviveOk = Boolean(reviveCheck?.ok) && availability === "active" && !isGuest;
+  const caurisBalance = economy?.cauris ?? 0;
+  const reviveCountdown = reviveCheck?.ok ? Math.max(0, reviveCheck.expiresAt - now) : 0;
+  const reviveClock = `${Math.floor(reviveCountdown / 60_000)}:${String(Math.floor((reviveCountdown % 60_000) / 1000)).padStart(2, "0")}`;
+
+  const reviveRun = async () => {
+    if (!run || !reviveCheck?.ok) return;
+    if (caurisBalance < reviveCheck.price) {
+      setMessage({ severity: "warning", text: `Il te faut ${reviveCheck.price} cauris pour sauver une vie.` });
+      navigateTo("shop");
+      return;
+    }
+    setBusy(true);
+    setMessage(null);
+    try {
+      await command("reviveEventRun", { runId: run.id });
+      setOutcome(null);
+      setRevivedGemIndex(Math.max(0, event.allowedLosses - run.losses));
+      window.setTimeout(() => setRevivedGemIndex(null), 1_800);
+      setMessage({ severity: "success", text: `Une vie sauvée pour ${reviveCheck.price} cauris — ton parcours continue !` });
+      void refreshEconomy();
+    } catch (cause) {
+      const reason = cause instanceof Error ? cause.message : "";
+      setMessage({
+        severity: "error",
+        text: /WINDOW/.test(reason) ? "Trop tard : le délai pour sauver une vie est passé."
+          : /LIMIT/.test(reason) ? "Tu as déjà utilisé tous les rachats de ce parcours."
+          : /CAURIS/.test(reason) ? "Pas assez de cauris."
+          : "Le rachat a échoué. Réessaie dans un instant.",
+      });
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const stageState = (idx: number): StageState => {
     if (!run) return idx === 0 ? "current" : "locked";
     if (runCompleted) return "completed";
@@ -334,6 +394,12 @@ export function EventDetailScreen({
     if (availability === "upcoming") return { title: "BIENTÔT OUVERT", sub: eventDates(event) };
     if (availability === "ended") return { title: "ÉVÉNEMENT TERMINÉ", sub: "Rendez-vous au prochain tournoi" };
     if (isGuest) return { title: "SE CONNECTER", sub: "Sauvegarde ton parcours et utilise tes tickets" };
+    if (reviveOk && reviveCheck) {
+      return {
+        title: `SAUVER UNE VIE · ${reviveCheck.price} CAURIS`,
+        sub: `Encore ${reviveClock} · ${reviveCheck.remaining} rachat${reviveCheck.remaining > 1 ? "s" : ""} possible${reviveCheck.remaining > 1 ? "s" : ""}`,
+      };
+    }
     if (hasActiveRun && run) {
       const lives = `${lossesLeft} vie${lossesLeft > 1 ? "s" : ""} restante${lossesLeft > 1 ? "s" : ""}`;
       return {
@@ -369,7 +435,7 @@ export function EventDetailScreen({
     busy ||
     Boolean(outcome) ||
     availability !== "active" ||
-    (!isGuest && hasTicket && !canEnter);
+    (!isGuest && hasTicket && !canEnter && !reviveOk);
 
   const themeClass = isPvp ? styles.themeTeal : styles.themeGold;
   const mapBgStyle = { "--event-art": `url(${art})` } as CSSProperties;
@@ -408,7 +474,7 @@ export function EventDetailScreen({
             {Array.from({ length: event.allowedLosses }, (_, i) => (
               <span
                 key={i}
-                className={`${styles.lifeGem}${i < lossesLeft ? ` ${styles.lifeGemOn}` : ` ${styles.lifeGemOff}`}${i === breakingLifeIndex ? ` ${styles.lifeGemBreaking}` : ""}`}
+                className={`${styles.lifeGem}${i < lossesLeft ? ` ${styles.lifeGemOn}` : ` ${styles.lifeGemOff}`}${i === breakingLifeIndex ? ` ${styles.lifeGemBreaking}` : ""}${i === revivedGemIndex ? ` ${styles.lifeGemReviving}` : ""}`}
                 aria-hidden="true"
               >
                 ♦
@@ -484,7 +550,7 @@ export function EventDetailScreen({
                 const state = stageState(idx);
                 const selected = idx === inspectedIndex;
                 const diff = DIFFICULTY_META[stage.difficulty];
-                const isBoss = idx === event.stages.length - 1;
+                const isBoss = Boolean(stage.boss) || idx === event.stages.length - 1;
                 const laneClass = idx % 2 === 0 ? styles.laneLeft : styles.laneRight;
                 const firstReward = stage.reward[0] ? rewardVisual(stage.reward[0]) : null;
 
@@ -616,11 +682,23 @@ export function EventDetailScreen({
                 </span>
               )}
 
-              {inspectedStage.powersAllowed && (
+              {inspectedStage.powersAllowed && !inspectedStage.modifiers.includes("no_powers") && (
                 <span className={styles.specPill}>
                   <NjamboIcon name="sparkle" tone="cobalt" size={14} />
                   <span>Pouvoirs</span>
                 </span>
+              )}
+              {(inspectedStage.modifiers.includes("no_powers") || !inspectedStage.powersAllowed) && (
+                <span className={`${styles.specPill} ${styles.specRule}`}>🚫 Sans pouvoirs</span>
+              )}
+              {inspectedStage.modifiers.includes("double_stake") && (
+                <span className={`${styles.specPill} ${styles.specRule}`}>×2 Mise doublée</span>
+              )}
+              {inspectedStage.modifiers.includes("turn_timer") && (
+                <span className={`${styles.specPill} ${styles.specRule}`}>⏱ {inspectedStage.turnTimerSeconds ?? 15} s par tour</span>
+              )}
+              {inspectedStage.boss && (
+                <span className={`${styles.specPill} ${styles.specBoss}`}>👑 Boss : {inspectedStage.boss.name}</span>
               )}
             </div>
 
@@ -724,12 +802,27 @@ export function EventDetailScreen({
         </section>
       </div>
 
+      {bossIntro && (
+        <EventBossIntro
+          stage={bossIntro.stage}
+          onDone={() => { const start = bossIntro.start; setBossIntro(null); start(); }}
+        />
+      )}
+
       {outcome && (
         <EventOutcomeOverlay
           outcome={outcome}
           event={event}
           tone={isPvp ? "teal" : "gold"}
           ranking={rankingEnabled ? { rank: leaderboard?.me?.rank ?? null, previousRank: rankBefore } : undefined}
+          revive={outcome.kind === "eliminated" && reviveOk && reviveCheck ? {
+            price: reviveCheck.price,
+            clock: reviveClock,
+            remaining: reviveCheck.remaining,
+            affordable: caurisBalance >= reviveCheck.price,
+            busy,
+            onRevive: () => void reviveRun(),
+          } : undefined}
           onClose={() => setOutcome(null)}
           onContinue={outcome.kind === "advance" || outcome.kind === "life_lost"
             ? () => { setOutcome(null); handlePrimaryAction(); }

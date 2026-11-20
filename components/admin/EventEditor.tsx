@@ -539,6 +539,9 @@ function StatsTab({ eventId, stages }: { eventId: string; stages: EventStage[] }
         <div className={styles.kpi}><span>Éliminés</span><strong>{stats.eliminated}</strong></div>
         <div className={styles.kpi}><span>Grand prix</span><strong>{stats.completed}</strong></div>
         <div className={styles.kpi}><span>Abandons</span><strong>{stats.abandoned}</strong></div>
+        <div className={styles.kpi}><span>Parcours parfaits</span><strong>{stats.perfect ?? 0}</strong></div>
+        <div className={styles.kpi}><span>Vies rachetées</span><strong>{stats.revives ?? 0}</strong></div>
+        <div className={styles.kpi}><span>Cauris des rachats</span><strong>{stats.reviveCauris ?? 0}</strong></div>
       </div>
       <h3>Entonnoir : parcours ayant atteint chaque table</h3>
       {stats.runs === 0 ? <p className={styles.hint}>Aucun parcours pour l’instant.</p> : (

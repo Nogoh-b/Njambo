@@ -13,7 +13,7 @@
 | 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | ✅ Code terminé — à valider en prod |
 | 2 | Classement + récompenses par rang + compte à rebours | ✅ Code terminé — à valider en prod |
 | 3 | Notifications programmées (campagnes) | ✅ Code terminé — à valider en prod |
-| 4 | Sauver une vie, parcours parfait, modificateurs & boss | 🟡 En cours |
+| 4 | Sauver une vie, parcours parfait, modificateurs & boss | ✅ Code terminé — à valider en prod |
 | 5 | Cosmétiques (récompenses exclusives) | ⬜ À faire |
 | 6 | Saison (passe gratuit + premium XAF) | ⬜ À faire |
 | 7 | Défis entre amis | ⬜ À faire |
@@ -398,19 +398,19 @@ service account du VPS ait le droit Firebase Cloud Messaging.
 - [x] `domain/` : `revivePrice(revivesUsed, config)` + `canRevive(run, now, config)` + tests
 - [x] À l'élimination : `eliminatedAt` sur le run
 - [x] Commande `reviveEventRun` : run éliminé, dans la fenêtre, sous le max → débit cauris, `losses - 1`, statut jouable, `revivesUsed + 1`, ledger
-- [ ] Overlay « Éliminé » : bouton « Continuer · X cauris » + minuteur ; animation de gemme qui se reforme
+- [x] Overlay « Éliminé » : bouton « Continuer · X cauris » + minuteur ; animation de gemme qui se reforme
 - [x] Stats admin : rachats, cauris dépensés
 
 ### Parcours parfait
 - [x] À la complétion avec `losses === 0` (et aucune vie rachetée) : `perfectRun.reward` + `run.perfect = true` — badge cosmétique : phase 5
-- [ ] Overlay « Grand prix » : variante « Parcours parfait »
-- [ ] Badge visible sur le profil (après phase 5)
+- [x] Overlay « Grand prix » : variante « Parcours parfait »
+- [ ] Badge visible sur le profil (après phase 5) — reporté en phase 5
 
 ### Modificateurs & boss
 - [x] Moteur des bots serveur : paramètre de **niveau** (aujourd'hui seulement côté local)
 - [x] `startMatch` applique `modifiers` (pouvoirs interdits, mise ×2, minuteur de tour) et le profil du boss (nom, avatar, niveau)
 - [x] Minuteur de tour côté serveur (coup automatique à expiration) si `turn_timer`
-- [ ] Client : étiquettes de modificateurs sur les tables + présentation « Boss » à l'entrée de table
+- [x] Client : étiquettes de modificateurs sur les tables + présentation « Boss » à l'entrée de table
 - [x] Admin : édition des modificateurs et du boss par table (avatar via upload)
 
 **Critère de fin** : un joueur éliminé peut racheter une vie en cauris dans
@@ -452,6 +452,27 @@ parties) — 16/16 : mise ×2, pouvoirs vidés et refusés, minuteur 8 s, boss
 en IA difficile, bonus parfait, `eliminatedAt`, rachats à 20 puis 40,
 refus (en jeu, maximum, fenêtre, cauris insuffisants), stats. Les tests
 des phases 1-3 repassent (20, 11, 13, 15).
+
+### Client — implémenté
+
+| Élément | Où | Détail |
+| --- | --- | --- |
+| Offre de rachat | `EventOutcomeOverlay.tsx` (overlay « Éliminé ») | Bouton vert « Continuer · 20 cauris », minuteur `m:ss` (tic chaque seconde), rachats restants ; « Abandonner le parcours » en second |
+| Rachat depuis l'écran | `EventDetailScreen.tsx` | Tant que la fenêtre est ouverte, le gros bouton devient « SAUVER UNE VIE · X CAURIS — Encore 9:42 » ; sans assez de cauris → boutique ; messages d'erreur clairs ; la **gemme se reforme** dans le HUD (animation verte) |
+| Parcours parfait | `lib/eventOutcome.ts`, overlay | Variante « Parcours parfait ! » avec le bonus dans les gains |
+| Règles de table | Inspecteur de table | Étiquettes « 🚫 Sans pouvoirs », « ×2 Mise doublée », « ⏱ 8 s par tour », « 👑 Boss : nom » ; la table du boss porte la couronne sur le plateau |
+| Intro du boss | `EventBossIntro.tsx` | Flash, avatar (upload admin ou 👑), nom, niveau en étoiles (Apprenti → Légende), 2,4 s ou toucher, puis entrée à la table |
+| Admin | Onglet Statistiques | KPI parcours parfaits, vies rachetées, cauris des rachats |
+
+![Rachat](captures/phase4/elim.webp)
+![Parcours parfait](captures/phase4/perfect.webp)
+![Boss](captures/phase4/boss.webp)
+![Règles de table](captures/phase4/detail.webp)
+
+**À valider en production** : créer une table avec boss niveau 5,
+« sans pouvoirs », « mise ×2 » et un minuteur de 8 s ; activer le rachat
+(20 / 40 cauris) ; se faire éliminer et racheter une vie ; finir un
+parcours sans perdre de vie pour voir le bonus parfait.
 
 ---
 
@@ -541,3 +562,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 3 | Serveur des campagnes : planification pure (3 tests), synchronisation à l'activation d'une révision, envoi par pages avec reprise, ciblage, opt-out, nettoyage des jetons, campagnes libres ; test d'intégration 15/15. |
 | 2026-11-20 | 3 | Client : gestion des push dans le service worker (absente jusque-là), lien profond `/?event=`, interrupteur « Alertes d’événements » qui demande la permission et enregistre le jeton, section admin Notifications avec aperçu et historique. **Phase 3 : code terminé.** |
 | 2026-11-20 | 4 | Serveur : règles de table (mise ×2, pouvoirs interdits, minuteur, boss), IA des bots du jeu local sur les tables d'événement, `eliminatedAt`, commande `reviveEventRun`, bonus parcours parfait, stats de rachats ; 8 tests + intégration 16/16. |
+| 2026-11-20 | 4 | Client : offre de rachat (overlay + bouton principal avec minuteur, gemme qui se reforme), variante « Parcours parfait », étiquettes de règles, intro du boss, KPI admin. **Phase 4 : code terminé.** |

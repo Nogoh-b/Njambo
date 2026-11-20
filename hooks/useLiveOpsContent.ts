@@ -37,6 +37,10 @@ export interface PlayerEventRun {
   claimedRewardKeys?: string[];
   /** Score de classement du parcours (si le classement est actif). */
   score?: number;
+  /** Phase 4 : fenêtre de rachat, vies rachetées, parcours parfait. */
+  eliminatedAt?: number | null;
+  revivesUsed?: number;
+  perfect?: boolean;
   /** Copie de la version de l'événement au moment de l'inscription. */
   versionSnapshot?: EventVersion;
   createdAt?: number;
