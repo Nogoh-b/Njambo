@@ -40,6 +40,7 @@ import {
   adminGrantTicketHandler,
   adminResetEventRunHandler,
 } from "./playerAdminCommands";
+import { getEventLeaderboardHandler } from "./eventLeaderboardCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -58,6 +59,7 @@ import {
 export { refundCancelledMatch, refundExpiredEventQueues } from "./triggers";
 export { notifyFullEnergy } from "./notificationCommands";
 export { promoteScheduledEvents } from "./eventAdminCommands";
+export { settleEventRankings } from "./eventLeaderboardCommands";
 
 const callable = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true", consumeAppCheckToken: true } as const;
 
@@ -72,6 +74,7 @@ export const spinLoyaltyWheel = onCall(callable, spinLoyaltyWheelHandler);
 export const equipPowerCards = onCall(callable, equipPowerCardsHandler);
 export const joinEvent = onCall(callable, joinEventHandler);
 export const leaveEvent = onCall(callable, leaveEventHandler);
+export const getEventLeaderboard = onCall(callable, getEventLeaderboardHandler);
 export const createPaymentIntent = onCall(callable, createPaymentIntentHandler);
 export const verifyStorePurchase = onCall(callable, verifyStorePurchaseHandler);
 export const startMatch = onCall(callable, startMatchHandler);

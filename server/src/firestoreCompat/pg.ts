@@ -27,6 +27,7 @@ import type {
   DocumentReference,
   DocumentSnapshot,
   OrderDirection,
+  CountQuery,
   Query,
   QuerySnapshot,
   Transaction,
@@ -282,6 +283,17 @@ class PgQuery implements Query {
 
   limit(count: number): Query {
     return new PgQuery(this.store, this.parent, { ...this.constraints, limit: count });
+  }
+
+  count(): CountQuery {
+    return {
+      get: async () => {
+        const { sql, params } = buildQuerySql(this.parent, this.constraints);
+        const result = await this.store.pool.query(`SELECT count(*)::int AS n FROM (${sql}) AS counted`, params);
+        const count = Number(result.rows[0]?.n ?? 0);
+        return { data: () => ({ count }) };
+      },
+    };
   }
 
   async get(): Promise<QuerySnapshot> {

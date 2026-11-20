@@ -31,8 +31,14 @@ export interface QuerySnapshot {
   docChanges(): DocumentChange[];
 }
 
+/** Agrégat de comptage (même forme que firebase-admin : `.count().get()`). */
+export interface CountQuery {
+  get(): Promise<{ data(): { count: number } }>;
+}
+
 export interface Query {
   where(field: string, op: WhereOp, value: unknown): Query;
+  count(): CountQuery;
   orderBy(field: string, direction?: OrderDirection): Query;
   limit(count: number): Query;
   get(): Promise<QuerySnapshot>;

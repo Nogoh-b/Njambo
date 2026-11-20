@@ -1,6 +1,6 @@
 import { randomInt } from "node:crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
-import { crownWinGain, resolveEventProgress, splitCrownLoss, spendEnergy, type EnergyState, type Reward } from "../../domain";
+import { crownWinGain, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, type EnergyState, type EventLeaderboardEntry, type Reward } from "../../domain";
 import { applyReward, asObject, boundedNumber, db, economyFrom, integer, ledger, requireUid, requiredString, runIdempotent, stableId } from "./core";
 import type { DocumentReference, DocumentSnapshot, Transaction } from "./firestoreTypes";
 import { GAME_CONFIG } from "../../config/gameConfig";
@@ -473,6 +473,12 @@ export async function performGameAction(
       Promise.all(eventInventoryRefs.map((ref) => transaction.get(ref))),
       roomRef ? transaction.get(roomRef) : Promise.resolve(null),
     ]);
+    /* Lignes de classement des participants d'événement : lues ici car une
+       transaction lit tout avant d'écrire (mise à jour au règlement). */
+    const leaderboardRefs = eventRunSnaps.map((snap, index) => (snap.exists && realParticipants[index]
+      ? db.doc(`event_leaderboards/${String(snap.get("eventId"))}/entries/${realParticipants[index].uid}`)
+      : null));
+    const leaderboardSnaps = await Promise.all(leaderboardRefs.map((ref) => (ref ? transaction.get(ref) : Promise.resolve(null))));
     const eliminated = new Set<string>(match.eliminatedUids ?? []);
     const hands = new Map(participants.map((participant, index) => [
       participant.uid,
@@ -693,6 +699,39 @@ export async function performGameAction(
     /* Attaché après les blocs remboursement et couronnes, qui l'alimentent. */
     if (result) (result as Record<string, unknown>).settlement = [...settlementByUid.values()];
 
+    /* Classement (phase 2) : seul un gain de table change le score. Écrit la
+       ligne du joueur si ce parcours est son meilleur, et renvoie le score du
+       parcours à stocker sur le run (le client en déduit les points gagnés). */
+    const leaderboardUpdate = (index: number, progress: { stageIndex: number; status: string }, losses: number) => {
+      const runSnap = eventRunSnaps[index];
+      const ref = leaderboardRefs[index];
+      if (!runSnap?.exists || !ref) return {};
+      const version = normalizeEventVersion(runSnap.get("versionSnapshot"));
+      if (!version.leaderboard.enabled) return {};
+      const completed = progress.status === "completed";
+      const stagesWon = completed ? version.stages.length : progress.stageIndex;
+      const breakdown = scoreEventRun({ stagesWon, completed, losses, allowedLosses: version.allowedLosses }, version.leaderboard);
+      const uidForEntry = realParticipants[index].uid;
+      const candidate: EventLeaderboardEntry = {
+        uid: uidForEntry,
+        eventId: version.eventId || String(runSnap.get("eventId")),
+        runId: runSnap.id,
+        score: breakdown.total,
+        stagesWon,
+        livesLeft: Math.max(0, version.allowedLosses - losses),
+        perfect: completed && losses === 0,
+        completed,
+        durationMs: Math.max(0, now - Number(runSnap.get("createdAt") ?? now)),
+        reachedAt: now,
+        name: String(playerSnaps[index]?.get("name") ?? "Joueur"),
+        emoji: String(playerSnaps[index]?.get("emoji") ?? "🎴"),
+        updatedAt: now,
+      };
+      const existing = leaderboardSnaps[index]?.exists ? leaderboardSnaps[index]!.data() as EventLeaderboardEntry : null;
+      if (shouldReplaceEntry(existing, candidate)) transaction.set(ref, candidate, { merge: false });
+      return { score: breakdown.total, scoreBreakdown: breakdown };
+    };
+
     if (finished && eventRunSnaps.length > 0) {
       const winnerUid = participants[finalWinnerIndex].uid;
       realParticipants.forEach((participant, index) => {
@@ -741,6 +780,7 @@ export async function performGameAction(
           claimedRewardKeys: claimed,
           currentMatchId: null,
           completedAt: isFinal ? now : null,
+          ...leaderboardUpdate(index, progress, losses),
           updatedAt: now,
         });
         const runId = runIdsByUid[participant.uid];

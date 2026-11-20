@@ -36,6 +36,7 @@ import {
   adminGrantTicketHandler,
   adminResetEventRunHandler,
 } from "../../functions/src/playerAdminCommands";
+import { getEventLeaderboardHandler } from "../../functions/src/eventLeaderboardCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -66,6 +67,7 @@ export const commands: Record<string, Handler> = {
   equipPowerCards: equipPowerCardsHandler,
   joinEvent: joinEventHandler,
   leaveEvent: leaveEventHandler,
+  getEventLeaderboard: getEventLeaderboardHandler,
   createPaymentIntent: createPaymentIntentHandler,
   verifyStorePurchase: verifyStorePurchaseHandler,
   startMatch: startMatchHandler,

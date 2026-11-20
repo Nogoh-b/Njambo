@@ -3,6 +3,7 @@ import { db } from "../../functions/src/core";
 import { refundCancelledMatchImpl, refundExpiredEventQueuesImpl } from "../../functions/src/triggers";
 import { notifyFullEnergyImpl } from "../../functions/src/notificationCommands";
 import { promoteScheduledEventsImpl } from "../../functions/src/eventAdminCommands";
+import { settleEventRankingsImpl } from "../../functions/src/eventLeaderboardCommands";
 import { autoPlayExpiredMatchesImpl } from "../../functions/src/matchTimeouts";
 
 function watchCancelledMatches() {
@@ -40,6 +41,10 @@ export function startJobs() {
   // Publication programmée des événements (admin) : activée à la minute près.
   cron.schedule("* * * * *", () => {
     promoteScheduledEventsImpl().catch((error) => console.error("promoteScheduledEventsImpl failed", error));
+  });
+  // Fin d'événement : distribution des récompenses par rang (une seule fois).
+  cron.schedule("*/5 * * * *", () => {
+    settleEventRankingsImpl().catch((error) => console.error("settleEventRankingsImpl failed", error));
   });
   cron.schedule("*/15 * * * *", () => {
     notifyFullEnergyImpl().catch((error) => console.error("notifyFullEnergyImpl failed", error));

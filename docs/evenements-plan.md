@@ -11,7 +11,7 @@
 | --- | --- | --- |
 | 0 | Socle déjà livré (retour parcours, animations, 1 ticket = 1 parcours) | ✅ Terminé |
 | 1 | Fondations : modèle v2, validation, console admin événements, upload, stats | ✅ Code terminé — à valider en prod |
-| 2 | Classement + récompenses par rang + compte à rebours | ⬜ À faire |
+| 2 | Classement + récompenses par rang + compte à rebours | 🟡 En cours |
 | 3 | Notifications programmées (campagnes) | ⬜ À faire |
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ⬜ À faire |
 | 5 | Cosmétiques (récompenses exclusives) | ⬜ À faire |
@@ -243,11 +243,11 @@ statistiques, audit.
 - `event_versions/…` : `rankingSettledAt` (idempotence de la distribution)
 
 ### Tâches
-- [ ] `domain/` : `scoreEventRun()` (barème de la fiche) + `rankRewardsFor(rank)` + tri/départage + tests
-- [ ] Mise à jour du score **dans la même transaction** que le règlement de table (`matchCommands.ts`)
-- [ ] Façade Postgres : requête de **comptage** (`count()`) pour calculer le rang d'un joueur
-- [ ] Lecture : top 50 + « mon rang » (commande `getEventRank` ou requête autorisée)
-- [ ] Job `settleEventRankings` (toutes les 5 min) : événements terminés non réglés → récompenses par rang dans les inventaires + ledger + notification in-app ; respecte `minParticipants`
+- [x] `domain/` : `scoreEventRun()` (barème de la fiche) + `rankRewardsFor(rank)` + tri/départage + tests
+- [x] Mise à jour du score **dans la même transaction** que le règlement de table (`matchCommands.ts`)
+- [x] Façade Postgres : requête de **comptage** (`count()`) pour calculer le rang d'un joueur
+- [x] Lecture : top 50 + « mon rang » (commande `getEventLeaderboard`)
+- [x] Job `settleEventRankings` (toutes les 5 min) : événements terminés non réglés → récompenses par rang dans les inventaires + ledger + notification in-app ; respecte `minParticipants`
 - [ ] Client : onglet **Classement** sur le détail événement (podium, ma ligne épinglée, récompenses par rang)
 - [ ] Client : **compte à rebours** (liste + détail + carte du menu), état « se termine bientôt » < 2 h
 - [ ] Admin : onglet Classement de l'éditeur + vue classement en direct dans les stats
@@ -255,6 +255,43 @@ statistiques, audit.
 
 **Critère de fin** : à la fin d'un événement, chaque joueur classé reçoit
 automatiquement la récompense de son rang, une seule fois.
+
+### Serveur — implémenté
+
+**Règles** (`domain/eventLeaderboard.ts`, tests `tests/event-leaderboard.test.ts`) :
+
+| Fonction | Rôle |
+| --- | --- |
+| `scoreEventRun` | `tables gagnées × pointsPerStage` ; **à la complétion seulement** : `+ vies restantes × pointsPerLifeLeft` et `+ perfectBonus` si aucune vie perdue. (Les vies ne comptent qu'à la fin : un simple inscrit marque 0.) |
+| `compareLeaderboardEntries` | Score ↓, puis durée ↑ (`durationMs` = temps depuis l'inscription du parcours), puis premier arrivé, puis uid |
+| `shouldReplaceEntry` | Une ligne par joueur = son **meilleur** parcours ; le parcours inscrit se met à jour, un autre doit faire strictement mieux |
+| `rankRewardsFor`, `lastRewardedRank`, `rankEntries` | Tranches de récompenses, classement ordonné |
+
+**Écriture au règlement** (`functions/src/matchCommands.ts`) : les lignes
+`event_leaderboards/{eventId}/entries/{uid}` sont lues avec le reste de la
+transaction ; quand un joueur **gagne** une table (seul cas où le score
+change), le run reçoit `score` + `scoreBreakdown` et la ligne est remplacée
+si c'est son meilleur parcours. Rien n'est écrit si `leaderboard.enabled` est faux.
+
+**Lecture** `getEventLeaderboard { eventId }` (`functions/src/eventLeaderboardCommands.ts`) :
+`{ enabled, endsAt, settledAt, scoring, rankRewards, minParticipants, participants, top[50], me }`.
+Le rang d'un joueur hors top 50 se calcule par **comptage** (`count()`, ajouté
+au contrat `firestoreTypes.ts` et à la façade Postgres) ; index Firestore
+composites ajoutés dans `firestore.indexes.json`.
+
+**Distribution** `settleEventRankingsImpl` (toutes les 5 min, `server/src/jobs.ts`
++ `settleEventRankings` Cloud Functions) : événements publiés terminés sans
+`rankingSettledAt` → si moins de `minParticipants`, rien n'est distribué ;
+sinon chaque rang récompensé reçoit ses récompenses dans **sa propre
+transaction** (économie + inventaire + ledger + notification in-app
+`type: "event"`), protégée par le reçu `event_rank_rewards/{eventId}_{uid}`.
+Puis `events/{id}.rankingSettledAt` + `rankingSummary` + audit `system`.
+Un événement archivé avant sa fin n'est pas réglé.
+
+Test d'intégration `server/scripts/smoke-event-leaderboard.cjs` (Postgres
+jetable) — 13/13 : vraies parties d'événement jouées par le serveur, score
+100 écrit au règlement, ordre et départage, rang par comptage, rien avant la
+fin, 77 cauris au 1er, notification, aucun double paiement.
 
 ---
 
@@ -384,3 +421,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 1 | Écrans joueurs (liste, détail, carte du menu, matchmaking) : image et thème lus depuis la fiche ; suppression de `EVENT_ART` / `EVENT_THUMBS`. |
 | 2026-11-20 | 1 | Console `/admin` reconstruite : tableau de bord, liste filtrable, éditeur en onglets avec validation en direct, `RewardPicker`, champ image (upload + bibliothèque), aperçu réel dans un iframe, statistiques, audit temps réel, outils historiques. |
 | 2026-11-20 | 1 | Section Joueurs (recherche, soldes, parcours, tickets offerts avec motif, réinitialiser/clôturer un parcours) ; test Postgres 11/11. **Phase 1 : code terminé**, validation en production à faire. |
+| 2026-11-20 | 2 | Serveur du classement : règles + 6 tests, score écrit au règlement de table, `count()` Postgres, `getEventLeaderboard` (top 50 + mon rang), job de distribution par rang idempotent avec notification ; test d'intégration 13/13 avec de vraies parties. |
