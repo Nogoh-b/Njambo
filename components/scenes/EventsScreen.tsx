@@ -17,6 +17,8 @@ import { GameShell } from "@/components/ui/GameShell";
 import { NjamboIcon } from "@/components/ui/Art";
 import { t } from "@/lib/i18n";
 import styles from "./EventsScreen.module.css";
+import { prefetchAssets } from "@/lib/assets/AssetLoader";
+import { eventDetailManifest, eventsManifest } from "@/lib/assets/manifests";
 
 type EventState = "active" | "upcoming" | "ended" | "full" | "eliminated";
 
@@ -103,6 +105,12 @@ export function EventsScreen() {
     || canClaimTier(activeSeason.season, activeSeason.progress, index, "premium", now).ok));
   const [authOpen, setAuthOpen] = useState(false);
   const isGuest = !user || user.isAnonymous;
+
+  /* Chargeur d'assets : vignettes de la liste, puis illustrations plein
+     format (détail d'un événement) en arrière-plan. */
+  useEffect(() => {
+    prefetchAssets([...eventsManifest(events).background, ...events.flatMap((event) => eventDetailManifest(event).critical)]);
+  }, [events]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);

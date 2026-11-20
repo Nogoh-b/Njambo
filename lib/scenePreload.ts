@@ -11,6 +11,9 @@
  *  - Les boutons de navigation (`onPointerEnter`/`onFocus`) : préchargent au survol.
  */
 
+import { prefetchAssets } from "./assets/AssetLoader";
+import { sceneManifest } from "./assets/manifests";
+
 type SceneLoader = () => Promise<unknown>;
 
 /** Map partielle scène → import(). N'inclut que les scènes atteignables depuis la nav. */
@@ -50,6 +53,8 @@ const started = new Set<string>();
 /** Précharge le chunk d'une scène (idempotent). Silencieux en cas d'échec. */
 export function preloadScene(scene: string): void {
   if (started.has(scene)) return;
+  // Préchargement d'approche : assets indispensables de l'écran (au repos).
+  if (typeof window !== "undefined") prefetchAssets(sceneManifest(scene).critical);
   const loader = SCENE_LOADERS[scene];
   if (!loader) return;
   started.add(scene);

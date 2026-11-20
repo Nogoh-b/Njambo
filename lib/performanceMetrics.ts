@@ -28,3 +28,27 @@ export function recordBoardRender() {
 export function getBoardRenderCount() {
   return boardRenderCount;
 }
+
+/* ─── Chargeur d'assets : temps d'attente réel et taux d'affichage de l'écran ─── */
+export interface GateStats { entries: number; shown: number; timedOut: number; totalWaitMs: number; maxWaitMs: number }
+const gateStats = new Map<string, GateStats>();
+
+export function recordGateResult(name: string, result: { waitedMs: number; shown: boolean; timedOut: boolean }) {
+  const stats = gateStats.get(name) ?? { entries: 0, shown: 0, timedOut: 0, totalWaitMs: 0, maxWaitMs: 0 };
+  stats.entries += 1;
+  if (result.shown) stats.shown += 1;
+  if (result.timedOut) stats.timedOut += 1;
+  stats.totalWaitMs += result.waitedMs;
+  stats.maxWaitMs = Math.max(stats.maxWaitMs, result.waitedMs);
+  gateStats.set(name, stats);
+  if (typeof window !== "undefined") window.dispatchEvent(new Event(PERFORMANCE_EVENT));
+}
+
+/** Par écran : nombre d'entrées, d'écrans de chargement affichés, de délais dépassés, attente moyenne/max. */
+export function getGateStats(): Record<string, GateStats & { avgWaitMs: number; shownRate: number }> {
+  const out: Record<string, GateStats & { avgWaitMs: number; shownRate: number }> = {};
+  for (const [name, stats] of gateStats) {
+    out[name] = { ...stats, avgWaitMs: Math.round(stats.totalWaitMs / stats.entries), shownRate: stats.shown / stats.entries };
+  }
+  return out;
+}

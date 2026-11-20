@@ -2,7 +2,9 @@ const STATIC_CACHE = "njambo-static-v2";
 const NOTIFICATION_ICON = "/assets/njambo/card-back.webp";
 const IMAGE_CACHE = "njambo-images-v2";
 const PAGE_CACHE = "njambo-pages-v2";
-const CACHES = [STATIC_CACHE, IMAGE_CACHE, PAGE_CACHE];
+// Images et sons uploadés depuis l'admin (VPS, /uploads/<uuid>.<ext> : noms immuables).
+const UPLOAD_CACHE = "njambo-uploads-v1";
+const CACHES = [STATIC_CACHE, IMAGE_CACHE, PAGE_CACHE, UPLOAD_CACHE];
 const SHELL = ["/", "/manifest.webmanifest"];
 
 async function trim(cacheName, maxEntries) {
@@ -24,6 +26,22 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("fetch", (event) => {
   if (event.request.method !== "GET") return;
   const url = new URL(event.request.url);
+  // Uploads (souvent servis par le VPS, autre origine) : cache d'abord, nom immuable.
+  if (url.pathname.startsWith("/uploads/") && /\.(?:webp|avif|png|jpe?g|gif|mp3|ogg|wav|m4a)$/i.test(url.pathname)) {
+    event.respondWith(caches.open(UPLOAD_CACHE).then(async (cache) => {
+      const cached = await cache.match(event.request);
+      // Une réponse opaque (<img> sans CORS) ne peut pas servir une requête CORS (fetch audio).
+      if (cached && (cached.type !== "opaque" || event.request.mode === "no-cors")) return cached;
+      const response = await fetch(event.request);
+      if (response.ok || response.type === "opaque") {
+        await cache.put(event.request, response.clone());
+        void trim(UPLOAD_CACHE, 160);
+      }
+      return response;
+    }));
+    return;
+  }
+
   if (url.origin !== self.location.origin || url.pathname.startsWith("/api/") || url.pathname.startsWith("/_next/image")) return;
 
   if (url.pathname.startsWith("/_next/static/")) {

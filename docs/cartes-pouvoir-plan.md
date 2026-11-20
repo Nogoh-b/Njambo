@@ -13,7 +13,7 @@
 | B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ✅ Terminé |
 | C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | ✅ Terminé (à valider en jeu réel) |
 | D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ✅ Terminé |
-| E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ⬜ À faire |
+| E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ✅ Fait |
 | F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ⬜ À faire |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
@@ -450,24 +450,95 @@ avatars et **cosmétiques de tous les participants** (cadres, badges),
 textures des effets (particules), polices.
 
 ### Tâches
-- [ ] `lib/assets/AssetLoader.ts` : images (`decode()`), audio (fetch +
+- [x] `lib/assets/AssetLoader.ts` : images (`decode()`), audio (fetch +
       décodage WebAudio), polices ; priorités, file d'attente, dédoublonnage,
       suivi de progression, nouvelle tentative, cache mémoire
-- [ ] `lib/assets/manifests.ts` : manifestes par écran (table, boutique,
+- [x] `lib/assets/manifests.ts` : manifestes par écran (table, boutique,
       collection, événements, détail d'événement, saison) ; manifeste de la
       table calculé à partir des participants et des pouvoirs équipés
-- [ ] `components/ui/LoadingGate.tsx` : écran de chargement + astuces
-- [ ] Intégration : entrée à la table (avant la donne), boutique,
+- [x] `components/ui/LoadingGate.tsx` : écran de chargement + astuces
+- [x] Intégration : entrée à la table (avant la donne), boutique,
       collection de pouvoirs, liste des événements
-- [ ] Préchargement d'approche branché sur la navigation (`scenePreload`)
-- [ ] Service worker : mise en cache des images et sons du VPS (`/uploads`,
+- [x] Préchargement d'approche branché sur la navigation (`scenePreload`)
+- [x] Service worker : mise en cache des images et sons du VPS (`/uploads`,
       noms immuables) en plus de ceux du front
-- [ ] Mesures : temps d'attente réel, taux d'affichage de l'écran de
+- [x] Mesures : temps d'attente réel, taux d'affichage de l'écran de
       chargement (`performanceMetrics`)
 
 **Critère de fin** : en 3G lente, la table s'ouvre avec tous ses visuels et
 sons prêts (ou au pire après l'écran de chargement), sans image qui
 apparaît en retard pendant la donne.
+
+### Implémenté
+- **`lib/assets/AssetLoader.ts`** : une seule file pour tout le jeu.
+  - Images : téléchargées **puis décodées** (`decode()`), donc aucune image
+    n'apparaît en retard pendant la donne. Les images décodées restent
+    référencées en mémoire (240 au plus).
+  - Sons : téléchargés et décodés en WebAudio. Les sons de synthèse
+    (`preset:`) n'ont rien à charger.
+  - 4 chargements en parallèle. Ce qui est indispensable passe devant le
+    préchargement, et un préchargement en attente est promu dès qu'un écran
+    l'attend.
+  - Chaque asset n'est chargé qu'une fois. En cas d'échec, une nouvelle
+    tentative a lieu après 600 ms. Un asset en échec ne bloque jamais.
+  - API : `loadAssets` (avec progression), `prefetchAssets` (au repos du
+    navigateur), `isAssetReady` et `areAssetsReady`.
+- **`lib/assets/manifests.ts`** :
+  - **Table** : on lit dans le style calculé l'image du tapis
+    (portrait / paysage / bureau), le fond et **le dos de carte équipé**,
+    c'est-à-dire exactement ce que le navigateur va afficher.
+  - Viennent ensuite le visuel, le son d'activation et les sons de
+    chorégraphie de **mes pouvoirs équipés**. Tout cela est indispensable.
+  - Sont chargés ensuite : les cosmétiques des participants, puis tout le
+    catalogue de pouvoirs (ce que les adversaires peuvent jouer : leurs
+    cartes restent secrètes côté client).
+  - Autres écrans : boutique (livres, monnaies), collection (12 premiers
+    visuels indispensables, le reste ensuite), liste des événements
+    (icônes, puis vignettes) et détail d'un événement (illustration).
+- **`components/ui/LoadingGate.tsx`** :
+  - si tout est déjà en cache, l'écran s'ouvre immédiatement ;
+  - si le chargement prend moins de 150 ms, rien ne s'affiche (pas de flash) ;
+  - sinon, un écran de chargement apparaît : éventail de dos de carte,
+    barre de progression, compteur et astuce ;
+  - après le délai maximum, l'écran s'ouvre quand même : 6 s pour une table
+    contre l'IA, 3 s en salle ou en file d'événement (pour ne pas retarder le
+    match serveur), 4 s pour les autres écrans.
+- **Intégration** (`NjamboApp`) :
+  - la table n'est montée qu'une fois la porte ouverte, donc la donne
+    commence avec tous ses visuels ;
+  - la boutique, la collection et la liste des événements passent aussi par
+    la porte.
+- **Préchargement d'approche** :
+  - choix du mode, réglage IA, en ligne, amis, lobby ou détail d'événement
+    préchargent la table ;
+  - profil → collection ; menu ou collection → boutique ;
+  - `preloadScene` (survol des boutons) précharge aussi les assets de
+    l'écran visé ;
+  - la liste des événements précharge les vignettes et les illustrations en
+    plein format.
+- **Service worker** : cache `njambo-uploads-v1` pour 160 images et sons
+  `/uploads/…` du VPS au maximum, servis depuis le cache en priorité même
+  quand ils viennent d'une autre origine. Une réponse opaque n'est jamais
+  servie à une requête CORS.
+- **CORS sur `/uploads`** :
+  - en-têtes `Access-Control-Allow-Origin: *` et
+    `Cross-Origin-Resource-Policy: cross-origin` ;
+  - déjà fait côté Express ; côté Nginx, voir `docs/deploiement.md` ;
+  - sans ces en-têtes, les sons uploadés ne peuvent pas être lus en WebAudio
+    depuis le front Vercel.
+- **Mesures** : marques `njambo:gate:<écran>` et `getGateStats()`. Par écran,
+  on obtient les entrées, le taux d'affichage de l'écran de chargement, les
+  délais dépassés et l'attente moyenne et maximale.
+- **Tests** : `tests/asset-loader.test.ts` (4 tests : dédoublonnage,
+  concurrence et progression, priorité, nouvelle tentative).
+- **Vérification visuelle** (`docs/captures/chargeur/`) :
+  - avec un réseau ralenti, l'écran de chargement s'affiche avec sa
+    progression ;
+  - en 2e visite avec le cache chaud, aucun écran n'apparaît ;
+  - avec une image bloquée, l'écran s'ouvre de force au délai maximum ;
+  - la table s'ouvre ensuite normalement ;
+  - le mode test équipe 21 pouvoirs, soit 21 assets indispensables, contre
+    3 au maximum en jeu normal.
 
 ---
 
@@ -494,6 +565,7 @@ apparaît en retard pendant la donne.
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | E | Chargeur d'assets : file à priorités avec décodage, manifestes par écran (table calculée depuis le dos de carte et les pouvoirs équipés), écran de chargement sans flash avec délai maximum, préchargement d'approche, cache des uploads dans le service worker, CORS sur /uploads, mesures ; 4 tests et vérification visuelle. **Phase E terminée.** |
 | 2026-11-20 | D | Sons des cartes : upload audio converti par ffmpeg, lecture d'échantillons dans le moteur sonore, 11 sons de synthèse, son d'activation et pistes son des chorégraphies, champ Son dans l'admin ; intégration 9/9. |
 | 2026-11-20 | C3 | Éditeur de chorégraphie : ligne de temps à barres déplaçables et étirables, formulaires par piste, schéma de table cliquable pour les repères, aperçu sur la table de démonstration ; publication validée côté serveur (15/15). **Phase C terminée.** |
 | 2026-11-20 | C2 | Lecteur de chorégraphies (calque, trajectoires multi-points, retournements 3D, effets d'éléments et d'écran, textes), branché dans l'orchestrateur sans changer les étapes existantes ; table de démonstration ; vérifié visuellement. |

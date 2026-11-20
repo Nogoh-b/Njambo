@@ -143,12 +143,15 @@ server {
     # Upload admin : 2 Mo max côté serveur, un peu de marge ici
     client_max_body_size 3m;
 
-    # Images uploadées : servies directement par Nginx (noms immuables)
+    # Images et sons uploadés : servis directement par Nginx (noms immuables)
     location /uploads/ {
         alias /opt/njambo-uploads/;
         expires 365d;
         add_header Cache-Control "public, immutable";
         add_header X-Content-Type-Options nosniff;
+        # Sons et images lus en fetch CORS par le front (chargeur d'assets, WebAudio)
+        add_header Access-Control-Allow-Origin "*";
+        add_header Cross-Origin-Resource-Policy cross-origin;
         try_files $uri =404;
     }
 

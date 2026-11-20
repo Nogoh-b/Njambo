@@ -12,11 +12,31 @@ import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
 import { markPerformance } from "@/lib/performanceMetrics";
 import { schedulePostSplashPreload } from "@/lib/idlePreload";
-import { EconomyProvider } from "@/contexts/EconomyContext";
+import { EconomyProvider, useInventory } from "@/contexts/EconomyContext";
+import { LoadingGate } from "@/components/ui/LoadingGate";
+import { prefetchAssets } from "@/lib/assets/AssetLoader";
+import { sceneManifest, tableManifest, TABLE_APPROACH_SCENES } from "@/lib/assets/manifests";
+import { devEquippedPowers } from "@/config/devConfig";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { MenuScreen } from "@/components/scenes/MenuScreen";
-import type { BotDifficulty, GameMode, Result, RoomDoc, RoomPlayer } from "@/types/game";
+import type { BotDifficulty, GameMode, PowerCardId, Result, RoomDoc, RoomPlayer } from "@/types/game";
+
+/** Écrans riches en images protégés par la porte de chargement (titre affiché). */
+const SCENE_GATES: Record<string, string> = {
+  shop: "Ouverture du marché",
+  power_shop: "Ouverture du marché",
+  power_collection: "Ta collection arrive",
+  events: "Chargement des événements",
+};
+
+/** Écran courant → écran riche probablement visité ensuite (préchargement d'approche). */
+const SCENE_APPROACH: Record<string, string> = {
+  profile: "power_collection",
+  menu: "shop",
+  power_collection: "shop",
+  shop: "power_collection",
+};
 
 const loading = () => null;
 const BotSetupScreen = dynamic(() => import("@/components/scenes/BotSetupScreen").then((module) => module.BotSetupScreen), { loading });
@@ -61,7 +81,8 @@ function SceneRouter() {
   const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, leaveRoom } = useLobby();
   const { user } = useAuth();
   // Dos de carte équipé (phase 5) appliqué à toutes les cartes face cachée.
-  useMyCosmetics(true);
+  const myCosmetics = useMyCosmetics(true);
+  const inventory = useInventory();
   // Cartes pouvoir publiées depuis l'admin : chargées puis re-rendu à chaque publication.
   usePowerCatalogLoader();
   usePowerCatalogRevision();
@@ -87,6 +108,7 @@ function SceneRouter() {
   const tableEntryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   /* Dérivés du lobby (partagés via LobbyContext) */
+  const tableKey = gameMode + "-" + gameBotCount + "-" + gameMise + "-" + gameDifficulty + "-" + (currentRoom && (gameMode === "online" || gameMode === "friends") ? currentRoom.id : "") + "-" + (eventRunId ?? "");
   const isRoomMode = gameMode === "online" || gameMode === "friends";
   const roomId = currentRoom?.id ?? null;
   const roomPlayers = currentRoom?.players ?? [];
@@ -94,6 +116,29 @@ function SceneRouter() {
 
   useEffect(() => {
     markPerformance(`navigation:${scene}`);
+  }, [scene]);
+
+  /* Chargeur d'assets — table : pouvoirs équipés (visuels + sons), dos de
+     carte équipé, tapis ; cosmétiques connus des participants. */
+  const myEquippedPowers = (user && !user.isAnonymous
+    ? devEquippedPowers((inventory.equippedCards ?? []) as PowerCardId[])
+    : (profile?.equippedPowers ?? [])) as PowerCardId[];
+  const buildTableManifest = () => tableManifest({ myPowers: myEquippedPowers, participants: [myCosmetics] });
+
+  /* Préchargement d'approche : dès qu'on s'approche de la table (choix du
+     mode, lobby, détail d'événement), on charge ses assets au repos. */
+  const approachingTable = TABLE_APPROACH_SCENES.has(scene);
+  const powersKey = myEquippedPowers.join(",");
+  useEffect(() => {
+    if (!approachingTable) return;
+    const manifest = tableManifest({ myPowers: powersKey ? powersKey.split(",") : [], participants: [myCosmetics] });
+    prefetchAssets([...manifest.critical, ...manifest.background]);
+  }, [approachingTable, powersKey, myCosmetics]);
+
+  /* Approche des autres écrans riches : profil → collection, menu → boutique. */
+  useEffect(() => {
+    const next = SCENE_APPROACH[scene];
+    if (next) prefetchAssets(sceneManifest(next).critical);
   }, [scene]);
 
   /* Notifications d'événement : /?event=<id> au démarrage, ou clic sur une
@@ -232,8 +277,16 @@ function SceneRouter() {
     navigateTo("menu");
   }, [navigateTo, currentRoom, leaveRoom, refreshActiveRoomHint, gameMode, eventDetailId]);
 
-  /* Rendu de la scène courante (hors table/result, gérés séparément en overlay). */
+  /* Rendu de la scène courante (hors table/result, gérés séparément en overlay).
+     Les écrans riches en images passent par la porte de chargement. */
   const renderScene = (): ReactNode => {
+    const content = renderSceneContent();
+    const gate = SCENE_GATES[scene];
+    if (!gate) return content;
+    return <LoadingGate key={scene} name={scene} title={gate} maxWaitMs={4000} manifest={() => sceneManifest(scene)}>{content}</LoadingGate>;
+  };
+
+  const renderSceneContent = (): ReactNode => {
     switch (scene) {
       case "menu": return <MenuScreen resumeRoomType={resumeRoomType} onResumeGame={handleResumeGame} />;
       case "profile": return <ProfileScreen />;
@@ -295,8 +348,15 @@ function SceneRouter() {
           salle ne sont transmises QU'AUX modes salle : une table bot ne doit
           jamais hériter d'une salle résiduelle du lobby. */}
       {gameActive && (
+        <LoadingGate
+          key={tableKey}
+          name="table"
+          title="Préparation de la table"
+          maxWaitMs={isRoomMode || eventMatchmaking ? 3000 : 6000}
+          manifest={buildTableManifest}
+        >
         <TableScreen
-          key={gameMode + "-" + gameBotCount + "-" + gameMise + "-" + gameDifficulty + "-" + (isRoomMode ? roomId ?? "" : "") + "-" + (eventRunId ?? "")}
+          key={tableKey}
           gameMode={gameMode}
           initialBotCount={gameBotCount}
           initialMise={gameMise}
@@ -313,6 +373,7 @@ function SceneRouter() {
           onNextRoundRef={nextRoundRef}
           paused={Boolean(gameResult)}
         />
+        </LoadingGate>
       )}
 
       {/* Écran de file d'attente — au-dessus de la table tant qu'un événement

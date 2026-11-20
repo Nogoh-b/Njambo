@@ -50,7 +50,12 @@ export function mountUploads(app: Express) {
 
   app.use("/uploads", express.static(dir, {
     immutable: true, maxAge: "365d", index: false, dotfiles: "deny", fallthrough: false,
-    setHeaders: (res) => res.setHeader("X-Content-Type-Options", "nosniff"),
+    setHeaders: (res) => {
+      res.setHeader("X-Content-Type-Options", "nosniff");
+      // Fichiers publics : le front (autre origine) les lit en fetch CORS (sons WebAudio, préchargement).
+      res.setHeader("Access-Control-Allow-Origin", "*");
+      res.setHeader("Cross-Origin-Resource-Policy", "cross-origin");
+    },
   }));
 
   app.post("/admin/upload", express.raw({ type: () => true, limit: MAX_BYTES }), async (req, res) => {

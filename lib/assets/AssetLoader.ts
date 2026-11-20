@@ -1,0 +1,176 @@
+/* ═══════════════ Chargeur d'assets ═══════════════
+   File unique pour les images (téléchargées puis décodées via decode(), pour
+   qu'aucune image n'apparaisse « en retard » pendant une animation) et les sons
+   (téléchargés + décodés en WebAudio via preloadPowerSound).
+
+   - Dédoublonnage : un même URL n'est chargé qu'une fois (cache mémoire des
+     promesses + références aux images décodées, pour éviter leur éviction).
+   - Priorités : "critical" (un écran attend) passe devant "background"
+     (préchargement d'approche, au repos du navigateur).
+   - Concurrence limitée (4), une nouvelle tentative en cas d'échec.
+   - Un asset en échec ne bloque jamais : il compte comme « terminé ». */
+
+import { preloadPowerSound } from "../powerSounds";
+
+export type AssetKind = "image" | "audio";
+export interface AssetRef { kind: AssetKind; url: string }
+export type AssetPriority = "critical" | "background";
+
+const CONCURRENCY = 4;
+const RETRY_DELAY_MS = 600;
+const MAX_KEPT_IMAGES = 240;
+
+type Entry = { promise: Promise<boolean>; done: boolean; ok: boolean };
+type Job = { ref: AssetRef; priority: AssetPriority; resolve: (ok: boolean) => void };
+
+const entries = new Map<string, Entry>();
+const keptImages = new Map<string, HTMLImageElement>();
+const queue: Job[] = [];
+const queued = new Map<string, Job>();
+let active = 0;
+
+const keyOf = (ref: AssetRef) => `${ref.kind}:${ref.url}`;
+
+/** Ne garde que les refs exploitables, sans doublon. */
+export function normalizeAssets(list: Array<AssetRef | null | undefined | false>): AssetRef[] {
+  const seen = new Set<string>();
+  const out: AssetRef[] = [];
+  for (const ref of list) {
+    if (!ref || typeof ref.url !== "string" || !ref.url) continue;
+    if (ref.kind === "audio" && ref.url.startsWith("preset:")) continue; // son de synthèse : rien à charger
+    const key = keyOf(ref);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    out.push(ref);
+  }
+  return out;
+}
+
+function loadImageOnce(url: string): Promise<boolean> {
+  return new Promise((resolve) => {
+    const img = new window.Image();
+    img.decoding = "async";
+    let settled = false;
+    const finish = (ok: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (ok) {
+        keptImages.set(url, img);
+        if (keptImages.size > MAX_KEPT_IMAGES) keptImages.delete(keptImages.keys().next().value as string);
+      }
+      resolve(ok);
+    };
+    img.onload = () => {
+      if (typeof img.decode === "function") img.decode().then(() => finish(true), () => finish(true));
+      else finish(true);
+    };
+    img.onerror = () => finish(false);
+    img.src = url;
+  });
+}
+
+async function fetchAsset(ref: AssetRef): Promise<boolean> {
+  const attempt = () => (ref.kind === "image" ? loadImageOnce(ref.url) : preloadPowerSound(ref.url));
+  if (await attempt()) return true;
+  await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
+  return attempt();
+}
+
+function pump() {
+  while (active < CONCURRENCY && queue.length) {
+    const job = queue.shift()!;
+    queued.delete(keyOf(job.ref));
+    active += 1;
+    void fetchAsset(job.ref).then((ok) => {
+      active -= 1;
+      job.resolve(ok);
+      pump();
+    });
+  }
+}
+
+function enqueue(ref: AssetRef, priority: AssetPriority): Promise<boolean> {
+  const key = keyOf(ref);
+  const existing = entries.get(key);
+  if (existing) {
+    // Promotion : un préchargement en attente devient prioritaire si un écran l'attend.
+    const job = queued.get(key);
+    if (job && priority === "critical" && job.priority === "background") {
+      job.priority = "critical";
+      queue.splice(queue.indexOf(job), 1);
+      const firstBackground = queue.findIndex((item) => item.priority === "background");
+      queue.splice(firstBackground === -1 ? queue.length : firstBackground, 0, job);
+    }
+    return existing.promise;
+  }
+  let resolveJob!: (ok: boolean) => void;
+  const entry: Entry = { done: false, ok: false, promise: new Promise<boolean>((resolve) => { resolveJob = resolve; }) };
+  entries.set(key, entry);
+  void entry.promise.then((ok) => {
+    entry.done = true;
+    entry.ok = ok;
+    if (!ok) entries.delete(key); // nouvel essai possible plus tard
+  });
+  const job: Job = { ref, priority, resolve: resolveJob };
+  queued.set(key, job);
+  if (priority === "critical") {
+    const firstBackground = queue.findIndex((item) => item.priority === "background");
+    queue.splice(firstBackground === -1 ? queue.length : firstBackground, 0, job);
+  } else {
+    queue.push(job);
+  }
+  pump();
+  return entry.promise;
+}
+
+/** Vrai si l'asset est déjà chargé (et décodé) dans cette session. */
+export function isAssetReady(ref: AssetRef): boolean {
+  const entry = entries.get(keyOf(ref));
+  return Boolean(entry?.done && entry.ok);
+}
+
+export function areAssetsReady(list: AssetRef[]): boolean {
+  return normalizeAssets(list).every(isAssetReady);
+}
+
+export interface LoadProgress { loaded: number; total: number }
+
+/** Charge une liste en priorité ; résout quand tout est terminé (succès ou échec). */
+export function loadAssets(
+  list: Array<AssetRef | null | undefined | false>,
+  options: { priority?: AssetPriority; onProgress?: (progress: LoadProgress) => void } = {},
+): Promise<LoadProgress & { failed: number }> {
+  const refs = normalizeAssets(list);
+  if (typeof window === "undefined" || refs.length === 0) return Promise.resolve({ loaded: refs.length, total: refs.length, failed: 0 });
+  let loaded = 0;
+  let failed = 0;
+  options.onProgress?.({ loaded, total: refs.length });
+  return Promise.all(refs.map((ref) => enqueue(ref, options.priority ?? "critical").then((ok) => {
+    loaded += 1;
+    if (!ok) failed += 1;
+    options.onProgress?.({ loaded, total: refs.length });
+  }))).then(() => ({ loaded, total: refs.length, failed }));
+}
+
+/** Préchargement discret (priorité basse, démarré au repos du navigateur). */
+export function prefetchAssets(list: Array<AssetRef | null | undefined | false>): void {
+  if (typeof window === "undefined") return;
+  const refs = normalizeAssets(list).filter((ref) => !entries.has(keyOf(ref)));
+  if (!refs.length) return;
+  const start = () => { for (const ref of refs) void enqueue(ref, "background"); };
+  const requestIdle = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
+  if (requestIdle) requestIdle.call(window, start, { timeout: 2000 });
+  else setTimeout(start, 200);
+}
+
+export const imageAsset = (url: string | null | undefined): AssetRef | null => (url ? { kind: "image", url } : null);
+export const audioAsset = (url: string | null | undefined): AssetRef | null => (url ? { kind: "audio", url } : null);
+
+/** Tests uniquement. */
+export function __resetAssetLoader() {
+  entries.clear();
+  keptImages.clear();
+  queue.length = 0;
+  queued.clear();
+  active = 0;
+}
