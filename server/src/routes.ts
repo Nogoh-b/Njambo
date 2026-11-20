@@ -57,6 +57,11 @@ import {
   saveSeasonHandler,
   getSeasonStatsHandler,
 } from "../../functions/src/seasonCommands";
+import {
+  createEventChallengeHandler,
+  respondEventChallengeHandler,
+  listMyChallengesHandler,
+} from "../../functions/src/challengeCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -87,6 +92,9 @@ export const commands: Record<string, Handler> = {
   equipPowerCards: equipPowerCardsHandler,
   joinEvent: joinEventHandler,
   leaveEvent: leaveEventHandler,
+  createEventChallenge: createEventChallengeHandler,
+  respondEventChallenge: respondEventChallengeHandler,
+  listMyChallenges: listMyChallengesHandler,
   reviveEventRun: reviveEventRunHandler,
   getEventLeaderboard: getEventLeaderboardHandler,
   createPaymentIntent: createPaymentIntentHandler,

@@ -16,7 +16,7 @@
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ✅ Code terminé — à valider en prod |
 | 5 | Cosmétiques (récompenses exclusives) | ✅ Code terminé — à valider en prod |
 | 6 | Saison (passe gratuit + premium XAF) | ✅ Code terminé — à valider en prod (paiement réel à brancher) |
-| 7 | Défis entre amis | ⬜ À faire |
+| 7 | Défis entre amis | 🟡 En cours |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -620,14 +620,49 @@ colonne dorée.
 - `event_challenges/{id}` : `{ eventId, revision, fromUid, toUid, status: "pending"|"accepted"|"declined"|"finished"|"expired", fromRunId?, toRunId?, scores, winnerUid?, expiresAt }`
 
 ### Tâches
-- [ ] Commandes `createEventChallenge`, `respondEventChallenge` (le défi lie le prochain parcours de chacun sur l'événement)
-- [ ] Fin du défi quand les deux parcours sont terminés (ou expiration) → comparaison des scores (barème phase 2) → `winnerReward` + notifications
+- [x] Commandes `createEventChallenge`, `respondEventChallenge` (le défi lie le prochain parcours de chacun sur l'événement)
+- [x] Fin du défi quand les deux parcours sont terminés (ou expiration) → comparaison des scores (barème phase 2) → `winnerReward` + notifications
 - [ ] Client : bouton « Défier un ami » sur le détail, liste des défis en cours, écran de résultat du duel
-- [ ] Notifications in-app/push : défi reçu, défi terminé
+- [x] Notifications in-app/push : défi reçu, défi terminé
 - [ ] Admin : activation + récompense par événement ; stats défis
 
 **Critère de fin** : deux amis s'affrontent sur le même événement et le
 gagnant reçoit automatiquement sa récompense.
+
+### Serveur — implémenté
+
+**Règles** (`domain/eventChallenges.ts`, tests `tests/event-challenges.test.ts`) :
+`challengeRunScore` (barème du classement de la fiche : tables, puis vies
+restantes et parfait à l'arrivée), `decideChallenge` (score, puis le plus
+rapide ; égalité parfaite = nul, pas de récompense), `isRunFinished`.
+
+**Commandes** (`functions/src/challengeCommands.ts`) :
+`createEventChallenge { eventId, toUid }` (événement en ligne, défis activés
+sur la fiche, **amis uniquement**, un seul défi ouvert entre deux amis par
+événement ; invitation valable 24 h) ; `respondEventChallenge { challengeId,
+accept }` (invité seulement) ; `listMyChallenges { eventId? }` (avec la
+progression en direct des deux parcours). `joinEvent` lie le **nouveau**
+parcours aux défis acceptés (`fromRunId` / `toRunId`).
+
+**Règlement** `settleEventChallengesImpl` (toutes les 2 min) : invitations
+expirées ; défis acceptés réglés quand les deux parcours sont finis, ou à
+la fin de l'événement (un parcours non lancé compte 0 ; aucun parcours →
+expiré) ; récompense `friendChallenges.winnerReward` (copiée à la création)
+au gagnant dans la même transaction que le passage à `finished` ; scores
+enregistrés ; notifications aux deux joueurs.
+
+**Notifications** : `notifyPlayer` (`campaignCommands.ts`) — in-app à id
+fixe + push, opt-out respecté, jetons morts désactivés : défi reçu,
+accepté / décliné, résultat (« Tu as battu X ! », « Égalité »…).
+
+**Stats admin** : `challenges` par statut dans `getAdminEventStats`.
+
+Test `server/scripts/smoke-challenges.cjs` (Postgres jetable, vraies
+parties) — 15/15 : non-amis refusés, doublon refusé, invitation in-app +
+push, seul l'invité répond, acceptation notifiée, parcours liés, pas de
+règlement avant la fin, progression en direct, règlement (180 – 180
+départagé à la vitesse), +50 cauris au gagnant, rien au perdant, résultat
+notifié, réglé une fois, invitation expirée, stats.
 
 ---
 
@@ -662,3 +697,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 5 | Cosmétiques : domaine + récompense `cosmetic` (doublon → cauris), catalogue admin, collection et équipement, affichage table / classement / profil, dos de carte ; réparation de `globals.css` tronqué ; intégration 10/10. **Phase 5 : code terminé.** |
 | 2026-11-20 | 6 | Serveur des saisons : règles + 5 tests, points au règlement des tables, réclamation des paliers, premium via le flux de paiement (achat, remboursement), commandes admin et stats ; correctif d'import du back ; intégration 14/14. |
 | 2026-11-20 | 6 | Client : écran Saison (paliers gratuit / premium, achat du passe), bandeau d'accès dans les événements, points de saison dans l'inspecteur et l'overlay, admin Saisons + rattachement d'un événement. **Phase 6 : code terminé** (paiement réel MTN / Orange à brancher). |
+| 2026-11-20 | 7 | Serveur des défis : règles + 3 tests, création / réponse entre amis, liaison des prochains parcours, règlement automatique avec récompense, notifications, stats ; intégration 15/15. |

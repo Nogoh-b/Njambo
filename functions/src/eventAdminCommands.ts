@@ -283,7 +283,12 @@ export async function listAdminUploadsHandler(request: CallableRequest<unknown>)
 export async function getAdminEventStatsHandler(request: CallableRequest<unknown>) {
   requireAdmin(request);
   const eventId = eventIdFrom(asObject(request.data));
-  const runs = await db.collection("event_runs").where("eventId", "==", eventId).get();
+  const [runs, challengeSnap] = await Promise.all([
+    db.collection("event_runs").where("eventId", "==", eventId).get(),
+    db.collection("event_challenges").where("eventId", "==", eventId).get(),
+  ]);
+  const challenges: Record<string, number> = {};
+  challengeSnap.docs.forEach((doc) => { const status = String(doc.get("status")); challenges[status] = (challenges[status] ?? 0) + 1; });
   const byStatus: Record<string, number> = {};
   const reachedStage: number[] = [];
   const players = new Set<string>();
@@ -314,6 +319,7 @@ export async function getAdminEventStatsHandler(request: CallableRequest<unknown
     revives,
     reviveCauris,
     perfect,
+    challenges,
     byStatus,
     /** funnel[i] = parcours ayant atteint la table i (funnel[n] = complétés). */
     funnel: Array.from({ length: reachedStage.length }, (_, index) => reachedStage[index] ?? 0),

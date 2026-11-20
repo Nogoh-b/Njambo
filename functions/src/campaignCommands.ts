@@ -263,3 +263,30 @@ export async function setNotificationPrefsHandler(request: CallableRequest<unkno
   await db.doc(`players/${uid}`).set({ notificationPrefs: { events: data.events, updatedAt: now } }, { merge: true });
   return { events: data.events };
 }
+
+/* ─────────────── Notification ponctuelle à un joueur ─────────────── */
+
+/** In-app + push vers un joueur (défis, etc.), en respectant l'opt-out. */
+export async function notifyPlayer(uid: string, message: { id: string; title: string; body: string; eventId?: string; actorName?: string; actorEmoji?: string }) {
+  const player = await db.doc(`players/${uid}`).get();
+  if (player.get("notificationPrefs.events") === false) return { sent: false, optedOut: true };
+  const now = Date.now();
+  await db.doc(`users/${uid}/notifications/${message.id}`).set({
+    type: "event", eventId: message.eventId ?? "", actorUid: "", actorName: message.actorName ?? "Njambo", actorEmoji: message.actorEmoji ?? "⚔️",
+    title: message.title.slice(0, 80), body: message.body.slice(0, 240), read: false, createdAt: now,
+  }, { merge: false });
+  const tokens = await db.collection(`push_tokens/${uid}/tokens`).where("active", "==", true).limit(10).get();
+  if (!tokens.empty) {
+    try {
+      const results = await pushSender(tokens.docs.map((doc) => String(doc.get("token"))), {
+        title: message.title, body: message.body, link: eventLink(message.eventId), tag: message.id, campaignId: message.id, eventId: message.eventId,
+      });
+      await Promise.all(results.map((result, index) => (!result.success && INVALID_TOKEN_CODES.includes(result.errorCode ?? "")
+        ? tokens.docs[index].ref.set({ active: false, invalidatedAt: now }, { merge: true })
+        : null)));
+    } catch (error) {
+      console.error(`notifyPlayer ${uid}: échec push`, error);
+    }
+  }
+  return { sent: true };
+}

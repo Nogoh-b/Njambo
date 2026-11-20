@@ -61,6 +61,11 @@ import {
   saveSeasonHandler,
   getSeasonStatsHandler,
 } from "./seasonCommands";
+import {
+  createEventChallengeHandler,
+  respondEventChallengeHandler,
+  listMyChallengesHandler,
+} from "./challengeCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -81,6 +86,7 @@ export { notifyFullEnergy } from "./notificationCommands";
 export { promoteScheduledEvents } from "./eventAdminCommands";
 export { settleEventRankings } from "./eventLeaderboardCommands";
 export { sendDueCampaigns } from "./campaignCommands";
+export { settleEventChallenges } from "./challengeCommands";
 
 const callable = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true", consumeAppCheckToken: true } as const;
 
@@ -95,6 +101,9 @@ export const spinLoyaltyWheel = onCall(callable, spinLoyaltyWheelHandler);
 export const equipPowerCards = onCall(callable, equipPowerCardsHandler);
 export const joinEvent = onCall(callable, joinEventHandler);
 export const leaveEvent = onCall(callable, leaveEventHandler);
+export const createEventChallenge = onCall(callable, createEventChallengeHandler);
+export const respondEventChallenge = onCall(callable, respondEventChallengeHandler);
+export const listMyChallenges = onCall(callable, listMyChallengesHandler);
 export const reviveEventRun = onCall(callable, reviveEventRunHandler);
 export const getEventLeaderboard = onCall(callable, getEventLeaderboardHandler);
 export const createPaymentIntent = onCall(callable, createPaymentIntentHandler);

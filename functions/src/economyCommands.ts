@@ -39,6 +39,7 @@ import {
 } from "./core";
 import { paymentProvider } from "./payments/providers";
 import { SEASON_PREMIUM_PREFIX } from "./seasonCommands";
+import { bindChallengeRuns } from "./challengeCommands";
 import type { Transaction } from "./firestoreTypes";
 
 const CARD_POOL: Record<CardRarity, string[]> = {
@@ -390,7 +391,14 @@ export async function joinEventHandler(request: CallableRequest<unknown>) {
   const data = asObject(request.data);
   const eventId = requiredString(data, "eventId", 96);
   const runId = stableId(uid, eventId, String(data.idempotencyKey)).slice(0, 40);
-  return runIdempotent(uid, "joinEvent", data.idempotencyKey, async (transaction, now) => {
+  const result = await joinEventTransaction(uid, eventId, runId, data.idempotencyKey);
+  // Défis entre amis (phase 7) : ce nouveau parcours compte pour les duels acceptés.
+  try { await bindChallengeRuns(uid, eventId, result.runId); } catch (error) { console.error("bindChallengeRuns", error); }
+  return result;
+}
+
+function joinEventTransaction(uid: string, eventId: string, runId: string, idempotencyKey: unknown) {
+  return runIdempotent(uid, "joinEvent", idempotencyKey, async (transaction, now) => {
     const eventRef = db.doc(`events/${eventId}`);
     const [state, eventSnap] = await Promise.all([economyAndInventory(transaction, uid, now), transaction.get(eventRef)]);
     const activeRevision = Number(eventSnap.get("activeRevision") ?? 1);

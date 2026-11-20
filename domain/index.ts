@@ -7,3 +7,4 @@ export * from "./eventNotifications";
 export * from "./eventRules";
 export * from "./cosmetics";
 export * from "./seasons";
+export * from "./eventChallenges";
