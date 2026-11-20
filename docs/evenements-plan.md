@@ -119,8 +119,8 @@ passent par `normalizeEventVersion`. Tests : `tests/event-config.test.ts`.
 
 - [x] Étendre `EventVersion` / `EventStage` + fonction `normalizeEventVersion()` (valeurs par défaut, compatibilité anciennes fiches)
 - [x] `validateEventVersion()` dans `domain/` (dates cohérentes, ≥ 1 table, vies ≥ 1, récompenses valides, rangs sans chevauchement…) + tests
-- [ ] Commandes admin : `listAdminEvents`, `getAdminEvent`, `saveEventDraft`, `publishEventDraft` (maintenant ou programmé), `duplicateEvent`, `archiveEvent` — validation serveur + audit
-- [ ] Publication programmée : statut `scheduled` + job serveur (1 min) qui rend visible à `startsAt`
+- [x] Commandes admin : `listAdminEvents`, `getAdminEvent`, `saveEventDraft`, `publishEventDraft` (maintenant ou programmé), `duplicateEvent`, `archiveEvent` — validation serveur + audit
+- [x] Publication programmée : statut `scheduled` + job serveur (1 min) qui rend visible à l'heure choisie (`publishAt`)
 - [ ] **Upload d'images** : endpoint `POST /admin/upload` (admin uniquement, PNG/JPEG/WebP, ≤ 2 Mo, conversion WebP avec `sharp`, nom aléatoire) → fichier dans `UPLOAD_DIR` (ex. `/opt/njambo-uploads`) servi en `/uploads/…` par le serveur (cache long) ; config Nginx ajoutée à `docs/deploiement.md`
 - [ ] Script `server/scripts/setAdmin.ts` (attribue le custom claim `admin` à un compte)
 - [ ] Console `/admin` reconstruite : navigation latérale (Tableau de bord, Événements, Saisons, Cosmétiques, Notifications, Joueurs, Audit) — sections futures en « bientôt »
@@ -128,14 +128,49 @@ passent par `normalizeEventVersion`. Tests : `tests/event-config.test.ts`.
 - [ ] Éditeur en onglets : Général · Entrée & vies · Tables (ajout, suppression, glisser-réordonner) · Récompenses · Classement · Notifications · Défis
 - [ ] Composant réutilisable `RewardPicker` (type → champs adaptés)
 - [ ] **Aperçu** : rend le vrai `EventDetailScreen` avec la fiche brouillon
-- [ ] Statistiques d'un événement : inscrits, actifs, éliminés, complétés, entonnoir par table
+- [ ] Statistiques d'un événement : inscrits, actifs, éliminés, complétés, entonnoir par table — ✅ commande `getAdminEventStats` ; ⬜ affichage admin
 - [ ] Section Joueurs (minimale) : recherche, parcours d'un joueur, rendre un ticket, réinitialiser un parcours (audit)
 - [ ] Client : les écrans événements utilisent `imageUrl` / `theme` de la fiche (fini les tables `EVENT_ART` en dur)
-- [ ] `authz.ts` : lecture des nouvelles collections admin réservée aux admins
+- [x] `authz.ts` : lecture des nouvelles collections admin réservée aux admins (`event_drafts`, + règle `firestore.rules`)
 - [ ] Mise à jour `docs/deploiement.md` (UPLOAD_DIR, Nginx `/uploads`)
 
 **Critère de fin** : un admin crée un événement complet (image incluse), le
 prévisualise, le programme ; il apparaît à l'heure dite chez les joueurs.
+
+### Commandes admin — implémenté (`functions/src/eventAdminCommands.ts`)
+
+Données :
+
+| Collection | Contenu | Lecture |
+| --- | --- | --- |
+| `events/{eventId}` | Index public (`published`, `activeRevision`, titre, dates, image, thème) + suivi admin (`latestRevision`, `scheduledRevision`, `scheduledAt`, `archived`) | joueurs si `published` |
+| `event_versions/{id}_v{rev}` | Révisions **publiées**, immuables | joueurs si `published` |
+| `event_drafts/{eventId}` | Brouillon en cours (un par événement) : `{ version, baseRevision, updatedAt, updatedBy }` | admins |
+
+| Commande | Effet |
+| --- | --- |
+| `listAdminEvents` | Tous les événements + brouillons, avec `lifecycle` (draft/scheduled/live/ended/archived) |
+| `getAdminEvent { eventId }` | `active`, `draft`, `working` (ce que l'éditeur affiche) + `issues` |
+| `saveEventDraft { event }` | Normalise et enregistre le brouillon **même incomplet** ; renvoie `issues`. Crée l'index (non publié) si nouvel événement |
+| `publishEventDraft { eventId, publishAt? }` | Refuse si invalide (`EVENT_INVALID`, `details.issues`) ou déjà terminé ; crée la révision `latestRevision + 1` ; immédiat, ou programmé si `publishAt` futur |
+| `cancelScheduledEvent { eventId }` | Annule une programmation |
+| `duplicateEvent { eventId, newEventId }` | Copie en brouillon (refus si l'id existe) |
+| `archiveEvent { eventId, archived }` | Retire / remet en ligne pour les joueurs |
+| `discardEventDraft { eventId }` | Jette le brouillon (et l'index si jamais publié) |
+| `getAdminEventStats { eventId }` | Parcours, joueurs, actifs, éliminés, complétés, abandons, entonnoir par table |
+
+Job `promoteScheduledEventsImpl` : chaque minute (`server/src/jobs.ts`, et
+`promoteScheduledEvents` côté Cloud Functions) — active la révision programmée
+dont `scheduledAt` est passé (audit `uid: "system"`).
+
+Les erreurs serveur transmettent désormais `details` (`server/src/httpError.ts`
+→ `BackendError.details` côté client) pour afficher les erreurs de validation.
+
+Test d'intégration (Postgres réel, base **jetable**) :
+`npm --prefix server run build && DATABASE_URL=… node server/scripts/smoke-event-admin.cjs`
+— 20 vérifications : droits admin, brouillon invalide, refus de publication,
+programmation/promotion, duplication, archivage, idempotence du double clic,
+statistiques, audit.
 
 ---
 
@@ -282,3 +317,4 @@ gagnant reçoit automatiquement sa récompense.
 | 2026-11-20 | 0 | Retour au détail après partie/abandon ; overlay de conséquences (table validée, vie perdue, éliminé, grand prix) ; un ticket couvre tout le parcours (annulation, PvP, abandon corrigés). |
 | 2026-11-20 | — | Plan créé ; décisions validées (cauris, premium XAF, upload admin, barème 100/30/50, petite récompense des défis). |
 | 2026-11-20 | 1 | Modèle `EventVersion` v2 + `normalizeEventVersion` / `validateEventVersion` / `eventLifecycle` / `blankEventVersion` (`domain/eventConfig.ts`), 11 tests ; lectures serveur et client normalisées. |
+| 2026-11-20 | 1 | Commandes admin événements (liste, détail, brouillon, publication immédiate/programmée, annulation, duplication, archivage, abandon de brouillon, stats) + job de promotion (1 min) + `event_drafts` réservé aux admins ; test d'intégration Postgres 20/20. |

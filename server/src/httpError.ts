@@ -18,7 +18,7 @@ const STATUS_BY_CODE: Partial<Record<FunctionsErrorCode, number>> = {
 export function sendError(res: Response, error: unknown) {
   if (error instanceof HttpsError) {
     const status = STATUS_BY_CODE[error.code] ?? 500;
-    res.status(status).json({ code: error.code, message: error.message });
+    res.status(status).json({ code: error.code, message: error.message, ...(error.details !== undefined ? { details: error.details } : {}) });
     return;
   }
   console.error(error);

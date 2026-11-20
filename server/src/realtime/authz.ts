@@ -111,6 +111,7 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
     case "runtime_config":
       return { kind: "allow" };
     case "admin_drafts":
+    case "event_drafts":
     case "admin_audit":
       return auth.admin ? { kind: "allow" } : { kind: "deny" };
     default:

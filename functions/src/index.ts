@@ -22,6 +22,17 @@ import {
 import { abandonMatchHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "./matchCommands";
 import { usePowerCardHandler } from "./powerCommands";
 import { migrateLegacyPlayerHandler, saveAdminDraftHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "./adminCommands";
+import {
+  listAdminEventsHandler,
+  getAdminEventHandler,
+  saveEventDraftHandler,
+  publishEventDraftHandler,
+  cancelScheduledEventHandler,
+  duplicateEventHandler,
+  archiveEventHandler,
+  discardEventDraftHandler,
+  getAdminEventStatsHandler,
+} from "./eventAdminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -39,6 +50,7 @@ import {
 } from "./socialCommands";
 export { refundCancelledMatch, refundExpiredEventQueues } from "./triggers";
 export { notifyFullEnergy } from "./notificationCommands";
+export { promoteScheduledEvents } from "./eventAdminCommands";
 
 const callable = { enforceAppCheck: process.env.FUNCTIONS_EMULATOR !== "true", consumeAppCheckToken: true } as const;
 
@@ -68,6 +80,15 @@ export const migrateLegacyPlayer = onCall(callable, migrateLegacyPlayerHandler);
 export const registerPushToken = onCall(callable, registerPushTokenHandler);
 export const updateFeatureFlags = onCall(callable, updateFeatureFlagsHandler);
 export const saveAdminDraft = onCall(callable, saveAdminDraftHandler);
+export const listAdminEvents = onCall(callable, listAdminEventsHandler);
+export const getAdminEvent = onCall(callable, getAdminEventHandler);
+export const saveEventDraft = onCall(callable, saveEventDraftHandler);
+export const publishEventDraft = onCall(callable, publishEventDraftHandler);
+export const cancelScheduledEvent = onCall(callable, cancelScheduledEventHandler);
+export const duplicateEvent = onCall(callable, duplicateEventHandler);
+export const archiveEvent = onCall(callable, archiveEventHandler);
+export const discardEventDraft = onCall(callable, discardEventDraftHandler);
+export const getAdminEventStats = onCall(callable, getAdminEventStatsHandler);
 
 export const createRoom = onCall(callable, createRoomHandler);
 export const joinRoom = onCall(callable, joinRoomHandler);

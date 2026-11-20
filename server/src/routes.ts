@@ -18,6 +18,17 @@ import {
 import { abandonMatchHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "../../functions/src/matchCommands";
 import { usePowerCardHandler } from "../../functions/src/powerCommands";
 import { migrateLegacyPlayerHandler, saveAdminDraftHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "../../functions/src/adminCommands";
+import {
+  listAdminEventsHandler,
+  getAdminEventHandler,
+  saveEventDraftHandler,
+  publishEventDraftHandler,
+  cancelScheduledEventHandler,
+  duplicateEventHandler,
+  archiveEventHandler,
+  discardEventDraftHandler,
+  getAdminEventStatsHandler,
+} from "../../functions/src/eventAdminCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -62,6 +73,15 @@ export const commands: Record<string, Handler> = {
   registerPushToken: registerPushTokenHandler,
   updateFeatureFlags: updateFeatureFlagsHandler,
   saveAdminDraft: saveAdminDraftHandler,
+  listAdminEvents: listAdminEventsHandler,
+  getAdminEvent: getAdminEventHandler,
+  saveEventDraft: saveEventDraftHandler,
+  publishEventDraft: publishEventDraftHandler,
+  cancelScheduledEvent: cancelScheduledEventHandler,
+  duplicateEvent: duplicateEventHandler,
+  archiveEvent: archiveEventHandler,
+  discardEventDraft: discardEventDraftHandler,
+  getAdminEventStats: getAdminEventStatsHandler,
 
   createRoom: createRoomHandler,
   joinRoom: joinRoomHandler,

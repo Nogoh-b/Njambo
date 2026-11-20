@@ -2,6 +2,7 @@ import cron from "node-cron";
 import { db } from "../../functions/src/core";
 import { refundCancelledMatchImpl, refundExpiredEventQueuesImpl } from "../../functions/src/triggers";
 import { notifyFullEnergyImpl } from "../../functions/src/notificationCommands";
+import { promoteScheduledEventsImpl } from "../../functions/src/eventAdminCommands";
 import { autoPlayExpiredMatchesImpl } from "../../functions/src/matchTimeouts";
 
 function watchCancelledMatches() {
@@ -35,6 +36,10 @@ export function startJobs() {
   }, 500);
   cron.schedule("*/5 * * * *", () => {
     refundExpiredEventQueuesImpl().catch((error) => console.error("refundExpiredEventQueuesImpl failed", error));
+  });
+  // Publication programmée des événements (admin) : activée à la minute près.
+  cron.schedule("* * * * *", () => {
+    promoteScheduledEventsImpl().catch((error) => console.error("promoteScheduledEventsImpl failed", error));
   });
   cron.schedule("*/15 * * * *", () => {
     notifyFullEnergyImpl().catch((error) => console.error("notifyFullEnergyImpl failed", error));

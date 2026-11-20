@@ -16,7 +16,7 @@ const defaultLocalBackend =
 export const BACKEND_URL = (process.env.NEXT_PUBLIC_BACKEND_URL ?? defaultLocalBackend).replace(/\/$/, "");
 
 export class BackendError extends Error {
-  constructor(readonly code: string, message: string) {
+  constructor(readonly code: string, message: string, readonly details?: unknown) {
     super(message);
     this.name = "BackendError";
   }
@@ -36,6 +36,7 @@ export async function callBackend<T = unknown>(name: string, payload: Record<str
     throw new BackendError(
       typeof body.code === "string" ? body.code : "internal",
       typeof body.message === "string" ? body.message : `HTTP_${response.status}`,
+      body.details,
     );
   }
   return { data: await response.json() as T };
