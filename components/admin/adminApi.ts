@@ -43,6 +43,7 @@ export interface AdminEventStats {
   revives: number;
   reviveCauris: number;
   perfect: number;
+  challenges?: Record<string, number>;
   byStatus: Record<string, number>;
   funnel: number[];
 }

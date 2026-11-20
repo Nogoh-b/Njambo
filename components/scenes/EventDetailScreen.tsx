@@ -19,6 +19,7 @@ import { eventCountdown } from "@/lib/eventCountdown";
 import { useEventLeaderboard } from "@/hooks/useEventLeaderboard";
 import { EventLeaderboardPanel } from "./EventLeaderboardPanel";
 import { EventBossIntro } from "./EventBossIntro";
+import { EventChallenges, useEventChallenges } from "./EventChallenges";
 import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
 import { EventOutcomeOverlay, resolveEventOutcome, type EventOutcome } from "./EventOutcomeOverlay";
 import styles from "./EventDetailScreen.module.css";
@@ -78,6 +79,7 @@ export function EventDetailScreen({
   /** Gemme qui se reforme après un rachat de vie (phase 4). */
   const [revivedGemIndex, setRevivedGemIndex] = useState<number | null>(null);
   const [bossIntro, setBossIntro] = useState<{ stage: EventStage; start: () => void } | null>(null);
+  const [challengesOpen, setChallengesOpen] = useState(false);
   const [leaderboardRefresh, setLeaderboardRefresh] = useState(0);
 
   useEffect(() => {
@@ -95,6 +97,11 @@ export function EventDetailScreen({
     leaderboardRefresh,
   );
   const countdown = event ? eventCountdown(event, now) : null;
+  /* Défis entre amis (phase 7) : badge du nombre de duels à traiter. */
+  const challengesEnabled = Boolean(event?.friendChallenges.enabled) && !preview && Boolean(user && !user.isAnonymous);
+  const { challenges, reload: reloadChallenges } = useEventChallenges(event?.eventId ?? "", challengesEnabled);
+  const challengesToHandle = (challenges ?? []).filter((item) => item.status === "pending" && item.toUid === user?.uid).length;
+  const challengesLive = (challenges ?? []).filter((item) => item.status === "accepted").length;
   const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) };
 
   /* Parcours affiché : d'abord un parcours en cours (active/matchmaking),
@@ -780,6 +787,14 @@ export function EventDetailScreen({
             </div>
           </div>
 
+          {challengesEnabled && (
+            <button data-nj-skin="none" type="button" className={styles.challengeBtn} onClick={() => setChallengesOpen(true)}>
+              <span aria-hidden="true">⚔️</span>
+              <span>{challengesToHandle > 0 ? `${challengesToHandle} défi${challengesToHandle > 1 ? "s" : ""} reçu${challengesToHandle > 1 ? "s" : ""} !` : challengesLive > 0 ? `${challengesLive} duel${challengesLive > 1 ? "s" : ""} en cours` : "Défier un ami"}</span>
+              {challengesToHandle > 0 && <span className={styles.challengeDot} aria-hidden="true" />}
+            </button>
+          )}
+
           {/* 3. GROS BOUTON 3D D'ACTION */}
           <button
             data-nj-skin="none"
@@ -804,6 +819,12 @@ export function EventDetailScreen({
           </button>
         </section>
       </div>
+
+      {challengesOpen && user && (
+        <GameModal open onClose={() => { setChallengesOpen(false); void reloadChallenges(); }} kicker="Défis entre amis" title="Duels" tone={isPvp ? "teal" : "gold"}>
+          <EventChallenges event={event} uid={user.uid} onChanged={() => void reloadChallenges()} />
+        </GameModal>
+      )}
 
       {bossIntro && (
         <EventBossIntro

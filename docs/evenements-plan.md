@@ -16,7 +16,7 @@
 | 4 | Sauver une vie, parcours parfait, modificateurs & boss | ✅ Code terminé — à valider en prod |
 | 5 | Cosmétiques (récompenses exclusives) | ✅ Code terminé — à valider en prod |
 | 6 | Saison (passe gratuit + premium XAF) | ✅ Code terminé — à valider en prod (paiement réel à brancher) |
-| 7 | Défis entre amis | 🟡 En cours |
+| 7 | Défis entre amis | ✅ Code terminé — à valider en prod |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -622,9 +622,9 @@ colonne dorée.
 ### Tâches
 - [x] Commandes `createEventChallenge`, `respondEventChallenge` (le défi lie le prochain parcours de chacun sur l'événement)
 - [x] Fin du défi quand les deux parcours sont terminés (ou expiration) → comparaison des scores (barème phase 2) → `winnerReward` + notifications
-- [ ] Client : bouton « Défier un ami » sur le détail, liste des défis en cours, écran de résultat du duel
+- [x] Client : bouton « Défier un ami » sur le détail, liste des défis en cours, écran de résultat du duel
 - [x] Notifications in-app/push : défi reçu, défi terminé
-- [ ] Admin : activation + récompense par événement ; stats défis
+- [x] Admin : activation + récompense par événement ; stats défis
 
 **Critère de fin** : deux amis s'affrontent sur le même événement et le
 gagnant reçoit automatiquement sa récompense.
@@ -664,6 +664,17 @@ règlement avant la fin, progression en direct, règlement (180 – 180
 départagé à la vitesse), +50 cauris au gagnant, rien au perdant, résultat
 notifié, réglé une fois, invitation expirée, stats.
 
+### Client — implémenté
+
+| Élément | Où | Détail |
+| --- | --- | --- |
+| Bouton « ⚔️ Défier un ami » | `EventDetailScreen.tsx` (au-dessus du bouton principal) | Visible si la fiche active les défis ; devient « 2 défis reçus ! » (pastille rouge) ou « 1 duel en cours » |
+| Fenêtre « Duels » | `components/scenes/EventChallenges.tsx` | Règle du duel + récompense ; **Mes duels** : « Toi ⚔️ ami » avec scores (en direct ou finaux), « Relever le défi » / « Refuser », « Lance ton prochain parcours : il compte pour le duel », résultat « 🏆 Victoire · 50 cauris » / « Défaite — prends ta revanche ! » / « Égalité parfaite » ; **Défier un ami** : liste des amis (temps réel) avec « Défier » ou « Duel ouvert ». Affichage pur `ChallengesView` séparé des données |
+| Notifications | Notifications de l'app | Type `event` : un clic ouvre le détail de l'événement (et donc les duels) |
+| Admin | Onglet Défis de l'éditeur (activation + récompense) ; Statistiques | KPI « Défis (terminés / en cours) » |
+
+![Duels](captures/phase7/duels.webp)
+
 ---
 
 ## Tests & qualité (toutes phases)
@@ -672,7 +683,70 @@ notifié, réglé une fois, invitation expirée, stats.
 - Commandes : idempotence (double clic = un seul effet), refus hors conditions.
 - `npx tsc --noEmit` (front) + `tsc -p server` (back) + `eslint` sur les fichiers modifiés.
 - Vérification visuelle (captures Playwright) des nouveaux écrans.
-- Pré-existant, non lié : `tests/performance-config.test.ts` et `tests/authoritative-game-sync.test.ts` échouent déjà sur `master`.
+- Pré-existant, non lié : `tests/performance-config.test.ts` et `tests/authoritative-game-sync.test.ts` échouent déjà sur `master` ; `eslint` signale 1 erreur pré-existante dans `components/scenes/FriendsScreen.tsx`.
+
+### Bilan des tests (fin de la phase 7)
+
+| Type | Commande | Résultat |
+| --- | --- | --- |
+| Règles pures (vitest) | `npx vitest run` | 113 réussis (dont 42 nouveaux : config, classement, compte à rebours, conséquences, notifications, règles de table, saisons, défis) ; seuls les 2 fichiers pré-existants échouent |
+| Typage | `npx tsc --noEmit` + `npx tsc --noEmit -p server` | OK |
+| Intégration Postgres (base **jetable**, `DATABASE_URL=…`, après `npm --prefix server run build`) | `node server/scripts/smoke-*.cjs` | admin événements 20/20 · joueurs 11/11 · classement 13/13 · campagnes 15/15 · règles de table / rachat 16/16 · cosmétiques 10/10 · saisons 14/14 · défis 15/15 |
+
+Les tests d'intégration jouent de **vraies parties** (le serveur joue chaque
+tour à l'expiration) : classement, règles de table, saisons et défis sont
+donc vérifiés de bout en bout côté serveur.
+
+---
+
+## Validation en production (checklist unique)
+
+### Avant de déployer
+1. **`server/.env` (VPS)** : ajouter `UPLOAD_DIR=/opt/njambo-uploads` et
+   `PUBLIC_BASE_URL=https://njambo-back.bysoft-corp.com` ; créer le dossier.
+2. **Nginx** : bloc `location /uploads/` + `client_max_body_size 3m`
+   (voir `docs/deploiement.md`).
+3. **Vercel** : `NEXT_PUBLIC_FIREBASE_VAPID_KEY` (sinon pas de push, alertes
+   dans l'app uniquement).
+4. Le service account du VPS doit avoir le droit **Firebase Cloud Messaging**.
+5. Si le back tourne sur Firestore (et non Postgres) :
+   `firebase deploy --only firestore:indexes,firestore:rules`.
+
+### Déployer
+6. Back : `scripts/deploy-back.sh` (installe `sharp`) ; puis front.
+7. Droits admin : `node scripts/set-admin.cjs <ton e-mail>` puis se reconnecter.
+
+### Scénario de test (≈ 30 min, 2 comptes A et B amis)
+8. **Admin → Cosmétiques** : créer un cadre (PNG transparent), un badge, un titre.
+9. **Admin → Saisons** : créer une saison publiée (3 paliers, premium 1 500 XAF).
+10. **Admin → Événements → Nouvel événement** : image, 2-3 tables (une table
+    boss niveau 5, « sans pouvoirs », « mise ×2 », minuteur 8 s), points de
+    saison, rachat de vie activé (20 / 40 cauris), bonus parfait (avec le
+    badge), classement activé avec récompenses par rang (dont le cadre),
+    notifications (ouverture + 1 h avant la fin), défis activés (50 cauris),
+    saison rattachée. **Aperçu** → vérifier le rendu. **Publier → Programmer**
+    dans 5 min.
+11. A et B : Options → activer « Alertes d'événements » (accepter la permission).
+12. À l'heure dite : l'événement apparaît, la notification d'ouverture arrive ;
+    le clic ouvre l'événement.
+13. A défie B (« ⚔️ Défier un ami ») ; B accepte depuis la notification.
+14. A et B jouent : intro du boss, règles appliquées ; se faire éliminer →
+    « Continuer · 20 cauris » ; points + rang dans l'overlay ; bandeau de
+    saison qui monte ; onglet **Classement**.
+15. Réclamer un palier de saison ; acheter le premium (simulé) ; réclamer la
+    colonne dorée.
+16. Fin de l'événement (raccourcir la date de fin dans l'admin si besoin) :
+    récompenses par rang + notification, résultat du duel + 50 cauris au
+    gagnant ; équiper le cadre/badge/titre depuis le profil → visibles par
+    l'autre joueur à la table et au classement.
+17. **Admin → Statistiques / Notifications / Joueurs / Audit** : vérifier les
+    chiffres et les traces.
+
+### Limites connues (hors plan)
+- Paiement XAF réel (MTN MoMo / Orange Money) : fournisseurs encore simulés.
+- Points de saison pour les parties classiques (hors événements) : non faits.
+- Dos de carte : celui du joueur lui-même (la pioche est commune) ; cadres,
+  badges et titres sont, eux, vus par tous.
 
 ---
 
@@ -698,3 +772,4 @@ notifié, réglé une fois, invitation expirée, stats.
 | 2026-11-20 | 6 | Serveur des saisons : règles + 5 tests, points au règlement des tables, réclamation des paliers, premium via le flux de paiement (achat, remboursement), commandes admin et stats ; correctif d'import du back ; intégration 14/14. |
 | 2026-11-20 | 6 | Client : écran Saison (paliers gratuit / premium, achat du passe), bandeau d'accès dans les événements, points de saison dans l'inspecteur et l'overlay, admin Saisons + rattachement d'un événement. **Phase 6 : code terminé** (paiement réel MTN / Orange à brancher). |
 | 2026-11-20 | 7 | Serveur des défis : règles + 3 tests, création / réponse entre amis, liaison des prochains parcours, règlement automatique avec récompense, notifications, stats ; intégration 15/15. |
+| 2026-11-20 | 7 | Client : bouton « Défier un ami » avec compteur, fenêtre Duels (invitations, scores en direct, résultats, liste d'amis), KPI admin. **Phase 7 : code terminé — plan complet côté code.** Ajout du bilan des tests et d'une checklist unique de validation en production. |
