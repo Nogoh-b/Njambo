@@ -1,14 +1,14 @@
 "use client";
 
 /* Console admin « Régie du Ter » : navigation latérale + sections.
-   Accès réservé au custom claim Firebase `admin` (vérifié aussi côté serveur
-   sur chaque commande). */
+   Accès réservé aux comptes `admin` (auth_users.admin, porté par le jeton
+   d'accès et vérifié aussi côté serveur sur chaque commande). */
 
 import { useCallback, useEffect, useState } from "react";
-import { getIdTokenResult } from "firebase/auth";
 import Link from "next/link";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { auth, db } from "@/lib/firebase";
+import { auth, getIdTokenResult } from "@/lib/authClient";
+import { db } from "@/lib/firebase";
 import { backendCallable } from "@/lib/backendCallable";
 import { collection, limit, onSnapshot, orderBy, query } from "@/lib/firestoreClient";
 import { adminApi, adminErrorText, type AdminEventSummary } from "./adminApi";
@@ -64,8 +64,8 @@ function ConsoleBody() {
     return (
       <main className="nj-admin">
         <h1>Régie du Ter</h1>
-        <p>Accès refusé. Le custom claim Firebase <code>admin</code> est requis.</p>
-        <p>Sur le VPS : <code>node scripts/set-admin.cjs ton.email@exemple.com</code>, puis reconnecte-toi.</p>
+        <p>Accès refusé. Un compte avec le droit <code>admin</code> est requis.</p>
+        <p>Depuis <code>server/</code> : <code>node scripts/set-admin.cjs ton.email@exemple.com</code>, puis reconnecte-toi.</p>
         <Link href="/">Retour au jeu</Link>
       </main>
     );

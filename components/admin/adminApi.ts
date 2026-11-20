@@ -5,7 +5,7 @@
 import type { CosmeticDefinition, EventLifecycle, EventValidationIssue, EventVersion, SeasonDefinition } from "@/domain";
 import { BACKEND_URL, BackendError, callBackend } from "@/lib/backend";
 import type { EventLeaderboardData } from "@/hooks/useEventLeaderboard";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/authClient";
 
 export interface AdminEventSummary {
   eventId: string;

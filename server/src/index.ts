@@ -7,6 +7,8 @@ import cors from "cors";
 import { setDbBackend } from "../../functions/src/core";
 import { createPgFirestore } from "./firestoreCompat/pg";
 import { buildCallableRequest } from "./auth";
+import { findUserByEmail, findUserEmail, initAuthStore, mountAuthRoutes } from "./authService";
+import { setAuthDirectory } from "../../functions/src/authDirectory";
 import { commands } from "./routes";
 import { sendError } from "./httpError";
 import { startJobs } from "./jobs";
@@ -39,6 +41,7 @@ if (getApps().length === 0) initializeApp();
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: "1mb" }));
+mountAuthRoutes(app);
 mountUploads(app);
 mountAudioUploads(app);
 
@@ -64,9 +67,11 @@ async function main() {
      sinon Firestore via firebase-admin (utile en transition/développement). */
   if (process.env.DATABASE_URL) {
     setDbBackend(await createPgFirestore(process.env.DATABASE_URL));
-    console.log("njambo-server: backend Postgres");
+    await initAuthStore(process.env.DATABASE_URL);
+    setAuthDirectory({ emailOf: findUserEmail, findByEmail: findUserByEmail });
+    console.log("njambo-server: backend Postgres (données + comptes)");
   } else {
-    console.log("njambo-server: backend Firestore (DATABASE_URL absent)");
+    console.log("njambo-server: backend Firestore (DATABASE_URL absent) — comptes indisponibles (/auth/* répond 503)");
   }
 
   const httpServer = createServer(app);

@@ -3,14 +3,14 @@
    commerciaux (donner un ticket) et réparation d'un parcours bloqué.
    Toute écriture exige un motif et laisse une trace dans admin_audit. */
 
-import { getAuth } from "firebase-admin/auth";
+import { authDirectory } from "./authDirectory";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { asObject, db, integer, requireAdmin, requiredString, runIdempotent } from "./core";
 
 const TIERS = ["bronze", "argent", "or"] as const;
 
-async function emailOf(uid: string): Promise<string | null> {
-  try { return (await getAuth().getUser(uid)).email ?? null; } catch { return null; }
+function emailOf(uid: string): Promise<string | null> {
+  return authDirectory().emailOf(uid).catch(() => null);
 }
 
 export async function adminSearchPlayersHandler(request: CallableRequest<unknown>) {
@@ -21,10 +21,8 @@ export async function adminSearchPlayersHandler(request: CallableRequest<unknown
     if (!found.has(uid)) found.set(uid, { uid, name: String(data?.name ?? "—"), emoji: String(data?.emoji ?? "🎴"), email });
   };
   if (q.includes("@")) {
-    try {
-      const user = await getAuth().getUserByEmail(q);
-      add(user.uid, (await db.doc(`players/${user.uid}`).get()).data(), user.email ?? null);
-    } catch { /* email inconnu */ }
+    const user = await authDirectory().findByEmail(q).catch(() => null);
+    if (user) add(user.uid, (await db.doc(`players/${user.uid}`).get()).data(), user.email);
   }
   if (/^[A-Za-z0-9_-]{16,128}$/.test(q)) {
     const snap = await db.doc(`players/${q}`).get();

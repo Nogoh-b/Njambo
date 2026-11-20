@@ -6,37 +6,29 @@ import {
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
 import {
+  auth,
   onAuthStateChanged,
-  signInAnonymously,
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
-  GoogleAuthProvider,
-  linkWithPhoneNumber,
-  linkWithPopup,
-  linkWithCredential,
-  RecaptchaVerifier,
+  registerWithEmail as registerAccount,
+  signInAsGuest,
+  signInWithEmail,
   signOut,
-  updateProfile as updateFirebaseProfile,
-  signInWithPhoneNumber,
-  signInWithPopup,
-  type ConfirmationResult,
-  type User,
-} from "firebase/auth";
-import { EmailAuthProvider } from "firebase/auth";
+  updateAuthProfile,
+  type AuthClientUser,
+} from "@/lib/authClient";
 import { doc, getDoc } from "@/lib/firestoreClient";
-import { auth, db } from "@/lib/firebase";
+import { db } from "@/lib/firebase";
 import { callBackend } from "@/lib/backend";
 import { setPlayerPresence } from "@/lib/playerData";
 import type { AuthUser } from "@/types/game";
 
-/* ═══════════════ AuthContext — Firebase Auth (instance UNIQUE) ═══════════════
-   Gère l'authentification : anonyme auto, email+password, liaison
-   anonyme → email. Profil stocké dans Firestore.
+/* ═══════════════ AuthContext — comptes Njambo (instance UNIQUE) ═══════════════
+   Gère l'authentification via le backend (lib/authClient.ts, comptes dans
+   Postgres) : invité, email+password, passage invité → compte en gardant
+   son uid. Profil stocké dans users/{uid} via le backend.
 
    IMPORTANT : c'est un Provider, pas un hook autonome. L'ancienne version
    (hook local) était appelée par ~20 composants : chaque instance relançait
@@ -52,12 +44,6 @@ interface UseAuthReturn {
   loginWithEmail: (email: string, password: string) => Promise<void>;
   /** Création de compte email + mot de passe */
   registerWithEmail: (email: string, password: string, name: string, emoji: string) => Promise<void>;
-  /** Connexion ou liaison Google */
-  loginWithGoogle: () => Promise<void>;
-  /** Envoie le code SMS après validation reCAPTCHA invisible */
-  requestPhoneCode: (phoneNumber: string, verifierContainerId: string) => Promise<void>;
-  /** Confirme le code SMS et finalise le compte permanent */
-  confirmPhoneCode: (code: string, name?: string, emoji?: string) => Promise<void>;
   /** Déconnexion */
   logout: () => Promise<void>;
   /** Lier le compte anonyme courant à un email */
@@ -82,7 +68,7 @@ const DEFAULT_PROFILE: UserProfile = {
   createdAt: 0,
 };
 
-function profileFromFirebase(fbUser: User): UserProfile {
+function profileFromAccount(fbUser: AuthClientUser): UserProfile {
   return {
     ...DEFAULT_PROFILE,
     name: fbUser.displayName?.trim() || DEFAULT_PROFILE.name,
@@ -91,7 +77,7 @@ function profileFromFirebase(fbUser: User): UserProfile {
 }
 
 /** Lit le profil Firestore d'un utilisateur */
-async function getUserProfile(uid: string, fbUser?: User | null): Promise<UserProfile> {
+async function getUserProfile(uid: string, fbUser?: AuthClientUser | null): Promise<UserProfile> {
   const snap = await getDoc(doc(db, "users", uid));
   if (snap.exists()) {
     return snap.data() as UserProfile;
@@ -102,7 +88,7 @@ async function getUserProfile(uid: string, fbUser?: User | null): Promise<UserPr
     return playerSnap.data() as UserProfile;
   }
 
-  return fbUser ? profileFromFirebase(fbUser) : DEFAULT_PROFILE;
+  return fbUser ? profileFromAccount(fbUser) : DEFAULT_PROFILE;
 }
 
 /**
@@ -132,23 +118,21 @@ const AuthContext = createContext<UseAuthReturn | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const phoneConfirmationRef = useRef<ConfirmationResult | null>(null);
-  const recaptchaRef = useRef<RecaptchaVerifier | null>(null);
 
   /* ── Listener auth persistant (UNE seule cascade de boot) ── */
   useEffect(() => {
     let cancelled = false;
-    const unsub = onAuthStateChanged(auth, async (fbUser: User | null) => {
+    const unsub = onAuthStateChanged(auth, async (fbUser: AuthClientUser | null) => {
       if (cancelled) return;
       if (fbUser) {
-        let profile = profileFromFirebase(fbUser);
+        let profile = profileFromAccount(fbUser);
         if (!fbUser.isAnonymous) {
           try {
             profile = await getUserProfile(fbUser.uid, fbUser);
           } catch (error) {
             // L'API de profil ne doit jamais laisser toute l'interface Auth
             // bloquée sur « Chargement… » quand le backend redémarre.
-            console.error("[AuthContext] lecture profil échouée, profil Firebase utilisé:", error);
+            console.error("[AuthContext] lecture profil échouée, profil du compte utilisé:", error);
           }
         }
         if (cancelled) return;
@@ -159,7 +143,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           name: profile.name,
           emoji: profile.emoji,
           email: fbUser.email ?? undefined,
-          phoneNumber: fbUser.phoneNumber ?? undefined,
           ageBand: profile.ageBand ?? "unknown",
           isAnonymous: fbUser.isAnonymous,
         });
@@ -200,10 +183,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const login = useCallback(async (name: string, emoji: string) => {
     setLoading(true);
     try {
-      const cred = await signInAnonymously(auth);
-      await updateFirebaseProfile(cred.user, { displayName: name, photoURL: emoji });
+      const account = await signInAsGuest({ name, photo: emoji });
       setUser({
-        uid: cred.user.uid,
+        uid: account.uid,
         name,
         emoji,
         isAnonymous: true,
@@ -222,22 +204,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   ) => {
     setLoading(true);
     try {
-      const currentUser = auth.currentUser;
-      const cred = currentUser?.isAnonymous
-        ? await linkWithCredential(currentUser, EmailAuthProvider.credential(email, password))
-        : await createUserWithEmailAndPassword(auth, email, password);
-      await updateFirebaseProfile(cred.user, { displayName: name, photoURL: emoji });
+      const account = await registerAccount(email, password, { name, photo: emoji });
       await saveUserProfile(
-        cred.user.uid,
+        account.uid,
         { name, emoji, createdAt: Date.now() },
         { ...DEFAULT_PROFILE, name, emoji },
       );
       setUser({
-        uid: cred.user.uid,
+        uid: account.uid,
         name,
         emoji,
         email,
-        phoneNumber: cred.user.phoneNumber ?? undefined,
         ageBand: "unknown",
         isAnonymous: false,
       });
@@ -250,91 +227,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const loginWithEmail = useCallback(async (email: string, password: string) => {
     setLoading(true);
     try {
-      const cred = await signInWithEmailAndPassword(auth, email, password);
-      const profile = await getUserProfile(cred.user.uid, cred.user);
+      const account = await signInWithEmail(email, password);
+      const profile = await getUserProfile(account.uid, account);
       setUser({
-        uid: cred.user.uid,
+        uid: account.uid,
         name: profile.name,
         emoji: profile.emoji,
-        email,
-        phoneNumber: cred.user.phoneNumber ?? undefined,
+        email: account.email ?? email,
         ageBand: profile.ageBand ?? "unknown",
         isAnonymous: false,
       });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const loginWithGoogle = useCallback(async () => {
-    setLoading(true);
-    try {
-      const provider = new GoogleAuthProvider();
-      const currentUser = auth.currentUser;
-      const cred = currentUser?.isAnonymous
-        ? await linkWithPopup(currentUser, provider)
-        : await signInWithPopup(auth, provider);
-      const profile = await getUserProfile(cred.user.uid, cred.user);
-      await saveUserProfile(cred.user.uid, profile, profile);
-      setUser({
-        uid: cred.user.uid,
-        name: profile.name,
-        emoji: profile.emoji,
-        email: cred.user.email ?? undefined,
-        phoneNumber: cred.user.phoneNumber ?? undefined,
-        ageBand: profile.ageBand ?? "unknown",
-        isAnonymous: false,
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const requestPhoneCode = useCallback(async (phoneNumber: string, verifierContainerId: string) => {
-    setLoading(true);
-    try {
-      recaptchaRef.current?.clear();
-      const verifier = new RecaptchaVerifier(auth, verifierContainerId, { size: "invisible" });
-      recaptchaRef.current = verifier;
-      const currentUser = auth.currentUser;
-      phoneConfirmationRef.current = currentUser?.isAnonymous
-        ? await linkWithPhoneNumber(currentUser, phoneNumber, verifier)
-        : await signInWithPhoneNumber(auth, phoneNumber, verifier);
-    } catch (cause) {
-      recaptchaRef.current?.clear();
-      recaptchaRef.current = null;
-      throw cause;
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  const confirmPhoneCode = useCallback(async (code: string, requestedName?: string, requestedEmoji?: string) => {
-    const confirmation = phoneConfirmationRef.current;
-    if (!confirmation) throw new Error("Aucun code SMS n'a été demandé");
-    setLoading(true);
-    try {
-      const cred = await confirmation.confirm(code);
-      const existing = await getUserProfile(cred.user.uid, cred.user);
-      const profile = {
-        ...existing,
-        name: requestedName?.trim() || existing.name,
-        emoji: requestedEmoji || existing.emoji,
-      };
-      await updateFirebaseProfile(cred.user, { displayName: profile.name, photoURL: profile.emoji });
-      await saveUserProfile(cred.user.uid, profile, existing);
-      setUser({
-        uid: cred.user.uid,
-        name: profile.name,
-        emoji: profile.emoji,
-        email: cred.user.email ?? undefined,
-        phoneNumber: cred.user.phoneNumber ?? undefined,
-        ageBand: profile.ageBand ?? "unknown",
-        isAnonymous: false,
-      });
-      phoneConfirmationRef.current = null;
-      recaptchaRef.current?.clear();
-      recaptchaRef.current = null;
     } finally {
       setLoading(false);
     }
@@ -346,11 +248,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!currentUser) throw new Error("Aucun utilisateur connecté");
     setLoading(true);
     try {
-      const credential = EmailAuthProvider.credential(email, password);
-      const cred = await linkWithCredential(currentUser, credential);
-      const profile = await getUserProfile(cred.user.uid, cred.user);
+      const account = await registerAccount(email, password, {});
+      const profile = await getUserProfile(account.uid, account);
       setUser({
-        uid: cred.user.uid,
+        uid: account.uid,
         name: profile.name,
         emoji: profile.emoji,
         email,
@@ -366,7 +267,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(async () => {
     const currentUser = auth.currentUser;
     if (currentUser && !currentUser.isAnonymous) await setPlayerPresence(currentUser.uid, false);
-    await signOut(auth);
+    await signOut();
     setUser(null);
   }, []);
 
@@ -374,10 +275,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error("Aucun utilisateur connecté");
 
-    await updateFirebaseProfile(currentUser, {
-      displayName: profile.name,
-      photoURL: profile.emoji,
-    });
+    await updateAuthProfile({ name: profile.name, photo: profile.emoji });
     await saveUserProfile(currentUser.uid, profile);
     setUser((prev) => prev ? { ...prev, ...profile } : prev);
   }, []);
@@ -396,14 +294,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     login,
     loginWithEmail,
     registerWithEmail,
-    loginWithGoogle,
-    requestPhoneCode,
-    confirmPhoneCode,
     logout,
     linkEmail,
     updateUserProfile,
     updateAgeBand,
-  }), [user, loading, login, loginWithEmail, registerWithEmail, loginWithGoogle, requestPhoneCode, confirmPhoneCode, logout, linkEmail, updateUserProfile, updateAgeBand]);
+  }), [user, loading, login, loginWithEmail, registerWithEmail, logout, linkEmail, updateUserProfile, updateAgeBand]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

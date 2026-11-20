@@ -6,7 +6,7 @@
 
 import type { Server as HttpServer } from "node:http";
 import { WebSocketServer, type WebSocket } from "ws";
-import { getAuth } from "firebase-admin/auth";
+import { verifyAccessToken } from "../authTokens";
 import { db } from "../../../functions/src/core";
 import type { DocumentSnapshot, Query, QuerySnapshot, WhereOp } from "../../../functions/src/firestoreTypes";
 import { authorizeTarget, parentCheckFor, type AuthInfo } from "./authz";
@@ -143,16 +143,15 @@ export function attachRealtime(httpServer: HttpServer) {
       }
       if (message.type === "auth") {
         if (typeof message.token !== "string") { fail(undefined, "unauthenticated", "INVALID_TOKEN"); return; }
-        getAuth().verifyIdToken(message.token)
-          .then((decoded) => {
-            auth = { uid: decoded.uid, admin: decoded.admin === true };
-            clearTimeout(authTimer);
-            send({ type: "ready", uid: decoded.uid });
-          })
-          .catch(() => {
-            fail(undefined, "unauthenticated", "INVALID_TOKEN");
-            socket.close(4401, "INVALID_TOKEN");
-          });
+        const decoded = verifyAccessToken(message.token);
+        if (!decoded) {
+          fail(undefined, "unauthenticated", "INVALID_TOKEN");
+          socket.close(4401, "INVALID_TOKEN");
+          return;
+        }
+        auth = { uid: decoded.uid, admin: decoded.admin === true };
+        clearTimeout(authTimer);
+        send({ type: "ready", uid: decoded.uid });
         return;
       }
       if (message.type === "unsubscribe") {

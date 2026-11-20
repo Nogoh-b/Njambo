@@ -7,8 +7,7 @@
    réabonnement automatique après coupure (backoff exponentiel).
    Consommé uniquement par lib/firestoreClient.ts. */
 
-import { onAuthStateChanged } from "firebase/auth";
-import { auth } from "@/lib/firebase";
+import { auth, onAuthStateChanged } from "@/lib/authClient";
 import { BACKEND_URL } from "@/lib/backend";
 
 export interface SubscribeTarget {

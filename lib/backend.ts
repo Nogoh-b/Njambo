@@ -6,7 +6,7 @@
    Un idempotencyKey est ajouté automatiquement s'il n'est pas fourni. */
 
 import { generateSecureId } from "@/lib/cryptoUtils";
-import { auth } from "@/lib/firebase";
+import { auth } from "@/lib/authClient";
 
 const defaultLocalBackend =
   typeof window !== "undefined" && window.location.hostname
@@ -25,12 +25,16 @@ export class BackendError extends Error {
 export async function callBackend<T = unknown>(name: string, payload: Record<string, unknown> = {}): Promise<{ data: T }> {
   const user = auth.currentUser;
   if (!user) throw new BackendError("unauthenticated", "AUTH_REQUIRED");
-  const token = await user.getIdToken();
-  const response = await fetch(`${BACKEND_URL}/api/${name}`, {
+  const body = JSON.stringify({ idempotencyKey: `${name}_${generateSecureId(24)}`, ...payload });
+  const send = async (forceRefresh: boolean) => fetch(`${BACKEND_URL}/api/${name}`, {
     method: "POST",
-    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ idempotencyKey: `${name}_${generateSecureId(24)}`, ...payload }),
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${await user.getIdToken(forceRefresh)}` },
+    body,
   });
+  let response = await send(false);
+  // Jeton refusé (secret du serveur changé, horloge décalée…) : un seul
+  // nouvel essai avec un jeton fraîchement renouvelé.
+  if (response.status === 401) response = await send(true);
   if (!response.ok) {
     const body = await response.json().catch(() => ({} as Record<string, unknown>));
     throw new BackendError(

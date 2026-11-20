@@ -6,7 +6,6 @@ import { useAuth } from "@/hooks/useAuth";
 import { Surface } from "@/components/ui/Shell";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
-import { TabBar } from "@/components/ui/TabBar";
 import styles from "./AuthGate.module.css";
 
 /* ═══════════════ AuthGate — inline login / register ═══════════════
@@ -27,7 +26,7 @@ const AVATARS = [
   "avatar-rapha",
 ];
 
-/** Traduit les codes d&apos;erreur Firebase Auth en messages français */
+/** Traduit les codes d&apos;erreur d&apos;authentification (auth/…) en messages français */
 function authError(code?: string): string {
   if (!code) return "Erreur inconnue. Réessaie.";
   const map: Record<string, string> = {
@@ -40,10 +39,7 @@ function authError(code?: string): string {
     "auth/too-many-requests": "Trop de tentatives. Réessaie plus tard.",
     "auth/network-request-failed": "Erreur réseau. Vérifie ta connexion.",
     "auth/invalid-credential": "E-mail ou mot de passe incorrect.",
-    "auth/invalid-phone-number": "Numéro invalide. Utilise le format +237…",
-    "auth/invalid-verification-code": "Code SMS incorrect.",
-    "auth/code-expired": "Le code SMS a expiré. Demande un nouveau code.",
-    "auth/popup-closed-by-user": "La fenêtre Google a été fermée.",
+    "auth/backend-unavailable": "Service de connexion indisponible. Réessaie plus tard.",
   };
   return map[code] ?? "Erreur inconnue. Réessaie.";
 }
@@ -69,18 +65,13 @@ const ACCOUNT_TONE_CLASS = {
 
 export function AuthGate({ children, gateClassName, tone = "gold", accountBar = "full" }: AuthGateProps) {
   const {
-    user, loading, loginWithEmail, registerWithEmail, loginWithGoogle,
-    requestPhoneCode, confirmPhoneCode, logout,
+    user, loading, loginWithEmail, registerWithEmail, logout,
   } = useAuth();
 
   /* Formulaire */
   const [mode, setMode] = useState<"login" | "register">("login");
-  const [authMethod, setAuthMethod] = useState<"phone" | "email">("phone");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("+237");
-  const [smsCode, setSmsCode] = useState("");
-  const [codeSent, setCodeSent] = useState(false);
   const [name, setName] = useState("");
   const [emoji, setEmoji] = useState(AVATARS[0]);
   const [busy, setBusy] = useState(false);
@@ -141,30 +132,6 @@ export function AuthGate({ children, gateClassName, tone = "gold", accountBar = 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    if (authMethod === "phone") {
-      const normalizedPhone = phoneNumber.replace(/\s+/g, "");
-      if (!/^\+[1-9]\d{7,14}$/.test(normalizedPhone)) {
-        setError("Entre le numéro complet, par exemple +2376XXXXXXXX.");
-        return;
-      }
-      if (codeSent && !/^\d{6}$/.test(smsCode.trim())) {
-        setError("Entre le code SMS à 6 chiffres.");
-        return;
-      }
-      setBusy(true);
-      try {
-        if (codeSent) await confirmPhoneCode(smsCode.trim(), name.trim() || user?.name, user?.emoji || emoji);
-        else {
-          await requestPhoneCode(normalizedPhone, "nj-phone-recaptcha");
-          setCodeSent(true);
-        }
-      } catch (err: unknown) {
-        setError(authError((err as { code?: string })?.code));
-      } finally {
-        setBusy(false);
-      }
-      return;
-    }
     const trimmedEmail = email.trim();
     const trimmedPassword = password.trim();
     const trimmedName = name.trim();
@@ -232,31 +199,6 @@ export function AuthGate({ children, gateClassName, tone = "gold", accountBar = 
 
         {/* Champs */}
         <div className="nj-stack" style={{ gap: 10 }}>
-          <TabBar
-            tabs={[
-              { id: "phone", label: "Téléphone", tone: "teal" },
-              { id: "email", label: "E-mail", tone: "gold" },
-            ]}
-            activeId={authMethod}
-            onChange={(next) => { setAuthMethod(next as "phone" | "email"); setError(""); }}
-            ariaLabel="Méthode de connexion"
-            tone="gold"
-            size="md"
-            className={styles.authMethodTabs}
-          />
-
-          {authMethod === "phone" && (
-            <>
-              {!codeSent ? (
-                <input aria-label="Numéro de téléphone" className="nj-input" type="tel" inputMode="tel" placeholder="+237 6XX XX XX XX" value={phoneNumber} onChange={(e) => setPhoneNumber(e.target.value)} autoComplete="tel" disabled={busy} />
-              ) : (
-                <input aria-label="Code SMS à 6 chiffres" className="nj-input" type="text" inputMode="numeric" maxLength={6} placeholder="Code SMS à 6 chiffres" value={smsCode} onChange={(e) => setSmsCode(e.target.value.replace(/\D/g, ""))} autoComplete="one-time-code" disabled={busy} />
-              )}
-              <div id="nj-phone-recaptcha" />
-            </>
-          )}
-
-          {authMethod === "email" && <>
           {/* Pseudo (inscription seulement) */}
           {isRegister && (
             <input
@@ -318,7 +260,6 @@ export function AuthGate({ children, gateClassName, tone = "gold", accountBar = 
               </div>
             </div>
           )}
-          </>}
 
           {/* Bouton submit */}
           <Btn
@@ -333,38 +274,21 @@ export function AuthGate({ children, gateClassName, tone = "gold", accountBar = 
             className={styles.fullButton}
             icon={<NjamboIcon name={isRegister ? "play" : "home"} tone={tone} size={20} />}
           >
-            {busy ? "…" : authMethod === "phone" ? (codeSent ? "Valider le code" : "Recevoir le code") : isRegister ? "Créer mon compte" : "Se connecter"}
+            {busy ? "…" : isRegister ? "Créer mon compte" : "Se connecter"}
           </Btn>
 
+          {/* Toggle mode */}
           <Btn
-            tone={'pink'}
-            fill="solid"
+            tone={tone}
+            fill="outline"
             motif="indigo-dots"
             motifSides="both"
             disabled={busy}
             className={styles.fullButton}
-            onClick={() => {
-              setBusy(true); setError("");
-              void loginWithGoogle().catch((err: unknown) => setError(authError((err as { code?: string })?.code))).finally(() => setBusy(false));
-            }}
+            onClick={() => { setMode(isRegister ? "login" : "register"); setError(""); }}
           >
-            Continuer avec Google
+            {isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? Créer un compte"}
           </Btn>
-
-          {/* Toggle mode */}
-          {authMethod === "email" && (
-            <Btn
-              tone={tone}
-              fill="outline"
-              motif="indigo-dots"
-              motifSides="both"
-              disabled={busy}
-              className={styles.fullButton}
-              onClick={() => { setMode(isRegister ? "login" : "register"); setError(""); }}
-            >
-              {isRegister ? "Déjà un compte ? Se connecter" : "Pas encore de compte ? Créer un compte"}
-            </Btn>
-          )}
         </div>
       </form>
     </Surface>

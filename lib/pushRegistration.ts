@@ -17,9 +17,10 @@ export function pushSupport(): PushSupport {
 export async function registerPushToken(registration?: ServiceWorkerRegistration): Promise<boolean> {
   const vapidKey = process.env.NEXT_PUBLIC_FIREBASE_VAPID_KEY;
   if (!vapidKey || Notification.permission !== "granted") return false;
-  const [{ getMessaging, getToken, isSupported }, { app, auth }, { backendCallable }] = await Promise.all([
+  const [{ getMessaging, getToken, isSupported }, { app }, { auth }, { backendCallable }] = await Promise.all([
     import("firebase/messaging"),
     import("@/lib/firebase"),
+    import("@/lib/authClient"),
     import("@/lib/backendCallable"),
   ]);
   if (!auth.currentUser || auth.currentUser.isAnonymous || !(await isSupported())) return false;

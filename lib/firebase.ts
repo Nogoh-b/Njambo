@@ -1,12 +1,11 @@
 /* ═══════════════ FILE: lib/firebase.ts ═══════════════
-   Initialisation Firebase — single instance. Depuis la migration VPS, seul
-   Firebase Auth (+ Messaging via `app`) est utilisé : les données vivent dans
-   le backend VPS (Postgres). `db` n'est plus une instance Firestore mais un
+   Initialisation Firebase — single instance. Seul Firebase Messaging (push,
+   via `app`) est encore utilisé : les données ET les comptes vivent dans le
+   backend VPS (Postgres, voir lib/authClient.ts). `db` n'est plus une instance Firestore mais un
    simple jeton passé aux fonctions du shim lib/firestoreClient.ts, qui
    l'ignorent — conservé pour garder les signatures d'appel du SDK. */
 
 import { initializeApp, getApps } from "firebase/app";
-import { getAuth } from "firebase/auth";
 import { ensureRandomUUIDPolyfill } from "@/lib/cryptoUtils";
 
 ensureRandomUUIDPolyfill();
@@ -24,9 +23,8 @@ const firebaseConfig = {
 
 /* ── Singletons (évite les réinitialisations en dev avec HMR) ── */
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApps()[0];
-const auth = getAuth(app);
 
 /** Jeton opaque consommé par lib/firestoreClient.ts (API compatible SDK). */
 const db = Object.freeze({ __backend: "njambo-vps" });
 
-export { app, auth, db };
+export { app, db };
