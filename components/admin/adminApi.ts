@@ -56,6 +56,7 @@ export interface AdminUpload {
   width: number;
   height: number;
   bytes: number;
+  durationMs?: number | null;
   createdAt: number;
 }
 
@@ -182,6 +183,20 @@ export async function uploadImage(file: File, kind: "event" | "boss" | "cosmetic
   return body as { url: string; path: string; width: number; height: number; bytes: number };
 }
 
+export async function uploadAudio(file: File) {
+  const user = auth.currentUser;
+  if (!user) throw new BackendError("unauthenticated", "AUTH_REQUIRED");
+  if (file.size > 500 * 1024) throw new BackendError("invalid-argument", "FILE_TOO_LARGE");
+  const response = await fetch(`${BACKEND_URL}/admin/upload-audio`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await user.getIdToken()}`, "Content-Type": file.type || "audio/mpeg" },
+    body: file,
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new BackendError(body.code ?? "internal", body.message ?? `HTTP_${response.status}`);
+  return body as { url: string; path: string; durationMs: number | null; bytes: number; converted: boolean };
+}
+
 const ERROR_LABELS: Record<string, string> = {
   EVENT_INVALID: "La fiche contient des erreurs : corrige-les avant de publier.",
   EVENT_ALREADY_ENDED: "La date de fin est déjà passée.",
@@ -189,7 +204,10 @@ const ERROR_LABELS: Record<string, string> = {
   EVENT_ID_TAKEN: "Cet identifiant est déjà utilisé.",
   NOTHING_SCHEDULED: "Aucune publication programmée.",
   ADMIN_REQUIRED: "Droits admin requis.",
-  FILE_TOO_LARGE: "Image trop lourde (2 Mo maximum).",
+  FILE_TOO_LARGE: "Fichier trop lourd (image : 2 Mo, son : 500 Ko).",
+  NOT_AN_AUDIO_FILE: "Ce fichier n’est pas un son MP3, OGG, WAV ou M4A.",
+  UNREADABLE_AUDIO: "Son illisible.",
+  AUDIO_TOO_LONG: "Son trop long (60 s maximum avant découpe à 5 s).",
   NOT_AN_IMAGE: "Ce fichier n'est pas une image PNG, JPEG ou WebP.",
   UNSUPPORTED_TYPE: "Format accepté : PNG, JPEG ou WebP.",
   UNREADABLE_IMAGE: "Image illisible.",

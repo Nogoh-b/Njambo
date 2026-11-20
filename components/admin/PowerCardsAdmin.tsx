@@ -12,6 +12,7 @@ import { POWER_ANIM_TAGS, POWER_BOOSTER_TIERS, POWER_CATEGORIES, POWER_RARITIES,
 import type { PowerCardDef } from "@/types/game";
 import { adminApi, adminErrorText, issuesFromError, type AdminPowerCardRow } from "./adminApi";
 import { ImageField } from "./ImageField";
+import { SoundField } from "./SoundField";
 import { StepsEditor, TargetEditor } from "./PowerScriptEditor";
 import { BOOSTER_TIER_LABELS, CATEGORY_LABELS, RARITY_LABELS, TARGET_MODE_LABELS, TONE_LABELS, blankPowerCard } from "./powerLabels";
 import styles from "./AdminConsole.module.css";
@@ -20,7 +21,7 @@ type Card = Pick<PowerModule, "def" | "script" | "dev">;
 type Tab = "identity" | "target" | "effect" | "animation" | "economy";
 
 const TABS: Array<{ key: Tab; label: string; prefixes: string[] }> = [
-  { key: "identity", label: "Identité", prefixes: ["def.id", "def.name", "def.description", "def.activationTitle", "def.activationText", "def.category", "def.rarity", "def.icon", "def.tone", "def.art", "def.targetMode", "def.animTags", "script.id"] },
+  { key: "identity", label: "Identité", prefixes: ["def.id", "def.name", "def.description", "def.activationTitle", "def.activationText", "def.category", "def.rarity", "def.icon", "def.tone", "def.art", "def.targetMode", "def.animTags", "def.sound", "script.id"] },
   { key: "target", label: "Cible", prefixes: ["script.target", "script.conditions"] },
   { key: "effect", label: "Effet", prefixes: ["script.steps"] },
   { key: "animation", label: "Animation", prefixes: [] },
@@ -256,6 +257,10 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
               </div>
               <h3>Visuel</h3>
               <ImageField kind="power" label="Illustration de la carte (portrait)" value={def.art} error={errorFor("def.art")} onChange={(art) => patchDef({ art: art ?? "" })} />
+              <h3>Son d’activation</h3>
+              <SoundField label="Joué chez tous les joueurs quand la carte est activée" value={def.sound?.ref} volume={def.sound?.volume ?? 1} error={errorFor("def.sound.ref") ?? errorFor("def.sound.volume")}
+                onChange={(ref) => patchDef({ sound: ref ? { ref, ...(def.sound?.volume !== undefined ? { volume: def.sound.volume } : {}) } : undefined })}
+                onVolume={(volume) => def.sound && patchDef({ sound: { ...def.sound, volume } })} />
               <h3>Éléments touchés (filtres et repères)</h3>
               <div className={styles.row}>
                 {POWER_ANIM_TAGS.map((tag) => (

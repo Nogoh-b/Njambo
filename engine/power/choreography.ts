@@ -142,6 +142,9 @@ const TONES = ["gold", "teal", "pink", "cobalt"];
 
 export interface ChoreoIssue { path: string; message: string }
 
+const SOUND_REF = /^(preset:[a-z_]{2,24}|(\/[\w\-./]+|https?:\/\/[\w\-.]+(:\d+)?\/[\w\-./%]*)\.(mp3|ogg|m4a|wav))$/i;
+const isSoundRefLike = (value: string) => value.length <= 300 && SOUND_REF.test(value);
+
 const obj = (value: unknown): Record<string, unknown> => (value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {});
 const isInt = (value: unknown, min: number, max: number) => Number.isInteger(value) && (value as number) >= min && (value as number) <= max;
 const isNum = (value: unknown, min: number, max: number) => typeof value === "number" && Number.isFinite(value) && value >= min && value <= max;
@@ -229,7 +232,7 @@ export function validateChoreography(value: unknown, base: string): ChoreoIssue[
         if (track.size !== undefined && !["s", "m", "l"].includes(String(track.size))) issues.push({ path: `${path}.size`, message: "Taille inconnue." });
         break;
       case "sound":
-        if (typeof track.sound !== "string" || track.sound.length === 0 || track.sound.length > 200) issues.push({ path: `${path}.sound`, message: "Son requis." });
+        if (typeof track.sound !== "string" || !isSoundRefLike(track.sound)) issues.push({ path: `${path}.sound`, message: "Son : préréglage ou fichier uploadé." });
         if (track.volume !== undefined && !isNum(track.volume, 0, 1)) issues.push({ path: `${path}.volume`, message: "Volume : 0 à 100 %." });
         break;
       default:

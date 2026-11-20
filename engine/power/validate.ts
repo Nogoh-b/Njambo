@@ -56,6 +56,14 @@ export const POWER_LIMITS = {
 } as const;
 
 const ID = /^[a-z0-9_]{3,48}$/;
+/** Préréglages de synthèse connus (miroir de lib/powerSounds.ts, vérifié par un test). */
+export const SOUND_PRESET_NAMES = ["pouvoir", "tambour", "eclair", "vent", "givre", "gong", "pieces", "magie", "alarme", "sceau", "souffle"] as const;
+const SOUND_URL = /^(\/[\w\-./]+|https?:\/\/[\w\-.]+(:\d+)?\/[\w\-./%]*)\.(mp3|ogg|m4a|wav)$/i;
+export function isSoundRef(value: unknown): boolean {
+  if (typeof value !== "string") return false;
+  if (value.startsWith("preset:")) return (SOUND_PRESET_NAMES as readonly string[]).includes(value.slice(7));
+  return SOUND_URL.test(value);
+}
 const ASSET = /^(\/[\w\-./]+|https?:\/\/[\w\-.]+(:\d+)?\/[\w\-./%]*)$/;
 const has = <T extends readonly string[]>(list: T, value: unknown): value is T[number] => typeof value === "string" && (list as readonly string[]).includes(value);
 const obj = (value: unknown): Record<string, unknown> => (value && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {});
@@ -79,6 +87,11 @@ export function validatePowerDef(def: PowerCardDef, issues: PowerValidationIssue
   if (!isInt(def.costNkap, 0, POWER_LIMITS.costNkap)) push("costNkap", "Prix en Nkap : entier positif.");
   if (!Array.isArray(def.animTags) || def.animTags.some((tag) => !has(POWER_ANIM_TAGS, tag))) push("animTags", "Étiquettes d'animation inconnues.");
   if (def.boosterTier !== undefined && !has(POWER_BOOSTER_TIERS, def.boosterTier)) push("boosterTier", "Palier de livre inconnu.");
+  if (def.sound !== undefined) {
+    const sound = obj(def.sound);
+    if (!isSoundRef(sound.ref)) push("sound.ref", "Son : préréglage connu ou fichier uploadé.");
+    if (sound.volume !== undefined && !isNum(sound.volume, 0, 1)) push("sound.volume", "Volume : 0 à 100 %.");
+  }
   return issues;
 }
 

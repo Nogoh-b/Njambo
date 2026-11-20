@@ -61,3 +61,15 @@ describe("choreographyFromCues", () => {
     expect(paths[1].startMs).toBeGreaterThan(paths[0].startMs);
   });
 });
+
+describe("sons des cartes", () => {
+  it("les préréglages validés existent dans la bibliothèque sonore", async () => {
+    const { SOUND_PRESET_NAMES, isSoundRef } = await import("../engine/power/validate");
+    const { POWER_SOUND_PRESETS } = await import("../lib/powerSounds");
+    expect([...SOUND_PRESET_NAMES].sort()).toEqual(Object.keys(POWER_SOUND_PRESETS).sort());
+    expect(isSoundRef("preset:tambour")).toBe(true);
+    expect(isSoundRef("preset:inconnu")).toBe(false);
+    expect(isSoundRef("https://api.exemple.com/uploads/audio/abc.mp3")).toBe(true);
+    expect(isSoundRef("javascript:alert(1)")).toBe(false);
+  });
+});

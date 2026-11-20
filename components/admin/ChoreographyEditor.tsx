@@ -14,6 +14,7 @@ import {
 import type { PlayerRef, PowerFxTone } from "@/engine/power/types";
 import { FX_PRESETS, PLAYER_REFS, POWER_TONES } from "@/engine/power/validate";
 import { FX_PRESET_LABELS, PLAYER_LABELS, TONE_LABELS } from "./powerLabels";
+import { SoundField } from "./SoundField";
 import styles from "./AdminConsole.module.css";
 
 type ErrorFor = (path: string) => string | undefined;
@@ -246,8 +247,10 @@ function TrackForm({ track, tracks, onChange, errorFor, path }: { track: ChoreoT
       return (
         <div className={styles.grid3}>
           <F label="Départ (s)" error={e("startMs")}><input type="number" min={0} max={8} step={0.05} value={seconds(track.startMs)} onChange={(ev) => onChange({ ...track, startMs: ms(ev.target.value) })} /></F>
-          <F label="Son (URL ou identifiant)" error={e("sound")}><input value={track.sound} onChange={(ev) => onChange({ ...track, sound: ev.target.value })} /></F>
-          <F label={`Volume : ${Math.round((track.volume ?? 1) * 100)} %`} error={e("volume")}><input type="range" min={0} max={100} value={Math.round((track.volume ?? 1) * 100)} onChange={(ev) => onChange({ ...track, volume: Number(ev.target.value) / 100 })} /></F>
+          <div className={styles.full}>
+            <SoundField label="Son" value={track.sound || undefined} volume={track.volume ?? 1} allowNone={false} error={e("sound") ?? e("volume")}
+              onChange={(sound) => onChange({ ...track, sound: sound ?? "preset:pouvoir" })} onVolume={(volume) => onChange({ ...track, volume })} />
+          </div>
         </div>
       );
   }
@@ -264,7 +267,7 @@ function newTrack(kind: ChoreoTrack["kind"], tracks: ChoreoTrack[], at: number):
     case "element": return { id, kind, startMs: at, durationMs: 700, target: { element: "timer", player: "target" }, effect: "shake", intensity: 2 };
     case "screen": return { id, kind, startMs: at, durationMs: 300, effect: "flash", intensity: 2 };
     case "text": return { id, kind, startMs: at, durationMs: 1200, text: "{activator} frappe !", at: { kind: "screen", at: "tableCenter", dy: -10 }, size: "m" };
-    case "sound": return { id, kind, startMs: at, durationMs: 0, sound: "", volume: 1 };
+    case "sound": return { id, kind, startMs: at, durationMs: 0, sound: "preset:tambour", volume: 1 };
   }
 }
 

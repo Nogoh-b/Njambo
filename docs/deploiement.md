@@ -111,6 +111,10 @@ sudo -u postgres psql -c "CREATE DATABASE njambo OWNER njambo;"
 # Code
 sudo mkdir -p /opt/njambo && sudo chown "$USER" /opt/njambo
 
+# Conversion des sons uploadés depuis l'admin (cartes de pouvoir) : MP3 normalisé, 5 s max.
+# Facultatif : sans ffmpeg, les sons sont gardés tels quels.
+sudo apt install -y ffmpeg
+
 # Images uploadées depuis l'admin (événements, boss, cosmétiques) — hors du dépôt
 sudo mkdir -p /opt/njambo-uploads && sudo chown "$USER" /opt/njambo-uploads
 git clone git@github.com:nogoh-b/njambo.git /opt/njambo

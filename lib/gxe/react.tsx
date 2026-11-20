@@ -113,6 +113,62 @@ const sfxApi = {
   },
 };
 
+/* ── Échantillons audio (sons uploadés depuis l'admin) ──
+   Téléchargés + décodés une fois (cache), joués sur le bus « sfx » (donc
+   coupés avec les effets sonores). Sans contexte audio (avant le premier
+   geste, navigateur sans WebAudio) : silence, jamais d'erreur. */
+const sampleCache = new Map<string, Promise<AudioBuffer | null>>();
+
+/** Précharge (télécharge + décode) un son ; renvoie true s'il est prêt. */
+export async function preloadAudioSample(url: string): Promise<boolean> {
+  if (typeof window === "undefined" || !url) return false;
+  let pending = sampleCache.get(url);
+  if (!pending) {
+    pending = (async () => {
+      try {
+        const response = await fetch(url, { mode: "cors", credentials: "omit" });
+        if (!response.ok) return null;
+        const data = await response.arrayBuffer();
+        const ctx = getAudioContext();
+        if (!ctx) return null;
+        return await ctx.decodeAudioData(data);
+      } catch {
+        return null;
+      }
+    })();
+    sampleCache.set(url, pending);
+    void pending.then((buffer) => { if (!buffer) sampleCache.delete(url); });
+  }
+  return Boolean(await pending);
+}
+
+/** Joue un son préchargé (ou le charge puis le joue). Volume 0-1. */
+export function playAudioSample(url: string, volume = 1) {
+  if (runtimeState.sfxMuted || !url) return;
+  void preloadAudioSample(url).then(() => sampleCache.get(url)).then((buffer) => {
+    if (!buffer || runtimeState.sfxMuted) return;
+    const ctx = getAudioContext();
+    if (!ctx) return;
+    try {
+      const source = ctx.createBufferSource();
+      const gain = ctx.createGain();
+      gain.gain.value = Math.max(0, Math.min(1, volume));
+      source.buffer = buffer;
+      source.connect(gain);
+      gain.connect(ctx.destination);
+      source.start();
+    } catch {
+      // contexte audio pas encore autorisé : silence
+    }
+  });
+}
+
+/** Joue un carillon de synthèse hors des hooks React (cartes pouvoir). */
+export function playChimeNow(spec: ChimeSpec, volume = 1) {
+  if (runtimeState.sfxMuted) return;
+  for (const note of spec.notes) playSingleTone({ ...note, gain: (note.gain ?? 0.05) * Math.max(0, Math.min(1, volume)) }, "sfx");
+}
+
 let musicTimer: ReturnType<typeof setInterval> | null = null;
 
 const musicApi = {

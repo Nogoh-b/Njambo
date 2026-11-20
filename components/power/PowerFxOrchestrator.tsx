@@ -20,6 +20,7 @@ import {
 } from "@/components/power/PowerParticleLayer";
 import { getPowerModule } from "@/config/powers";
 import { FUNCTIONAL_CUES } from "@/engine/power/choreography";
+import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
 import { playChoreography, type ChoreoCards } from "@/components/power/choreo/playChoreography";
 import type { PowerModule } from "@/engine/power/types";
@@ -185,7 +186,9 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     const noEffect = mine && !activation.used && !blocked;
 
     /* ── Intro commune (toutes cartes) ── */
-    d.playSfx();
+    // Son d'activation réglé dans l'admin (fichier ou préréglage), sinon son par défaut.
+    if (def.sound?.ref) playPowerSound(def.sound.ref, def.sound.volume ?? 1);
+    else d.playSfx();
     triggerFx((def.tone as PowerTone) ?? "gold");
     showOverlay(activation.cardId, blocked, noEffect);
 
@@ -559,6 +562,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
             handCardRect: (ui, index) => d.registry.hand(ui)?.getCardRect(index) ?? null,
             burst: (preset, rect, tone, intensity, durationMs) => emitBurst(preset, rect, tone, intensity, durationMs),
             impactShake: (intensity) => d.impactShake(intensity),
+            playSound: (sound, volume) => playPowerSound(sound, volume),
             defaultTone: (def.tone as PowerFxTone) ?? "gold",
             motionEnabled: d.motionEnabled,
             lite: d.liteMotion,

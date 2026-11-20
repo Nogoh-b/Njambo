@@ -12,7 +12,7 @@
 | A | Fondations : registre dynamique des cartes, validation des scripts, migration des 21 cartes | ✅ Terminé |
 | B | Console admin des cartes : identité, cible, effet (briques), économie, publication | ✅ Terminé |
 | C | **Chorégraphies spatiales** : repères, trajectoires de cartes, animations propres à chaque élément, ligne de temps | ✅ Terminé (à valider en jeu réel) |
-| D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ⬜ À faire |
+| D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ✅ Terminé |
 | E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ⬜ À faire |
 | F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ⬜ À faire |
 
@@ -393,21 +393,40 @@ chez le lanceur et chez la cible (portrait et paysage).
 
 ## Phase D — Sons des cartes
 
-- [ ] Upload audio : `POST /admin/upload?kind=audio` — MP3 / OGG / M4A / WAV,
+- [x] Upload audio : `POST /admin/upload-audio` (route dédiée) — MP3 / OGG / M4A / WAV,
       ≤ 500 Ko, signature vérifiée, durée ≤ 5 s ; conversion en **OGG +
       MP3** et normalisation du volume si `ffmpeg` est présent sur le VPS
       (sinon fichier gardé tel quel) ; bibliothèque `admin_uploads` (kind
       `audio`)
-- [ ] Champ son de la carte : fichier uploadé **ou** son de synthèse du jeu
+- [x] Champ son de la carte : fichier uploadé **ou** son de synthèse du jeu
       (préréglages GXE existants) ; volume 0-100 % ; bouton écouter
-- [ ] Lecteur audio dans le runtime GXE : décodage WebAudio, cache des sons
+- [x] Lecteur audio dans le runtime GXE : décodage WebAudio, cache des sons
       décodés, respect du réglage « Effets sonores », pas de lecture avant
       le premier geste (déverrouillage audio déjà géré par GXE)
-- [ ] Lecture à l'activation, ou à un instant précis via une **piste son** de la chorégraphie (phase C)
-- [ ] `docs/deploiement.md` : installer `ffmpeg` sur le VPS (facultatif)
+- [x] Lecture à l'activation, ou à un instant précis via une **piste son** de la chorégraphie (phase C)
+- [x] `docs/deploiement.md` : installer `ffmpeg` sur le VPS (facultatif)
 
 **Critère de fin** : un son uploadé dans l'admin est joué chez tous les
 joueurs quand la carte est activée, sans latence perceptible.
+
+### Implémenté
+
+| Élément | Où | Détail |
+| --- | --- | --- |
+| Upload | `server/src/audioUploads.ts` | `POST /admin/upload-audio` (admin) : MP3 / OGG / WAV / M4A, 500 Ko max, **signature binaire** vérifiée, durée lue par `ffprobe` (source ≤ 60 s), conversion `ffmpeg` en **MP3 mono 44,1 kHz 96 kb/s, volume normalisé (loudnorm), coupé à 5 s avec fondu** ; sans ffmpeg, fichier gardé tel quel ; bibliothèque `admin_uploads` (kind `audio`) ; servi par `/uploads` (cache immuable) |
+| Lecture | `lib/gxe/react.tsx` | `preloadAudioSample` (téléchargement + décodage WebAudio, cache), `playAudioSample` (bus « effets sonores » : coupé avec eux), `playChimeNow` (synthèse hors React) |
+| Sons de cartes | `lib/powerSounds.ts` | Référence `preset:<nom>` (synthèse, aucun fichier) ou URL ; **11 préréglages** : pouvoir, tambour, éclair, vent, givre, gong, pièces, magie, alarme, sceau, souffle du temps ; `playPowerSound`, `preloadPowerSound` (pour le chargeur) |
+| Carte | `PowerCardDef.sound { ref, volume }` | Validé (`isSoundRef` : préréglage connu ou fichier audio) ; un test vérifie que la liste validée = la bibliothèque |
+| Jeu | `PowerFxOrchestrator.tsx` | Son d'activation de la carte (sinon son par défaut) ; pistes **son** des chorégraphies jouées à l'instant prévu ; table de démonstration aussi |
+| Admin | `components/admin/SoundField.tsx` | Préréglage, ▶ Écouter, envoyer un son, bibliothèque (écoute + choisir), volume ; onglet Identité (« Son d'activation ») et pistes son de la ligne de temps |
+
+Test `server/scripts/smoke-audio-upload.cjs` (ffmpeg + Postgres jetable) —
+9/9 : non-admin refusé, type non audio refusé, faux MP3 refusé, > 500 Ko
+refusé, WAV de 8 s converti en MP3 coupé à 5 s (≈ 5 040 ms), cache
+immuable, MP3 mono 44,1 kHz vérifié par ffprobe, bibliothèque.
+
+**Déploiement** : `sudo apt install -y ffmpeg` sur le VPS (ajouté à
+`docs/deploiement.md`).
 
 ---
 
@@ -475,6 +494,7 @@ apparaît en retard pendant la donne.
 | Date | Phase | Changement |
 | --- | --- | --- |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
+| 2026-11-20 | D | Sons des cartes : upload audio converti par ffmpeg, lecture d'échantillons dans le moteur sonore, 11 sons de synthèse, son d'activation et pistes son des chorégraphies, champ Son dans l'admin ; intégration 9/9. |
 | 2026-11-20 | C3 | Éditeur de chorégraphie : ligne de temps à barres déplaçables et étirables, formulaires par piste, schéma de table cliquable pour les repères, aperçu sur la table de démonstration ; publication validée côté serveur (15/15). **Phase C terminée.** |
 | 2026-11-20 | C2 | Lecteur de chorégraphies (calque, trajectoires multi-points, retournements 3D, effets d'éléments et d'écran, textes), branché dans l'orchestrateur sans changer les étapes existantes ; table de démonstration ; vérifié visuellement. |
 | 2026-11-20 | C1 | Modèle des chorégraphies (repères, points de passage, 5 types de pistes, 49 effets répartis sur 7 éléments), validation et bornes, règle « cues fonctionnels toujours joués », conversion des cues ; 5 tests. |

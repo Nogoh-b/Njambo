@@ -177,6 +177,8 @@ export interface PowerCardDef {
   archived?: boolean;
   /** Interrupteur d'urgence : activation refusée pour tous. */
   disabled?: boolean;
+  /** Son d'activation : « preset:<nom> » (synthèse) ou URL d'un son uploadé ; volume 0-1. Absent = son par défaut. */
+  sound?: { ref: string; volume?: number };
   /** Traductions futures (non éditées pour l'instant). */
   translations?: Partial<Record<"en" | "dua", Partial<Pick<PowerCardDef, "name" | "description" | "activationTitle" | "activationText">>>>;
 }

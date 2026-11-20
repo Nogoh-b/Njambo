@@ -13,6 +13,7 @@ import type { PlayerRef, PowerFxTone } from "@/engine/power/types";
 import type { Card } from "@/types/game";
 import { ChoreoLayer, type ChoreoLayerHandle } from "./ChoreoLayer";
 import { playChoreography, type ChoreoCards } from "./playChoreography";
+import { playPowerSound } from "@/lib/powerSounds";
 
 const card = (id: string, rank: string, value: number, suit: string): Card => ({ id, rank, value, suit, color: suit === "♥" || suit === "♦" ? "#c0392b" : "#1e1e1e" });
 const MY_HAND = [card("h1", "3", 3, "♣"), card("h2", "9", 9, "♥"), card("h3", "K", 13, "♠"), card("h4", "5", 5, "♦"), card("h5", "Q", 12, "♥")];
@@ -141,6 +142,7 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
           host.appendChild(ring);
           void ring.animate([{ opacity: 0.9, transform: "scale(.4)" }, { opacity: 0, transform: "scale(1.3)" }], { duration: 650 }).finished.then(() => ring.remove(), () => ring.remove());
         },
+        playSound: (sound, volume) => playPowerSound(sound, volume),
         impactShake: () => { void stageRef.current?.animate([0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translateX(${x}px)` })), { duration: 380 }); },
         defaultTone: tone,
         viewport: () => stageRef.current?.getBoundingClientRect() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight),
