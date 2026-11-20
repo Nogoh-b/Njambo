@@ -40,6 +40,7 @@ const PowerCollectionScreen = dynamic(() => import("@/components/scenes/PowerCol
 const PlayHubScreen = dynamic(() => import("@/components/scenes/PlayHubScreen").then((module) => module.PlayHubScreen), { loading });
 const ShopScreen = dynamic(() => import("@/components/scenes/ShopScreen").then((module) => module.ShopScreen), { loading });
 const EventsScreen = dynamic(() => import("@/components/scenes/EventsScreen").then((module) => module.EventsScreen), { loading });
+const SeasonScreen = dynamic(() => import("@/components/scenes/SeasonScreen").then((module) => module.SeasonScreen), { loading });
 const EventDetailScreen = dynamic(() => import("@/components/scenes/EventDetailScreen").then((module) => module.EventDetailScreen), { loading });
 const EventMatchmakingOverlay = dynamic(() => import("@/components/scenes/EventMatchmakingOverlay").then((module) => module.EventMatchmakingOverlay), { loading });
 const WalletScreen = dynamic(() => import("@/components/scenes/WalletScreen").then((module) => module.WalletScreen), { loading });
@@ -249,6 +250,7 @@ function SceneRouter() {
       case "shop": return <ShopScreen />;
       case "events": return <EventsScreen />;
       case "event_detail": return <EventDetailScreen onStart={handleEventStart} />;
+      case "season": return <SeasonScreen />;
       case "wallet": return <WalletScreen />;
       case "bot_setup": return <BotSetupScreen onStart={handleBotStart} />;
       case "online_setup": return <OnlineSetupScreen onBotStart={handleBotStart} />;

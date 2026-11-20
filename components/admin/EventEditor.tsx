@@ -195,6 +195,8 @@ export function EventEditor({ initial, summary, isNew, onClose, onChanged }: {
               <input type="datetime-local" value={toLocalInput(event.endsAt)} onChange={(e) => patch({ endsAt: fromLocalInput(e.target.value) })} />
             </Field>
           </div>
+          <h3>Saison</h3>
+          <SeasonSelect value={event.seasonId} onChange={(seasonId) => patch({ seasonId })} />
           <h3>Affiche</h3>
           <ImageField kind="event" label="Illustration de l’événement" value={event.imageUrl} error={errorFor("imageUrl")} onChange={(imageUrl) => patch({ imageUrl })} />
           <h3>Ambiance</h3>
@@ -328,6 +330,23 @@ export function EventEditor({ initial, summary, isNew, onClose, onChanged }: {
   );
 }
 
+/* ─────────────── Rattachement à une saison (phase 6) ─────────────── */
+
+function SeasonSelect({ value, onChange }: { value: string | undefined; onChange: (seasonId: string | undefined) => void }) {
+  const [seasons, setSeasons] = useState<Array<{ id: string; title: string }> | null>(null);
+  useEffect(() => { adminApi.seasons().then((result) => setSeasons(result.seasons)).catch(() => setSeasons([])); }, []);
+  return (
+    <label className={styles.field} style={{ maxWidth: 420 }}>
+      <span>Saison rattachée (les tables gagnées rapportent leurs points de saison)</span>
+      <select value={value ?? ""} onChange={(e) => onChange(e.target.value || undefined)}>
+        <option value="">Aucune</option>
+        {(seasons ?? []).map((season) => <option key={season.id} value={season.id}>{season.title}</option>)}
+        {value && seasons && !seasons.some((season) => season.id === value) && <option value={value}>{value} (introuvable)</option>}
+      </select>
+    </label>
+  );
+}
+
 /* ─────────────── Onglet Tables ─────────────── */
 
 function StagesTab({ event, setStages, patchStage, errorFor }: {
@@ -391,7 +410,7 @@ function StagesTab({ event, setStages, patchStage, errorFor }: {
                 </select>
               </Field>
               <Field label="Mise (Nkap)" error={err("stakeNkap")}><input type="number" min={0} value={stage.stakeNkap} onChange={(e) => patchStage(index, { stakeNkap: int(e.target.value) })} /></Field>
-              <Field label="Points de saison" error={err("seasonPoints")} hint="Phase 6"><input type="number" min={0} value={stage.seasonPoints} onChange={(e) => patchStage(index, { seasonPoints: int(e.target.value) })} /></Field>
+              <Field label="Points de saison" error={err("seasonPoints")} hint={event.seasonId ? "Crédités si la table est gagnée" : "Rattachez une saison (Général)"}><input type="number" min={0} value={stage.seasonPoints} onChange={(e) => patchStage(index, { seasonPoints: int(e.target.value) })} /></Field>
             </div>
             <div className={styles.row} style={{ margin: "10px 0" }}>
               <Check checked={stage.powersAllowed} onChange={(powersAllowed) => patchStage(index, { powersAllowed })}>Pouvoirs autorisés</Check>

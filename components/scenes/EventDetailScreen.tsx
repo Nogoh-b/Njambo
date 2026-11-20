@@ -697,6 +697,9 @@ export function EventDetailScreen({
               {inspectedStage.modifiers.includes("turn_timer") && (
                 <span className={`${styles.specPill} ${styles.specRule}`}>⏱ {inspectedStage.turnTimerSeconds ?? 15} s par tour</span>
               )}
+              {event.seasonId && inspectedStage.seasonPoints > 0 && (
+                <span className={`${styles.specPill} ${styles.specGold}`}>🏵️ +{inspectedStage.seasonPoints} pts de saison</span>
+              )}
               {inspectedStage.boss && (
                 <span className={`${styles.specPill} ${styles.specBoss}`}>👑 Boss : {inspectedStage.boss.name}</span>
               )}

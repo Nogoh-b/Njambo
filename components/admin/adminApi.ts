@@ -2,7 +2,7 @@
 
 /* Appels typés de la console admin (commandes du back VPS) + upload d'images. */
 
-import type { CosmeticDefinition, EventLifecycle, EventValidationIssue, EventVersion } from "@/domain";
+import type { CosmeticDefinition, EventLifecycle, EventValidationIssue, EventVersion, SeasonDefinition } from "@/domain";
 import { BACKEND_URL, BackendError, callBackend } from "@/lib/backend";
 import type { EventLeaderboardData } from "@/hooks/useEventLeaderboard";
 import { auth } from "@/lib/firebase";
@@ -130,6 +130,9 @@ export const adminApi = {
   cancelCampaign: (campaignId: string) => call<{ campaignId: string }>("cancelCampaign", { campaignId }),
   cosmetics: () => call<{ cosmetics: CosmeticDefinition[] }>("listCosmetics"),
   saveCosmetic: (cosmetic: CosmeticDefinition) => call<{ cosmetic: CosmeticDefinition }>("saveCosmetic", { cosmetic }),
+  seasons: () => call<{ seasons: SeasonDefinition[]; now: number }>("listSeasons"),
+  saveSeason: (season: SeasonDefinition) => call<{ season: SeasonDefinition }>("saveSeason", { season }),
+  seasonStats: (seasonId: string) => call<{ players: number; premium: number; premiumRevenueXaf: number; averagePoints: number; tiers: Array<{ points: number; reached: number; claimedFree: number; claimedPremium: number }> }>("getSeasonStats", { seasonId }),
   uploads: (kind?: string) => call<{ uploads: AdminUpload[] }>("listAdminUploads", kind ? { kind } : {}),
 };
 
@@ -163,6 +166,7 @@ const ERROR_LABELS: Record<string, string> = {
   CAMPAIGN_NOT_SCHEDULED: "Cette campagne n’est plus en attente.",
   COSMETIC_INVALID: "Le cosmétique contient des erreurs.",
   COSMETIC_TYPE_LOCKED: "Le type d’un cosmétique existant ne peut pas changer.",
+  SEASON_INVALID: "La saison contient des erreurs.",
   PLAYER_NOT_FOUND: "Joueur introuvable.",
   RUN_IN_MATCH: "Le joueur est en pleine partie : attends la fin de la partie.",
   INVALID_REASON: "Indique un motif (200 caractères max).",

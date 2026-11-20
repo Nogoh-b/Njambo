@@ -41,6 +41,7 @@ export interface PlayerEventRun {
   eliminatedAt?: number | null;
   revivesUsed?: number;
   perfect?: boolean;
+  lastSeasonPoints?: number;
   /** Copie de la version de l'événement au moment de l'inscription. */
   versionSnapshot?: EventVersion;
   createdAt?: number;

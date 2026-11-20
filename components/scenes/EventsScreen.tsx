@@ -3,6 +3,8 @@
 import Image from "next/image";
 import { eventArt } from "@/lib/eventArt";
 import { eventCountdown } from "@/lib/eventCountdown";
+import { useSeasons } from "@/hooks/useSeasons";
+import { canClaimTier, reachedTiers } from "@/domain";
 import { useEffect, useState } from "react";
 import { type EventVersion, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
@@ -94,6 +96,11 @@ export function EventsScreen() {
   const { runs, error: runsError } = usePlayerEventRuns(user && !user.isAnonymous ? user.uid : undefined);
   const tickets = { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) };
   const [now, setNow] = useState(() => Date.now());
+  const { seasons } = useSeasons();
+  const activeSeason = seasons?.[0] ?? null;
+  const seasonClaimable = Boolean(activeSeason && activeSeason.season.tiers.some((_, index) =>
+    canClaimTier(activeSeason.season, activeSeason.progress, index, "free", now).ok
+    || canClaimTier(activeSeason.season, activeSeason.progress, index, "premium", now).ok));
   const [authOpen, setAuthOpen] = useState(false);
   const isGuest = !user || user.isAnonymous;
 
@@ -166,6 +173,22 @@ export function EventsScreen() {
 
       {(contentError || runsError) && (
         <div className={styles.errorStrip} role="alert">{runsError ?? contentError}</div>
+      )}
+
+      {/* ═══ PASSE DE SAISON (phase 6) ═══ */}
+      {activeSeason && (
+        <button data-nj-skin="none" type="button" className={styles.seasonBanner} onClick={() => navigateTo("season")}>
+          <span className={styles.seasonIcon} aria-hidden="true">🏵️</span>
+          <span className={styles.seasonCopy}>
+            <small>Passe de saison{activeSeason.progress.premium ? " · Premium 👑" : ""}</small>
+            <strong>{activeSeason.season.title}</strong>
+          </span>
+          <span className={styles.seasonPoints}>
+            <strong>{activeSeason.progress.points} pts</strong>
+            <small>Palier {reachedTiers(activeSeason.season, activeSeason.progress.points)}/{activeSeason.season.tiers.length}{seasonClaimable ? " · à récupérer !" : ""}</small>
+          </span>
+          <span aria-hidden="true">›</span>
+        </button>
       )}
 
       {/* ═══ VITRINE DES BILLETS & AFFICHES DE GALA ═══ */}

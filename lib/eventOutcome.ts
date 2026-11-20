@@ -15,12 +15,14 @@ export interface EventRunAfter {
   losses: number;
   score?: number;
   perfect?: boolean;
+  /** Points de saison de la dernière table gagnée (phase 6). */
+  lastSeasonPoints?: number;
   versionSnapshot?: EventVersion;
 }
 
 export type EventOutcome =
-  | { kind: "advance"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number }
-  | { kind: "completed"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number; perfect?: boolean }
+  | { kind: "advance"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number; seasonPoints?: number }
+  | { kind: "completed"; stageIndex: number; losses: number; rewards: Reward[]; pointsGained?: number; perfect?: boolean; seasonPoints?: number }
   | { kind: "life_lost"; stageIndex: number; losses: number }
   | { kind: "eliminated"; stageIndex: number; losses: number };
 
@@ -36,7 +38,10 @@ export function resolveEventOutcome(
   const stageIndex = Number(after.stageIndex ?? 0);
   /* Points de classement gagnés (présents seulement si le classement est actif). */
   const gained = Number(after.score ?? 0) - Number(before.score ?? 0);
-  const points = gained > 0 ? { pointsGained: gained } : {};
+  const points = {
+    ...(gained > 0 ? { pointsGained: gained } : {}),
+    ...(Number(after.lastSeasonPoints ?? 0) > 0 ? { seasonPoints: Number(after.lastSeasonPoints) } : {}),
+  };
 
   if (after.status === "completed") {
     const last = stages[stageIndex];

@@ -57,7 +57,7 @@ export type SceneName =
   | "profile" | "leaderboard" | "friends" | "options" | "history"
   | "players" | "friend_requests" | "notifications" | "messages" | "chat" | "public_profile"
   | "power_shop" | "power_collection"
-  | "play" | "events" | "event_detail" | "shop" | "wallet" | "admin"
+  | "play" | "events" | "event_detail" | "season" | "shop" | "wallet" | "admin"
   | "rules";
 export type Phase = "idle" | "dealing" | "turns" | "trickEnd" | "result";
 export type BotDifficulty = "easy" | "normal" | "hard";

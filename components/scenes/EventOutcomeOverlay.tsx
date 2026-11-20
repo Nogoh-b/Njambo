@@ -184,6 +184,10 @@ export function EventOutcomeOverlay({ outcome, event, tone, onClose, onContinue,
           </ul>
         )}
 
+        {(outcome.kind === "advance" || outcome.kind === "completed") && (outcome.seasonPoints ?? 0) > 0 && (
+          <p className={styles.seasonGain}>🏵️ +{outcome.seasonPoints} pts de saison</p>
+        )}
+
         {revive && outcome.kind === "eliminated" && (
           <div className={styles.reviveBox}>
             <button type="button" data-nj-skin="none" className={styles.reviveBtn} disabled={revive.busy} onClick={revive.onRevive}>
