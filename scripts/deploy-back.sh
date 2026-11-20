@@ -29,9 +29,10 @@ warn() { echo "⚠ $*" >&2; }
 
 echo "▶ Vérifications préalables…"
 # Bloquant : triches de développement actives sur le serveur de production.
-if [[ "$(env_value POWERS_DEV_BYPASS)" == "1" || -n "$(env_value NEXT_PUBLIC_DEV_MODE)" ]]; then
+dev_mode="$(env_value NEXT_PUBLIC_DEV_MODE)"
+if [[ "$(env_value POWERS_DEV_BYPASS)" == "1" || "$dev_mode" == "1" || "$dev_mode" == "true" ]]; then
   if [[ "${ALLOW_DEV_FLAGS:-}" != "1" ]]; then
-    echo "✖ server/.env contient POWERS_DEV_BYPASS=1 ou NEXT_PUBLIC_DEV_MODE (triches de dev)." >&2
+    echo "✖ server/.env contient POWERS_DEV_BYPASS=1 ou NEXT_PUBLIC_DEV_MODE=1 (triches de dev)." >&2
     echo "  Retire-les, ou relance avec ALLOW_DEV_FLAGS=1 pour un serveur de test." >&2
     exit 1
   fi
