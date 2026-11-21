@@ -26,7 +26,16 @@ if (!process.env.DATABASE_URL) { console.error("DATABASE_URL requis (base jetabl
   await cos.saveCosmeticHandler(as("adm", { cosmetic: { id: "dos_ndop", type: "card_back", name: "Dos Ndop", rarity: "rare", imageUrl: "/uploads/cosmetic/ndop.webp", published: false } }, true));
   const list = await cos.listCosmeticsHandler(as("adm", {}, true));
   assert(list.cosmetics.length === 3, "catalogue admin : 3 cosmétiques");
+  // (le style d'animation est ajouté plus bas : le catalogue en compte alors 4)
   assert(await refused(() => cos.saveCosmeticHandler(as("adm", { cosmetic: { id: "cadre_or", type: "badge", name: "Badge or", rarity: "rare", imageUrl: "/a.webp", published: true } }, true)), "COSMETIC_TYPE_LOCKED"), "type d'un cosmétique existant verrouillé");
+
+  // Style d'animation (phase G5) : liste blanche, sans image, réglages enregistrés
+  const braise = { id: "style_braise", type: "anim_style", name: "Braise", rarity: "epique", published: true, style: { trail: "sparks", tone: "pink", impact: "burst" } };
+  assert(await refused(() => cos.saveCosmeticHandler(as("adm", { cosmetic: { ...braise, style: { ...braise.style, durationMs: 120 } } }, true)), "COSMETIC_INVALID"), "style qui touche à la durée refusé");
+  assert(await refused(() => cos.saveCosmeticHandler(as("adm", { cosmetic: { id: "dos_feu", type: "card_back", name: "Dos feu", rarity: "rare", imageUrl: "/a.webp", published: true, style: { trail: "light" } } }, true)), "COSMETIC_INVALID"), "réglages d'animation refusés sur un dos de carte");
+  await cos.saveCosmeticHandler(as("adm", { cosmetic: braise }, true));
+  const savedStyle = (await core.db.doc("cosmetics/style_braise").get()).data();
+  assert(savedStyle.type === "anim_style" && savedStyle.style.trail === "sparks" && !savedStyle.imageUrl, "style d'animation enregistré sans image");
 
   // Gain via applyReward (même code que règlement de table, classement, saisons)
   let economy = core.economyFrom((await core.db.doc(`economies/${uid}`).get()).data(), Date.now());
@@ -36,19 +45,25 @@ if (!process.env.DATABASE_URL) { console.error("DATABASE_URL requis (base jetabl
   }
   assert(inventory.cosmetics.join() === "cadre_or,titre_legende", "cosmétiques ajoutés à l'inventaire");
   assert(economy.cauris === 60, "doublon épique converti en 60 cauris");
+  ({ economy, inventory } = core.applyReward(economy, inventory, { type: "cosmetic", cosmeticId: "style_braise", rarity: "epique" }, Date.now()));
+  assert(inventory.cosmetics.includes("style_braise"), "style d'animation gagné comme un autre cosmétique");
   await core.db.doc(`inventories/${uid}`).set(inventory);
 
   assert(await refused(() => cos.equipCosmeticHandler(as(uid, { slot: "cardBack", cosmeticId: "dos_ndop" })), "COSMETIC_NOT_OWNED"), "impossible d'équiper un cosmétique non possédé");
   assert(await refused(() => cos.equipCosmeticHandler(as(uid, { slot: "badge", cosmeticId: "cadre_or" })), "COSMETIC_WRONG_SLOT"), "mauvais emplacement refusé");
   await cos.equipCosmeticHandler(as(uid, { slot: "avatarFrame", cosmeticId: "cadre_or" }));
   await cos.equipCosmeticHandler(as(uid, { slot: "title", cosmeticId: "titre_legende" }));
+  assert(await refused(() => cos.equipCosmeticHandler(as(uid, { slot: "title", cosmeticId: "style_braise" })), "COSMETIC_WRONG_SLOT"), "un style ne va que dans l'emplacement « style »");
+  await cos.equipCosmeticHandler(as(uid, { slot: "animStyle", cosmeticId: "style_braise" }));
   const coll = await cos.getCosmeticCollectionHandler(as(uid, {}));
-  assert(coll.owned.length === 2 && coll.equipped.avatarFrame.imageUrl === "/uploads/cosmetic/cadre.webp" && coll.equipped.title.name === "Légende du Mboa", "collection et équipement");
+  assert(coll.owned.length === 3 && coll.equipped.avatarFrame.imageUrl === "/uploads/cosmetic/cadre.webp" && coll.equipped.title.name === "Légende du Mboa", "collection et équipement");
+  assert(JSON.stringify(coll.equipped.animStyle.style) === JSON.stringify(braise.style), "style équipé avec ses réglages");
 
   // Visible à la table par les autres
   const started = await match.startMatchHandler(as(uid, { mode: "bot", botCount: 1, stake: 100 }));
   const me = started.match.participants.find((p) => p.uid === uid);
   assert(me.cosmetics && me.cosmetics.avatarFrame.id === "cadre_or" && me.cosmetics.title.name === "Légende du Mboa", "cosmétiques copiés sur le participant (vus par tous)");
+  assert(me.cosmetics.animStyle && me.cosmetics.animStyle.style.tone === "pink", "style d'animation copié sur le participant (vu par tous à la table)");
 
   await cos.equipCosmeticHandler(as(uid, { slot: "title", cosmeticId: null }));
   const player = (await core.db.doc(`players/${uid}`).get()).data();

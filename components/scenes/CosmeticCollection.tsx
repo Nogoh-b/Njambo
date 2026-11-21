@@ -25,6 +25,7 @@ const SLOTS: Array<{ slot: CosmeticSlot; label: string; empty: string }> = [
   { slot: "avatarFrame", label: "Cadre", empty: "Sans cadre" },
   { slot: "badge", label: "Badge", empty: "Sans badge" },
   { slot: "title", label: "Titre", empty: "Sans titre" },
+  { slot: "animStyle", label: "Style", empty: "Style classique" },
 ];
 const RARITY_LABELS: Record<CosmeticDefinition["rarity"], string> = { commun: "Commun", rare: "Rare", epique: "Épique", legendaire: "Légendaire" };
 
@@ -140,7 +141,7 @@ export function CosmeticCollection({ onClose }: { onClose?: () => void }) {
                     {item.imageUrl
                       // eslint-disable-next-line @next/next/no-img-element -- cosmétique uploadé depuis l'admin (URL du VPS)
                       ? <img className={`${styles.thumb} ${item.type === "card_back" ? styles.thumbCard : ""}`} src={item.imageUrl} alt="" />
-                      : <span className={`${styles.thumb} ${styles.thumbTitle}`}>« {item.name} »</span>}
+                      : <span className={`${styles.thumb} ${styles.thumbTitle}`}>{item.type === "anim_style" ? "✦" : `« ${item.name} »`}</span>}
                     <strong>{item.name}</strong>
                     <small>{RARITY_LABELS[item.rarity]}{current === item.id ? " · équipé" : ""}</small>
                   </button>

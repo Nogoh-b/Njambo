@@ -8,7 +8,8 @@
 import { useEffect, useSyncExternalStore } from "react";
 import { MOMENT_PREVIEW_PARAM, parseMomentPreview } from "@/engine/anim/moments";
 import { validateMotif, type AnimMotif } from "@/engine/anim/motif";
-import { motifCatalogRevision, motifRegistryVersion, setMomentPreview, setMotifCatalog, subscribeMotifCatalog } from "@/engine/anim/registry";
+import { motifCatalogRevision, motifRegistryVersion, setMomentPreview, setMotifCatalog, setStylePreview, subscribeMotifCatalog } from "@/engine/anim/registry";
+import { STYLE_PREVIEW_PARAM, parseAnimStyle } from "@/engine/anim/style";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "@/lib/firestoreClient";
 
@@ -40,6 +41,19 @@ export function useMomentPreviewFromUrl() {
       apply();
     });
     return () => { unsubscribe(); setMomentPreview(null); };
+  }, []);
+}
+
+/** « Essayer dans une partie » d'un style d'animation (admin) : les mouvements du joueur local
+ *  prennent le style passé dans l'URL, pour cet onglet seulement. */
+export function useStylePreviewFromUrl() {
+  useEffect(() => {
+    const text = new URLSearchParams(window.location.search).get(STYLE_PREVIEW_PARAM);
+    if (text === null) return;
+    const style = parseAnimStyle(text);
+    setStylePreview(style);
+    console.info("[animations] Aperçu du style d'animation (cet onglet seulement) :", style);
+    return () => setStylePreview(null);
   }, []);
 }
 

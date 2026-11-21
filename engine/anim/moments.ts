@@ -11,6 +11,7 @@
 
 import { GAME_CONFIG } from "../../config/gameConfig";
 import { motifTotalMs, sameAnchor, type AnimMotif, type MotifAnchor, type MotifIssue } from "./motif";
+import { applyAnimStyle, type AnimStyle } from "./style";
 
 export interface GameMomentDef {
   label: string;
@@ -76,6 +77,18 @@ export function momentDurationMs(moment: GameMoment, motif: AnimMotif): number {
 export function motifFitsMoment(moment: GameMoment, motif: AnimMotif): boolean {
   const def: GameMomentDef = GAME_MOMENTS[moment];
   return sameAnchor(motif.from, def.from) && (!def.to || sameAnchor(motif.to, def.to));
+}
+
+/** Moments qui portent le style d'un joueur (G5), et lequel : celui qui agit ou le gagnant du pli.
+ *  La distribution et la fin de pli animent les cartes de tout le monde : elles restent neutres. */
+export const MOMENT_STYLE_OWNER: Partial<Record<GameMoment, "actor" | "winner">> = { play: "actor", trickWin: "winner", powerLaunch: "actor" };
+
+/** Sans modèle attribué, ce moment prend ce modèle pour un joueur stylé (« vol actuel » : identique à l'animation du jeu). */
+export const MOMENT_STYLE_FALLBACK: Partial<Record<GameMoment, string>> = { play: "play_classic" };
+
+/** Modèle d'un moment aux couleurs d'un style : la durée qui compte pour le moment ne change pas. */
+export function styleMomentMotif(moment: GameMoment, motif: AnimMotif, style: AnimStyle | null | undefined): AnimMotif {
+  return applyAnimStyle(motif, style, (item) => momentDurationMs(moment, item));
 }
 
 /** Rythme effectif d'un moment : pour la distribution, celui du jeu (le serveur l'attend). */

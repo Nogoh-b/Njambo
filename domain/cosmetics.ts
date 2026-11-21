@@ -2,13 +2,19 @@
    Catalogue géré dans l'admin (cosmetics/{id}), gagné via la récompense
    { type: "cosmetic" }, possédé dans inventories/{uid}.cosmetics, équipé
    dans players/{uid}.equippedCosmetics (public, copie dénormalisée pour
-   l'affichage à la table, au classement et sur le profil). */
+   l'affichage à la table, au classement et sur le profil).
 
-export type CosmeticType = "card_back" | "avatar_frame" | "badge" | "title";
+   Un « Style d'animation » (atelier, phase G5) porte ses réglages dans
+   `style` : ils sont copiés avec lui pour que tous les joueurs voient les
+   mouvements de son propriétaire à ses couleurs. */
+
+import { readAnimStyle, validateAnimStyle, type AnimStyle } from "../engine/anim/style";
+
+export type CosmeticType = "card_back" | "avatar_frame" | "badge" | "title" | "anim_style";
 export type CosmeticRarity = "commun" | "rare" | "epique" | "legendaire";
-export type CosmeticSlot = "cardBack" | "avatarFrame" | "badge" | "title";
+export type CosmeticSlot = "cardBack" | "avatarFrame" | "badge" | "title" | "animStyle";
 
-export const COSMETIC_TYPES: CosmeticType[] = ["card_back", "avatar_frame", "badge", "title"];
+export const COSMETIC_TYPES: CosmeticType[] = ["card_back", "avatar_frame", "badge", "title", "anim_style"];
 export const COSMETIC_RARITIES: CosmeticRarity[] = ["commun", "rare", "epique", "legendaire"];
 
 export const COSMETIC_SLOT: Record<CosmeticType, CosmeticSlot> = {
@@ -16,7 +22,11 @@ export const COSMETIC_SLOT: Record<CosmeticType, CosmeticSlot> = {
   avatar_frame: "avatarFrame",
   badge: "badge",
   title: "title",
+  anim_style: "animStyle",
 };
+
+/** Types sans image obligatoire : le titre est un texte, le style se voit en jeu. */
+const IMAGE_OPTIONAL: CosmeticType[] = ["title", "anim_style"];
 
 /** Doublon gagné : converti en cauris selon la rareté. */
 export const COSMETIC_DUPLICATE_CAURIS: Record<CosmeticRarity, number> = {
@@ -33,6 +43,8 @@ export interface CosmeticDefinition {
   rarity: CosmeticRarity;
   /** Actif : visible dans le catalogue et attribuable. */
   published: boolean;
+  /** Réglages d'un style d'animation (type « anim_style » seulement). */
+  style?: AnimStyle;
 }
 
 /** Copie affichable d'un cosmétique équipé. */
@@ -41,6 +53,7 @@ export interface EquippedCosmetic {
   name: string;
   rarity: CosmeticRarity;
   imageUrl?: string;
+  style?: AnimStyle;
 }
 
 export type PlayerCosmetics = Partial<Record<CosmeticSlot, EquippedCosmetic>>;
@@ -55,13 +68,23 @@ export function validateCosmetic(cosmetic: CosmeticDefinition): Array<{ path: st
   if (!COSMETIC_RARITIES.includes(cosmetic.rarity)) issues.push({ path: "rarity", message: "Rareté inconnue." });
   if (cosmetic.name.trim().length < 2 || cosmetic.name.length > 40) issues.push({ path: "name", message: "Nom : 2 à 40 caractères." });
   if ((cosmetic.description ?? "").length > 160) issues.push({ path: "description", message: "Description : 160 caractères maximum." });
-  if (cosmetic.type !== "title" && !cosmetic.imageUrl) issues.push({ path: "imageUrl", message: "Image requise (sauf pour un titre)." });
+  if (!IMAGE_OPTIONAL.includes(cosmetic.type) && !cosmetic.imageUrl) issues.push({ path: "imageUrl", message: "Image requise (sauf pour un titre ou un style d'animation)." });
   if (cosmetic.imageUrl && !IMAGE.test(cosmetic.imageUrl)) issues.push({ path: "imageUrl", message: "Image : chemin /… ou URL http(s)." });
+  if (cosmetic.type === "anim_style") {
+    if (cosmetic.style === undefined) issues.push({ path: "style", message: "Réglages du style requis." });
+    else issues.push(...validateAnimStyle(cosmetic.style, "style"));
+  } else if (cosmetic.style !== undefined) {
+    issues.push({ path: "style", message: "Seul un style d'animation a des réglages d'animation." });
+  }
   return issues;
 }
 
 export function equippedCopy(cosmetic: CosmeticDefinition): EquippedCosmetic {
-  return { id: cosmetic.id, name: cosmetic.name, rarity: cosmetic.rarity, ...(cosmetic.imageUrl ? { imageUrl: cosmetic.imageUrl } : {}) };
+  return {
+    id: cosmetic.id, name: cosmetic.name, rarity: cosmetic.rarity,
+    ...(cosmetic.imageUrl ? { imageUrl: cosmetic.imageUrl } : {}),
+    ...(cosmetic.type === "anim_style" && cosmetic.style ? { style: cosmetic.style } : {}),
+  };
 }
 
 /** Lecture tolérante de players/{uid}.equippedCosmetics. */
@@ -71,7 +94,12 @@ export function readPlayerCosmetics(raw: unknown): PlayerCosmetics {
   for (const slot of Object.values(COSMETIC_SLOT)) {
     const item = source[slot] as Partial<EquippedCosmetic> | null | undefined;
     if (item && typeof item.id === "string" && typeof item.name === "string") {
-      out[slot] = { id: item.id, name: item.name, rarity: (COSMETIC_RARITIES.includes(item.rarity as CosmeticRarity) ? item.rarity : "commun") as CosmeticRarity, ...(typeof item.imageUrl === "string" ? { imageUrl: item.imageUrl } : {}) };
+      const style = slot === "animStyle" ? readAnimStyle(item.style) : null;
+      out[slot] = {
+        id: item.id, name: item.name, rarity: (COSMETIC_RARITIES.includes(item.rarity as CosmeticRarity) ? item.rarity : "commun") as CosmeticRarity,
+        ...(typeof item.imageUrl === "string" ? { imageUrl: item.imageUrl } : {}),
+        ...(style ? { style } : {}),
+      };
     }
   }
   return out;

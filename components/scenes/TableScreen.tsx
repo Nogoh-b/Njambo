@@ -12,9 +12,11 @@ import type { ChoreoCards, ChoreoContext } from "@/components/power/choreo/playC
 import { playMotif } from "@/components/power/choreo/playMotif";
 import type { AnimMotif } from "@/engine/anim/motif";
 import { momentDurationMs } from "@/engine/anim/moments";
-import { getMomentMotif } from "@/engine/anim/registry";
+import { getMomentMotif, getStyledMomentMotif, stylePreviewOf } from "@/engine/anim/registry";
 import { motifSchedule } from "@/engine/anim/sample";
+import type { AnimStyle } from "@/engine/anim/style";
 import { useMotifCatalogRevision } from "@/hooks/useMotifCatalog";
+import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import { PowerTargetModal } from "@/components/power/PowerTargetModal";
 import { Avatar, type OpponentPowerSlot } from "@/components/table/Avatar";
 import { DepositZone } from "@/components/table/DepositZone";
@@ -979,6 +981,8 @@ export function TableScreen({
     release: "landing" | "end";
     /** Carte montrée face visible (sinon : dos) ; par défaut toutes. */
     visible?: (index: number) => boolean;
+    /** Teinte du style du joueur concerné (traînée, lueur, réactions). */
+    tone?: PowerFxTone;
   }): Promise<void> => {
     const layer = momentLayerRef.current;
     if (!layer) return Promise.resolve();
@@ -993,7 +997,7 @@ export function TableScreen({
       handCardRect: (ui, index) => zoneRegistry.hand(ui)?.getCardRect(index) ?? null,
       burst: () => undefined,
       impactShake: (intensity) => impactShake((intensity ?? 2) * 3),
-      defaultTone: "gold",
+      defaultTone: opts.tone ?? "gold",
       motionEnabled: true,
       lite: liteMotion,
     };
@@ -1001,6 +1005,18 @@ export function TableScreen({
   }, [impactShake, liteMotion, zoneRegistry]);
   const runMomentRef = useRef(runMoment);
   runMomentRef.current = runMoment;
+
+  /* Style d'animation de chaque joueur (phase G5) : le mien (essayé, reçu avec la partie, ou équipé),
+     celui des autres reçu avec la partie. Il colore ses propres mouvements, sans en changer le rythme. */
+  const myCosmetics = useMyCosmetics();
+  const animStyleOf = (ui: number): AnimStyle | null => {
+    const player = playersRef.current[ui];
+    if (!player) return null;
+    const received = player.cosmetics?.animStyle?.style ?? null;
+    return player.isYou ? stylePreviewOf() ?? received ?? myCosmetics.animStyle?.style ?? null : received;
+  };
+  const animStyleOfRef = useRef(animStyleOf);
+  animStyleOfRef.current = animStyleOf;
 
   /* Moment « Distribution » : les sprites partent de la pioche au rythme du jeu ; les vraies cartes
      restent cachées jusqu'à l'arrivée de leur sprite (l'animation intégrée de la main est coupée). */
@@ -1372,8 +1388,10 @@ export function TableScreen({
       const to = zoneRegistry.deposit(playerIdx)?.getRect() ?? null;
 
       if (from && to) {
-        // Moment « Carte jouée » : modèle de l'atelier si l'admin en a attribué un (vol borné à 0,9 s).
-        const playMotifMoment = animationsOnRef.current ? getMomentMotif("play") : null;
+        // Moment « Carte jouée » : modèle de l'atelier si l'admin en a attribué un (vol borné à 0,9 s),
+        // aux couleurs du style du joueur (sans modèle attribué, un joueur stylé prend le « vol actuel »).
+        const playStyle = animStyleOfRef.current(playerIdx);
+        const playMotifMoment = animationsOnRef.current ? getStyledMomentMotif("play", playStyle) : null;
         const flightMs = playMotifMoment ? Math.min(900, Math.max(200, playMotifMoment.durationMs)) : A.dropFlight;
         animatingRef.current = true;
         timerStore.set(turnSecondsRef.current);
@@ -1387,6 +1405,7 @@ export function TableScreen({
             cards: { ids: [card.id], snapshots: [card], fromIndexes: [cardIdx], toIndexes: [] },
             mode: "move",
             release: "landing",
+            tone: playStyle?.tone,
           });
         } else {
           setFlights((f) => [
@@ -1429,10 +1448,11 @@ export function TableScreen({
       }
     });
 
-    /* Moments « Pli gagné » puis « Fin de pli » (modèles de l'atelier, s'ils sont attribués), sur place :
-       chaque dépôt garde ses cartes jusqu'à la donne suivante. */
+    /* Moments « Pli gagné » (au style du gagnant) puis « Fin de pli » (modèles de l'atelier, s'ils sont
+       attribués), sur place : chaque dépôt garde ses cartes jusqu'à la donne suivante. */
     const playTrickMoments = (winnerIdx: number) => {
-      const win = getMomentMotif("trickWin");
+      const winStyle = animStyleOfRef.current(winnerIdx);
+      const win = getStyledMomentMotif("trickWin", winStyle);
       const collect = getMomentMotif("trickCollect");
       const deposits = playersRef.current.map((player) => player.deposit);
       const winnerDeposit = deposits[winnerIdx] ?? [];
@@ -1441,6 +1461,7 @@ export function TableScreen({
         void runMomentRef.current(win, {
           actorUi: winnerIdx, winnerUi: winnerIdx, mode: "display", release: "end",
           cards: { ids: [top.id], snapshots: [top], fromIndexes: [winnerDeposit.length - 1], toIndexes: [] },
+          tone: winStyle?.tone,
         });
       }
       // Une carte par joueur (ordre des sièges) : sinon on n'anime pas la fin de pli.
@@ -1545,9 +1566,10 @@ export function TableScreen({
         }
       }
       // Moment « Pouvoir lancé » : carte décorative depuis l'avatar du lanceur (modèle attribué par l'admin).
-      const launchMotif = animationsOnRef.current && activation.used ? getMomentMotif("powerLaunch") : null;
-      const launcherUi = launchMotif ? (mine ? 0 : uiIndexFromPowerUid(activation.activatedByUid)) : null;
-      if (launchMotif && launcherUi !== null) void runMomentRef.current(launchMotif, { actorUi: launcherUi, cards: null, mode: "display", release: "end" });
+      const launcherUi = animationsOnRef.current && activation.used ? (mine ? 0 : uiIndexFromPowerUid(activation.activatedByUid)) : null;
+      const launchStyle = launcherUi !== null ? animStyleOfRef.current(launcherUi) : null;
+      const launchMotif = launcherUi !== null ? getStyledMomentMotif("powerLaunch", launchStyle) : null;
+      if (launchMotif && launcherUi !== null) void runMomentRef.current(launchMotif, { actorUi: launcherUi, cards: null, mode: "display", release: "end", tone: launchStyle?.tone });
       // Toute l'animation est GÉNÉRIQUE : l'orchestrateur rejoue le script de
       // la carte (config/powers) depuis activation.resolved — zéro branche
       // par carte ou par tag ici. Ajouter une carte = écrire son script.

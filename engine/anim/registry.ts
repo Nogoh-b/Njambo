@@ -6,7 +6,8 @@
 
 import { DEFAULT_MOTIFS } from "./defaults";
 import { normalizeMotif, type AnimMotif } from "./motif";
-import { GAME_MOMENTS, momentMotif, motifFitsMoment, validateMoments, type GameMoment, type MomentMap } from "./moments";
+import { GAME_MOMENTS, MOMENT_STYLE_FALLBACK, MOMENT_STYLE_OWNER, momentMotif, motifFitsMoment, styleMomentMotif, validateMoments, type GameMoment, type MomentMap } from "./moments";
+import type { AnimStyle } from "./style";
 
 /** Réglages d'un modèle qu'une chorégraphie peut surcharger (tout sauf l'identité et l'aperçu). */
 export type MotifOverrides = Partial<Omit<AnimMotif, "id" | "name" | "description" | "group" | "preview">>;
@@ -16,6 +17,8 @@ let archived = new Set<string>();
 let moments: MomentMap = {};
 /** Attribution essayée par l'admin sur ce seul appareil (« Essayer dans une partie ») : remplace celle du catalogue. */
 let momentPreview: MomentMap | null = null;
+/** Style essayé sur ce seul appareil, pour les mouvements du joueur local : remplace celui qu'il a équipé. */
+let stylePreview: AnimStyle | null = null;
 let revision = 0;
 /** Change à chaque mise à jour (catalogue ou aperçu) : sert aux composants pour se re-rendre. */
 let version = 0;
@@ -84,6 +87,27 @@ export function getMomentMotif(moment: GameMoment): AnimMotif | null {
   const id = (momentPreview ?? moments)[moment];
   const motif = id ? catalog.get(id) : undefined;
   return motif ? momentMotif(moment, motif) : null;
+}
+
+/** Modèle d'un moment aux couleurs du style de son propriétaire (G5), ou null : animation actuelle du jeu.
+ *  Un moment qui ne porte pas de style ignore `style`. */
+export function getStyledMomentMotif(moment: GameMoment, style?: AnimStyle | null): AnimMotif | null {
+  const assigned = getMomentMotif(moment);
+  if (!style || !MOMENT_STYLE_OWNER[moment]) return assigned;
+  const fallbackId = MOMENT_STYLE_FALLBACK[moment];
+  const fallback = fallbackId ? catalog.get(fallbackId) : undefined;
+  const base = assigned ?? (fallback && motifFitsMoment(moment, fallback) ? momentMotif(moment, fallback) : null);
+  return base ? styleMomentMotif(moment, base, style) : null;
+}
+
+/** Essaie un style sur cet appareil pour le joueur local (null : retour au style équipé). */
+export function setStylePreview(style: AnimStyle | null) {
+  stylePreview = style;
+  notify();
+}
+
+export function stylePreviewOf(): AnimStyle | null {
+  return stylePreview;
 }
 
 export function subscribeMotifCatalog(listener: () => void): () => void {

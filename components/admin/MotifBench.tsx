@@ -10,7 +10,9 @@ import { ChoreoDemoStage, type ChoreoDemoHandle } from "@/components/power/chore
 import { MOTIF_GROUPS, normalizeMotif, validateMotif, type AnimMotif, type MotifGroup } from "@/engine/anim/motif";
 import { Transport } from "./AnimationsAdmin";
 import { createMotifClock } from "./anim/clock";
+import { AnimStyleEditor } from "./anim/AnimStyleEditor";
 import { GameMomentsPanel } from "./anim/GameMomentsPanel";
+import { validateAnimStyle, type AnimStyle } from "@/engine/anim/style";
 import { MotifCanvas } from "./anim/MotifCanvas";
 import { MotifInspector } from "./anim/MotifInspector";
 import { MotifTimeline } from "./anim/MotifTimeline";
@@ -28,13 +30,14 @@ const SAMPLE_CHOREO: Choreography = { tracks: [
 ] };
 
 export function MotifBench() {
-  const [mode, setMode] = useState<"bench" | "studio" | "moments">("bench");
+  const [mode, setMode] = useState<"bench" | "studio" | "moments" | "style">("bench");
   if (mode === "studio") return <LocalStudio onBack={() => setMode("bench")} />;
   if (mode === "moments") return <LocalMoments onBack={() => setMode("bench")} />;
-  return <Bench onStudio={() => setMode("studio")} onMoments={() => setMode("moments")} />;
+  if (mode === "style") return <LocalStyle onBack={() => setMode("bench")} />;
+  return <Bench onStudio={() => setMode("studio")} onMoments={() => setMode("moments")} onStyle={() => setMode("style")} />;
 }
 
-function Bench({ onStudio, onMoments }: { onStudio(): void; onMoments(): void }) {
+function Bench({ onStudio, onMoments, onStyle }: { onStudio(): void; onMoments(): void; onStyle(): void }) {
   const stage = useRef<ChoreoDemoHandle>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const motifs = listMotifs();
@@ -57,6 +60,7 @@ function Bench({ onStudio, onMoments }: { onStudio(): void; onMoments(): void })
           <button type="button" data-testid="play-all" disabled={!!playing} onClick={() => void playAll()} style={buttonStyle(true)}>▶ Tout jouer</button>
           <button type="button" data-testid="open-studio" onClick={onStudio} style={buttonStyle(false)}>✎ Atelier (aperçu local)</button>
           <button type="button" data-testid="open-moments" onClick={onMoments} style={buttonStyle(false)}>⚑ Moments du jeu (aperçu local)</button>
+          <button type="button" data-testid="open-style" onClick={onStyle} style={buttonStyle(false)}>✦ Style d&apos;animation (aperçu local)</button>
           <button type="button" data-testid="play-choreo" disabled={!!playing} onClick={() => void run("choreo", () => stage.current?.play(SAMPLE_CHOREO) ?? Promise.resolve())} style={buttonStyle(false)}>▶ Chorégraphie avec un modèle</button>
         </div>
         {(Object.entries(MOTIF_GROUPS) as Array<[MotifGroup, string]>).map(([group, label]) => {
@@ -138,6 +142,23 @@ function LocalMoments({ onBack }: { onBack(): void }) {
         <h1 style={{ margin: 0, font: "800 20px var(--font-bricolage, system-ui)" }}>Moments du jeu</h1>
       </div>
       <GameMomentsPanel saved={{}} />
+    </main>
+  );
+}
+
+/* Style d'animation en local : même éditeur que la section Cosmétiques, sans enregistrement. */
+function LocalStyle({ onBack }: { onBack(): void }) {
+  const [style, setStyle] = useState<AnimStyle>({ trail: "sparks", tone: "pink", impact: "burst" });
+  const issues = validateAnimStyle(style);
+  return (
+    <main style={{ ...SHELL_VARS, minHeight: "100vh", background: "#0a0808", color: "#fff6df", fontFamily: "var(--font-manrope, system-ui)", padding: 16 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
+        <button type="button" onClick={onBack} style={buttonStyle(false)}>← Banc d&apos;essai</button>
+        <h1 style={{ margin: 0, font: "800 20px var(--font-bricolage, system-ui)" }}>Style d&apos;animation</h1>
+        <span data-testid="style-issues" style={{ color: issues.length ? "#ff7b6b" : "#8f7a58", fontSize: 12 }}>{issues.length ? `${issues.length} erreur(s)` : "Style valide."}</span>
+      </div>
+      <AnimStyleEditor style={style} errorFor={(path) => issues.find((issue) => issue.path === path)?.message} onChange={setStyle} />
+      <p className={styles.hint}>Aperçu local : rien n&apos;est enregistré. Un style se crée dans la console admin, section Cosmétiques (type « Style d&apos;animation »).</p>
     </main>
   );
 }

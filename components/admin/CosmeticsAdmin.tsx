@@ -1,16 +1,18 @@
 "use client";
 
-/* Section Cosmétiques : catalogue (dos de carte, cadres, badges, titres),
-   création / modification, activation. Les cosmétiques se gagnent via la
-   récompense « Cosmétique » des événements (et des saisons). */
+/* Section Cosmétiques : catalogue (dos de carte, cadres, badges, titres,
+   styles d'animation), création / modification, activation. Les
+   cosmétiques se gagnent via la récompense « Cosmétique » des événements
+   (et des saisons). */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { COSMETIC_RARITIES, COSMETIC_TYPES, validateCosmetic, type CosmeticDefinition } from "@/domain";
 import { adminApi, adminErrorText, loadCosmeticCatalog } from "./adminApi";
+import { AnimStyleEditor } from "./anim/AnimStyleEditor";
 import { ImageField } from "./ImageField";
 import styles from "./AdminConsole.module.css";
 
-const TYPE_LABELS: Record<CosmeticDefinition["type"], string> = { card_back: "Dos de carte", avatar_frame: "Cadre d’avatar", badge: "Badge", title: "Titre" };
+const TYPE_LABELS: Record<CosmeticDefinition["type"], string> = { card_back: "Dos de carte", avatar_frame: "Cadre d’avatar", badge: "Badge", title: "Titre", anim_style: "Style d’animation" };
 const RARITY_LABELS: Record<CosmeticDefinition["rarity"], string> = { commun: "Commun", rare: "Rare", epique: "Épique", legendaire: "Légendaire" };
 const RARITY_COLORS: Record<CosmeticDefinition["rarity"], string> = { commun: "#c9b48f", rare: "#7ab8ff", epique: "#c18cff", legendaire: "#f2bb45" };
 const EMPTY: CosmeticDefinition = { id: "", type: "avatar_frame", name: "", rarity: "rare", published: false };
@@ -68,7 +70,10 @@ export function CosmeticsAdmin() {
               {idError && <span className={styles.fieldError}>{idError}</span>}
             </label>
             <label className={styles.field}><span>Type</span>
-              <select value={editing.cosmetic.type} disabled={!editing.isNew} onChange={(e) => patch({ type: e.target.value as CosmeticDefinition["type"] })}>
+              <select value={editing.cosmetic.type} disabled={!editing.isNew} onChange={(e) => {
+                const type = e.target.value as CosmeticDefinition["type"];
+                patch({ type, style: type === "anim_style" ? editing.cosmetic.style ?? { trail: "light", tone: "gold" } : undefined });
+              }}>
                 {COSMETIC_TYPES.map((type) => <option key={type} value={type}>{TYPE_LABELS[type]}</option>)}
               </select>
             </label>
@@ -85,10 +90,16 @@ export function CosmeticsAdmin() {
               <input value={editing.cosmetic.description ?? ""} maxLength={160} onChange={(e) => patch({ description: e.target.value || undefined })} />
             </label>
           </div>
+          {editing.cosmetic.type === "anim_style" && (
+            <>
+              <h3>Style</h3>
+              <AnimStyleEditor style={editing.cosmetic.style ?? {}} errorFor={err} onChange={(style) => patch({ style })} />
+            </>
+          )}
           {editing.cosmetic.type !== "title" && (
             <>
-              <h3>Image</h3>
-              <ImageField kind="cosmetic" label={editing.cosmetic.type === "avatar_frame" ? "Cadre (PNG transparent, carré)" : editing.cosmetic.type === "card_back" ? "Dos de carte (portrait 5:7)" : "Badge (carré)"} value={editing.cosmetic.imageUrl} error={err("imageUrl")} onChange={(imageUrl) => patch({ imageUrl })} />
+              <h3>Image{editing.cosmetic.type === "anim_style" ? " (facultatif)" : ""}</h3>
+              <ImageField kind="cosmetic" label={editing.cosmetic.type === "avatar_frame" ? "Cadre (PNG transparent, carré)" : editing.cosmetic.type === "card_back" ? "Dos de carte (portrait 5:7)" : editing.cosmetic.type === "anim_style" ? "Vignette de la collection (carré)" : "Badge (carré)"} value={editing.cosmetic.imageUrl} error={err("imageUrl")} onChange={(imageUrl) => patch({ imageUrl })} />
               <span className={styles.hint}>Astuce : envoyez un PNG à fond transparent pour les cadres et badges (il est converti en WebP en gardant la transparence).</span>
             </>
           )}

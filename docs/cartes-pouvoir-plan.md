@@ -15,7 +15,7 @@
 | D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ✅ Terminé |
 | E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ✅ Terminé |
 | F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ✅ Terminé |
-| G | **Atelier d'animations** : modèles réutilisables édités visuellement, pour les pouvoirs **et** tout le jeu ; suivi dans [`atelier-animations-suivi.md`](atelier-animations-suivi.md) | 🟡 Prototype, G1 (modèle), G2 (lecteur) et G3 (atelier admin) terminés ; G4 et G5 à faire |
+| G | **Atelier d'animations** : modèles réutilisables édités visuellement, pour les pouvoirs **et** tout le jeu ; suivi dans [`atelier-animations-suivi.md`](atelier-animations-suivi.md) | ✅ Terminé : G1 (modèle), G2 (lecteur), G3 (atelier admin), G4 (moments du jeu) et G5 (styles des joueurs) |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -745,6 +745,10 @@ mis à jour à chaque avancée.
   lueur), jamais la durée. Le rythme reste ainsi le même pour tous et la
   synchro n'en dépend pas. Le style s'applique aux mouvements du joueur
   qui le possède.
+
+  Décisions (2026-11-21) : un **nouveau type de cosmétique « Style
+  d'animation »**, avec son propre emplacement ; et le style s'applique à
+  la carte jouée **même sans modèle attribué**, sur le « vol actuel ».
 
 **Critère de fin** : un admin modifie « Jouer une carte » dans l'atelier,
 publie, et chaque carte jouée de chaque partie (en local et en ligne)

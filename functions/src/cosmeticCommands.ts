@@ -26,6 +26,8 @@ function cosmeticFrom(raw: unknown): CosmeticDefinition {
   };
   if (typeof source.description === "string" && source.description) cosmetic.description = source.description;
   if (typeof source.imageUrl === "string" && source.imageUrl) cosmetic.imageUrl = source.imageUrl;
+  // Réglages bruts : validateCosmetic refuse un réglage hors liste blanche avant l'enregistrement.
+  if (source.style !== undefined && source.style !== null) cosmetic.style = source.style as CosmeticDefinition["style"];
   return cosmetic;
 }
 

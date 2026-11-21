@@ -18,7 +18,7 @@ const TYPE_LABELS: Record<Reward["type"], string> = {
   cosmetic: "Cosmétique",
 };
 
-const COSMETIC_TYPE_LABELS: Record<string, string> = { card_back: "Dos de carte", avatar_frame: "Cadre", badge: "Badge", title: "Titre" };
+const COSMETIC_TYPE_LABELS: Record<string, string> = { card_back: "Dos de carte", avatar_frame: "Cadre", badge: "Badge", title: "Titre", anim_style: "Style d'animation" };
 
 function defaultReward(type: Reward["type"]): Reward {
   switch (type) {

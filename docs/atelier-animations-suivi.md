@@ -16,7 +16,7 @@
 | G2 | Lecteur dans le jeu (piste « modèle » des chorégraphies) | ✅ Terminé |
 | G3 | Atelier dans la console admin, publication versionnée | ✅ Terminé |
 | G4 | Moments du jeu : donne, carte jouée, pli, pouvoir lancé | ✅ Terminé |
-| G5 | Styles d'animation des joueurs (cosmétiques) | ⬜ À faire |
+| G5 | Styles d'animation des joueurs (cosmétiques) | ✅ Terminé |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -517,13 +517,90 @@ chemin serveur est couvert par le test d'intégration.
 **Reporté** : pioche, défausse et gain du pot, à ajouter avec une règle
 qui les crée (voir plus haut).
 
-## G5 — Styles des joueurs ⬜
+## G5 — Styles des joueurs ✅
 
-- [ ] Liste blanche des réglages surchargeables : traînée, réactions,
-      teinte, lueur
-- [ ] Champ sur la définition d'un cosmétique
-- [ ] Application aux mouvements du joueur qui possède le style
-- [ ] Aperçu dans l'admin
+**Décisions** (2026-11-21) :
+- un **nouveau type de cosmétique, « Style d'animation »** (`anim_style`),
+  avec son propre emplacement (`animStyle`). Un seul style équipé par
+  joueur, sans conflit avec les autres cosmétiques ;
+- le style s'applique **même sans modèle attribué** à « Carte jouée » :
+  un joueur stylé prend alors « Jouer une carte · vol actuel », identique
+  image par image à l'animation du jeu. Les autres joueurs gardent
+  l'animation actuelle.
+
+- [x] Liste blanche (`engine/anim/style.ts`) : traînée, densité de la
+      traînée, teinte (traînée, lueur, réactions), lueur en vol (0 à 1),
+      impact à l'arrivée (flash, onde, gerbe).
+  - Tout autre réglage est refusé, avec son chemin
+    (`style.durationMs`…).
+  - `applyAnimStyle` ne touche jamais au temps ni au trajet. Un impact
+    qui allongerait la durée qui compte pour le moment est raccourci, ou
+    retiré s'il n'a pas la place.
+  - Lecture tolérante (`readAnimStyle`) des copies équipées.
+- [x] Champ sur la définition d'un cosmétique (`domain/cosmetics.ts`) :
+      `style`, obligatoire et validé pour un style d'animation, refusé
+      sur les autres types. L'image est facultative. Les réglages sont
+      copiés dans l'équipement (`equippedCopy`), puis sur les participants
+      d'une partie : tous les joueurs les voient.
+- [x] Application aux mouvements du propriétaire (`TableScreen`,
+      `getStyledMomentMotif`) : sa **carte jouée**, son **pli gagné**, son
+      **pouvoir lancé**. La distribution et la fin de pli animent les
+      cartes de tout le monde : elles restent neutres. Le style local
+      vient de `useMyCosmetics` hors ligne, ou de la partie en ligne.
+- [x] Admin, section Cosmétiques : type « Style d'animation », éditeur
+      des réglages (`components/admin/anim/AnimStyleEditor.tsx`), aperçu
+      « Carte jouée » et « Pouvoir lancé » sur la table de démonstration,
+      **« Essayer dans une partie »** (`?apercuStyle=…`, cet onglet
+      seulement). Le même éditeur est en local sur le banc d'essai
+      `/admin/modeles`.
+- [x] Collection du joueur : emplacement « Style » (« Style classique »
+      quand rien n'est équipé). Récompenses : le type est proposé.
+- [x] Tests (`tests/anim-style.test.ts`, 18 tests) :
+  - la liste blanche, les valeurs refusées, la lecture tolérante,
+    l'aller-retour de l'URL ;
+  - l'application : jamais de changement de temps ni de trajet sur les
+    22 modèles par défaut, animation jamais plus longue, modèle toujours
+    valide ; impact raccourci ou retiré ;
+  - les moments : le vol garde sa durée, l'impact se joue en entier
+    après l'atterrissage ; repli sur le vol actuel ; distribution et fin
+    de pli neutres ;
+  - le cosmétique : validation, copie équipée, relecture tolérante.
+- [x] Intégration Postgres `smoke-cosmetics.cjs` : **17/17** (6
+      vérifications de plus). Un style qui touche à la durée est refusé ;
+      des réglages sur un dos de carte aussi. Le style est enregistré sans
+      image, gagné, équipé seulement dans son emplacement, puis copié sur
+      le participant d'une partie.
+- [x] `tsc` du front et du serveur, `eslint`, suite complète au vert
+      (223 tests passés, 11 ignorés).
+- [x] Vérification dans le navigateur, une fois le panneau du navigateur
+      intégré affiché (masqué, il ne produisait plus aucune image).
+  - **Table de démonstration** (style : étincelles, rose, gerbe) : une
+    carte, 6 étincelles pendant le vol, une gerbe de 18 particules à
+    l'arrivée, en rose ; la couche est vide ensuite.
+  - **Vraie partie** (duel contre l'IA, entraînement gratuit,
+    `?apercuStyle=trail:sparks,tone:pink,glow:0.6,impact:burst`, aucun
+    modèle attribué) :
+    - mes 5 cartes jouées passent par le vol actuel stylé : 5 cartes,
+      90 particules de gerbe (5 × 18), 21 étincelles ;
+    - les 111 effets sont roses, et 94 images de vol ont une lueur rose ;
+    - les cartes de l'IA gardent l'animation actuelle : aucune carte de
+      l'IA dans la couche des moments ;
+    - manche finie, aucune erreur console.
+  - **Corrigé** : dans l'éditeur, la case « Lueur en vol » prenait toute
+    la largeur et le curseur passait à la ligne. Ils sont maintenant sur
+    la même ligne.
+
+**Critère de fin** ✅ : un style se crée dans l'admin, se gagne, s'équipe
+et colore les mouvements de son propriétaire pour tous les joueurs, sans
+changer le rythme de la partie.
+
+**À vérifier de ton côté** (non fait ici) : créer un style dans la
+console admin (section Cosmétiques) avec un compte admin, puis l'équiper
+depuis la collection d'un compte joueur.
+
+**À savoir** : comme pour les autres cosmétiques, l'équipement garde
+une copie. Si l'admin modifie un style déjà équipé, les joueurs ont la
+nouvelle version en le rééquipant.
 
 ---
 
@@ -531,6 +608,8 @@ qui les crée (voir plus haut).
 
 | Date | Étape | Avancée |
 | --- | --- | --- |
+| 2026-11-21 | G5 | **G5 terminé, l'atelier d'animations est complet.** Vérifié dans le navigateur : table de démonstration, puis vraie partie avec un style en aperçu. Mes 5 cartes stylées (gerbe 5 × 18, étincelles, lueur, tout en rose), cartes de l'IA inchangées, aucune erreur. Corrigé : la case « Lueur en vol » de l'éditeur. |
+| 2026-11-21 | G5 | Décisions : nouveau type de cosmétique « Style d'animation » ; style appliqué même sans modèle (vol actuel). Liste blanche et application sans changer le rythme, champ `style` des cosmétiques, carte jouée / pli gagné / pouvoir lancé du propriétaire, éditeur admin avec aperçu et essai en partie, emplacement « Style » de la collection. 18 tests, intégration Postgres 17/17, 223 tests au vert. Reste la vérification visuelle (panneau du navigateur masqué). |
 | 2026-11-21 | G4 | **G4 terminé.** « Pouvoir lancé » vérifié en vraie partie : la carte part de l'avatar du lanceur (moi ou l'IA) et rejoint le centre, puis la couche se vide. Reste de ton côté : la section admin avec un compte admin. Vu en passant : icône `"shield"` absente pour « Sceau d'Entrave » (requête 400). |
 | 2026-11-21 | G4 | Décision : « Pli ramassé » devient **« Fin de pli », sur place** (les dépôts gardent leurs cartes). Nouveau modèle par défaut « Fin de pli · tassement » (`trick_end_settle`, remplace `trick_collect`). « Chacun » des deux côtés accepté seulement sur place. Tests, intégration Postgres 23/23, 205 tests au vert. Vraie partie à 4 : plus de cartes qui disparaissent puis réapparaissent. |
 | 2026-11-21 | G4 | Table « moment → modèle » dans l'admin (et en local sur le banc d'essai), « Essayer dans une partie » (aperçu par l'URL, cet onglet seulement), publication protégée quand un moment utilise le modèle. 16 tests de moments, 2 tests remis à jour (22 modèles), intégration Postgres 23/23, 198 tests au vert. Vraie partie à 4 vérifiée. Corrigé : couronnes empilées sur les dépôts, une seule carte en aperçu de « Pli ramassé ». **À trancher** : « Pli ramassé » alors que les dépôts gardent leurs cartes. |
