@@ -594,9 +594,25 @@ qui les crée (voir plus haut).
 et colore les mouvements de son propriétaire pour tous les joueurs, sans
 changer le rythme de la partie.
 
-**À vérifier de ton côté** (non fait ici) : créer un style dans la
-console admin (section Cosmétiques) avec un compte admin, puis l'équiper
-depuis la collection d'un compte joueur.
+- [x] **Outil de test : « Offrir un cosmétique »** dans la section Joueurs
+      de l'admin (`adminGrantCosmetic`). Il permet de tester un style de
+      bout en bout sans passer par un événement.
+  - Motif obligatoire, consigné dans l'audit ; protégé contre le double
+    clic.
+  - Même un cosmétique inactif peut être offert.
+  - S'il est déjà possédé, le cadeau est refusé : il n'est pas converti
+    en cauris comme un doublon gagné.
+  - La fiche joueur liste les cosmétiques possédés.
+  - Intégration Postgres `smoke-player-admin.cjs` : **18/18** (8
+    vérifications de plus). Le backend de `npm run dev` connaît la
+    commande (une requête sans compte répond « authentification
+    requise »).
+
+**À vérifier de ton côté** (non fait ici, il faut un compte admin) :
+1. créer un style dans Cosmétiques (type « Style d'animation ») ;
+2. dans Joueurs, retrouver ton compte et lui offrir ce style ;
+3. dans le jeu, Collection → Cosmétiques → Style : l'équiper, puis jouer
+   contre l'IA.
 
 **À savoir** : comme pour les autres cosmétiques, l'équipement garde
 une copie. Si l'admin modifie un style déjà équipé, les joueurs ont la
@@ -608,6 +624,7 @@ nouvelle version en le rééquipant.
 
 | Date | Étape | Avancée |
 | --- | --- | --- |
+| 2026-11-21 | G5 | « Offrir un cosmétique » dans la section Joueurs de l'admin, pour tester un style de bout en bout : motif obligatoire et audité, même inactif, refusé s'il est déjà possédé. Intégration Postgres 18/18, 223 tests au vert. |
 | 2026-11-21 | G5 | **G5 terminé, l'atelier d'animations est complet.** Vérifié dans le navigateur : table de démonstration, puis vraie partie avec un style en aperçu. Mes 5 cartes stylées (gerbe 5 × 18, étincelles, lueur, tout en rose), cartes de l'IA inchangées, aucune erreur. Corrigé : la case « Lueur en vol » de l'éditeur. |
 | 2026-11-21 | G5 | Décisions : nouveau type de cosmétique « Style d'animation » ; style appliqué même sans modèle (vol actuel). Liste blanche et application sans changer le rythme, champ `style` des cosmétiques, carte jouée / pli gagné / pouvoir lancé du propriétaire, éditeur admin avec aperçu et essai en partie, emplacement « Style » de la collection. 18 tests, intégration Postgres 17/17, 223 tests au vert. Reste la vérification visuelle (panneau du navigateur masqué). |
 | 2026-11-21 | G4 | **G4 terminé.** « Pouvoir lancé » vérifié en vraie partie : la carte part de l'avatar du lanceur (moi ou l'IA) et rejoint le centre, puis la couche se vide. Reste de ton côté : la section admin avec un compte admin. Vu en passant : icône `"shield"` absente pour « Sceau d'Entrave » (requête 400). |

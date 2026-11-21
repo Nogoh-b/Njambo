@@ -2,14 +2,16 @@
 
 /* Section Joueurs : recherche, soldes, parcours d'événement, gestes de support. */
 
-import { useState } from "react";
-import { adminApi, adminErrorText, type AdminPlayerDetail, type AdminPlayerHit } from "./adminApi";
+import { useEffect, useState } from "react";
+import type { CosmeticDefinition } from "@/domain";
+import { adminApi, adminErrorText, loadCosmeticCatalog, type AdminPlayerDetail, type AdminPlayerHit } from "./adminApi";
 import { formatDateTime } from "./adminUi";
 import styles from "./AdminConsole.module.css";
 
 const RUN_STATUS: Record<string, string> = {
   active: "En cours", matchmaking: "En file PvP", completed: "Grand prix", eliminated: "Éliminé", left: "Quitté", abandoned: "Abandonné",
 };
+const COSMETIC_TYPE_LABELS: Record<CosmeticDefinition["type"], string> = { card_back: "Dos de carte", avatar_frame: "Cadre", badge: "Badge", title: "Titre", anim_style: "Style d'animation" };
 
 export function PlayersAdmin() {
   const [query, setQuery] = useState("");
@@ -18,6 +20,9 @@ export function PlayersAdmin() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [grant, setGrant] = useState({ tier: "bronze", amount: 1, reason: "" });
+  const [gift, setGift] = useState({ cosmeticId: "", reason: "" });
+  const [catalog, setCatalog] = useState<CosmeticDefinition[]>([]);
+  useEffect(() => { if (player) void loadCosmeticCatalog().then(setCatalog); }, [player]);
 
   const act = async (action: () => Promise<string | void>) => {
     setBusy(true);
@@ -82,6 +87,39 @@ export function PlayersAdmin() {
               <label className={styles.field} style={{ flex: 1 }}><span>Motif</span><input value={grant.reason} maxLength={200} onChange={(e) => setGrant({ ...grant, reason: e.target.value })} placeholder="ex. ticket perdu suite à un bug" /></label>
               <button type="submit" className={styles.btn} disabled={busy || !grant.reason.trim()} style={{ alignSelf: "end" }}>Créditer</button>
             </form>
+            <h3>Offrir un cosmétique</h3>
+            <p className={styles.hint} style={{ marginTop: 0 }}>
+              Il arrive dans la collection du joueur, qui l&apos;équipe lui-même. Même un cosmétique inactif peut être offert (pratique pour tester un style d&apos;animation).
+            </p>
+            <form className={styles.row} data-testid="grant-cosmetic" onSubmit={(e) => { e.preventDefault(); void act(async () => {
+              const result = await adminApi.grantCosmetic(player.uid, gift.cosmeticId, gift.reason.trim());
+              const name = catalog.find((item) => item.id === gift.cosmeticId)?.name ?? gift.cosmeticId;
+              setPlayer({ ...player, cosmetics: result.cosmetics });
+              setGift({ cosmeticId: "", reason: "" });
+              return `« ${name} » offert : il est dans la collection du joueur.`;
+            }); }}>
+              <label className={styles.field} style={{ minWidth: 220 }}><span>Cosmétique</span>
+                <select value={gift.cosmeticId} onChange={(e) => setGift({ ...gift, cosmeticId: e.target.value })}>
+                  <option value="">Choisir…</option>
+                  {(Object.keys(COSMETIC_TYPE_LABELS) as Array<CosmeticDefinition["type"]>).map((type) => {
+                    const items = catalog.filter((item) => item.type === type);
+                    return items.length ? (
+                      <optgroup key={type} label={COSMETIC_TYPE_LABELS[type]}>
+                        {items.map((item) => {
+                          const owned = player.cosmetics.includes(item.id);
+                          return <option key={item.id} value={item.id} disabled={owned}>{item.name}{item.published ? "" : " (inactif)"}{owned ? " · déjà possédé" : ""}</option>;
+                        })}
+                      </optgroup>
+                    ) : null;
+                  })}
+                </select>
+              </label>
+              <label className={styles.field} style={{ flex: 1 }}><span>Motif</span><input value={gift.reason} maxLength={200} onChange={(e) => setGift({ ...gift, reason: e.target.value })} placeholder="ex. test du style « Braise »" /></label>
+              <button type="submit" className={styles.btn} disabled={busy || !gift.cosmeticId || !gift.reason.trim()} style={{ alignSelf: "end" }}>Offrir</button>
+            </form>
+            {player.cosmetics.length > 0 && (
+              <p className={styles.hint}>Possédés : {player.cosmetics.map((id) => catalog.find((item) => item.id === id)?.name ?? id).join(", ")}</p>
+            )}
           </section>
           <section className={styles.panel}>
             <h2>Parcours d’événement</h2>

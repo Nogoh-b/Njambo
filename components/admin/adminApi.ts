@@ -87,6 +87,8 @@ export interface AdminPlayerDetail {
   nkap: number;
   cauris: number;
   tickets: Record<"bronze" | "argent" | "or", number>;
+  /** Identifiants des cosmétiques possédés. */
+  cosmetics: string[];
   runs: AdminPlayerRun[];
 }
 
@@ -146,6 +148,8 @@ export const adminApi = {
   getPlayer: (uid: string) => call<AdminPlayerDetail>("adminGetPlayer", { uid }),
   grantTicket: (uid: string, tier: string, amount: number, reason: string) =>
     call<{ uid: string; tickets: Record<string, number> }>("adminGrantTicket", { uid, tier, amount, reason }),
+  grantCosmetic: (uid: string, cosmeticId: string, reason: string) =>
+    call<{ uid: string; cosmetics: string[] }>("adminGrantCosmetic", { uid, cosmeticId, reason }),
   resetRun: (runId: string, mode: "restart" | "close", reason: string) =>
     call<{ runId: string; status: string }>("adminResetEventRun", { runId, mode, reason }),
   leaderboard: (eventId: string) => call<EventLeaderboardData>("getEventLeaderboard", { eventId }),
@@ -222,6 +226,8 @@ const ERROR_LABELS: Record<string, string> = {
   DRAFT_NOT_FOUND: "Aucun brouillon à publier : enregistre d'abord.",
   ANIM_MOTIF_INVALID: "Le modèle contient des erreurs : corrige-les avant de publier.",
   ANIM_MOTIF_NOT_FOUND: "Modèle introuvable (jamais enregistré).",
+  COSMETIC_ALREADY_OWNED: "Ce joueur possède déjà ce cosmétique.",
+  COSMETIC_NOT_FOUND: "Cosmétique introuvable.",
   ANIM_MOTIF_MOMENT_CONFLICT: "Un moment du jeu utilise ce modèle : cette version ne lui convient plus (départ, arrivée ou durée). Change d'abord l'attribution des moments.",
   GAME_MOMENTS_INVALID: "L'attribution des moments contient des erreurs.",
   INVALID_MOTIFID: "Identifiant du modèle : 3 à 48 caractères a-z, 0-9 ou _.",

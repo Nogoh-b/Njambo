@@ -42,6 +42,7 @@ import {
   adminSearchPlayersHandler,
   adminGetPlayerHandler,
   adminGrantTicketHandler,
+  adminGrantCosmeticHandler,
   adminResetEventRunHandler,
 } from "./playerAdminCommands";
 import { getEventLeaderboardHandler } from "./eventLeaderboardCommands";
@@ -188,6 +189,7 @@ export const listAdminUploads = onCall(callable, listAdminUploadsHandler);
 export const adminSearchPlayers = onCall(callable, adminSearchPlayersHandler);
 export const adminGetPlayer = onCall(callable, adminGetPlayerHandler);
 export const adminGrantTicket = onCall(callable, adminGrantTicketHandler);
+export const adminGrantCosmetic = onCall(callable, adminGrantCosmeticHandler);
 export const adminResetEventRun = onCall(callable, adminResetEventRunHandler);
 
 export const createRoom = onCall(callable, createRoomHandler);

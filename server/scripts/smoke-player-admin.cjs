@@ -38,7 +38,21 @@ if (!process.env.DATABASE_URL) { console.error("DATABASE_URL requis (base jetabl
   await core.db.doc("event_runs/run_b").set({ currentMatchId: null }, { merge: true });
   const closed = await c.adminResetEventRunHandler(admin({ runId: "run_b", mode: "close", reason: "Demande du joueur" }));
   assert(closed.status === "left", "parcours clôturé");
+  // Offrir un cosmétique (même inactif) : motif obligatoire, une seule fois, jamais converti en cauris
+  await core.db.doc("cosmetics/style_test").set({ type: "anim_style", name: "Style test", rarity: "rare", published: false, style: { trail: "sparks", tone: "pink" } });
+  try { await c.adminGrantCosmeticHandler({ auth: { uid: "u", token: {} }, data: { uid, cosmeticId: "style_test", reason: "x" } }); assert(false, "non-admin"); } catch (e) { assert(e.code === "permission-denied", "offrir un cosmétique : réservé aux admins"); }
+  try { await c.adminGrantCosmeticHandler(admin({ uid, cosmeticId: "style_test" })); assert(false, "motif"); } catch (e) { assert(e.message === "INVALID_REASON", "offrir un cosmétique : motif obligatoire"); }
+  try { await c.adminGrantCosmeticHandler(admin({ uid, cosmeticId: "inexistant", reason: "test" })); assert(false, "inconnu"); } catch (e) { assert(e.message === "COSMETIC_NOT_FOUND", "cosmétique inconnu refusé"); }
+  const giftKey = "gift_key_123";
+  const c1 = await c.adminGrantCosmeticHandler({ ...admin({}), data: { uid, cosmeticId: "style_test", reason: "Test du style", idempotencyKey: giftKey } });
+  const c2 = await c.adminGrantCosmeticHandler({ ...admin({}), data: { uid, cosmeticId: "style_test", reason: "Test du style", idempotencyKey: giftKey } });
+  assert(c1.cosmetics.join() === "style_test" && c2.cosmetics.join() === "style_test", "cosmétique (inactif) offert une seule fois (double clic)");
+  try { await c.adminGrantCosmeticHandler(admin({ uid, cosmeticId: "style_test", reason: "encore" })); assert(false, "déjà possédé"); } catch (e) { assert(e.message === "COSMETIC_ALREADY_OWNED", "déjà possédé : refusé, pas converti en cauris"); }
+  const afterGift = await c.adminGetPlayerHandler(admin({ uid }));
+  assert(afterGift.cosmetics.includes("style_test") && afterGift.tickets.or === 2 && afterGift.cauris === 31, "fiche joueur : cosmétique possédé, tickets et cauris intacts");
+
   const audit = (await core.db.collection("admin_audit").get()).docs.map((d) => d.data()).filter((a) => a.targetUid === uid);
-  assert(audit.length === 3 && audit.every((a) => a.reason), `audit avec motif (${audit.length} entrées)`);
+  assert(audit.length === 4 && audit.every((a) => a.reason), `audit avec motif (${audit.length} entrées)`);
+  assert(audit.some((a) => a.action === "player_grant_cosmetic" && a.cosmeticId === "style_test"), "cadeau de cosmétique consigné dans l'audit");
   process.exit(0);
 })().catch((e) => { console.error(e); process.exit(1); });

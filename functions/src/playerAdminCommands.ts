@@ -1,7 +1,8 @@
 /* ═══════════════ Commandes admin : joueurs (support) ═══════════════
    Recherche d'un joueur, consultation de ses parcours d'événement, gestes
-   commerciaux (donner un ticket) et réparation d'un parcours bloqué.
-   Toute écriture exige un motif et laisse une trace dans admin_audit. */
+   commerciaux (donner un ticket, offrir un cosmétique) et réparation d'un
+   parcours bloqué. Toute écriture exige un motif et laisse une trace dans
+   admin_audit. */
 
 import { authDirectory } from "./authDirectory";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
@@ -53,6 +54,7 @@ export async function adminGetPlayerHandler(request: CallableRequest<unknown>) {
     nkap: Number(economy.get("nkap") ?? 0),
     cauris: Number(economy.get("cauris") ?? 0),
     tickets: { bronze: 0, argent: 0, or: 0, ...(inventory.get("tickets") ?? {}) },
+    cosmetics: ((inventory.get("cosmetics") ?? []) as unknown[]).filter((id): id is string => typeof id === "string"),
     runs: runs.docs
       .map((doc) => {
         const run = doc.data() ?? {};
@@ -95,6 +97,28 @@ export async function adminGrantTicketHandler(request: CallableRequest<unknown>)
     transaction.set(ref, { tickets, updatedAt: now }, { merge: true });
     transaction.create(db.collection("admin_audit").doc(), { uid: adminUid, action: "player_grant_ticket", targetUid: uid, tier, amount, reason, createdAt: now });
     return { uid, tickets };
+  });
+}
+
+/** Geste commercial ou test (un style d'animation, par exemple) : offre un cosmétique, même inactif.
+ *  Déjà possédé : refusé (contrairement à un doublon gagné, il n'est pas converti en cauris). */
+export async function adminGrantCosmeticHandler(request: CallableRequest<unknown>) {
+  const adminUid = requireAdmin(request);
+  const data = asObject(request.data);
+  const uid = requiredString(data, "uid", 128);
+  const cosmeticId = requiredString(data, "cosmeticId", 64);
+  const reason = requiredString(data, "reason", 200);
+  return runIdempotent(adminUid, "adminGrantCosmetic", data.idempotencyKey, async (transaction, now) => {
+    const ref = db.doc(`inventories/${uid}`);
+    const [snap, cosmetic] = await Promise.all([transaction.get(ref), transaction.get(db.doc(`cosmetics/${cosmeticId}`))]);
+    if (!snap.exists) throw new HttpsError("not-found", "PLAYER_NOT_FOUND");
+    if (!cosmetic.exists) throw new HttpsError("not-found", "COSMETIC_NOT_FOUND");
+    const owned = ((snap.get("cosmetics") ?? []) as unknown[]).filter((id): id is string => typeof id === "string");
+    if (owned.includes(cosmeticId)) throw new HttpsError("already-exists", "COSMETIC_ALREADY_OWNED");
+    const cosmetics = [...owned, cosmeticId];
+    transaction.set(ref, { cosmetics, updatedAt: now }, { merge: true });
+    transaction.create(db.collection("admin_audit").doc(), { uid: adminUid, action: "player_grant_cosmetic", targetUid: uid, cosmeticId, reason, createdAt: now });
+    return { uid, cosmetics };
   });
 }
 

@@ -38,6 +38,7 @@ import {
   adminSearchPlayersHandler,
   adminGetPlayerHandler,
   adminGrantTicketHandler,
+  adminGrantCosmeticHandler,
   adminResetEventRunHandler,
 } from "../../functions/src/playerAdminCommands";
 import { getEventLeaderboardHandler } from "../../functions/src/eventLeaderboardCommands";
@@ -178,6 +179,7 @@ export const commands: Record<string, Handler> = {
   adminSearchPlayers: adminSearchPlayersHandler,
   adminGetPlayer: adminGetPlayerHandler,
   adminGrantTicket: adminGrantTicketHandler,
+  adminGrantCosmetic: adminGrantCosmeticHandler,
   adminResetEventRun: adminResetEventRunHandler,
 
   createRoom: createRoomHandler,
