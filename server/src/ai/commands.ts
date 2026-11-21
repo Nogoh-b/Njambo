@@ -50,7 +50,7 @@ export function readSettings(raw: unknown): AiSettings {
   const thinking = caps.thinking.includes(source.thinking as ThinkingLevel) ? source.thinking as ThinkingLevel : caps.defaultThinking;
   const value = typeof source.temperature === "number" && Number.isFinite(source.temperature) ? source.temperature : null;
   const temperature = caps.temperature === "never" || value === null ? null : Math.round(Math.max(0, Math.min(caps.temperatureMax, value)) * 100) / 100;
-  return { provider, model, thinking, temperature };
+  return { provider, model, thinking, temperature, technical: source.technical === true };
 }
 
 /** Ce que voit la console : sans les réponses brutes des fournisseurs. */
@@ -107,7 +107,7 @@ export async function runStep(conversation: Conversation, adminUid: string): Pro
   let turn;
   try {
     turn = await adapterFor(settings.provider).complete({
-      model: settings.model, system: systemPrompt(conversation.module, conversation.context), tools: toolSpecs(conversation.module), messages: conversation.messages, settings,
+      model: settings.model, system: systemPrompt(conversation.module, conversation.context, settings.technical === true), tools: toolSpecs(conversation.module), messages: conversation.messages, settings,
     });
   } catch (error) {
     if (error instanceof AiProviderError) throw new HttpsError("unavailable", "AI_PROVIDER_ERROR", { provider: error.provider, status: error.status, message: error.message });

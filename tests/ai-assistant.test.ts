@@ -254,6 +254,16 @@ describe("assistant dans les pages (contexte)", () => {
     expect(systemPrompt("animations")).not.toContain("L'admin t'écrit depuis");
   });
 
+  it("explique simplement par défaut, techniquement sur demande", () => {
+    const simple = systemPrompt("animations");
+    expect(simple).toContain("Mode d'explication : SIMPLE");
+    expect(simple).toContain("N'affiche jamais de JSON");
+    expect(simple).not.toContain("accents graves");
+    const technical = systemPrompt("animations", undefined, true);
+    expect(technical).toContain("Mode d'explication : TECHNIQUE");
+    expect(technical).toContain("accents graves");
+  });
+
   it("joint la copie de travail au message lu par le modèle, pas au texte affiché", () => {
     const messages: AiMessage[] = [{ role: "user", text: "Pourquoi ça clignote ?", attachment: "[Copie de travail]\n{\"id\":\"x\"}", at: 1 }];
     expect(toCompatMessages("deepseek", "deepseek", "S", messages)[1]).toEqual({ role: "user", content: "Pourquoi ça clignote ?\n\n[Copie de travail]\n{\"id\":\"x\"}" });

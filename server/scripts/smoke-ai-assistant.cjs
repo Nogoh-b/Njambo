@@ -39,6 +39,7 @@ async function drive(view) {
   assert(ids === "deepseek,claude,openai,gemini,glm,mimo,meta,freellm,compat,simulation", `10 fournisseurs proposés (${ids})`);
   const deepseek = config.providers.find((p) => p.id === "deepseek");
   assert(!deepseek.enabled && /DEEPSEEK_API_KEY/.test(deepseek.reason) && deepseek.models.includes("deepseek-v4-pro"), "DeepSeek désactivé sans clé, avec sa liste de repli");
+  assert(ai.readSettings({ ...SIM, technical: true }).technical === true && ai.readSettings(SIM).technical === false, "mode d'explication : simple par défaut, technique sur demande");
   assert(config.providers.find((p) => p.id === "simulation").enabled && config.providers.find((p) => p.id === "claude").capabilities.temperature === "never", "simulation active ; Claude sans température");
   assert(await refused(() => ai.aiAssistantSendHandler(as("adm", { module: "animations", text: "x", settings: { ...SIM, provider: "inconnu" } }, true)), "INVALID_PROVIDER"), "fournisseur inconnu refusé");
 

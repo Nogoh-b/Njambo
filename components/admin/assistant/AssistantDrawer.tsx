@@ -132,7 +132,11 @@ export function AssistantDrawer({ context, working, onChanged, onOpenDraft, onOp
         compact
         sendExamples
         examples={elsewhere ? [] : QUICK_ACTIONS[context.kind]}
-        intro={!assistant.conversation && !resuming ? <p className={styles.hint} style={{ margin: 0 }}>Pose ta question sur {context.id ? <>cet élément (<code>{context.id}</code>)</> : "cette liste"}, ou choisis :</p> : resuming ? <p className={styles.hint} style={{ margin: 0 }}>Chargement…</p> : null}
+        intro={!assistant.conversation && !resuming ? (
+          <p className={styles.hint} style={{ margin: 0 }}>
+            Pose ta question sur {!context.id ? "cette liste" : assistant.settings?.technical ? <>cet élément (<code>{context.id}</code>)</> : `« ${context.label ?? "cet élément"} »`}, ou choisis :
+          </p>
+        ) : resuming ? <p className={styles.hint} style={{ margin: 0 }}>Chargement…</p> : null}
         notice={attach && !assistant.busy ? "Tes modifications non enregistrées seront jointes à ton message." : elsewhere && !assistant.busy ? "Conversation commencée sur un autre élément : « + Nouvelle » pour en ouvrir une sur celui-ci." : null}
         onSend={send}
         onOpenSection={onOpenSection}

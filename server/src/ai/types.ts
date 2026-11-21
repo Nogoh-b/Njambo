@@ -44,6 +44,8 @@ export interface AiSettings {
   thinking: ThinkingLevel;
   /** null : celle du fournisseur. Ignorée là où elle n'a pas d'effet (Claude, réflexion active…). */
   temperature: number | null;
+  /** Explications techniques (identifiants, champs, JSON) ; sinon langage simple pour un admin non développeur. */
+  technical?: boolean;
 }
 
 export interface AiToolCall {

@@ -54,14 +54,16 @@ function ProposalCard({ proposal, busy, onResolve }: { proposal: AiProposal; bus
 
 type DraftRef = NonNullable<AiToolResult["draft"]>;
 
-function ToolResultLine({ name, input, result, busy, onResolve, onOpenSection, onOpenDraft }: {
-  name: string; input: Record<string, unknown>; result?: AiToolResult; busy: boolean;
+function ToolResultLine({ name, input, result, busy, technical, onResolve, onOpenSection, onOpenDraft }: {
+  name: string; input: Record<string, unknown>; result?: AiToolResult; busy: boolean; technical: boolean;
   onResolve(proposalId: string, outcome: "confirmed" | "dismissed"): void; onOpenSection?(section: ChangelogAdminSection): void; onOpenDraft?(draft: DraftRef): void;
 }) {
   const label = TOOL_LABELS[name] ?? name;
   return (
     <div style={{ margin: "4px 0" }}>
-      <details>
+      {/* Mode simple : ce que l'assistant a consulté ou fait, sans données ni identifiants. */}
+      {!technical && <div className={styles.hint} style={{ fontSize: 12 }}>{result ? (result.ok ? "✓" : "↻") : "…"} {label}</div>}
+      {technical && <details>
         <summary className={styles.hint} style={{ cursor: "pointer", color: result && !result.ok ? "var(--danger)" : undefined }}>
           {result ? (result.ok ? "✓" : "⚠") : "…"} <b>{label}</b> — {result?.summary ?? "en cours"}
         </summary>
@@ -69,10 +71,10 @@ function ToolResultLine({ name, input, result, busy, onResolve, onOpenSection, o
           {Object.keys(input).length > 0 && <pre style={DETAIL_STYLE}>{pretty(JSON.stringify(input))}</pre>}
           {result && <pre style={DETAIL_STYLE}>{pretty(result.content)}</pre>}
         </div>
-      </details>
+      </details>}
       {result?.draft && onOpenDraft && (
         <button type="button" className={`${styles.btn} ${styles.small}`} style={{ marginTop: 4 }} onClick={() => onOpenDraft(result.draft!)}>
-          Voir {result.draft.kind === "motif" ? "le modèle" : "la carte"} · {result.draft.id}
+          Voir {result.draft.kind === "motif" ? "le modèle" : "la carte"}{technical ? ` · ${result.draft.id}` : ""}
         </button>
       )}
       {result?.draft && !onOpenDraft && onOpenSection && (
@@ -85,10 +87,12 @@ function ToolResultLine({ name, input, result, busy, onResolve, onOpenSection, o
   );
 }
 
-export function AssistantMessages({ messages, providerLabels, busy, onResolve, onOpenSection, onOpenDraft }: {
+export function AssistantMessages({ messages, providerLabels, busy, technical = true, onResolve, onOpenSection, onOpenDraft }: {
   messages: AiViewMessage[];
   providerLabels: Record<string, string>;
   busy: boolean;
+  /** Coupé : ni réflexion, ni données des outils, ni consommation (admin non développeur). */
+  technical?: boolean;
   onResolve(proposalId: string, outcome: "confirmed" | "dismissed"): void;
   onOpenSection?(section: ChangelogAdminSection): void;
   /** Ouvre le brouillon écrit dans la page (panneau) ; à défaut, la section concernée. */
@@ -112,9 +116,9 @@ export function AssistantMessages({ messages, providerLabels, busy, onResolve, o
         return (
           <div key={index} style={{ maxWidth: "92%", background: "var(--panel-2, #21180f)", border: "1px solid var(--line)", borderRadius: "14px 14px 14px 4px", padding: "8px 12px" }}>
             <div className={styles.hint} style={{ fontSize: 11 }}>
-              {providerLabels[message.provider] ?? message.provider} · {message.model}{message.usage && message.usage.inputTokens + message.usage.outputTokens > 0 ? ` · ${message.usage.inputTokens.toLocaleString("fr-FR")} → ${message.usage.outputTokens.toLocaleString("fr-FR")} jetons` : ""}
+              {providerLabels[message.provider] ?? message.provider}{technical ? ` · ${message.model}` : ""}{technical && message.usage && message.usage.inputTokens + message.usage.outputTokens > 0 ? ` · ${message.usage.inputTokens.toLocaleString("fr-FR")} → ${message.usage.outputTokens.toLocaleString("fr-FR")} jetons` : ""}
             </div>
-            {message.reasoning && (
+            {technical && message.reasoning && (
               <details style={{ margin: "4px 0" }}>
                 <summary className={styles.hint} style={{ cursor: "pointer" }}>Réflexion</summary>
                 <div className={styles.hint} style={{ whiteSpace: "pre-wrap", maxHeight: 240, overflow: "auto", marginTop: 4 }}>{message.reasoning}</div>
@@ -122,7 +126,7 @@ export function AssistantMessages({ messages, providerLabels, busy, onResolve, o
             )}
             {message.text && <Markdown text={message.text} />}
             {message.toolCalls.map((call) => (
-              <ToolResultLine key={call.id} name={call.name} input={call.input} result={results.get(call.id)} busy={busy} onResolve={onResolve} onOpenSection={onOpenSection} onOpenDraft={onOpenDraft} />
+              <ToolResultLine key={call.id} name={call.name} input={call.input} result={results.get(call.id)} busy={busy} technical={technical} onResolve={onResolve} onOpenSection={onOpenSection} onOpenDraft={onOpenDraft} />
             ))}
           </div>
         );

@@ -38,6 +38,7 @@ export function settingsFor(provider: AiProviderView, base: Partial<AiSettings> 
     model: base.provider === provider.id && base.model ? base.model : provider.defaultModel ?? provider.models[0] ?? "",
     thinking: base.provider === provider.id && base.thinking && caps.thinking.includes(base.thinking) ? base.thinking : caps.defaultThinking,
     temperature: caps.temperature === "never" ? null : base.provider === provider.id ? base.temperature ?? null : null,
+    technical: base.technical === true,
   };
 }
 
@@ -172,9 +173,10 @@ export function useAssistant(options: { onChanged?(changes: AssistantChange[]): 
     if (change) optionsRef.current.onChanged?.([change]);
   }, conversation.id);
 
+  // Le mode d'explication reste celui de l'admin, pas celui enregistré avec la conversation.
   const applySettings = useCallback((view: AiConversationView) => {
     const viewProvider = config?.providers.find((item) => item.id === view.settings.provider && item.enabled);
-    if (viewProvider) setSettings(settingsFor(viewProvider, view.settings));
+    if (viewProvider) setSettings((current) => settingsFor(viewProvider, { ...view.settings, technical: current?.technical === true }));
   }, [config]);
 
   const open = (id: string) => void guard(async () => {

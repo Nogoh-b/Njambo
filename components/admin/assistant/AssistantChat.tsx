@@ -84,11 +84,19 @@ export function AssistantChat({ assistant, compact = false, examples, sendExampl
     </div>
   );
 
+  const technical = settings.technical === true;
+  const technicalSwitch = (
+    <label className={styles.check} style={{ fontSize: 12, flex: "none" }} data-testid="ai-technical"
+      title="Coupé : réponses en langage simple, sans code ni identifiants, détails des outils masqués. Activé : explications techniques (champs, identifiants, JSON).">
+      <input type="checkbox" checked={technical} onChange={(event) => setSettings({ ...settings, technical: event.target.checked })} /> Explications techniques
+    </label>
+  );
+
   const hints = (
     <p className={styles.hint} style={{ margin: 0 }}>
       {caps?.note}{temperatureHint && settings.temperature !== null && !temperatureActive ? ` ${temperatureHint}` : ""}
       {provider && !provider.enabled && provider.reason ? ` ${provider.reason}` : ""}
-      {conversation && conversation.usage.inputTokens + conversation.usage.outputTokens > 0 ? ` · ${conversation.usage.inputTokens.toLocaleString("fr-FR")} jetons lus, ${conversation.usage.outputTokens.toLocaleString("fr-FR")} écrits` : ""}
+      {technical && conversation && conversation.usage.inputTokens + conversation.usage.outputTokens > 0 ? ` · ${conversation.usage.inputTokens.toLocaleString("fr-FR")} jetons lus, ${conversation.usage.outputTokens.toLocaleString("fr-FR")} écrits` : ""}
     </p>
   );
 
@@ -96,7 +104,7 @@ export function AssistantChat({ assistant, compact = false, examples, sendExampl
     <>
       {intro}
       {conversation ? (
-        <AssistantMessages messages={conversation.messages} providerLabels={providerLabels} busy={busy} onResolve={assistant.resolve} onOpenSection={onOpenSection} onOpenDraft={onOpenDraft} />
+        <AssistantMessages messages={conversation.messages} providerLabels={providerLabels} busy={busy} technical={technical} onResolve={assistant.resolve} onOpenSection={onOpenSection} onOpenDraft={onOpenDraft} />
       ) : (
         <div style={{ display: "grid", gap: 8 }} data-testid="ai-examples">
           {examples.map((example) => (
@@ -154,10 +162,13 @@ export function AssistantChat({ assistant, compact = false, examples, sendExampl
   if (compact) {
     return (
       <div style={{ display: "flex", flexDirection: "column", gap: 8, minHeight: 0, flex: 1 }}>
-        <button type="button" className={styles.hint} data-testid="ai-settings-toggle" onClick={() => setShowSettings(!showSettings)}
-          style={{ textAlign: "left", background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit", fontSize: 12 }}>
-          ⚙ {provider?.label ?? settings.provider} · {settings.model || "modèle ?"} · réflexion {THINKING_LABELS[settings.thinking].toLowerCase()} {showSettings ? "▴" : "▾"}
-        </button>
+        <div className={styles.row} style={{ gap: 8, flexWrap: "nowrap", alignItems: "center" }}>
+          <button type="button" className={styles.hint} data-testid="ai-settings-toggle" onClick={() => setShowSettings(!showSettings)}
+            style={{ flex: 1, minWidth: 0, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", textAlign: "left", background: "none", border: 0, padding: 0, cursor: "pointer", font: "inherit", fontSize: 12 }}>
+            ⚙ {provider?.label ?? settings.provider} · {settings.model || "modèle ?"} · réflexion {THINKING_LABELS[settings.thinking].toLowerCase()} {showSettings ? "▴" : "▾"}
+          </button>
+          {technicalSwitch}
+        </div>
         {showSettings && <>{settingsRow}{hints}</>}
         {noKeys}
         <div ref={scrollRef} style={{ flex: 1, minHeight: 0, overflow: "auto", display: "grid", gap: 8, alignContent: "start", paddingRight: 2 }}>{thread}</div>
@@ -169,6 +180,7 @@ export function AssistantChat({ assistant, compact = false, examples, sendExampl
   return (
     <section className={styles.panel} style={{ flex: "999 1 420px", minWidth: 0, display: "grid", gap: 10, minHeight: "70svh", alignContent: "start" }}>
       {settingsRow}
+      {technicalSwitch}
       {hints}
       {noKeys}
       <div style={{ minHeight: 280 }}>{thread}</div>

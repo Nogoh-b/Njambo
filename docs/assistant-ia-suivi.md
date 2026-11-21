@@ -195,6 +195,14 @@ et détail d'une animation ou d'une carte, avec leur contexte.
 - [x] « ⤢ » ouvre la conversation du panneau dans la section « Assistant IA »,
       dont l'historique affiche la page d'origine.
 - [x] Rendu : italique `*…*` et code dans le gras.
+- [x] Réglage « Explications techniques » (case à cocher, toujours visible,
+      gardée dans le navigateur ; **coupé par défaut**). Coupé : l'IA parle à
+      un admin qui ne connaît pas le code (noms affichés, secondes, ce que
+      voient les joueurs, choix proposés avant de modifier, « avant /
+      après », erreurs corrigées sans jargon) et la console masque la
+      réflexion, les données des outils, les identifiants et la
+      consommation. Activé : identifiants, champs, JSON. Vérifié avec
+      DeepSeek sur « Piocher ».
 - [x] Vérifié dans le navigateur : DeepSeek sur `draw` (« Où sert-il en
       jeu ? » → lecture + usages) et sur `vent_nord` (« Explique-la ») ;
       simulation pour le brouillon (bibliothèque rechargée, bandeau avec
@@ -226,6 +234,7 @@ et détail d'une animation ou d'une carte, avec leur contexte.
 
 | Date | Étape | Avancée |
 | --- | --- | --- |
+| 2026-11-21 | A4b | Réglage « Explications techniques » (coupé par défaut : langage simple pour un admin non développeur, détails techniques masqués). 25 tests unitaires de l'assistant, intégration 48/48. A4b commité avant (`134c882`). |
 | 2026-11-21 | A4b | **Assistant dans les pages.** Panneau ✦ sur les pages Animations et Cartes de pouvoir (liste, carte, modèle ou carte en cours d'édition), contexte gardé par conversation, questions toutes prêtes, modifications non enregistrées jointes, rechargement après un brouillon de l'assistant, outil `find_animation_usage`. Vérifié avec DeepSeek et la simulation. 250 tests, intégration 47/47. |
 | 2026-11-21 | A4 | Clés ajoutées ; GLM, MiMo, Meta et FreeLLM branchés. Essais réels en deux tours avec outil : DeepSeek, GLM, MiMo et FreeLLM fonctionnent ; Gemini et Meta refusés pour facturation (402). Essai de bout en bout par l'admin avec DeepSeek réussi. 245 tests, intégration 40/40. |
 | 2026-11-21 | A3 | **A3 terminé.** Écran vérifié avec le compte admin et la simulation : lecture, brouillon, proposition écartée, nettoyage. Corrigés : identifiants mangés par l'italique, colonnes qui ne se repliaient pas, détail d'outil tronqué, libellés. 244 tests au vert. |
