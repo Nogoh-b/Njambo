@@ -23,9 +23,39 @@ if [[ ! -f server/.env ]]; then
   exit 1
 fi
 
-# Secrets plus suivis par Git : ceux du VPS font foi. `git reset --hard` les
-# supprimerait (commit qui les retire du suivi) ou les écraserait (retour à
-# un ancien commit qui les suivait) : on les remet après chaque reset.
+# ── Vérifications préalables de la machine (voir docs/serveur-a-faire.md) ──
+env_value() { grep -E "^\s*$1\s*=" server/.env | tail -1 | sed -E "s/^[^=]*=\s*//; s/^[\"']|[\"']\s*$//g" || true; }
+warn() { echo "⚠ $*" >&2; }
+
+echo "▶ Vérifications préalables…"
+# Bloquant : triches de développement actives sur le serveur de production.
+dev_mode="$(env_value NEXT_PUBLIC_DEV_MODE)"
+if [[ "$(env_value POWERS_DEV_BYPASS)" == "1" || "$dev_mode" == "1" || "$dev_mode" == "true" ]]; then
+  if [[ "${ALLOW_DEV_FLAGS:-}" != "1" ]]; then
+    echo "✖ server/.env contient POWERS_DEV_BYPASS=1 ou NEXT_PUBLIC_DEV_MODE=1 (triches de dev)." >&2
+    echo "  Retire-les, ou relance avec ALLOW_DEV_FLAGS=1 pour un serveur de test." >&2
+    exit 1
+  fi
+  warn "Triches de dev actives (ALLOW_DEV_FLAGS=1)."
+fi
+[[ -n "$(env_value DATABASE_URL)" ]] || warn "DATABASE_URL absent : le serveur tournera sur Firestore, pas sur Postgres."
+credentials="$(env_value GOOGLE_APPLICATION_CREDENTIALS)"
+[[ -n "$credentials" && -r "$credentials" ]] || warn "GOOGLE_APPLICATION_CREDENTIALS absent ou illisible : vérification des comptes Firebase et notifications push impossibles."
+upload_dir="$(env_value UPLOAD_DIR)"
+if [[ -z "$upload_dir" ]]; then
+  warn "UPLOAD_DIR absent : les uploads admin iront dans server/uploads (hors du dossier servi par Nginx)."
+elif [[ ! -d "$upload_dir" || ! -w "$upload_dir" ]]; then
+  warn "UPLOAD_DIR=$upload_dir n'existe pas ou n'est pas accessible en écriture pour $(whoami)."
+fi
+[[ -n "$(env_value PUBLIC_BASE_URL)" ]] || warn "PUBLIC_BASE_URL absent : les URL des fichiers uploadés seront déduites de la requête."
+[[ -n "$(env_value NJAMBO_GRID_SECRET)" ]] || warn "NJAMBO_GRID_SECRET absent : la grille du jour utilise un secret par défaut (prévisible)."
+command -v ffmpeg >/dev/null 2>&1 || warn "ffmpeg absent : les sons uploadés ne seront ni convertis ni normalisés (sudo apt install -y ffmpeg)."
+mkdir -p logs
+
+# Secrets plus suivis par Git : ceux du VPS font TOUJOURS foi. `git reset --hard`
+# les supprimerait (commit qui les retire du suivi) ou les écraserait (retour à
+# un ancien commit qui les suivait, avec des valeurs de dev) : on les sauvegarde
+# ici et on les remet après chaque reset.
 LOCAL_SECRETS=(server/.env server/service-account.json)
 SECRETS_BACKUP="$(mktemp -d)"
 trap 'rm -rf "$SECRETS_BACKUP"' EXIT
@@ -40,6 +70,7 @@ reset_to() {
   for file in "${LOCAL_SECRETS[@]}"; do
     if [[ -f "$SECRETS_BACKUP/$file" ]]; then mkdir -p "$(dirname "$file")" && cp -p "$SECRETS_BACKUP/$file" "$file"; fi
   done
+  chmod 600 server/.env
 }
 
 PREVIOUS="$(git rev-parse HEAD)"
@@ -47,7 +78,7 @@ echo "▶ Commit actuel : ${PREVIOUS:0:7}"
 
 echo "▶ Récupération de origin/${BRANCH}…"
 git fetch origin "$BRANCH"
-git checkout -q "$BRANCH"
+git checkout -q -f "$BRANCH"   # -f : secrets locaux modifiés (remis juste après)
 reset_to "origin/${BRANCH}"
 echo "▶ Nouveau commit : $(git rev-parse --short HEAD)"
 
