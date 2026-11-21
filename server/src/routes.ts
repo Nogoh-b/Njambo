@@ -100,11 +100,28 @@ import {
   sendRoomInviteHandler,
   setPresenceHandler,
 } from "../../functions/src/socialCommands";
+import {
+  aiAssistantConfigHandler,
+  aiAssistantContinueHandler,
+  aiAssistantConversationHandler,
+  aiAssistantConversationsHandler,
+  aiAssistantDeleteHandler,
+  aiAssistantResolveHandler,
+  aiAssistantSendHandler,
+} from "./ai/commands";
 
 type Handler = (request: CallableRequest<unknown>) => Promise<unknown>;
 
 export const commands: Record<string, Handler> = {
   saveGameplayConfig: saveGameplayConfigHandler,
+  // Assistant IA de la console admin (serveur seulement : clés des fournisseurs dans server/.env)
+  aiAssistantConfig: aiAssistantConfigHandler,
+  aiAssistantConversations: aiAssistantConversationsHandler,
+  aiAssistantConversation: aiAssistantConversationHandler,
+  aiAssistantSend: aiAssistantSendHandler,
+  aiAssistantContinue: aiAssistantContinueHandler,
+  aiAssistantResolve: aiAssistantResolveHandler,
+  aiAssistantDelete: aiAssistantDeleteHandler,
   advanceMatchRound: advanceMatchRoundHandler,
   ensurePlayerProfile: ensurePlayerProfileHandler,
   getPlayerEconomy: getPlayerEconomyHandler,

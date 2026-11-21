@@ -15,6 +15,7 @@ export type ChangelogAdminSection =
   | "cosmetics"
   | "powers"
   | "animations"
+  | "assistant"
   | "notifications"
   | "players"
   | "audit"
@@ -34,6 +35,21 @@ export interface ChangelogEntry {
 
 export const CHANGELOG_ENTRIES: readonly ChangelogEntry[] = [
   /* ─── NOUVEAUTÉS CÔTÉ ADMIN (RÉGIE DU TER) ─── */
+  {
+    id: "admin-ai-assistant",
+    side: "admin",
+    date: "2026-11-21",
+    title: "Assistant IA : animations et cartes de pouvoir",
+    category: "Régie & Suivi",
+    status: "new",
+    summary: "Un assistant conversationnel qui explique, interroge, crée et met à jour les modèles d'animation et les cartes de pouvoir, et décrit leurs effets en jeu.",
+    highlights: [
+      "Choix de l'IA (DeepSeek, Claude, OpenAI, Gemini ou service compatible OpenAI), du modèle, de la réflexion et de la température ; clés côté serveur uniquement.",
+      "L'assistant lit la bibliothèque, les moments, les cartes et la référence tirée du code ; il écrit seulement des brouillons.",
+      "Publier ou attribuer un moment : il le propose, l'admin confirme d'un clic. Historique des conversations par admin.",
+    ],
+    adminSection: "assistant",
+  },
   {
     id: "admin-changelog-page",
     side: "admin",

@@ -16,6 +16,7 @@ import { EventsAdmin } from "./EventsAdmin";
 import { PlayersAdmin } from "./PlayersAdmin";
 import { PowerCardsAdmin } from "./PowerCardsAdmin";
 import { AnimationsAdmin } from "./AnimationsAdmin";
+import { AssistantAdmin } from "./AssistantAdmin";
 import { useMotifCatalogLoader } from "@/hooks/useMotifCatalog";
 import { SeasonsAdmin } from "./SeasonsAdmin";
 import { CosmeticsAdmin } from "./CosmeticsAdmin";
@@ -37,6 +38,7 @@ const NAV: Array<{ key: Section; label: string; soon?: string }> = [
   { key: "cosmetics", label: "Cosmétiques" },
   { key: "powers", label: "Cartes de pouvoir" },
   { key: "animations", label: "Animations" },
+  { key: "assistant", label: "Assistant IA" },
   { key: "notifications", label: "Notifications" },
   { key: "players", label: "Joueurs" },
   { key: "audit", label: "Audit" },
@@ -103,6 +105,7 @@ function ConsoleBody() {
         {section === "cosmetics" && <CosmeticsAdmin />}
         {section === "powers" && <PowerCardsAdmin />}
         {section === "animations" && <AnimationsAdmin />}
+        {section === "assistant" && <AssistantAdmin onOpenSection={setSection} />}
         {section === "players" && <PlayersAdmin />}
         {section === "audit" && <AuditLog />}
         {section === "tools" && <Tools />}

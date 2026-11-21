@@ -6,6 +6,7 @@ import type { CosmeticDefinition, EventLifecycle, EventValidationIssue, EventVer
 import { BACKEND_URL, BackendError, callBackend } from "@/lib/backend";
 import type { EventLeaderboardData } from "@/hooks/useEventLeaderboard";
 import { auth } from "@/lib/authClient";
+import type { AiMessage, AiModule, AiProviderId, AiSettings, ProviderCapabilities } from "../../server/src/ai/types";
 
 export interface AdminEventSummary {
   eventId: string;
@@ -150,6 +151,14 @@ export const adminApi = {
     call<{ uid: string; tickets: Record<string, number> }>("adminGrantTicket", { uid, tier, amount, reason }),
   grantCosmetic: (uid: string, cosmeticId: string, reason: string) =>
     call<{ uid: string; cosmetics: string[] }>("adminGrantCosmetic", { uid, cosmeticId, reason }),
+  // Assistant IA (clés des fournisseurs côté serveur uniquement)
+  aiConfig: () => call<AiConfigView>("aiAssistantConfig"),
+  aiConversations: () => call<{ conversations: AiConversationSummary[] }>("aiAssistantConversations"),
+  aiConversation: (conversationId: string) => call<AiConversationView>("aiAssistantConversation", { conversationId }),
+  aiSend: (args: { conversationId?: string; module: AiModule; text: string; settings: AiSettings }) => call<AiConversationView>("aiAssistantSend", args),
+  aiContinue: (conversationId: string, settings?: AiSettings) => call<AiConversationView>("aiAssistantContinue", { conversationId, ...(settings ? { settings } : {}) }),
+  aiResolve: (conversationId: string, proposalId: string, outcome: "confirmed" | "dismissed") => call<AiConversationView>("aiAssistantResolve", { conversationId, proposalId, outcome }),
+  aiDelete: (conversationId: string) => call<{ conversationId: string }>("aiAssistantDelete", { conversationId }),
   resetRun: (runId: string, mode: "restart" | "close", reason: string) =>
     call<{ runId: string; status: string }>("adminResetEventRun", { runId, mode, reason }),
   leaderboard: (eventId: string) => call<EventLeaderboardData>("getEventLeaderboard", { eventId }),
@@ -178,6 +187,56 @@ export const adminApi = {
   discardAnimMotifDraft: (motifId: string) => call<{ motifId: string }>("discardAnimMotifDraft", { motifId }),
   setAnimMotifArchived: (motifId: string, archived: boolean) => call<{ motifId: string; archived: boolean }>("setAnimMotifArchived", { motifId, archived }),
 };
+
+/* ─────────────── Assistant IA ─────────────── */
+
+export type { AiModule, AiSettings, AiProviderId, ThinkingLevel, AiToolResult, AiProposal } from "../../server/src/ai/types";
+
+export interface AiProviderView {
+  id: AiProviderId;
+  label: string;
+  enabled: boolean;
+  reason: string | null;
+  capabilities: ProviderCapabilities;
+  models: string[];
+  defaultModel?: string;
+  /** Liste lue en direct chez le fournisseur (sinon : liste de repli). */
+  live: boolean;
+}
+
+export interface AiConfigView {
+  providers: AiProviderView[];
+  modules: AiModule[];
+  maxToolRounds: number;
+}
+
+export interface AiConversationSummary {
+  id: string;
+  title: string;
+  module: AiModule;
+  updatedAt: number;
+  provider: AiProviderId | null;
+  model: string | null;
+  count: number;
+}
+
+/** Message tel que le renvoie le serveur (sans la réponse brute du fournisseur). */
+export type AiViewMessage = Exclude<AiMessage, { role: "assistant" }> | Omit<Extract<AiMessage, { role: "assistant" }>, "raw">;
+
+export interface AiConversationView {
+  id: string;
+  title: string;
+  module: AiModule;
+  settings: AiSettings;
+  messages: AiViewMessage[];
+  rounds: number;
+  usage: { inputTokens: number; outputTokens: number };
+  createdAt: number;
+  updatedAt: number;
+  pending: boolean;
+  retryable: boolean;
+  limitReached: boolean;
+}
 
 /** Modèle d'animation vu par l'admin (atelier, phase G3). */
 export interface AdminMotifRow {
@@ -227,6 +286,12 @@ const ERROR_LABELS: Record<string, string> = {
   ANIM_MOTIF_INVALID: "Le modèle contient des erreurs : corrige-les avant de publier.",
   ANIM_MOTIF_NOT_FOUND: "Modèle introuvable (jamais enregistré).",
   COSMETIC_ALREADY_OWNED: "Ce joueur possède déjà ce cosmétique.",
+  AI_PROVIDER_ERROR: "Le fournisseur d'IA a renvoyé une erreur.",
+  CONVERSATION_BUSY: "La conversation a été modifiée ailleurs (autre onglet) : recharge-la.",
+  CONVERSATION_TOO_LONG: "Conversation trop longue : ouvre-en une nouvelle.",
+  TOOL_ROUNDS_LIMIT: "L'assistant a atteint sa limite d'étapes pour ce message : écris-lui pour continuer.",
+  PROPOSAL_ALREADY_RESOLVED: "Cette proposition a déjà été traitée.",
+  INVALID_MODEL: "Nom de modèle invalide.",
   COSMETIC_NOT_FOUND: "Cosmétique introuvable.",
   ANIM_MOTIF_MOMENT_CONFLICT: "Un moment du jeu utilise ce modèle : cette version ne lui convient plus (départ, arrivée ou durée). Change d'abord l'attribution des moments.",
   GAME_MOMENTS_INVALID: "L'attribution des moments contient des erreurs.",

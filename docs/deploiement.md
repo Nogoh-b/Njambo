@@ -181,6 +181,9 @@ server {
         proxy_set_header Host $host;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+        # Assistant IA de l'admin : un appel avec réflexion élevée peut dépasser
+        # les 60 s par défaut (le serveur attend le fournisseur jusqu'à 240 s).
+        proxy_read_timeout 300s;
     }
 
     # WebSocket temps réel
