@@ -290,9 +290,10 @@ curl https://njambo-back.bysoft-corp.com/healthz   # doit répondre {"ok":true}
 
 - [ ] Secrets **retirés du dépôt** (`server/.env`, `server/*service-account*.json`,
       `.env.local`) et clés Firebase / mot de passe Postgres **renouvelés**.
-      Fait le 2026-11-21 pour `server/.env` et `server/service-account.json`
-      (ignorés par Git, conservés par `deploy-back.sh`). Reste : `.env.local`,
-      et le renouvellement, car les anciennes valeurs restent dans l'historique Git.
+      Fait le 2026-11-21 : `server/.env`, `server/service-account.json`
+      (conservés par `deploy-back.sh`) et `.env.local` ne sont plus suivis par
+      Git. Reste le renouvellement, car les anciennes valeurs restent dans
+      l'historique Git.
 - [ ] `NEXT_PUBLIC_BACKEND_URL` de prod configurée sur Vercel.
 - [ ] Rate limiting ajouté devant l'API (voir `docs/vps-migration.md`, points ouverts).
 - [ ] Sauvegarde Postgres planifiée (`pg_dump` en cron).

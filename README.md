@@ -2,6 +2,14 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+`.env.local` (configuration du front) n'est pas suivi par Git. Au premier lancement,
+créez-le à partir de `.env.example`, et ajoutez-y au besoin les options de dev de
+`.env.local.example` :
+
+```bash
+cp .env.example .env.local
+```
+
 First, run the development server:
 
 ```bash
