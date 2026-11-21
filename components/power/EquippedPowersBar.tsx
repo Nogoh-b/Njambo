@@ -7,7 +7,7 @@ import { NjamboIcon } from "@/components/ui/Art";
 import styles from "./EquippedPowersBar.module.css";
 
 /* ═══════════════ EquippedPowersBar — slots d'équipement pré-partie ═══════════════
-   Affiche les 2 slots de cartes pouvoir équipées. Tape pour ouvrir la
+   Affiche un aperçu des cartes pouvoir équipées. Tape pour ouvrir la
    collection et modifier l'équipement. Réutilisé par les écrans de setup. */
 
 export function EquippedPowersBar({
@@ -18,9 +18,10 @@ export function EquippedPowersBar({
   /** `compact` range les slots sur la même ligne que le texte (~72 px au lieu de 136). */
   density?: "full" | "compact";
 }) {
-  const { navigateTo, profile } = useGame();
-  const equipped = profile.equippedPowers ?? [];
-  const slots = Array.from({ length: MAX_EQUIPPED_POWERS }, (_, i) => equipped[i]);
+  const { navigateTo, profile, cfg } = useGame();
+  const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
+  const equipped = (profile.equippedPowers ?? []).slice(0, powerLimit);
+  const slots = Array.from({ length: Math.min(3, powerLimit) }, (_, i) => equipped[i]);
 
   return (
     <button
@@ -47,7 +48,7 @@ export function EquippedPowersBar({
         <strong>Cartes booster</strong>
         <span>
           {equipped.length > 0
-            ? `${equipped.length}/${MAX_EQUIPPED_POWERS} équipée${equipped.length > 1 ? "s" : ""}`
+            ? `${equipped.length}/${powerLimit} équipée${equipped.length > 1 ? "s" : ""}`
             : "Choisir mes cartes"}
         </span>
       </span>

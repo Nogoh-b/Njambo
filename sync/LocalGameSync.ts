@@ -25,6 +25,7 @@ import type { PowerChoices, PowerResolved, PowerStateAdapter } from "@/engine/po
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { powerScriptOf } from "@/config/powers";
 import { DEV } from "@/config/devConfig";
+import { matchCountFor, seriesWinner } from "@/domain/gameplayConfig";
 import type { BOTS as BotsType } from "@/data/mock";
 import type {
   BotDifficulty,
@@ -49,6 +50,7 @@ interface LocalSyncOptions {
   profile: Profile;
   bots: typeof BotsType;
   cfg: GameConfig;
+  getConfig?: () => GameConfig;
   mise: number;
   initialBotCount: number;
   difficulty?: BotDifficulty;
@@ -69,6 +71,9 @@ export class LocalGameSync implements GameSyncActions {
   private pot = 0;
   private dominantIdx: number | null = null;
   private result: Result | null = null;
+  private seriesRound = 1;
+  private seriesWinners: number[] = [];
+  private get seriesTotal() { return matchCountFor(this.opts.cfg, "bot", this.opts.initialBotCount + 1); }
 
   /** Pioche restante (pour Vent du Nord). */
   private deck: Card[] = [];
@@ -125,6 +130,8 @@ export class LocalGameSync implements GameSyncActions {
   private opts: LocalSyncOptions;
   private timerHandle: ReturnType<typeof setTimeout> | null = null;
   private botHandle: ReturnType<typeof setTimeout> | null = null;
+  /** Fin de la pause qui suit la carte d'une IA (atterrissage + lecture). */
+  private botAfterPlayUntil = 0;
   private dealHandle: ReturnType<typeof setTimeout> | null = null;
   private trickHandle: ReturnType<typeof setTimeout> | null = null;
   private bannerHandle: ReturnType<typeof setTimeout> | null = null;
@@ -178,7 +185,8 @@ export class LocalGameSync implements GameSyncActions {
   /* ── Démarrer la partie ── */
   start() {
     const { profile, bots, cfg, initialBotCount } = this.opts;
-    const ps: Player[] = [{ ...profile, isYou: true, hand: [], deposit: [] }];
+    const equippedPowers = DEV.unlimitedPowers ? profile.equippedPowers : profile.equippedPowers?.slice(0, cfg.maxEquippedPowers);
+    const ps: Player[] = [{ ...profile, equippedPowers, isYou: true, hand: [], deposit: [] }];
     for (let i = 0; i < initialBotCount; i++)
       ps.push({ ...bots[i], balance: cfg.startingBalance, isYou: false, hand: [], deposit: [] });
     this.dealRound(ps, cfg.firstLeaderIndex);
@@ -187,6 +195,10 @@ export class LocalGameSync implements GameSyncActions {
   /* ── Manche suivante ── */
   nextRound() {
     if (!this.result) return;
+    if (this.opts.getConfig) this.opts.cfg = this.opts.getConfig();
+    this.players = this.players.map((player) => ({ ...player, equippedPowers: (player.isYou ? this.opts.profile.equippedPowers : player.equippedPowers)?.slice(0, this.opts.cfg.maxEquippedPowers) }));
+    this.seriesRound = 1;
+    this.seriesWinners = [];
     const winIdx = this.result.winnerIdx;
     const newLeader = this.opts.cfg.winnerPlaysLastNextRound
       ? (winIdx + 1) % this.players.length
@@ -198,14 +210,14 @@ export class LocalGameSync implements GameSyncActions {
 
   private botPowerLoadout(playerIdx: number): PowerCardId[] {
     const difficulty = this.opts.difficulty ?? "normal";
-    if (playerIdx === 0 || difficulty === "easy") return [];
+    if (playerIdx === 0 || difficulty === "easy" || this.opts.cfg.maxEquippedPowers === 0) return [];
     const normal: PowerCardId[] = ["tambour_appel", "feu_camp", "coupe_circuit"];
     const hard: PowerCardId[] = ["eclair_mfoundi", "filet_pecheur", "cauris_chanceux", "feu_camp"];
     const pool = difficulty === "hard" ? hard : normal;
     return [pool[playerIdx % pool.length]];
   }
 
-  private dealRound(basePlayers: Player[], leaderIdx: number) {
+  private dealRound(basePlayers: Player[], leaderIdx: number, continuing = false) {
     if (this.destroyed) return;
     // Annuler tout timer/distribution/pli précédent (évite un double deal ou bot résiduel)
     this.stopAllTimers();
@@ -214,15 +226,15 @@ export class LocalGameSync implements GameSyncActions {
       ...p,
       hand: [],
       deposit: [],
-      powerActivations: [],
+      powerActivations: continuing ? p.powerActivations : [],
       equippedPowers: p.isYou ? p.equippedPowers : this.botPowerLoadout(index),
     }));
-    ps.forEach((p) => (p.balance -= mise));
+    if (!continuing) ps.forEach((p) => (p.balance -= mise));
     const deck = shuffle(buildDeck(cfg));
     for (let k = 0; k < cfg.cardsPerPlayer; k++) for (const p of ps) p.hand.push(deck.shift()!);
 
     this.players = ps;
-    this.pot = mise * ps.length;
+    if (!continuing) this.pot = mise * ps.length;
     this.trickNo = 1;
     this.trickPlays = [];
     this.dominantIdx = null;
@@ -230,7 +242,8 @@ export class LocalGameSync implements GameSyncActions {
     this.deck = deck; // Garder la pioche restante pour Vent du Nord
     this.activePowerEffects = [];
     this.powerRuntime.reset();
-    this.botPowerUsed.clear();
+    if (!continuing) this.botPowerUsed.clear();
+    this.botAfterPlayUntil = 0;
     this.leader = leaderIdx;
     this.phase = "dealing";
     this.emitState();
@@ -391,6 +404,10 @@ export class LocalGameSync implements GameSyncActions {
     const led = this.trickPlays[0]?.card.suit ?? null;
     const legal = legalCards(this.players[playerIdx].hand, led);
     if (!legal.includes(cardIdx)) return;
+    if (!this.players[playerIdx].isYou) {
+      const { dropFlight, landSettle, botAfterPlay } = this.opts.cfg.anim;
+      this.botAfterPlayUntil = Date.now() + dropFlight + landSettle + botAfterPlay;
+    }
 
     let restrictedIdx = this.powerRuntime.resolvePlay(
       playerIdx,
@@ -484,12 +501,27 @@ export class LocalGameSync implements GameSyncActions {
           this.startTimer();
           this.scheduleBotTurn();
         }
-      }, this.opts.cfg.anim.trickPause);
+      }, Math.max(this.opts.cfg.anim.trickPause, this.botAfterPlayUntil - Date.now()));
     } else {
       // Leader courant en direct sur le pli : la couronne suit la carte dominante à chaque pose.
       const led = this.trickPlays[0].card.suit;
       this.dominantIdx = trickWinner(this.trickPlays, led);
       this.turnIdx = (playerIdx + 1) % ps.length;
+      const afterPlay = this.botAfterPlayUntil - Date.now();
+      if (afterPlay > 0) {
+        this.phase = "trickEnd";
+        this.stopTimer();
+        this.emitState();
+        this.trickHandle = setTimeout(() => {
+          if (this.destroyed) return;
+          this.phase = "turns";
+          this.startTurnSeconds();
+          this.emitState();
+          this.startTimer();
+          this.scheduleBotTurn();
+        }, afterPlay);
+        return;
+      }
       this.startTurnSeconds();
       this.emitState();
       this.stopTimer();
@@ -531,6 +563,20 @@ export class LocalGameSync implements GameSyncActions {
     // Stopper immédiatement toute activité de jeu (timer, bots, plis, bannières).
     this.stopAllTimers();
     this.opts.onBanner("");
+    this.seriesWinners.push(winnerIdx);
+    if (this.seriesRound < this.seriesTotal) {
+      this.phase = "trickEnd";
+      this.opts.onBanner(`${ps[winnerIdx].name} remporte la manche ${this.seriesRound}`);
+      this.emitState();
+      this.trickHandle = setTimeout(() => {
+        this.seriesRound += 1;
+        const leader = this.opts.cfg.winnerPlaysLastNextRound ? (winnerIdx + 1) % ps.length : this.opts.cfg.firstLeaderIndex;
+        this.dealRound(ps, leader, true);
+      }, 2200);
+      return;
+    }
+    winnerIdx = seriesWinner(this.seriesWinners, ps.map((_, index) => index));
+    info = { ...info, winnerIdx };
 
     const final = ps.map((p) => ({ ...p }));
     let potNow = this.pot || this.opts.mise * ps.length;
@@ -583,6 +629,7 @@ export class LocalGameSync implements GameSyncActions {
     }));
     this.result = {
       ...info, winner: final[winnerIdx], gain: potNow, playersCount: ps.length,
+      series: { total: this.seriesTotal, scores: final.map((_, index) => this.seriesWinners.filter((winner) => winner === index).length) },
       refund: youRefund || undefined, players: final, settlement,
     };
 
@@ -614,6 +661,7 @@ export class LocalGameSync implements GameSyncActions {
         this.timerListeners.forEach((cb) => cb(this.seconds));
         return;
       }
+      if (Date.now() < this.botAfterPlayUntil) return;
       this.seconds--;
       this.timerListeners.forEach((cb) => cb(this.seconds));
 
@@ -674,6 +722,12 @@ export class LocalGameSync implements GameSyncActions {
     const p = this.players[this.turnIdx];
     if (!p || p.isYou || this.phase !== "turns") return;
 
+    // Pause après la carte précédente d'une IA (le temps qu'elle atterrisse et
+    // qu'on la lise), puis temps de « réflexion » avant de jouer.
+    const { replayBotThinkMin, replayBotThinkMax } = this.opts.cfg.anim;
+    const afterPrevious = Math.max(0, this.botAfterPlayUntil - Date.now());
+    const think = replayBotThinkMin + Math.random() * (replayBotThinkMax - replayBotThinkMin);
+
     this.botHandle = setTimeout(() => {
       const seatIdx = this.turnIdx;
       if (this.phase !== "turns" || this.players[seatIdx] !== p) return;
@@ -710,13 +764,19 @@ export class LocalGameSync implements GameSyncActions {
       } else {
         doPlay();
       }
-    }, 520 + Math.random() * 680);
+    }, afterPrevious + think);
   }
 
   /* ═══════════════ Émission d'état ═══════════════ */
 
   private emitState() {
     const state: GameState = {
+      turnStartSeconds: this.opts.cfg.turnSeconds,
+      series: {
+        round: this.seriesRound, total: this.seriesTotal,
+        scores: this.players.map((_, index) => this.seriesWinners.filter((winner) => winner === index).length),
+        lastWinnerName: this.seriesWinners.length === this.seriesRound ? this.players[this.seriesWinners.at(-1) ?? -1]?.name : undefined,
+      },
       phase: this.phase,
       trickNo: this.trickNo,
       trickPlays: [...this.trickPlays],

@@ -45,6 +45,7 @@
   "exclude": [
     "node_modules",
     "functions",
-    "server"
+    "server",
+    "tmp"
   ]
 }

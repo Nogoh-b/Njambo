@@ -8,6 +8,7 @@ import { GameProvider, useGame } from "@/contexts/GameContext";
 import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepLink";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import { usePowerCatalogLoader, usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
+import { useMomentPreviewFromUrl, useMotifCatalogLoader } from "@/hooks/useMotifCatalog";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
 import { markPerformance } from "@/lib/performanceMetrics";
@@ -83,7 +84,9 @@ function SceneRouter() {
   // Dos de carte équipé (phase 5) appliqué à toutes les cartes face cachée.
   const myCosmetics = useMyCosmetics(true);
   const inventory = useInventory();
-  // Cartes pouvoir publiées depuis l'admin : chargées puis re-rendu à chaque publication.
+  // Modèles d'animation puis cartes pouvoir publiés depuis l'admin : chargés puis re-rendu à chaque publication.
+  useMotifCatalogLoader();
+  useMomentPreviewFromUrl();
   usePowerCatalogLoader();
   usePowerCatalogRevision();
 

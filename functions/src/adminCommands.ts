@@ -98,7 +98,7 @@ export async function migrateLegacyPlayerHandler(request: CallableRequest<unknow
     transaction.create(refs.economy, economy);
     if (!inventorySnap.exists) transaction.create(refs.inventory, {
       cards: legacy.powerInventory ?? {}, equippedCards: legacy.equippedPowers ?? [],
-      tickets: { bronze: 0, argent: 0, or: 0 }, boosterBooks: {}, updatedAt: now,
+      tickets: { bronze: 0, argent: 0, or: 0 }, boosterBooks: {}, energyPasses: {}, packs: [], updatedAt: now,
     });
     transaction.set(refs.player, {
       uid: targetUid, name: legacy.name ?? "Joueur du Mboa", emoji: legacy.emoji ?? "🎴",

@@ -15,20 +15,28 @@ import { adminApi, adminErrorText, type AdminEventSummary } from "./adminApi";
 import { EventsAdmin } from "./EventsAdmin";
 import { PlayersAdmin } from "./PlayersAdmin";
 import { PowerCardsAdmin } from "./PowerCardsAdmin";
+import { AnimationsAdmin } from "./AnimationsAdmin";
+import { useMotifCatalogLoader } from "@/hooks/useMotifCatalog";
 import { SeasonsAdmin } from "./SeasonsAdmin";
 import { CosmeticsAdmin } from "./CosmeticsAdmin";
 import { NotificationsAdmin } from "./NotificationsAdmin";
+import { GameplayAdmin } from "./GameplayAdmin";
+import { ChangelogAdmin } from "./ChangelogAdmin";
+import type { ChangelogAdminSection } from "@/domain";
 import { LIFECYCLE_LABELS, LifecycleBadge, formatDateTime } from "./adminUi";
 import styles from "./AdminConsole.module.css";
 
-type Section = "dashboard" | "events" | "seasons" | "cosmetics" | "powers" | "notifications" | "players" | "audit" | "tools";
+type Section = ChangelogAdminSection;
 
 const NAV: Array<{ key: Section; label: string; soon?: string }> = [
   { key: "dashboard", label: "Tableau de bord" },
+  { key: "changelog", label: "Nouveautés" },
   { key: "events", label: "Événements" },
+  { key: "gameplay", label: "Règles des parties" },
   { key: "seasons", label: "Saisons" },
   { key: "cosmetics", label: "Cosmétiques" },
   { key: "powers", label: "Cartes de pouvoir" },
+  { key: "animations", label: "Animations" },
   { key: "notifications", label: "Notifications" },
   { key: "players", label: "Joueurs" },
   { key: "audit", label: "Audit" },
@@ -37,6 +45,8 @@ const NAV: Array<{ key: Section; label: string; soon?: string }> = [
 
 function ConsoleBody() {
   const { user, loading } = useAuth();
+  // Modèles d'animation publiés : bibliothèque de l'atelier, chorégraphies et validation des cartes.
+  useMotifCatalogLoader();
   const [allowed, setAllowed] = useState<boolean | null>(null);
   const [section, setSection] = useState<Section>("dashboard");
   const [events, setEvents] = useState<AdminEventSummary[] | null>(null);
@@ -85,11 +95,14 @@ function ConsoleBody() {
       <main className={styles.main}>
         {loadError && <div className={`${styles.notice} ${styles.error}`}>{loadError} <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => void reload()}>Réessayer</button></div>}
         {section === "dashboard" && <Dashboard events={events} openEvents={() => setSection("events")} />}
+        {section === "changelog" && <ChangelogAdmin onOpenSection={setSection} />}
         {section === "events" && <EventsAdmin events={events} reload={reload} />}
+        {section === "gameplay" && <GameplayAdmin />}
         {section === "notifications" && <NotificationsAdmin events={events} />}
         {section === "seasons" && <SeasonsAdmin />}
         {section === "cosmetics" && <CosmeticsAdmin />}
         {section === "powers" && <PowerCardsAdmin />}
+        {section === "animations" && <AnimationsAdmin />}
         {section === "players" && <PlayersAdmin />}
         {section === "audit" && <AuditLog />}
         {section === "tools" && <Tools />}

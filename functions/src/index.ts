@@ -1,9 +1,11 @@
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall } from "firebase-functions/v2/https";
+import { saveGameplayConfigHandler } from "./gameplayCommands";
 
 setGlobalOptions({ region: "africa-south1", maxInstances: 20, memory: "256MiB", timeoutSeconds: 60 });
 
 import {
+  buyBoosterBookHandler,
   buyDailyGridSlotHandler,
   chooseBoosterCardHandler,
   claimDailyRewardHandler,
@@ -14,12 +16,14 @@ import {
   joinEventHandler,
   leaveEventHandler,
   openBoosterBookHandler,
+  openPackHandler,
   publishAdminDraftHandler,
   purchaseOfferHandler,
   spinLoyaltyWheelHandler,
+  useEnergyPassHandler,
   verifyStorePurchaseHandler,
 } from "./economyCommands";
-import { abandonMatchHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "./matchCommands";
+import { abandonMatchHandler, advanceMatchRoundHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "./matchCommands";
 import { usePowerCardHandler } from "./powerCommands";
 import { migrateLegacyPlayerHandler, saveAdminDraftHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "./adminCommands";
 import {
@@ -76,6 +80,14 @@ import {
   duplicatePowerCardHandler,
   discardPowerCardDraftHandler,
 } from "./powerCardAdminCommands";
+import {
+  listAdminAnimMotifsHandler,
+  saveAnimMotifDraftHandler,
+  publishAnimMotifHandler,
+  discardAnimMotifDraftHandler,
+  setAnimMotifArchivedHandler,
+  setGameMomentsHandler,
+} from "./animMotifAdminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -104,11 +116,16 @@ export const ensurePlayerProfile = onCall(callable, ensurePlayerProfileHandler);
 export const getPlayerEconomy = onCall(callable, getPlayerEconomyHandler);
 export const claimDailyReward = onCall(callable, claimDailyRewardHandler);
 export const purchaseOffer = onCall(callable, purchaseOfferHandler);
+export const buyBoosterBook = onCall(callable, buyBoosterBookHandler);
 export const openBoosterBook = onCall(callable, openBoosterBookHandler);
+export const openPack = onCall(callable, openPackHandler);
+export const useEnergyPass = onCall(callable, useEnergyPassHandler);
 export const chooseBoosterCard = onCall(callable, chooseBoosterCardHandler);
 export const buyDailyGridSlot = onCall(callable, buyDailyGridSlotHandler);
 export const spinLoyaltyWheel = onCall(callable, spinLoyaltyWheelHandler);
 export const equipPowerCards = onCall(callable, equipPowerCardsHandler);
+export const saveGameplayConfig = onCall(callable, saveGameplayConfigHandler);
+export const advanceMatchRound = onCall(callable, advanceMatchRoundHandler);
 export const joinEvent = onCall(callable, joinEventHandler);
 export const leaveEvent = onCall(callable, leaveEventHandler);
 export const createEventChallenge = onCall(callable, createEventChallengeHandler);
@@ -137,6 +154,12 @@ export const savePowerCardDraft = onCall(callable, savePowerCardDraftHandler);
 export const publishPowerCard = onCall(callable, publishPowerCardHandler);
 export const duplicatePowerCard = onCall(callable, duplicatePowerCardHandler);
 export const discardPowerCardDraft = onCall(callable, discardPowerCardDraftHandler);
+export const listAdminAnimMotifs = onCall(callable, listAdminAnimMotifsHandler);
+export const saveAnimMotifDraft = onCall(callable, saveAnimMotifDraftHandler);
+export const publishAnimMotif = onCall(callable, publishAnimMotifHandler);
+export const discardAnimMotifDraft = onCall(callable, discardAnimMotifDraftHandler);
+export const setAnimMotifArchived = onCall(callable, setAnimMotifArchivedHandler);
+export const setGameMoments = onCall(callable, setGameMomentsHandler);
 export const getSeasons = onCall(callable, getSeasonsHandler);
 export const claimSeasonTier = onCall(callable, claimSeasonTierHandler);
 export const listSeasons = onCall(callable, listSeasonsHandler);

@@ -16,6 +16,22 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+### Serveur local
+
+Pour installer ou renouveler les dépendances du serveur, arrêtez d'abord le serveur
+(Ctrl+C dans le terminal où il tourne), puis lancez :
+
+```bash
+npm run install:server
+npm run build:server
+npm run dev
+```
+
+`npm run build:server` compile uniquement le serveur. Cette commande peut être
+relancée sans réinstaller les dépendances. Sous Windows, `npm ci` doit être lancé
+avec le serveur arrêté : Sharp charge des fichiers natifs que Windows verrouille
+tant que le processus tourne, ce qui provoque une erreur `EPERM unlink`.
+
 You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
 
 This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.

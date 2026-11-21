@@ -1511,7 +1511,403 @@
 @media (max-width: 520px) {
   .backLabel { display: none; }
   .backBtn { width: 36px; padding: 0; justify-content: center; }
+  .collectionLabel { display: none; }
   .shopTab { height: 40px; gap: 4px; font-size: 11px; }
   .gridDots { display: none; }
   .feltMatFrame { padding: 9px; }
+}
+
+/* ═══ RACCOURCI MA COLLECTION + FICHES DE DÉTAILS BOUTIQUE ═══ */
+.pillCollection {
+  border-color: rgba(29, 228, 190, 0.62);
+  background: linear-gradient(180deg, rgba(16, 48, 40, 0.94), rgba(8, 22, 18, 0.96));
+  color: #b8fff2;
+  padding: 0 9px 0 8px;
+}
+
+.pillCollection:hover {
+  transform: translateY(-1px);
+  border-color: #96ffec;
+  box-shadow: 0 0 14px rgba(29, 228, 190, 0.32);
+}
+
+.collectionLabel {
+  font-size: 11.5px;
+  font-weight: 900;
+}
+
+.collectionBadge {
+  min-width: 19px;
+  height: 19px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe573, #e69210);
+  color: #241203;
+  font-size: 10px;
+  font-weight: 950;
+  display: inline-grid;
+  place-items: center;
+  box-shadow: 0 0 8px rgba(255, 207, 64, 0.55);
+}
+
+.toastActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.toastMsg .toastCollectionBtn {
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 232, 152, 0.72);
+  background: linear-gradient(180deg, #ffe573, #f0a81b);
+  color: #241203;
+  font-size: 11px;
+  font-weight: 950;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.toastMsg .toastCollectionBtn:hover {
+  filter: brightness(1.08);
+}
+
+.clickableCard {
+  cursor: pointer;
+}
+
+.clickableCard:focus-visible {
+  outline: 2px solid #ffe573;
+  outline-offset: 2px;
+}
+
+.clickableChip {
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.clickableChip:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 229, 115, 0.75);
+  background: rgba(255, 207, 64, 0.14);
+}
+
+.shelfTitleRow {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.detailHint {
+  flex: 0 0 auto;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 212, 92, 0.32);
+  background: rgba(255, 248, 234, 0.06);
+  color: #ffe59e;
+  font-size: 9.5px;
+  font-weight: 850;
+  letter-spacing: 0.04em;
+}
+
+.kindTagClickable {
+  cursor: pointer;
+  transition: filter 120ms ease, transform 120ms ease;
+}
+
+.kindTagClickable:hover {
+  filter: brightness(1.16);
+  transform: translateY(-1px);
+}
+
+.detailModalBody {
+  display: grid;
+  gap: 12px;
+}
+
+.detailHeroStage {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  border-radius: 18px;
+  border: 1.5px solid color-mix(in srgb, var(--s-tone, #ffcf40) 58%, rgba(255, 255, 255, 0.14));
+  background:
+    radial-gradient(circle at 50% 38%, var(--s-glow, rgba(255, 207, 64, 0.36)), transparent 64%),
+    linear-gradient(170deg, rgba(36, 25, 20, 0.94), rgba(10, 18, 16, 0.98));
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+.detailSunburst {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  top: 40%;
+  left: 50%;
+  margin: -150px 0 0 -150px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--s-tone, #ffcf40) 22%, transparent) 0deg 12deg,
+    transparent 12deg 28deg
+  );
+  animation: slowSpin 20s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.detailRuneRing {
+  position: absolute;
+  width: 176px;
+  height: 176px;
+  top: 40%;
+  left: 50%;
+  margin: -88px 0 0 -88px;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--s-tone, #ffcf40) 60%, transparent);
+  box-shadow: inset 0 0 28px color-mix(in srgb, var(--s-tone, #ffcf40) 24%, transparent);
+  animation: slowSpin 16s linear infinite reverse;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.detailEnergyWave {
+  position: absolute;
+  width: 118px;
+  height: 118px;
+  top: 42%;
+  left: 50%;
+  margin: -59px 0 0 -59px;
+  border-radius: 50%;
+  border: 2px solid rgba(77, 245, 216, 0.65);
+  animation: detailEnergyPulse 2.4s ease-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.detailEnergyWave2 {
+  animation-delay: 1.2s;
+}
+
+@keyframes detailEnergyPulse {
+  0% { transform: scale(0.7); opacity: 0.85; }
+  100% { transform: scale(2.15); opacity: 0; }
+}
+
+.detailSpark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff6c8;
+  box-shadow: 0 0 10px var(--s-tone, #ffcf40);
+  animation: detailSparkTwinkle 2.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.sp1 { top: 15%; left: 18%; animation-delay: 0s; }
+.sp2 { top: 22%; left: 82%; animation-delay: 0.5s; }
+.sp3 { top: 72%; left: 16%; animation-delay: 1.0s; }
+.sp4 { top: 68%; left: 84%; animation-delay: 1.5s; }
+
+@keyframes detailSparkTwinkle {
+  0%, 100% { transform: scale(0.45); opacity: 0.25; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
+
+.detailVisualWrap {
+  position: relative;
+  z-index: 2;
+  height: 128px;
+  display: grid;
+  place-items: center;
+}
+
+.detailBbcLeft { left: -24px; top: 24px; transform: rotate(-24deg); }
+.detailBbcRight { right: -24px; top: 24px; transform: rotate(24deg); }
+
+.detailHeroImg {
+  position: relative;
+  z-index: 2;
+  flex: 0 0 auto;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 20px rgba(0, 0, 0, 0.62));
+}
+
+.detailHeroFloat {
+  animation: itemLevitate 3.1s ease-in-out infinite;
+}
+
+.detailPedestalDisc {
+  position: absolute;
+  bottom: 0;
+  width: 92px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--s-tone, #ffcf40) 55%, transparent), transparent 72%);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--s-tone, #ffcf40) 52%, transparent);
+  pointer-events: none;
+}
+
+.detailHeroText {
+  position: relative;
+  z-index: 2;
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 7px;
+}
+
+.detailTagsRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.detailFullDesc {
+  margin: 0;
+  max-width: 390px;
+  color: #dcece5;
+  font-size: 12.5px;
+  line-height: 1.44;
+}
+
+.detailStockLine {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  background: rgba(29, 228, 190, 0.14);
+  border: 1px solid rgba(29, 228, 190, 0.42);
+  color: #88ffea;
+  font-size: 10.5px;
+  font-weight: 850;
+}
+
+.detailDeliveryNote {
+  padding: 10px 12px;
+  border-radius: 13px;
+  border: 1px solid rgba(29, 228, 190, 0.36);
+  background: rgba(11, 36, 30, 0.78);
+  display: grid;
+  gap: 3px;
+}
+
+.detailDeliveryNote strong {
+  color: #72fae0;
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.detailDeliveryNote p {
+  margin: 0;
+  color: #c5e3d8;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.detailBlock {
+  display: grid;
+  gap: 8px;
+}
+
+.detailBlock h3 {
+  margin: 0;
+  color: #ffe59e;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.detailRewardsList {
+  display: grid;
+  gap: 7px;
+}
+
+.detailRewardRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 212, 92, 0.24);
+  background: rgba(12, 22, 19, 0.86);
+}
+
+.detailRewardRow img {
+  flex: 0 0 auto;
+  object-fit: contain;
+}
+
+.detailRewardRow > div {
+  min-width: 0;
+  display: grid;
+  gap: 2px;
+}
+
+.detailRewardRow strong {
+  color: #fffaf0;
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.detailRewardRow small {
+  color: #9dc2b5;
+  font-size: 11px;
+  line-height: 1.3;
+}
+
+.detailFooter {
+  width: 100%;
+  display: grid;
+  gap: 8px;
+}
+
+.detailSecondaryBtn {
+  width: 100%;
+  min-height: 38px;
+  padding: 0 12px;
+  border-radius: 12px;
+  border: 1.5px solid rgba(29, 228, 190, 0.52);
+  background: rgba(12, 34, 28, 0.9);
+  color: #88ffea;
+  font-family: var(--font-display), sans-serif;
+  font-size: 12.5px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 110ms ease, filter 140ms ease;
+}
+
+.detailSecondaryBtn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+.motionReduced .detailSunburst,
+.motionReduced .detailRuneRing,
+.motionReduced .detailEnergyWave,
+.motionReduced .detailSpark,
+.motionReduced .detailHeroFloat {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .detailSunburst,
+  .detailRuneRing,
+  .detailEnergyWave,
+  .detailSpark,
+  .detailHeroFloat {
+    animation: none !important;
+  }
 }

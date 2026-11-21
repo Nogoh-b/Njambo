@@ -71,6 +71,7 @@ export const Avatar = memo(function Avatar({
   const [aura, setAura] = useState<AuraStyle | null>(null);
   const freezeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const deltaTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const balancePulseRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useRegisterZone(seatIdx !== undefined ? (`timer:${seatIdx}` as ZoneKey) : undefined, {
     getRect: () => rootRef.current?.getBoundingClientRect() ?? null,
@@ -86,12 +87,19 @@ export const Avatar = memo(function Avatar({
       deltaTimerRef.current = setTimeout(() => setTimerDelta(null), 1600);
     },
     showAura: (style: AuraStyle | null) => setAura(style),
+    // Modèles d'animation : même éclat que lors d'un gain réel.
+    pulseBalance: (durationMs: number) => {
+      setFlash("gain");
+      if (balancePulseRef.current) clearTimeout(balancePulseRef.current);
+      balancePulseRef.current = setTimeout(() => setFlash(null), durationMs);
+    },
   });
 
   useEffect(() => {
     return () => {
       if (freezeTimerRef.current) clearTimeout(freezeTimerRef.current);
       if (deltaTimerRef.current) clearTimeout(deltaTimerRef.current);
+      if (balancePulseRef.current) clearTimeout(balancePulseRef.current);
     };
   }, []);
 

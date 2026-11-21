@@ -1,8 +1,10 @@
 import type { GameConfig, Suit } from "../types/game";
+import { DEFAULT_GAMEPLAY_CONFIG } from "../domain/gameplayConfig";
 
 /* ═══════════════ FILE: config/gameConfig.js ═══════════════
    TOUTES les règles se changent ICI. */
 export const GAME_CONFIG: GameConfig = {
+  ...DEFAULT_GAMEPLAY_CONFIG,
   ranks: { min: 3, max: 10 }, // 3..10 → 32 cartes (pas d'As)
   suits: [
     { s: "♠", color: "#1e1e1e" },
@@ -35,10 +37,13 @@ export const GAME_CONFIG: GameConfig = {
     powerMax: 1500,
     landSettle: 80,
     powerBeat: 420,
-    // Cadence du REPLAY serveur (AuthoritativeGameSync) : réactive et naturelle
-    // tout en laissant chaque vol de carte clairement lisible.
-    replayBotThinkMin: 420,
-    replayBotThinkMax: 780,
+    // Cadence de l'IA (table locale ET replay serveur) : un temps de
+    // « réflexion » avant chaque carte adverse, puis une pause après son
+    // atterrissage, pour qu'on voie la partie se dérouler.
+    // COUPLÉ au budget de deadline serveur (functions/src/matchCommands.ts).
+    replayBotThinkMin: 800,
+    replayBotThinkMax: 1300,
+    botAfterPlay: 450,
   },
   economy: {
     dailyBonus: 500, // jetons offerts par réclamation

@@ -1,5 +1,6 @@
 import { createHmac } from "node:crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
+import { normalizeGameplayConfig } from "../../domain/gameplayConfig";
 import {
   DAILY_GRID_WEIGHTS,
   DEFAULT_BOOSTERS,
@@ -9,6 +10,8 @@ import {
   WHEEL_REWARDS,
   doualaDayKey,
   enforceMinimumRarity,
+  extendUnlimitedEnergy,
+  isStoredPackOffer,
   pickWeighted,
   reservedTicketIsRefundable,
   type BoosterDefinition,
@@ -20,6 +23,7 @@ import {
   type OfferDefinition,
   type PlayerEconomy,
   type Reward,
+  type StoredPack,
 } from "../../domain";
 import {
   applyReward,
@@ -27,6 +31,7 @@ import {
   boundedNumber,
   db,
   economyFrom,
+  integer,
   ledger,
   optionalString,
   publicEconomy,
@@ -88,7 +93,7 @@ async function economyAndInventory(transaction: Transaction, uid: string, now: n
     economyRef,
     inventoryRef,
     economy: economyFrom(economySnap.data(), now),
-    inventory: inventorySnap.data() ?? { tickets: { bronze: 0, argent: 0, or: 0 }, cards: {}, boosterBooks: {} },
+    inventory: inventorySnap.data() ?? { tickets: { bronze: 0, argent: 0, or: 0 }, cards: {}, boosterBooks: {}, energyPasses: {}, packs: [] },
   };
 }
 
@@ -135,7 +140,7 @@ export async function ensurePlayerProfileHandler(request: CallableRequest<unknow
     if (!inventorySnap.exists) {
       transaction.create(refs.inventory, {
         cards: legacy.powerInventory ?? {}, equippedCards: legacy.equippedPowers ?? [],
-        tickets: { bronze: 0, argent: 0, or: 0 }, boosterBooks: {}, updatedAt: now,
+        tickets: { bronze: 0, argent: 0, or: 0 }, boosterBooks: {}, energyPasses: {}, packs: [], updatedAt: now,
       });
     }
     return { economy: publicEconomy(economy, now), migrated: !economySnap.exists };
@@ -211,13 +216,154 @@ export async function purchaseOfferHandler(request: CallableRequest<unknown>) {
     const rewards = resolveOfferRewards(offer);
     let nextEconomy = { ...state.economy, cauris: state.economy.cauris - price.amount };
     let nextInventory = state.inventory;
+    let storedPack: StoredPack | undefined;
+    if (isStoredPackOffer(offer)) {
+      const packInstanceId = stableId(uid, "pack", offerId, String(data.idempotencyKey)).slice(0, 32);
+      storedPack = {
+        packInstanceId,
+        offerId: offer.id,
+        title: offer.title,
+        description: offer.description,
+        acquiredAt: now,
+        guaranteedRewards: offer.rewards,
+        hasRandomRewards: Boolean(offer.randomRewards?.length || offer.rewardGroups?.length),
+      };
+      const existingPacks = Array.isArray(nextInventory.packs) ? [...nextInventory.packs] : [];
+      nextInventory = { ...nextInventory, packs: [...existingPacks, storedPack] };
+      transaction.create(db.doc(`sealed_packs/${packInstanceId}`), {
+        uid,
+        packInstanceId,
+        offerId: offer.id,
+        offerRevision: offer.revision,
+        title: offer.title,
+        description: offer.description,
+        rewards,
+        status: "sealed",
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      for (const reward of rewards) {
+        ({ economy: nextEconomy, inventory: nextInventory } = applyReward(nextEconomy, nextInventory, reward, now));
+      }
+    }
+    transaction.set(state.economyRef, nextEconomy, { merge: false });
+    transaction.set(state.inventoryRef, { ...nextInventory, updatedAt: now }, { merge: false });
+    ledger(transaction, uid, stableId(uid, "offer", String(data.idempotencyKey)), "purchaseOffer", { cauris: -price.amount }, nextEconomy, now, {
+      offerId,
+      revision: offer.revision,
+      ...(storedPack ? { storedPackId: storedPack.packInstanceId } : {}),
+    });
+    return { offerId, rewards: storedPack ? [] : rewards, storedPack: storedPack ?? null, economy: publicEconomy(nextEconomy, now), inventory: nextInventory };
+  });
+}
+
+/** Achat d'un livre de booster sans ouverture immédiate : ajouté au stock dans Ma collection. */
+export async function buyBoosterBookHandler(request: CallableRequest<unknown>) {
+  const uid = requireUid(request);
+  const data = asObject(request.data);
+  const boosterId = requiredString(data, "boosterId", 64);
+  return runIdempotent(uid, "buyBoosterBook", data.idempotencyKey, async (transaction, now) => {
+    const defRef = db.doc(`booster_definitions/${boosterId}`);
+    const [state, definitionSnap] = await Promise.all([economyAndInventory(transaction, uid, now), transaction.get(defRef)]);
+    const definition = (definitionSnap.exists ? definitionSnap.data() : boosterFallback(boosterId)) as BoosterDefinition | undefined;
+    if (!definition?.published) throw new HttpsError("not-found", "BOOSTER_UNAVAILABLE");
+    const price = definition.prices.find((candidate) => candidate.currency === "cauris");
+    if (!price) throw new HttpsError("failed-precondition", "XAF_REQUIRES_CHECKOUT");
+    if (state.economy.spendingBlocked || state.economy.debtCauris > 0) throw new HttpsError("failed-precondition", "SPENDING_BLOCKED");
+    if (state.economy.cauris < price.amount) throw new HttpsError("resource-exhausted", "INSUFFICIENT_CAURIS");
+    const nextEconomy = { ...state.economy, cauris: state.economy.cauris - price.amount };
+    const nextBooks = { ...(state.inventory.boosterBooks ?? {}) } as Record<string, number>;
+    nextBooks[boosterId] = Number(nextBooks[boosterId] ?? 0) + 1;
+    const nextInventory = { ...state.inventory, boosterBooks: nextBooks };
+    transaction.set(state.economyRef, nextEconomy, { merge: false });
+    transaction.set(state.inventoryRef, { ...nextInventory, updatedAt: now }, { merge: false });
+    ledger(transaction, uid, stableId(uid, "buy-booster", String(data.idempotencyKey)), "buyBoosterBook", { cauris: -price.amount }, nextEconomy, now, {
+      boosterId,
+      revision: definition.revision,
+    });
+    return {
+      boosterId,
+      title: definition.title,
+      ownedCount: nextBooks[boosterId],
+      economy: publicEconomy(nextEconomy, now),
+      inventory: nextInventory,
+    };
+  });
+}
+
+/** Ouvre un pack scellé stocké dans Ma collection et applique ses récompenses. */
+export async function openPackHandler(request: CallableRequest<unknown>) {
+  const uid = requireUid(request);
+  const data = asObject(request.data);
+  const packInstanceId = requiredString(data, "packInstanceId", 96);
+  return runIdempotent(uid, "openPack", data.idempotencyKey, async (transaction, now) => {
+    const packRef = db.doc(`sealed_packs/${packInstanceId}`);
+    const [state, packSnap] = await Promise.all([economyAndInventory(transaction, uid, now), transaction.get(packRef)]);
+    if (!packSnap.exists || packSnap.get("uid") !== uid) throw new HttpsError("not-found", "PACK_NOT_FOUND");
+    if (packSnap.get("status") !== "sealed") throw new HttpsError("failed-precondition", "PACK_ALREADY_OPENED");
+    const rewards = (packSnap.get("rewards") ?? []) as Reward[];
+    const existingPacks = Array.isArray(state.inventory.packs) ? (state.inventory.packs as StoredPack[]) : [];
+    const remainingPacks = existingPacks.filter((entry) => entry.packInstanceId !== packInstanceId);
+    let nextEconomy = state.economy;
+    let nextInventory = { ...state.inventory, packs: remainingPacks };
     for (const reward of rewards) {
       ({ economy: nextEconomy, inventory: nextInventory } = applyReward(nextEconomy, nextInventory, reward, now));
     }
     transaction.set(state.economyRef, nextEconomy, { merge: false });
     transaction.set(state.inventoryRef, { ...nextInventory, updatedAt: now }, { merge: false });
-    ledger(transaction, uid, stableId(uid, "offer", String(data.idempotencyKey)), "purchaseOffer", { cauris: -price.amount }, nextEconomy, now, { offerId, revision: offer.revision });
-    return { offerId, rewards, economy: publicEconomy(nextEconomy, now), inventory: nextInventory };
+    transaction.update(packRef, { status: "opened", openedAt: now, updatedAt: now });
+    ledger(
+      transaction,
+      uid,
+      stableId(uid, "open-pack", packInstanceId),
+      "openPack",
+      { nkap: nextEconomy.nkap - state.economy.nkap, cauris: nextEconomy.cauris - state.economy.cauris },
+      nextEconomy,
+      now,
+      { packInstanceId, offerId: String(packSnap.get("offerId") ?? ""), rewards },
+    );
+    return {
+      packInstanceId,
+      offerId: String(packSnap.get("offerId") ?? ""),
+      title: String(packSnap.get("title") ?? "Pack"),
+      rewards,
+      economy: publicEconomy(nextEconomy, now),
+      inventory: nextInventory,
+    };
+  });
+}
+
+/** Active un pass d'énergie illimitée stocké dans Ma collection. */
+export async function useEnergyPassHandler(request: CallableRequest<unknown>) {
+  const uid = requireUid(request);
+  const data = asObject(request.data);
+  const durationMinutes = integer(data, "durationMinutes", 1, 60 * 24 * 30);
+  return runIdempotent(uid, "useEnergyPass", data.idempotencyKey, async (transaction, now) => {
+    const state = await economyAndInventory(transaction, uid, now);
+    const key = String(durationMinutes);
+    const energyPasses = { ...(state.inventory.energyPasses ?? {}) } as Record<string, number>;
+    const owned = Number(energyPasses[key] ?? 0);
+    if (owned < 1) throw new HttpsError("resource-exhausted", "ENERGY_PASS_NOT_OWNED");
+    if (owned <= 1) delete energyPasses[key];
+    else energyPasses[key] = owned - 1;
+    const nextEconomy: PlayerEconomy = {
+      ...state.economy,
+      energy: extendUnlimitedEnergy(state.economy.energy, durationMinutes * 60_000, now),
+    };
+    const nextInventory = { ...state.inventory, energyPasses };
+    transaction.set(state.economyRef, nextEconomy, { merge: false });
+    transaction.set(state.inventoryRef, { ...nextInventory, updatedAt: now }, { merge: false });
+    ledger(transaction, uid, stableId(uid, "use-energy-pass", String(data.idempotencyKey)), "useEnergyPass", {}, nextEconomy, now, {
+      durationMinutes,
+      unlimitedUntil: nextEconomy.energy.unlimitedUntil,
+    });
+    return {
+      durationMinutes,
+      unlimitedUntil: nextEconomy.energy.unlimitedUntil,
+      economy: publicEconomy(nextEconomy, now),
+      inventory: nextInventory,
+    };
   });
 }
 
@@ -244,7 +390,9 @@ export async function openBoosterBookHandler(request: CallableRequest<unknown>) 
     let nextEconomy = { ...state.economy, pity: { ...state.economy.pity } };
     const nextInventory = { ...state.inventory, boosterBooks: { ...(state.inventory.boosterBooks ?? {}) } };
     const ownedBooks = Number(nextInventory.boosterBooks[boosterId] ?? 0);
+    const requireOwned = data.requireOwned === true;
     if (ownedBooks > 0) nextInventory.boosterBooks[boosterId] = ownedBooks - 1;
+    else if (requireOwned) throw new HttpsError("failed-precondition", "BOOSTER_NOT_OWNED");
     else {
       const price = definition.prices.find((candidate) => candidate.currency === "cauris");
       if (!price || nextEconomy.cauris < price.amount) throw new HttpsError("resource-exhausted", "INSUFFICIENT_CAURIS");
@@ -379,12 +527,14 @@ export async function equipPowerCardsHandler(request: CallableRequest<unknown>) 
   await ensurePowerCatalogFresh();
   const data = asObject(request.data);
   const rawCardIds = data.cardIds;
-  if (!Array.isArray(rawCardIds) || rawCardIds.length > 3 || rawCardIds.some((value) => typeof value !== "string" || value.length > 64)) {
+  if (!Array.isArray(rawCardIds) || rawCardIds.length > 8 || rawCardIds.some((value) => typeof value !== "string" || value.length > 64)) {
     throw new HttpsError("invalid-argument", "INVALID_EQUIPPED_CARDS");
   }
   const cardIds = [...new Set(rawCardIds as string[])];
   if (cardIds.length !== rawCardIds.length) throw new HttpsError("invalid-argument", "DUPLICATE_EQUIPPED_CARD");
   return runIdempotent(uid, "equipPowerCards", data.idempotencyKey, async (transaction, now) => {
+    const gameplay = normalizeGameplayConfig((await transaction.get(db.doc("runtime_config/gameplay"))).data());
+    if (cardIds.length > gameplay.maxEquippedPowers) throw new HttpsError("invalid-argument", "INVALID_EQUIPPED_CARDS");
     const state = await economyAndInventory(transaction, uid, now);
     const ownedCards = (state.inventory.cards ?? {}) as Record<string, unknown>;
     if (cardIds.some((cardId) => !ownedCards[cardId])) throw new HttpsError("failed-precondition", "CARD_NOT_OWNED");
@@ -439,6 +589,13 @@ export async function leaveEventHandler(request: CallableRequest<unknown>) {
     const runRef = db.doc(`event_runs/${runId}`);
     const [state, runSnap] = await Promise.all([economyAndInventory(transaction, uid, now), transaction.get(runRef)]);
     if (!runSnap.exists || runSnap.get("uid") !== uid) throw new HttpsError("not-found", "EVENT_RUN_NOT_FOUND");
+    const currentMatchId = runSnap.get("currentMatchId");
+    if (typeof currentMatchId === "string" && currentMatchId) {
+      const match = await transaction.get(db.doc(`matches/${currentMatchId}`));
+      // Le groupe a pu démarrer pendant le clic Quitter : le client doit
+      // abandonner ce match, jamais marquer son parcours « left » derrière lui.
+      if (match.exists && ["playing", "between_rounds"].includes(String(match.get("status")))) return { runId, ticketReturned: false, matchId: currentMatchId };
+    }
     const refundable = reservedTicketIsRefundable(String(runSnap.get("ticketStatus")), runSnap.get("firstMatchId"));
     let inventory = state.inventory;
     if (refundable) {
@@ -484,9 +641,25 @@ export async function createPaymentIntentHandler(request: CallableRequest<unknow
     if (!offer?.published || !price) throw new HttpsError("not-found", "XAF_OFFER_UNAVAILABLE");
     const orderId = stableId(uid, offerId, String(data.idempotencyKey)).slice(0, 40);
     const rewards = resolveOfferRewards(offer);
+    const storeAsPack = isStoredPackOffer(offer);
     const external = await adapter.createIntent({ orderId, amountXaf: price.amount, uid });
     const status = external.status;
-    transaction.create(db.doc(`orders/${orderId}`), { uid, offerId, offerRevision: offer.revision, amountXaf: price.amount, provider, status, rewards, createdAt: now, updatedAt: now });
+    transaction.create(db.doc(`orders/${orderId}`), {
+      uid,
+      offerId,
+      offerRevision: offer.revision,
+      offerTitle: offer.title,
+      offerDescription: offer.description,
+      guaranteedRewards: offer.rewards,
+      hasRandomRewards: Boolean(offer.randomRewards?.length || offer.rewardGroups?.length),
+      storeAsPack,
+      amountXaf: price.amount,
+      provider,
+      status,
+      rewards,
+      createdAt: now,
+      updatedAt: now,
+    });
     transaction.create(db.doc(`payment_intents/${orderId}`), { uid, orderId, provider, externalRef: external.externalRef, status, simulation: adapter.simulated, createdAt: now, updatedAt: now });
     return { orderId, status, amountXaf: price.amount, provider, simulated: adapter.simulated };
   });
@@ -503,11 +676,26 @@ export async function verifyStorePurchaseHandler(request: CallableRequest<unknow
     const intentRef = db.doc(`payment_intents/${orderId}`);
     const [state, orderSnap, intentSnap] = await Promise.all([economyAndInventory(transaction, uid, now), transaction.get(orderRef), transaction.get(intentRef)]);
     if (!orderSnap.exists || orderSnap.get("uid") !== uid || !intentSnap.exists) throw new HttpsError("not-found", "ORDER_NOT_FOUND");
-    /* Passe premium de saison : lu ici (toutes les lectures avant les écritures). */
+    /* Passe premium de saison & éventuel pack scellé : lus ici (toutes les lectures avant les écritures). */
     const seasonId = orderSnap.get("kind") === "season_premium" ? String(orderSnap.get("seasonId")) : null;
     const seasonProgressRef = seasonId ? db.doc(`season_progress/${seasonId}_${uid}`) : null;
-    if (seasonProgressRef) await transaction.get(seasonProgressRef);
+    const sealedPackId = typeof orderSnap.get("sealedPackId") === "string" ? String(orderSnap.get("sealedPackId")) : null;
+    const sealedPackRef = sealedPackId ? db.doc(`sealed_packs/${sealedPackId}`) : null;
+    const [, sealedPackSnap] = await Promise.all([
+      seasonProgressRef ? transaction.get(seasonProgressRef) : Promise.resolve(null),
+      sealedPackRef ? transaction.get(sealedPackRef) : Promise.resolve(null),
+    ]);
     if (orderSnap.get("status") === "paid" && outcome === "refunded") {
+      if (sealedPackRef && sealedPackSnap?.exists && sealedPackSnap.get("status") === "sealed") {
+        const existingPacks = Array.isArray(state.inventory.packs) ? (state.inventory.packs as StoredPack[]) : [];
+        const remainingPacks = existingPacks.filter((entry) => entry.packInstanceId !== sealedPackId);
+        transaction.set(state.inventoryRef, { ...state.inventory, packs: remainingPacks, updatedAt: now }, { merge: false });
+        transaction.update(sealedPackRef, { status: "refunded", refundedAt: now, updatedAt: now });
+        transaction.update(orderRef, { status: "refunded", refundedAt: now, updatedAt: now });
+        transaction.update(intentRef, { status: "refunded", updatedAt: now });
+        ledger(transaction, uid, stableId(uid, "refund", orderId), "refundPayment", {}, state.economy, now, { orderId, sealedPackId, packRevoked: true });
+        return { orderId, status: "refunded", debtCauris: state.economy.debtCauris, spendingBlocked: state.economy.spendingBlocked };
+      }
       const rewards = (orderSnap.get("rewards") ?? []) as Reward[];
       const caurisToReverse = rewards.filter((reward) => reward.type === "cauris").reduce((sum, reward) => sum + (reward.type === "cauris" ? reward.amount : 0), 0);
       const available = state.economy.cauris;
@@ -536,16 +724,74 @@ export async function verifyStorePurchaseHandler(request: CallableRequest<unknow
     let nextEconomy = state.economy;
     let nextInventory = state.inventory;
     const rewards = (orderSnap.get("rewards") ?? []) as Reward[];
-    for (const reward of rewards) ({ economy: nextEconomy, inventory: nextInventory } = applyReward(nextEconomy, nextInventory, reward, now));
+    const offerId = String(orderSnap.get("offerId") ?? "");
+    const fallbackOffer = offerFallback(offerId);
+    const shouldStoreAsPack = orderSnap.get("storeAsPack") === true
+      || (orderSnap.get("storeAsPack") === undefined && Boolean(fallbackOffer && isStoredPackOffer(fallbackOffer)));
+    let storedPack: StoredPack | null = null;
+    if (shouldStoreAsPack) {
+      const packInstanceId = stableId(uid, "pack", orderId).slice(0, 32);
+      const title = typeof orderSnap.get("offerTitle") === "string"
+        ? String(orderSnap.get("offerTitle"))
+        : (fallbackOffer?.title ?? offerId);
+      const description = typeof orderSnap.get("offerDescription") === "string"
+        ? String(orderSnap.get("offerDescription"))
+        : fallbackOffer?.description;
+      const guaranteedRewards = Array.isArray(orderSnap.get("guaranteedRewards"))
+        ? (orderSnap.get("guaranteedRewards") as Reward[])
+        : (fallbackOffer?.rewards ?? []);
+      const hasRandomRewards = orderSnap.get("hasRandomRewards") === true
+        || Boolean(fallbackOffer?.randomRewards?.length || fallbackOffer?.rewardGroups?.length);
+      storedPack = {
+        packInstanceId,
+        offerId,
+        title,
+        description,
+        acquiredAt: now,
+        orderId,
+        guaranteedRewards,
+        hasRandomRewards,
+      };
+      const existingPacks = Array.isArray(nextInventory.packs) ? [...nextInventory.packs] : [];
+      nextInventory = { ...nextInventory, packs: [...existingPacks, storedPack] };
+      transaction.create(db.doc(`sealed_packs/${packInstanceId}`), {
+        uid,
+        packInstanceId,
+        offerId,
+        orderId,
+        title,
+        description,
+        rewards,
+        status: "sealed",
+        createdAt: now,
+        updatedAt: now,
+      });
+    } else {
+      for (const reward of rewards) ({ economy: nextEconomy, inventory: nextInventory } = applyReward(nextEconomy, nextInventory, reward, now));
+    }
     transaction.set(state.economyRef, nextEconomy, { merge: false });
     transaction.set(state.inventoryRef, { ...nextInventory, updatedAt: now }, { merge: false });
-    transaction.update(orderRef, { status: "paid", paidAt: now, updatedAt: now });
+    transaction.update(orderRef, {
+      status: "paid",
+      paidAt: now,
+      ...(storedPack ? { sealedPackId: storedPack.packInstanceId } : {}),
+      updatedAt: now,
+    });
     transaction.update(intentRef, { status: "paid", verifiedAt: now, updatedAt: now });
     if (seasonProgressRef && seasonId) {
       transaction.set(seasonProgressRef, { seasonId, uid, premium: true, premiumOrderId: orderId, premiumAt: now, updatedAt: now }, { merge: true });
     }
-    ledger(transaction, uid, stableId(uid, "payment", orderId), "verifyStorePurchase", { nkap: nextEconomy.nkap - state.economy.nkap, cauris: nextEconomy.cauris - state.economy.cauris }, nextEconomy, now, { orderId });
-    return { orderId, status: "paid", rewards, economy: publicEconomy(nextEconomy, now) };
+    ledger(
+      transaction,
+      uid,
+      stableId(uid, "payment", orderId),
+      "verifyStorePurchase",
+      { nkap: nextEconomy.nkap - state.economy.nkap, cauris: nextEconomy.cauris - state.economy.cauris },
+      nextEconomy,
+      now,
+      { orderId, ...(storedPack ? { storedPackId: storedPack.packInstanceId } : {}) },
+    );
+    return { orderId, status: "paid", rewards: storedPack ? [] : rewards, storedPack, economy: publicEconomy(nextEconomy, now), inventory: nextInventory };
   });
 }
 

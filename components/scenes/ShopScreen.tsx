@@ -3,7 +3,15 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "motion/react";
-import { type BoosterDefinition, type OfferDefinition, type Reward } from "@/domain";
+import {
+  countStoredCollectionItems,
+  formatEnergyDuration,
+  isStoredPackOffer,
+  type BoosterDefinition,
+  type OfferDefinition,
+  type Reward,
+  type TicketTier,
+} from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useGame } from "@/contexts/GameContext";
@@ -17,7 +25,18 @@ import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
 import { PowerCardView } from "@/components/power/PowerCardView";
-import type { PowerCardId } from "@/types/game";
+import {
+  BOOSTER_RARITY_LABELS as RARITY_LABELS,
+  OFFER_KIND_LABELS as OFFER_KIND_LABEL,
+  boosterBookArt,
+  offerArt,
+  offerDeliverySummary,
+  priceLabel,
+  rewardDeliveryNote,
+  rewardIconSrc,
+  rewardLabel,
+} from "@/lib/shopVisuals";
+import type { PowerCardDef, PowerCardId } from "@/types/game";
 import styles from "./ShopScreen.module.css";
 
 type ShopTab = "offers" | "boosters" | "grid" | "wheel";
@@ -59,21 +78,6 @@ const OFFER_CATEGORIES: Array<{ id: OfferCategory; label: string }> = [
 
 const FEATURED_OFFER_IDS = ["pack_mboa", "cauris_110", "nkap_3000", "energy_120", "ticket_bronze"];
 
-const RARITY_LABELS: Record<string, string> = {
-  village: "Village",
-  notable: "Notable",
-  chef: "Chef",
-  ancetre: "Ancêtre",
-};
-
-const OFFER_KIND_LABEL: Record<OfferDefinition["type"], string> = {
-  cauris_pack: "Cauris",
-  nkap_conversion: "Nkap",
-  energy_pass: "Énergie",
-  ticket: "Ticket Ter",
-  element_pack: "Pack Royal",
-};
-
 const OFFER_TONE_CLASS: Record<OfferDefinition["type"], string> = {
   cauris_pack: "cardPink",
   nkap_conversion: "cardGold",
@@ -98,43 +102,8 @@ const GRID_ODDS = [
   { label: "Ancêtre", weight: 2 },
 ];
 
-function rewardLabel(reward: Reward) {
-  if (reward.type === "nkap") return `${reward.amount.toLocaleString("fr-FR")} Nkap`;
-  if (reward.type === "cauris") return `${reward.amount} cauris`;
-  if (reward.type === "ticket") return `${reward.amount} ticket ${reward.tier}`;
-  if (reward.type === "energy_pass") return `Énergie ${reward.durationMinutes === 1_440 ? "24 h" : `${reward.durationMinutes / 60} h`}`;
-  if (reward.type === "booster_book") return `${reward.amount} livre ${reward.boosterId}`;
-  return `Carte ${RARITY_LABELS[reward.rarity] ?? reward.rarity}`;
-}
-
-function rewardIconSrc(reward: Reward): string {
-  if (reward.type === "nkap") return "/assets/njambo/economy/nkap-stack-64.webp";
-  if (reward.type === "cauris") return "/assets/njambo/economy/cauris-pouch-64.webp";
-  if (reward.type === "ticket") return `/assets/njambo/tickets/ticket-${reward.tier}-64.webp`;
-  if (reward.type === "energy_pass") return "/assets/njambo/economy/energy-flask-64.webp";
-  if (reward.type === "booster_book") {
-    const id = ["normal", "rare", "exceptionnel"].includes(reward.boosterId) ? reward.boosterId : "normal";
-    return `/assets/njambo/books/book-${id}-128.webp`;
-  }
-  return "/assets/njambo/books/card-back-128.webp";
-}
-
-function offerArt(offer: OfferDefinition) {
-  if (offer.type === "cauris_pack") return "/assets/njambo/economy/cauris-pouch-256.webp";
-  if (offer.type === "nkap_conversion") return "/assets/njambo/economy/nkap-stack-256.webp";
-  if (offer.type === "energy_pass") return "/assets/njambo/economy/energy-flask-256.webp";
-  if (offer.type === "ticket") return `/assets/njambo/tickets/ticket-${offer.id.replace("ticket_", "")}-256.webp`;
-  if (offer.id.startsWith("booster_")) return `/assets/njambo/books/book-${offer.id.replace("booster_", "").replace("_xaf", "")}-256.webp`;
-  if (offer.id.startsWith("pack_")) return `/assets/njambo/economy/${offer.id.replaceAll("_", "-")}-256.webp`;
-  return "/assets/njambo/books/card-back-256.webp";
-}
-
-function priceLabel(price: OfferDefinition["prices"][number]) {
-  return `${price.amount.toLocaleString("fr-FR")} ${price.currency === "xaf" ? "XAF" : "cauris"}`;
-}
-
 export function ShopScreen() {
-  const { navigateTo } = useGame();
+  const { navigateTo, setCollectionTab } = useGame();
   const { user } = useAuth();
   const { economy, inventory, loading: economyLoading, command, pendingBoosterOpening } = useEconomy();
   const { offers: publishedOffers, boosters, error: contentError } = useLiveOpsContent();
@@ -149,7 +118,7 @@ export function ShopScreen() {
   const [tab, setTab] = useState<ShopTab>("offers");
   const [offerCategory, setOfferCategory] = useState<OfferCategory>("featured");
   const [busy, setBusy] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ severity: "success" | "warning" | "error"; text: string } | null>(null);
+  const [message, setMessage] = useState<{ severity: "success" | "warning" | "error"; text: string; openCollection?: boolean } | null>(null);
   const [opening, setOpening] = useState<{ openingId: string; positions: number[] } | null>(null);
   const [cardReveal, setCardReveal] = useState<CardReveal | null>(null);
   const [wheelReward, setWheelReward] = useState<Reward | null>(null);
@@ -157,6 +126,9 @@ export function ShopScreen() {
   const [gridSelectingPosition, setGridSelectingPosition] = useState<number | null>(null);
   const [gridPayment, setGridPayment] = useState<"cauris" | "xaf">("cauris");
   const [oddsModal, setOddsModal] = useState<OddsModalData | null>(null);
+  const [selectedOffer, setSelectedOffer] = useState<OfferDefinition | null>(null);
+  const [selectedBooster, setSelectedBooster] = useState<BoosterDefinition | null>(null);
+  const [selectedGridCard, setSelectedGridCard] = useState<PowerCardDef | null>(null);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [walletPulse, setWalletPulse] = useState(false);
 
@@ -165,14 +137,21 @@ export function ShopScreen() {
   const cascadeOn = motionProfile.allowEntranceCascade;
   const loopsOn = motionProfile.allowDecorativeLoop;
 
+  const openCollectionItems = () => {
+    setCollectionTab("items");
+    navigateTo("power_collection");
+  };
+
   useEffect(() => {
     if (!guestBlocked && authModalOpen) setAuthModalOpen(false);
   }, [guestBlocked, authModalOpen]);
 
   useEffect(() => {
-    if (pendingBoosterOpening) {
-      setOpening({ openingId: pendingBoosterOpening.openingId, positions: pendingBoosterOpening.positions });
-    }
+    setOpening(
+      pendingBoosterOpening
+        ? { openingId: pendingBoosterOpening.openingId, positions: pendingBoosterOpening.positions }
+        : null,
+    );
   }, [pendingBoosterOpening]);
 
   const triggerWalletPulse = () => {
@@ -197,15 +176,42 @@ export function ShopScreen() {
       .filter((offer): offer is OfferDefinition => Boolean(offer));
   }, [offerCategory, offers]);
 
-  const totalOwnedBooks = useMemo(
-    () => Object.values(inventory.boosterBooks ?? {}).reduce((sum, n) => sum + Number(n ?? 0), 0),
-    [inventory.boosterBooks],
-  );
+  const storedObjects = useMemo(() => countStoredCollectionItems(inventory), [inventory]);
+  const totalOwnedBooks = storedObjects.books;
 
   const availableSpins = economy?.daily.availableSpins ?? 0;
   const loyaltyPoints = economy?.daily.loyaltyPoints ?? 0;
 
-  const run = async (key: string, action: () => Promise<string | void>) => {
+  const ownedStockForOffer = (offer: OfferDefinition): string | null => {
+    if (guestBlocked) return null;
+    if (offer.type === "cauris_pack") return `Solde actuel : ${(economy?.cauris ?? 0).toLocaleString("fr-FR")} cauris`;
+    if (offer.type === "nkap_conversion") return `Solde actuel : ${(economy?.nkap ?? 0).toLocaleString("fr-FR")} Nkap`;
+    if (offer.type === "ticket") {
+      const tier = offer.id.replace("ticket_", "") as TicketTier;
+      const count = Number(inventory.tickets?.[tier] ?? 0);
+      return `En stock dans Ma collection : ${count}`;
+    }
+    if (offer.type === "energy_pass") {
+      const minutes = offer.rewards.find((r) => r.type === "energy_pass")?.durationMinutes;
+      if (minutes) {
+        const count = Number(inventory.energyPasses?.[String(minutes)] ?? 0);
+        return `En stock (${formatEnergyDuration(minutes)}) : ${count}`;
+      }
+      return `Pass énergie en stock : ${storedObjects.energy}`;
+    }
+    if (offer.id.startsWith("booster_")) {
+      const bId = offer.id.replace("booster_", "").replace("_xaf", "");
+      const count = Number(inventory.boosterBooks?.[bId] ?? 0);
+      return `En stock dans Ma collection : ${count}`;
+    }
+    if (isStoredPackOffer(offer)) {
+      const count = (inventory.packs ?? []).filter((p) => p.offerId === offer.id).length;
+      return `Packs scellés en stock : ${count}`;
+    }
+    return null;
+  };
+
+  const run = async (key: string, action: () => Promise<{ text: string; openCollection?: boolean } | string | void>) => {
     if (guestBlocked) {
       setAuthModalOpen(true);
       return;
@@ -215,35 +221,62 @@ export function ShopScreen() {
     try {
       const confirmation = await action();
       triggerWalletPulse();
-      if (confirmation) {
+      if (typeof confirmation === "string" && confirmation) {
         setMessage({ severity: "success", text: confirmation });
+      } else if (confirmation && typeof confirmation === "object" && confirmation.text) {
+        setMessage({ severity: "success", text: confirmation.text, openCollection: confirmation.openCollection });
       }
     } catch (cause) {
       const reason = cause instanceof Error ? cause.message : "";
       const insufficient = /insufficient|solde|balance/i.test(reason);
+      const adultConfirmation = /CHECKOUT_REQUIRES_ADULT_CONFIRMATION/i.test(reason);
       setMessage({
-        severity: insufficient ? "warning" : "error",
+        severity: insufficient || adultConfirmation ? "warning" : "error",
         text: insufficient
           ? "Ton solde est insuffisant pour cet achat."
-          : /unavailable|not-found/i.test(reason)
-            ? "Cette offre n’est plus disponible."
-            : "L’opération a été refusée. Réessaie dans un instant.",
+          : adultConfirmation
+            ? "Confirme d’abord que tu as 18 ans ou plus dans ton profil pour payer en XAF."
+            : /unavailable|not-found/i.test(reason)
+              ? "Cette offre n’est plus disponible."
+              : "L’opération a été refusée. Réessaie dans un instant.",
       });
     } finally {
       setBusy(null);
     }
   };
 
-  const purchase = async (offerId: string): Promise<string | void> => {
+  const purchase = async (offerId: string): Promise<{ text: string; openCollection?: boolean } | void> => {
     const offer = offers.find((candidate) => candidate.id === offerId);
     if (!offer) return;
+    const delivery = offerDeliverySummary(offer);
     if (offer.prices.some((price) => price.currency === "cauris")) {
       await command("purchaseOffer", { offerId });
-      return `${offer.title} ajouté à ton coffre !`;
+      setSelectedOffer(null);
+      return {
+        text: delivery.storedInCollection
+          ? `${offer.title} ajouté à Ma collection ! Clique dessus pour l’utiliser.`
+          : `${offer.title} crédité sur ton portefeuille !`,
+        openCollection: delivery.storedInCollection,
+      };
     }
     const intent = await command<{ orderId: string }>("createPaymentIntent", { offerId, provider: "simulated" });
     await command("verifyStorePurchase", { orderId: intent.orderId, simulationOutcome: "success" });
-    return `Paiement simulé confirmé : ${offer.title} !`;
+    setSelectedOffer(null);
+    return {
+      text: delivery.storedInCollection
+        ? `Achat confirmé : ${offer.title} t’attend dans Ma collection !`
+        : `Paiement simulé confirmé : ${offer.title} crédité !`,
+      openCollection: delivery.storedInCollection,
+    };
+  };
+
+  const buyBookWithCauris = async (booster: BoosterDefinition): Promise<{ text: string; openCollection?: boolean }> => {
+    await command("buyBoosterBook", { boosterId: booster.id });
+    setSelectedBooster(null);
+    return {
+      text: `${booster.title} ajouté à Ma collection ! Ouvre-le quand tu veux.`,
+      openCollection: true,
+    };
   };
 
   const buyGridWithXaf = async (position: number): Promise<DailyGridResult> => {
@@ -325,7 +358,13 @@ export function ShopScreen() {
     await run("wheel", async () => {
       const result = await command<{ reward: Reward }>("spinLoyaltyWheel");
       setWheelReward(result.reward);
-      return `La roue t’offre ${rewardLabel(result.reward)} !`;
+      const stored = result.reward.type !== "nkap" && result.reward.type !== "cauris";
+      return {
+        text: stored
+          ? `La roue t’offre ${rewardLabel(result.reward)} (ajouté à Ma collection) !`
+          : `La roue t’offre ${rewardLabel(result.reward)} !`,
+        openCollection: stored,
+      };
     });
   };
 
@@ -389,6 +428,19 @@ export function ShopScreen() {
               <span>Connexion</span>
             </button>
           )}
+          <button
+            data-nj-skin="none"
+            type="button"
+            className={`${styles.walletPill} ${styles.pillCollection}`}
+            onClick={openCollectionItems}
+            aria-label={`Ouvrir Ma collection (${storedObjects.total} objet${storedObjects.total > 1 ? "s" : ""})`}
+          >
+            <NjamboIcon name="cards" tone="teal" size={16} />
+            <span className={styles.collectionLabel}>Collection</span>
+            {storedObjects.total > 0 && (
+              <span className={styles.collectionBadge}>{storedObjects.total}</span>
+            )}
+          </button>
           <button
             data-nj-skin="none"
             type="button"
@@ -456,7 +508,19 @@ export function ShopScreen() {
             role="status"
           >
             <span>{message.text}</span>
-            <button data-nj-skin="none" type="button" onClick={() => setMessage(null)} aria-label="Fermer">✕</button>
+            <div className={styles.toastActions}>
+              {message.openCollection && (
+                <button
+                  data-nj-skin="none"
+                  type="button"
+                  className={styles.toastCollectionBtn}
+                  onClick={openCollectionItems}
+                >
+                  Ma collection →
+                </button>
+              )}
+              <button data-nj-skin="none" type="button" onClick={() => setMessage(null)} aria-label="Fermer">✕</button>
+            </div>
           </motion.div>
         )}
       </AnimatePresence>
@@ -505,6 +569,16 @@ export function ShopScreen() {
                     return (
                       <motion.article
                         key={`${offerCategory}-${offer.id}`}
+                        role="button"
+                        tabIndex={0}
+                        onClick={() => setSelectedOffer(offer)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" || e.key === " ") {
+                            e.preventDefault();
+                            setSelectedOffer(offer);
+                          }
+                        }}
+                        aria-label={`Voir les détails de ${offer.title}`}
                         initial={cascadeOn ? { opacity: 0, y: 16, scale: 0.96 } : false}
                         animate={{ opacity: 1, y: 0, scale: 1 }}
                         transition={{
@@ -513,7 +587,7 @@ export function ShopScreen() {
                           damping: 26,
                           delay: cascadeOn ? Math.min(idx * 0.045, 0.24) : 0,
                         }}
-                        className={`${styles.shelfCard} ${styles[toneClass]}${isHeroFeatured ? ` ${styles.shelfCardHero}` : ""}`}
+                        className={`${styles.shelfCard} ${styles.clickableCard} ${styles[toneClass]}${isHeroFeatured ? ` ${styles.shelfCardHero}` : ""}`}
                         style={{ "--float-delay": `${idx * 0.38}s` } as CSSProperties}
                       >
                         <span className={styles.shelfTrim} aria-hidden="true" />
@@ -535,7 +609,10 @@ export function ShopScreen() {
                                   data-nj-skin="none"
                                   type="button"
                                   className={styles.oddsBtn}
-                                  onClick={() => openOfferOdds(offer)}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openOfferOdds(offer);
+                                  }}
                                   aria-label={`Voir les probabilités de ${offer.title}`}
                                 >
                                   ?
@@ -558,7 +635,10 @@ export function ShopScreen() {
 
                         {/* Bas de carte : titre + récompenses 2,5D + bouton prix 3D */}
                         <div className={styles.shelfBody}>
-                          <h2>{offer.title}</h2>
+                          <div className={styles.shelfTitleRow}>
+                            <h2>{offer.title}</h2>
+                            <span className={styles.detailHint}>Détails</span>
+                          </div>
                           {offer.rewards.length > 0 ? (
                             <div className={styles.rewardChips}>
                               {offer.rewards.slice(0, isHeroFeatured ? 3 : 2).map((r, i) => (
@@ -577,7 +657,10 @@ export function ShopScreen() {
                             type="button"
                             disabled={(!guestBlocked && blocked) || busy !== null}
                             className={`${styles.priceBtn}${xaf ? ` ${styles.priceBtnGold}` : ` ${styles.priceBtnTeal}`}`}
-                            onClick={() => void run(offer.id, () => purchase(offer.id))}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              void run(offer.id, () => purchase(offer.id));
+                            }}
                           >
                             <span className={styles.btnSheen} aria-hidden="true" />
                             <span>
@@ -624,6 +707,16 @@ export function ShopScreen() {
                       return (
                         <motion.article
                           key={booster.id}
+                          role="button"
+                          tabIndex={0}
+                          onClick={() => setSelectedBooster(booster)}
+                          onKeyDown={(e) => {
+                            if (e.key === "Enter" || e.key === " ") {
+                              e.preventDefault();
+                              setSelectedBooster(booster);
+                            }
+                          }}
+                          aria-label={`Voir les détails de ${booster.title}`}
                           initial={cascadeOn ? { opacity: 0, y: 20, scale: 0.95 } : false}
                           animate={{ opacity: 1, y: 0, scale: 1 }}
                           transition={{
@@ -632,7 +725,7 @@ export function ShopScreen() {
                             damping: 25,
                             delay: cascadeOn ? idx * 0.07 : 0,
                           }}
-                          className={`${styles.bookCard} ${tierClass}`}
+                          className={`${styles.bookCard} ${styles.clickableCard} ${tierClass}`}
                           style={{ "--float-delay": `${idx * 0.45}s` } as CSSProperties}
                         >
                           <span className={styles.shelfTrim} aria-hidden="true" />
@@ -641,14 +734,29 @@ export function ShopScreen() {
                           <div className={styles.bookPedestal}>
                             <span className={styles.runeHalo} aria-hidden="true" />
                             <div className={styles.pedestalTop}>
-                              <span className={styles.kindTag}>
-                                {ownedBooks > 0 ? `×${ownedBooks} en stock` : "9 cartes cachées"}
-                              </span>
+                              {ownedBooks > 0 ? (
+                                <button
+                                  data-nj-skin="none"
+                                  type="button"
+                                  className={`${styles.kindTag} ${styles.kindTagClickable}`}
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openCollectionItems();
+                                  }}
+                                >
+                                  ×{ownedBooks} dans Ma collection →
+                                </button>
+                              ) : (
+                                <span className={styles.kindTag}>9 cartes cachées</span>
+                              )}
                               <button
                                 data-nj-skin="none"
                                 type="button"
                                 className={styles.oddsBtn}
-                                onClick={() => openBoosterOdds(booster)}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openBoosterOdds(booster);
+                                }}
                                 aria-label={`Probabilités du ${booster.title}`}
                               >
                                 ?
@@ -660,7 +768,7 @@ export function ShopScreen() {
                               <span className={`${styles.bookBackCard} ${styles.bbcLeft}`} aria-hidden="true" />
                               <span className={`${styles.bookBackCard} ${styles.bbcRight}`} aria-hidden="true" />
                               <Image
-                                src={`/assets/njambo/books/book-${booster.id}-256.webp`}
+                                src={boosterBookArt(booster.id, 256)}
                                 alt={booster.title}
                                 width={136}
                                 height={136}
@@ -671,8 +779,11 @@ export function ShopScreen() {
                           </div>
 
                           <div className={styles.bookBody}>
-                            <h2>{booster.title}</h2>
-                            <p>Choisis 1 carte Pouvoir parmi 9 cartes face cachée.</p>
+                            <div className={styles.shelfTitleRow}>
+                              <h2>{booster.title}</h2>
+                              <span className={styles.detailHint}>Détails</span>
+                            </div>
+                            <p>Ajouté à Ma collection après achat — ouvre-le quand tu veux pour choisir 1 carte parmi 9.</p>
 
                             {/* Barre visuelle + légende compacte des raretés */}
                             <div className={styles.rarityBlock}>
@@ -700,31 +811,22 @@ export function ShopScreen() {
                             <button
                               data-nj-skin="none"
                               type="button"
-                              disabled={(!guestBlocked && blocked) || busy !== null}
+                              disabled={(!guestBlocked && blocked) || busy !== null || !caurisPrice}
                               className={styles.bookBuyBtn}
-                              onClick={() =>
-                                void run(booster.id, async () => {
-                                  const result = await command<{ openingId: string; positions: number[] }>(
-                                    "openBoosterBook",
-                                    { boosterId: booster.id },
-                                  );
-                                  setOpening({
-                                    openingId: result.openingId,
-                                    positions: result.positions ?? Array.from({ length: 9 }, (_, i) => i),
-                                  });
-                                  return `${booster.title} ouvert : choisis ta carte !`;
-                                })
-                              }
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                void run(booster.id, () => buyBookWithCauris(booster));
+                              }}
                             >
                               <span className={styles.btnSheen} aria-hidden="true" />
                               <span>
                                 {busy === booster.id
-                                  ? "Ouverture…"
-                                  : ownedBooks > 0
-                                    ? `Ouvrir (${ownedBooks} en stock)`
-                                    : caurisPrice
-                                      ? `Ouvrir · ${priceLabel(caurisPrice)}`
-                                      : "Indisponible"}
+                                  ? "Achat…"
+                                  : caurisPrice
+                                    ? guestBlocked
+                                      ? `Se connecter · ${priceLabel(caurisPrice)}`
+                                      : `Acheter · ${priceLabel(caurisPrice)}`
+                                    : "Indisponible"}
                               </span>
                             </button>
                           </div>
@@ -854,10 +956,20 @@ export function ShopScreen() {
                         return (
                           <motion.div
                             key={`rev-${position}`}
+                            role="button"
+                            tabIndex={0}
+                            onClick={() => setSelectedGridCard(powerCard)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter" || e.key === " ") {
+                                e.preventDefault();
+                                setSelectedGridCard(powerCard);
+                              }
+                            }}
+                            aria-label={`Voir les détails de ${powerCard.name}`}
                             initial={cascadeOn ? { rotateY: 180, scale: 0.84 } : false}
                             animate={{ rotateY: 0, scale: 1 }}
                             transition={{ type: "spring", stiffness: 280, damping: 22 }}
-                            className={styles.gridRevealedCell}
+                            className={`${styles.gridRevealedCell} ${styles.clickableCard}`}
                             style={
                               {
                                 "--c-primary": pal.primary,
@@ -1002,10 +1114,23 @@ export function ShopScreen() {
                 {/* Aperçu 2,5D des lots à gagner */}
                 <div className={styles.wheelPrizeStrip}>
                   {WHEEL_ODDS.slice(0, 4).map((item) => (
-                    <span key={item.label} className={styles.wheelPrizeChip}>
+                    <button
+                      key={item.label}
+                      data-nj-skin="none"
+                      type="button"
+                      className={`${styles.wheelPrizeChip} ${styles.clickableChip}`}
+                      onClick={() =>
+                        setOddsModal({
+                          title: "Roue des retrouvailles",
+                          kicker: "Détails et probabilités des lots",
+                          rows: WHEEL_ODDS.map(({ label, weight }) => ({ label, weight })),
+                          note: "Les tickets, pass énergie et livres gagnés rejoignent Ma collection sans s’activer automatiquement.",
+                        })
+                      }
+                    >
                       <Image src={item.icon} alt="" width={18} height={18} />
                       <span>{item.label}</span>
-                    </span>
+                    </button>
                   ))}
                   <button
                     data-nj-skin="none"
@@ -1052,15 +1177,425 @@ export function ShopScreen() {
         </AnimatePresence>
       </div>
 
+      {/* ═══ MODALE DÉTAILS D'UNE OFFRE (AU CLIC EN BOUTIQUE) ═══ */}
+      <GameModal
+        open={selectedOffer !== null}
+        onClose={() => setSelectedOffer(null)}
+        size="md"
+        kicker={selectedOffer ? OFFER_KIND_LABEL[selectedOffer.type] : ""}
+        title={selectedOffer?.title ?? ""}
+        tone={selectedOffer?.type === "energy_pass" ? "teal" : "gold"}
+        footer={
+          selectedOffer ? (
+            <div className={styles.detailFooter}>
+              <button
+                data-nj-skin="none"
+                type="button"
+                disabled={(!guestBlocked && blocked) || busy !== null}
+                className={`${styles.priceBtn}${
+                  selectedOffer.prices.some((p) => p.currency === "xaf")
+                    ? ` ${styles.priceBtnGold}`
+                    : ` ${styles.priceBtnTeal}`
+                }`}
+                onClick={() => void run(selectedOffer.id, () => purchase(selectedOffer.id))}
+              >
+                <span className={styles.btnSheen} aria-hidden="true" />
+                <span>
+                  {busy === selectedOffer.id
+                    ? "Validation…"
+                    : guestBlocked
+                    ? `Se connecter · ${selectedOffer.prices.map(priceLabel).join(" / ")}`
+                    : `Acheter · ${selectedOffer.prices.map(priceLabel).join(" / ")}`}
+                </span>
+              </button>
+              {!guestBlocked && offerDeliverySummary(selectedOffer).storedInCollection && (
+                <button
+                  data-nj-skin="none"
+                  type="button"
+                  className={styles.detailSecondaryBtn}
+                  onClick={() => {
+                    setSelectedOffer(null);
+                    openCollectionItems();
+                  }}
+                >
+                  Ouvrir Ma collection →
+                </button>
+              )}
+            </div>
+          ) : undefined
+        }
+      >
+        {selectedOffer && (() => {
+          const delivery = offerDeliverySummary(selectedOffer);
+          const stockLine = ownedStockForOffer(selectedOffer);
+          const xaf = selectedOffer.prices.some((p) => p.currency === "xaf");
+          const toneClass = OFFER_TONE_CLASS[selectedOffer.type] ?? "cardGold";
+          return (
+            <div className={`${styles.detailModalBody}${!loopsOn ? ` ${styles.motionReduced}` : ""}`}>
+              <div className={`${styles.detailHeroStage} ${styles[toneClass]}`}>
+                {selectedOffer.type === "energy_pass" ? (
+                  <>
+                    <span className={styles.detailEnergyWave} aria-hidden="true" />
+                    <span className={`${styles.detailEnergyWave} ${styles.detailEnergyWave2}`} aria-hidden="true" />
+                  </>
+                ) : (
+                  <span className={styles.detailSunburst} aria-hidden="true" />
+                )}
+                <span className={`${styles.detailSpark} ${styles.sp1}`} aria-hidden="true" />
+                <span className={`${styles.detailSpark} ${styles.sp2}`} aria-hidden="true" />
+                <span className={`${styles.detailSpark} ${styles.sp3}`} aria-hidden="true" />
+                <span className={`${styles.detailSpark} ${styles.sp4}`} aria-hidden="true" />
+
+                <motion.div
+                  key={selectedOffer.id}
+                  initial={cascadeOn ? { scale: 0.44, y: 20, rotate: -10, opacity: 0 } : false}
+                  animate={{ scale: 1, y: 0, rotate: 0, opacity: 1 }}
+                  transition={{ type: "spring", stiffness: 280, damping: 18 }}
+                  className={styles.detailVisualWrap}
+                >
+                  <Image
+                    src={offerArt(selectedOffer, 256)}
+                    alt={selectedOffer.title}
+                    width={116}
+                    height={116}
+                    className={`${styles.detailHeroImg} ${styles.detailHeroFloat}`}
+                  />
+                  <span className={styles.detailPedestalDisc} aria-hidden="true" />
+                </motion.div>
+
+                <div className={styles.detailHeroText}>
+                  <div className={styles.detailTagsRow}>
+                    <span className={styles.kindTag}>{OFFER_KIND_LABEL[selectedOffer.type]}</span>
+                    {xaf && <span className={styles.simTag}>Paiement simulé</span>}
+                    {stockLine && <span className={styles.detailStockLine}>{stockLine}</span>}
+                  </div>
+                  <p className={styles.detailFullDesc}>{selectedOffer.description}</p>
+                </div>
+              </div>
+
+              <motion.div
+                initial={cascadeOn ? { opacity: 0, y: 10 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.22, delay: 0.07 }}
+                className={styles.detailDeliveryNote}
+              >
+                <strong>{delivery.storedInCollection ? "Conservation dans Ma collection" : "Livraison immédiate"}</strong>
+                <p>{delivery.label}</p>
+              </motion.div>
+
+              {selectedOffer.rewards.length > 0 && (
+                <motion.div
+                  initial={cascadeOn ? { opacity: 0, y: 10 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.24, delay: 0.11 }}
+                  className={styles.detailBlock}
+                >
+                  <h3>Contenu garanti</h3>
+                  <div className={styles.detailRewardsList}>
+                    {selectedOffer.rewards.map((reward, idx) => (
+                      <motion.div
+                        key={idx}
+                        initial={cascadeOn ? { opacity: 0, x: -10 } : false}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.22, delay: 0.13 + idx * 0.05 }}
+                        className={styles.detailRewardRow}
+                      >
+                        <Image src={rewardIconSrc(reward)} alt="" width={30} height={30} />
+                        <div>
+                          <strong>{rewardLabel(reward)}</strong>
+                          <small>{rewardDeliveryNote(reward)}</small>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </div>
+                </motion.div>
+              )}
+
+              {(selectedOffer.randomRewards?.length || selectedOffer.rewardGroups?.length) && (
+                <motion.div
+                  initial={cascadeOn ? { opacity: 0, y: 10 } : false}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.24, delay: 0.16 }}
+                  className={styles.detailBlock}
+                >
+                  <h3>Lots aléatoires & probabilités</h3>
+                  <div className={styles.oddsList}>
+                    {selectedOffer.randomRewards?.map((entry, idx) => (
+                      <motion.div
+                        key={`rand-${idx}`}
+                        initial={cascadeOn ? { opacity: 0, x: -8 } : false}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.2, delay: 0.18 + idx * 0.04 }}
+                        className={styles.oddsRow}
+                      >
+                        <span>{rewardLabel(entry.value)}</span>
+                        <strong>{entry.weight} %</strong>
+                      </motion.div>
+                    ))}
+                    {selectedOffer.rewardGroups?.map((group, gIdx) =>
+                      group.map((entry, eIdx) => (
+                        <motion.div
+                          key={`grp-${gIdx}-${eIdx}`}
+                          initial={cascadeOn ? { opacity: 0, x: -8 } : false}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ duration: 0.2, delay: 0.18 + (gIdx * 3 + eIdx) * 0.035 }}
+                          className={styles.oddsRow}
+                        >
+                          <span>Lot {gIdx + 1} · {rewardLabel(entry.value)}</span>
+                          <strong>{entry.weight} %</strong>
+                        </motion.div>
+                      )),
+                    )}
+                  </div>
+                </motion.div>
+              )}
+
+              {selectedOffer.ageRestrictedXaf && (
+                <p className={styles.oddsNote}>
+                  Les achats simulés en XAF nécessitent la confirmation « 18 ans + » dans ton profil.
+                </p>
+              )}
+            </div>
+          );
+        })()}
+      </GameModal>
+
+      {/* ═══ MODALE DÉTAILS D'UN LIVRE DE BOOSTER ═══ */}
+      <GameModal
+        open={selectedBooster !== null}
+        onClose={() => setSelectedBooster(null)}
+        size="md"
+        kicker="Livre de Pouvoirs"
+        title={selectedBooster?.title ?? ""}
+        tone="gold"
+        footer={
+          selectedBooster ? (() => {
+            const caurisPrice = selectedBooster.prices.find((p) => p.currency === "cauris");
+            const xafOffer = offers.find((o) => o.id === `booster_${selectedBooster.id}_xaf`);
+            const ownedCount = Number(inventory.boosterBooks?.[selectedBooster.id] ?? 0);
+            return (
+              <div className={styles.detailFooter}>
+                {caurisPrice && (
+                  <button
+                    data-nj-skin="none"
+                    type="button"
+                    disabled={(!guestBlocked && blocked) || busy !== null}
+                    className={`${styles.priceBtn} ${styles.priceBtnTeal}`}
+                    onClick={() => void run(selectedBooster.id, () => buyBookWithCauris(selectedBooster))}
+                  >
+                    <span className={styles.btnSheen} aria-hidden="true" />
+                    <span>
+                      {busy === selectedBooster.id
+                        ? "Achat…"
+                        : guestBlocked
+                        ? `Se connecter · ${priceLabel(caurisPrice)}`
+                        : `Acheter · ${priceLabel(caurisPrice)}`}
+                    </span>
+                  </button>
+                )}
+                {xafOffer && (
+                  <button
+                    data-nj-skin="none"
+                    type="button"
+                    disabled={(!guestBlocked && blocked) || busy !== null}
+                    className={`${styles.priceBtn} ${styles.priceBtnGold}`}
+                    onClick={() => void run(xafOffer.id, async () => {
+                      const res = await purchase(xafOffer.id);
+                      setSelectedBooster(null);
+                      return res;
+                    })}
+                  >
+                    <span className={styles.btnSheen} aria-hidden="true" />
+                    <span>
+                      {busy === xafOffer.id
+                        ? "Validation…"
+                        : `Acheter · ${xafOffer.prices.map(priceLabel).join(" / ")} (Simulé)`}
+                    </span>
+                  </button>
+                )}
+                {!guestBlocked && ownedCount > 0 && (
+                  <button
+                    data-nj-skin="none"
+                    type="button"
+                    className={styles.detailSecondaryBtn}
+                    onClick={() => {
+                      setSelectedBooster(null);
+                      openCollectionItems();
+                    }}
+                  >
+                    Ouvrir dans Ma collection ({ownedCount} en stock) →
+                  </button>
+                )}
+              </div>
+            );
+          })() : undefined
+        }
+      >
+        {selectedBooster && (
+          <div className={`${styles.detailModalBody}${!loopsOn ? ` ${styles.motionReduced}` : ""}`}>
+            <div
+              className={`${styles.detailHeroStage} ${
+                selectedBooster.id === "exceptionnel"
+                  ? styles.bookGold
+                  : selectedBooster.id === "rare"
+                  ? styles.bookBlue
+                  : styles.bookTeal
+              }`}
+            >
+              <span className={styles.detailRuneRing} aria-hidden="true" />
+              <span className={styles.detailSunburst} aria-hidden="true" />
+              <span className={`${styles.detailSpark} ${styles.sp1}`} aria-hidden="true" />
+              <span className={`${styles.detailSpark} ${styles.sp2}`} aria-hidden="true" />
+              <span className={`${styles.detailSpark} ${styles.sp3}`} aria-hidden="true" />
+              <span className={`${styles.detailSpark} ${styles.sp4}`} aria-hidden="true" />
+
+              <motion.div
+                key={selectedBooster.id}
+                initial={cascadeOn ? { scale: 0.44, y: 20, rotate: -8, opacity: 0 } : false}
+                animate={{ scale: 1, y: 0, rotate: 0, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 270, damping: 18 }}
+                className={styles.detailVisualWrap}
+              >
+                <span className={`${styles.bookBackCard} ${styles.detailBbcLeft}`} aria-hidden="true" />
+                <span className={`${styles.bookBackCard} ${styles.detailBbcRight}`} aria-hidden="true" />
+                <Image
+                  src={boosterBookArt(selectedBooster.id, 256)}
+                  alt={selectedBooster.title}
+                  width={120}
+                  height={120}
+                  className={`${styles.detailHeroImg} ${styles.detailHeroFloat}`}
+                />
+                <span className={styles.detailPedestalDisc} aria-hidden="true" />
+              </motion.div>
+
+              <div className={styles.detailHeroText}>
+                <div className={styles.detailTagsRow}>
+                  <span className={styles.kindTag}>9 cartes face cachée</span>
+                  {!guestBlocked && (
+                    <span className={styles.detailStockLine}>
+                      En stock dans Ma collection : {Number(inventory.boosterBooks?.[selectedBooster.id] ?? 0)}
+                    </span>
+                  )}
+                </div>
+                <p className={styles.detailFullDesc}>
+                  Un grimoire renfermant 9 cartes Pouvoir secrètes. Une fois acheté, ouvre-le depuis Ma collection pour en révéler et garder 1 carte.
+                </p>
+              </div>
+            </div>
+
+            <motion.div
+              initial={cascadeOn ? { opacity: 0, y: 10 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.22, delay: 0.07 }}
+              className={styles.detailDeliveryNote}
+            >
+              <strong>Ouverture différée dans Ma collection</strong>
+              <p>L’achat range ce livre dans Ma collection sans l’ouvrir immédiatement.</p>
+            </motion.div>
+
+            <motion.div
+              initial={cascadeOn ? { opacity: 0, y: 10 } : false}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.24, delay: 0.11 }}
+              className={styles.detailBlock}
+            >
+              <h3>Probabilités par rareté</h3>
+              <div className={styles.rarityBar} aria-hidden="true">
+                {selectedBooster.rarityWeights.map((entry, idx) => (
+                  <motion.span
+                    key={entry.value}
+                    initial={cascadeOn ? { width: "0%" } : false}
+                    animate={{ width: `${entry.weight}%` }}
+                    transition={{ duration: 0.46, delay: 0.12 + idx * 0.06, ease: [0.22, 1, 0.36, 1] }}
+                    className={styles[`bar_${entry.value}`]}
+                  />
+                ))}
+              </div>
+              <div className={styles.oddsList}>
+                {selectedBooster.rarityWeights.map((entry, idx) => (
+                  <motion.div
+                    key={entry.value}
+                    initial={cascadeOn ? { opacity: 0, x: -8 } : false}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ duration: 0.2, delay: 0.14 + idx * 0.04 }}
+                    className={styles.oddsRow}
+                  >
+                    <span>{RARITY_LABELS[entry.value] ?? entry.value}</span>
+                    <strong>{entry.weight} %</strong>
+                  </motion.div>
+                ))}
+              </div>
+              <p className={styles.oddsNote}>
+                Garantie : {RARITY_LABELS[selectedBooster.pity.minimumRarity]} ou mieux au {selectedBooster.pity.threshold}e livre sans obtention.
+                Les doublons sont automatiquement convertis en cauris.
+              </p>
+            </motion.div>
+          </div>
+        )}
+      </GameModal>
+
+      {/* ═══ MODALE DÉTAILS D'UNE CARTE RÉVÉLÉE DE LA GRILLE ═══ */}
+      <GameModal
+        open={selectedGridCard !== null}
+        onClose={() => setSelectedGridCard(null)}
+        size="md"
+        kicker={selectedGridCard ? CATEGORY_MOTIF_PALETTE[selectedGridCard.category].label : ""}
+        title={selectedGridCard?.name ?? ""}
+        tone="gold"
+        footer={
+          <button
+            data-nj-skin="none"
+            type="button"
+            className={styles.spinCta}
+            onClick={() => {
+              setSelectedGridCard(null);
+              setCollectionTab("powers");
+              navigateTo("power_collection");
+            }}
+          >
+            <span className={styles.btnSheen} aria-hidden="true" />
+            <span>Voir dans Ma collection →</span>
+          </button>
+        }
+      >
+        {selectedGridCard && (
+          <div className={styles.revealBox}>
+            <div
+              className={styles.revealStage}
+              style={{ "--rev-tone": CATEGORY_MOTIF_PALETTE[selectedGridCard.category].primary } as CSSProperties}
+            >
+              <span className={styles.revealBurstRays} aria-hidden="true" />
+              <motion.div
+                key={selectedGridCard.id}
+                initial={cascadeOn ? { rotateY: 160, scale: 0.52, opacity: 0 } : false}
+                animate={{ rotateY: 0, scale: 1, opacity: 1 }}
+                transition={{ type: "spring", stiffness: 230, damping: 18 }}
+                className={styles.revealCardFrame}
+              >
+                <PowerCardView card={selectedGridCard} showMeta className={styles.revealCardArtifact} />
+              </motion.div>
+            </div>
+            <strong>{selectedGridCard.name}</strong>
+            <p>{selectedGridCard.description}</p>
+          </div>
+        )}
+      </GameModal>
+
       {/* ═══ MODALE PROBABILITÉS ═══ */}
-      <GameModal open={oddsModal !== null} onClose={() => setOddsModal(null)} kicker={oddsModal?.kicker} title={oddsModal?.title ?? ""} tone="gold">
+      <GameModal open={oddsModal !== null} onClose={() => setOddsModal(null)} size="md" kicker={oddsModal?.kicker} title={oddsModal?.title ?? ""} tone="gold">
         {oddsModal && (
           <div className={styles.oddsList}>
             {oddsModal.rows.map((row, idx) => (
-              <div key={idx} className={styles.oddsRow}>
+              <motion.div
+                key={idx}
+                initial={cascadeOn ? { opacity: 0, x: -8 } : false}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ duration: 0.2, delay: idx * 0.035 }}
+                className={styles.oddsRow}
+              >
                 <span>{row.label}</span>
                 <strong>{row.weight} %</strong>
-              </div>
+              </motion.div>
             ))}
             {oddsModal.note && <p className={styles.oddsNote}>{oddsModal.note}</p>}
           </div>
@@ -1078,6 +1613,8 @@ export function ShopScreen() {
       <GameModal
         open={cardReveal !== null}
         onClose={() => setCardReveal(null)}
+        size="md"
+        className={!loopsOn ? styles.motionReduced : undefined}
         kicker={cardReveal ? (RARITY_LABELS[cardReveal.rarity] ?? cardReveal.rarity) : ""}
         title={cardReveal?.duplicateCompensation ? "Doublon converti !" : "Nouvelle Carte Pouvoir !"}
         tone="gold"
@@ -1124,13 +1661,34 @@ export function ShopScreen() {
       <GameModal
         open={wheelReward !== null}
         onClose={() => setWheelReward(null)}
+        size="md"
+        className={!loopsOn ? styles.motionReduced : undefined}
         kicker="La roue des retrouvailles"
         title="Récompense remportée !"
         tone="gold"
         footer={
-          <button data-nj-skin="none" type="button" className={styles.spinCta} onClick={() => setWheelReward(null)}>
-            <span>Super, merci !</span>
-          </button>
+          wheelReward && wheelReward.type !== "nkap" && wheelReward.type !== "cauris" ? (
+            <div className={styles.detailFooter}>
+              <button
+                data-nj-skin="none"
+                type="button"
+                className={styles.spinCta}
+                onClick={() => {
+                  setWheelReward(null);
+                  openCollectionItems();
+                }}
+              >
+                <span>Voir dans Ma collection →</span>
+              </button>
+              <button data-nj-skin="none" type="button" className={styles.detailSecondaryBtn} onClick={() => setWheelReward(null)}>
+                Fermer
+              </button>
+            </div>
+          ) : (
+            <button data-nj-skin="none" type="button" className={styles.spinCta} onClick={() => setWheelReward(null)}>
+              <span>Super, merci !</span>
+            </button>
+          )
         }
       >
         {wheelReward && (
@@ -1147,7 +1705,11 @@ export function ShopScreen() {
               </motion.div>
             </div>
             <strong>{rewardLabel(wheelReward)}</strong>
-            <p>Ton lot vient d&apos;être ajouté directement à ton coffre royal.</p>
+            <p>
+              {wheelReward.type === "nkap" || wheelReward.type === "cauris"
+                ? "Ton lot vient d’être crédité directement sur ton portefeuille."
+                : "Ton objet a été ajouté à Ma collection — clique dessus quand tu veux l’utiliser ou l’ouvrir !"}
+            </p>
           </div>
         )}
       </GameModal>

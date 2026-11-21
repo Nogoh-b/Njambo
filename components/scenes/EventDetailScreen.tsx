@@ -12,6 +12,8 @@ import { useGame } from "@/contexts/GameContext";
 import { useLiveOpsContent, usePlayerEventRuns } from "@/hooks/useLiveOpsContent";
 import { useMotionProfile, usePageActive } from "@/lib/motion";
 import { EventCountdown } from "@/components/events/EventCountdown";
+import { LoadingGate } from "@/components/ui/LoadingGate";
+import { eventDetailManifest } from "@/lib/assets/manifests";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { GameModal } from "@/components/ui/GameModal";
 import { GameShell } from "@/components/ui/GameShell";
@@ -71,7 +73,7 @@ export function EventDetailScreen({
     stage0?: { title: string; playerCount: number },
   ) => void;
 }) {
-  const { navigateTo, eventDetailId, eventReturn, setEventReturn } = useGame();
+  const { navigateTo, eventDetailId, eventReturn, setEventReturn, cfg } = useGame();
   const gxeSfx = useSfx();
   const { user } = useAuth();
   const { economy, inventory, loading: economyLoading, command, refresh: refreshEconomy } = useEconomy();
@@ -465,7 +467,10 @@ export function EventDetailScreen({
   const themeClass = isPvp ? styles.themeTeal : styles.themeGold;
   const mapBgStyle = { "--event-art": `url(${art})` } as CSSProperties;
 
+  /* Porte de chargement : l'illustration (fond CSS, donc hors next/image)
+     et les avatars de boss sont prêts avant l'affichage du parcours. */
   return (
+    <LoadingGate key={`${event.eventId}:${event.revision}:${event.imageUrl ?? ""}`} name="event_detail" title="Ouverture du Ter" maxWaitMs={6000} manifest={() => eventDetailManifest(event)}>
     <GameShell
       active="events"
       dock={false}
@@ -806,9 +811,8 @@ export function EventDetailScreen({
                   {inspectedStage.modifiers.includes("double_stake") && (
                     <span className={`${styles.specPill} ${styles.specRule}`}>×2 Mise doublée</span>
                   )}
-                  {inspectedStage.modifiers.includes("turn_timer") && (
-                    <span className={`${styles.specPill} ${styles.specRule}`}>⏱ {inspectedStage.turnTimerSeconds ?? 15} s par tour</span>
-                  )}
+                  <span className={`${styles.specPill} ${styles.specRule}`}>⏱ {inspectedStage.modifiers.includes("turn_timer") ? inspectedStage.turnTimerSeconds ?? cfg.turnSeconds : cfg.turnSeconds} s par tour</span>
+                  <span className={styles.specPill}>{inspectedStage.matchCount ?? 1} manche(s)</span>
                   {event.seasonId && inspectedStage.seasonPoints > 0 && (
                     <span className={`${styles.specPill} ${styles.specGold}`}>🏵️ +{inspectedStage.seasonPoints} pts de saison</span>
                   )}
@@ -976,5 +980,6 @@ export function EventDetailScreen({
         </AuthGate>
       </GameModal>
     </GameShell>
+    </LoadingGate>
   );
 }

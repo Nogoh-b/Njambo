@@ -31,7 +31,7 @@ function hasArrayContains(target: SubscribeTarget, field: string, value: unknown
 }
 
 const PUBLISHED_COLLECTIONS = new Set([
-  "catalog_items", "offers", "reward_tables", "booster_definitions", "events", "event_versions", "cosmetics", "seasons", "power_catalog",
+  "catalog_items", "offers", "reward_tables", "booster_definitions", "events", "event_versions", "cosmetics", "seasons", "power_catalog", "anim_catalog",
 ]);
 
 const publishedOnly: AuthzDecision = { kind: "filter", predicate: (data) => data.published === true };
@@ -116,6 +116,10 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
     case "notification_campaigns":
     case "power_cards":
     case "power_card_versions":
+    case "anim_motifs":
+    case "anim_motif_versions":
+    case "anim_moments":
+    case "sealed_packs":
     case "admin_audit":
       return auth.admin ? { kind: "allow" } : { kind: "deny" };
     default:

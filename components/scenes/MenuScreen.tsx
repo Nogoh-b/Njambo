@@ -295,7 +295,8 @@ function ModeChipButton({
 }
 
 export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenProps) {
-  const { profile, navigateTo } = useGame();
+  const { profile, navigateTo, cfg, setCollectionTab } = useGame();
+  const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const motionProfile = useMotionProfile();
   const pageActive = usePageActive();
   const motionMode = resolveHomeMotionMode(motionProfile.enabled, motionProfile.level);
@@ -347,8 +348,8 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
     const raw = profile.equippedPowers ?? [];
     return raw
       .filter((id) => Boolean(POWER_CARDS_BY_ID[id]) && owned.has(id))
-      .slice(0, MAX_EQUIPPED_POWERS).length;
-  }, [inventory.powerCards, profile.equippedPowers]);
+      .slice(0, powerLimit).length;
+  }, [inventory.powerCards, profile.equippedPowers, powerLimit]);
 
   const level = getPlayerLevel(displayProfile.stats, displayProfile.balance);
   const bonusReady = !!economy && economy.daily.lastClaimDay !== doualaDayKey();
@@ -624,7 +625,10 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
             data-nj-skin="none"
             type="button"
             className={`${styles.jewelTile} ${styles.enamelPurple}`}
-            onClick={() => openLink("power_collection")}
+            onClick={() => {
+              setCollectionTab("powers");
+              openLink("power_collection");
+            }}
             onPointerEnter={() => preloadScene("power_collection")}
             aria-label="Ouvrir mes cartes Pouvoir"
           >
@@ -634,11 +638,11 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
             </span>
             <span className={styles.tileMeta}>
               <strong>Pouvoirs</strong>
-              <small>{equippedPowerCount > 0 ? `${equippedPowerCount}/${MAX_EQUIPPED_POWERS} prêts` : "Mon deck"}</small>
+              <small>{equippedPowerCount > 0 ? `${equippedPowerCount}/${powerLimit} prêts` : "Mon deck"}</small>
             </span>
             {equippedPowerCount > 0 && (
               <span className={styles.deckMiniTag} aria-hidden="true">
-                {equippedPowerCount}/{MAX_EQUIPPED_POWERS}
+                {equippedPowerCount}/{powerLimit}
               </span>
             )}
           </button>

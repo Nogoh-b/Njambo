@@ -13,6 +13,7 @@ import {
 import { useAudioMute, useMusic } from "@gxe/react";
 import { AMBIENT_PENTA } from "@/lib/gxeSfx";
 import { GAME_CONFIG } from "@/config/gameConfig";
+import { useGameplayConfig } from "@/hooks/useGameplayConfig";
 import { STARTING_CAURIS } from "@/config/powerCards";
 import { DEV, devEquippedPowers } from "@/config/devConfig";
 import type { Profile, SceneName, SocialTarget } from "@/types/game";
@@ -118,6 +119,10 @@ interface GameContextValue {
   eventReturn: EventReturnSnapshot | null;
   setEventReturn: (snapshot: EventReturnSnapshot | null) => void;
 
+  /** Onglet actif à l'ouverture de l'écran Collection ("powers" ou "items"). */
+  collectionTab: "powers" | "items";
+  setCollectionTab: (tab: "powers" | "items") => void;
+
   /* Profil joueur */
   profile: Profile;
   setProfile: (p: Profile | ((prev: Profile) => Profile)) => void;
@@ -194,13 +199,15 @@ function storeProfile(p: Profile) {
 }
 
 export function GameProvider({ children }: { children: ReactNode }) {
-  const cfg = GAME_CONFIG;
+  const { config: gameplay } = useGameplayConfig();
+  const cfg = useMemo(() => ({ ...GAME_CONFIG, ...gameplay }), [gameplay]);
   const [scene, setScene] = useState<SceneName>("menu");
   const [transitioning, setTransitioning] = useState(false);
   const [profile, setProfileRaw] = useState<Profile>(() => applyDevProfile(loadStoredProfile()));
   const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>({});
   const [eventDetailId, setEventDetailIdRaw] = useState<string | null>(null);
   const [eventReturn, setEventReturn] = useState<EventReturnSnapshot | null>(null);
+  const [collectionTab, setCollectionTab] = useState<"powers" | "items">("powers");
   const [musicOn, setMusicOn] = useState(false);
   const [sfxOn, setSfxOn] = useState(true);
 
@@ -407,10 +414,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
     scene, transitioning, navigateTo, goBack, registerBackInterceptor, endTransition,
     socialTarget, setSocialTarget,
     eventDetailId, setEventDetailId, eventReturn, setEventReturn,
+    collectionTab, setCollectionTab,
     profile, setProfile, musicOn, setMusicOn, sfxOn, setSfxOn, cfg,
   }), [
     scene, transitioning, navigateTo, goBack, registerBackInterceptor, endTransition,
     socialTarget, setSocialTarget, eventDetailId, setEventDetailId, eventReturn,
+    collectionTab,
     profile, setProfile, musicOn, sfxOn, cfg,
   ]);
 

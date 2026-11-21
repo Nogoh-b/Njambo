@@ -3,6 +3,7 @@
 import Image from "next/image";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
+import { countStoredCollectionItems } from "@/domain";
 import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
@@ -40,7 +41,8 @@ const ZERO_STATS: PlayerStats = { played: 0, won: 0, bestWin: 0 };
 export function ProfileScreen() {
   const [collectionOpen, setCollectionOpen] = useState(false);
   const myCosmetics = useMyCosmetics();
-  const { profile, setProfile, navigateTo } = useGame();
+  const { profile, setProfile, navigateTo, setCollectionTab, cfg } = useGame();
+  const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const { user, updateUserProfile, updateAgeBand, logout } = useAuth();
   const { economy, rank, inventory } = useEconomy();
   const motionProfile = useMotionProfile();
@@ -81,6 +83,8 @@ export function ProfileScreen() {
   const energyAvail = economy?.energy.available ?? 100;
   const energyPct = economy?.energy.unlimited ? 100 : Math.max(0, Math.min(100, energyAvail));
 
+  const storedObjects = useMemo(() => countStoredCollectionItems(inventory), [inventory]);
+
   const equippedPowers = useMemo(() => {
     const owned = !isGuest
       ? new Set(Object.keys(inventory.cards ?? {}))
@@ -88,8 +92,8 @@ export function ProfileScreen() {
     const raw = !isGuest
       ? ((inventory.equippedCards ?? []) as PowerCardId[])
       : (profile.equippedPowers ?? []);
-    return raw.filter((id) => owned.has(id) && Boolean(POWER_CARDS_BY_ID[id])).slice(0, MAX_EQUIPPED_POWERS);
-  }, [isGuest, inventory.cards, inventory.equippedCards, profile.powerInventory, profile.equippedPowers]);
+    return raw.filter((id) => owned.has(id) && Boolean(POWER_CARDS_BY_ID[id])).slice(0, powerLimit);
+  }, [isGuest, inventory.cards, inventory.equippedCards, profile.powerInventory, profile.equippedPowers, powerLimit]);
 
   const saveProfile = async (next: typeof profile) => {
     setProfile(next);
@@ -293,15 +297,18 @@ export function ProfileScreen() {
               data-nj-skin="none"
               type="button"
               className={styles.cardDeckTray}
-              onClick={() => navigateTo("power_collection")}
-              aria-label={`Mon deck actif : ${equippedPowers.length} cartes pouvoir sur ${MAX_EQUIPPED_POWERS}`}
+              onClick={() => {
+                setCollectionTab("powers");
+                navigateTo("power_collection");
+              }}
+              aria-label={`Mon deck actif : ${equippedPowers.length} cartes pouvoir sur ${powerLimit}`}
             >
               <div className={styles.deckTrayLeft}>
                 <small>Deck équipé</small>
-                <strong>{equippedPowers.length}/{MAX_EQUIPPED_POWERS} pouvoirs</strong>
+                <strong>{equippedPowers.length}/{powerLimit} pouvoirs</strong>
               </div>
               <div className={styles.deckMiniFan} aria-hidden="true">
-                {Array.from({ length: MAX_EQUIPPED_POWERS }, (_, i) => {
+                {Array.from({ length: Math.min(3, powerLimit) }, (_, i) => {
                   const id = equippedPowers[i];
                   const def = id ? POWER_CARDS_BY_ID[id] : null;
                   const pal = def ? CATEGORY_MOTIF_PALETTE[def.category] : null;
@@ -341,18 +348,24 @@ export function ProfileScreen() {
               </div>
             </button>
 
-            {/* Cosmétiques gagnés en événement (phase 5) */}
+            {/* Objets récupérés & cosmétiques (Ma collection) */}
             {!isGuest && (
               <button
                 data-nj-skin="none"
                 type="button"
                 className={styles.cardDeckTray}
                 onClick={() => setCollectionOpen(true)}
-                aria-label="Ma collection de cosmétiques"
+                aria-label="Ma collection d'objets et cosmétiques"
               >
                 <div className={styles.deckTrayLeft}>
                   <small>Ma collection</small>
-                  <strong>{myCosmetics.title ? `« ${myCosmetics.title.name} »` : "Cadres, badges, titres"}</strong>
+                  <strong>
+                    {storedObjects.total > 0
+                      ? `${storedObjects.total} objet${storedObjects.total > 1 ? "s" : ""} prêt${storedObjects.total > 1 ? "s" : ""}${myCosmetics.title ? ` · « ${myCosmetics.title.name} »` : ""}`
+                      : myCosmetics.title
+                      ? `« ${myCosmetics.title.name} »`
+                      : "Objets, packs & cosmétiques"}
+                  </strong>
                 </div>
                 <span aria-hidden="true" style={{ fontSize: 22 }}>✨</span>
               </button>
@@ -625,9 +638,9 @@ export function ProfileScreen() {
         </div>
       </GameModal>
 
-      {/* ═══ MODALE COLLECTION DE COSMÉTIQUES (phase 5) ═══ */}
-      <GameModal open={collectionOpen} onClose={() => setCollectionOpen(false)} kicker="Récompenses d’événements" title="Ma collection" tone="gold">
-        {collectionOpen && <CosmeticCollection />}
+      {/* ═══ MODALE MA COLLECTION (Objets récupérés + Cosmétiques) ═══ */}
+      <GameModal open={collectionOpen} onClose={() => setCollectionOpen(false)} kicker="Objets & cosmétiques" title="Ma collection" tone="gold" size="lg">
+        {collectionOpen && <CosmeticCollection onClose={() => setCollectionOpen(false)} />}
       </GameModal>
 
       {/* ═══ MODALE CONNEXION / SAUVEGARDER LE COMPTE ═══ */}

@@ -410,6 +410,7 @@ function StagesTab({ event, setStages, patchStage, errorFor }: {
                 </select>
               </Field>
               <Field label="Mise (Nkap)" error={err("stakeNkap")}><input type="number" min={0} value={stage.stakeNkap} onChange={(e) => patchStage(index, { stakeNkap: int(e.target.value) })} /></Field>
+              <Field label="Manches complètes" error={err("matchCount")} hint={`Série pour cette table de ${stage.playerCount} joueurs · mise engagée une seule fois`}><input type="number" min={1} max={20} value={stage.matchCount ?? 1} onChange={(e) => patchStage(index, { matchCount: int(e.target.value) })} /></Field>
               <Field label="Points de saison" error={err("seasonPoints")} hint={event.seasonId ? "Crédités si la table est gagnée" : "Rattachez une saison (Général)"}><input type="number" min={0} value={stage.seasonPoints} onChange={(e) => patchStage(index, { seasonPoints: int(e.target.value) })} /></Field>
             </div>
             <div className={styles.row} style={{ margin: "10px 0" }}>
@@ -422,11 +423,15 @@ function StagesTab({ event, setStages, patchStage, errorFor }: {
             <h3>Règles spéciales &amp; boss <span className={styles.hint}>(phase 4)</span></h3>
             <div className={styles.row}>
               {EVENT_MODIFIERS.map((modifier) => (
-                <Check key={modifier} checked={stage.modifiers.includes(modifier)} onChange={(on) => patchStage(index, { modifiers: on ? [...stage.modifiers, modifier] : stage.modifiers.filter((m) => m !== modifier) })}>{MODIFIER_LABELS[modifier]}</Check>
+                <Check key={modifier} checked={stage.modifiers.includes(modifier)} onChange={(on) => patchStage(index, {
+                  modifiers: on ? [...stage.modifiers, modifier] : stage.modifiers.filter((m) => m !== modifier),
+                  // Le minuteur coché doit porter une valeur enregistrée (sinon la validation échoue).
+                  ...(modifier === "turn_timer" && on && stage.turnTimerSeconds === undefined ? { turnTimerSeconds: 20 } : {}),
+                })}>{MODIFIER_LABELS[modifier]}</Check>
               ))}
             </div>
             {stage.modifiers.includes("turn_timer") && (
-              <Field label="Secondes par tour" error={err("turnTimerSeconds")}><input type="number" min={5} max={120} value={stage.turnTimerSeconds ?? 20} onChange={(e) => patchStage(index, { turnTimerSeconds: int(e.target.value) })} /></Field>
+              <Field label="Secondes par tour" error={err("turnTimerSeconds")} hint="5 à 120 s · sinon le réglage général des parties s’applique"><input type="number" min={5} max={120} value={stage.turnTimerSeconds ?? 20} onChange={(e) => patchStage(index, { turnTimerSeconds: int(e.target.value) })} /></Field>
             )}
             <div style={{ marginTop: 10 }}>
               <Check checked={Boolean(stage.boss)} onChange={(on) => patchStage(index, { boss: on ? { name: "Le Patriarche", botLevel: 4 } : undefined })}>Table de boss</Check>

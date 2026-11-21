@@ -287,6 +287,9 @@ export function ResultScreen({
         <p id={summaryId} className={styles.gainDetail}>
           {summaryText}
         </p>
+        {result.series && result.series.total > 1 && <p className={styles.gainDetail}>
+          Série de {result.series.total} manches · {result.players?.map((player, index) => `${player.isYou ? "Toi" : player.name} : ${result.series!.scores[index] ?? 0}`).join(" · ")}
+        </p>}
 
         {!win.isYou && (result.refund ?? 0) > 0 && (
           <div className={styles.refund}>

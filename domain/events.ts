@@ -29,6 +29,8 @@ export interface EventStage {
   /** Phase 4 — règles spéciales de la table. */
   modifiers: EventStageModifier[];
   turnTimerSeconds?: number;
+  /** Nombre de manches complètes à jouer pour remporter cette table. */
+  matchCount?: number;
   boss?: EventBoss;
   /** Phase 6 — points de saison gagnés en validant la table. */
   seasonPoints: number;

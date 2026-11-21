@@ -49,18 +49,12 @@ describe("budgets d'animation partagés", () => {
     expect(MOTION_DURATION_MS.flip).toBeLessThanOrEqual(700);
   });
 
-  it("conserve les durées synchronisées prévues", () => {
-    expect(GAME_CONFIG.anim).toMatchObject({
-      navigation: 250,
-      roundIntro: 1200,
-      dealPerCard: 80,
-      dealFlight: 420,
-      dropFlight: 380,
-      landSettle: 140,
-      trickPause: 950,
-      moment: 1100,
-      powerMax: 1600,
-    });
+  it("laisse lire les coups IA dans le budget du plus court tour", () => {
+    const anim = GAME_CONFIG.anim;
+    expect(anim.replayBotThinkMin).toBeGreaterThanOrEqual(500);
+    expect(anim.replayBotThinkMax).toBeGreaterThanOrEqual(anim.replayBotThinkMin);
+    expect(anim.botAfterPlay).toBeGreaterThanOrEqual(250);
+    expect(anim.replayBotThinkMax + anim.dropFlight + anim.landSettle + anim.botAfterPlay + anim.trickPause).toBeLessThan(5000);
   });
 
   it("borne les caches du service worker", () => {

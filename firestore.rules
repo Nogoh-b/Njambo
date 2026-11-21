@@ -254,6 +254,12 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    match /sealed_packs/{packId} {
+      // Contient les récompenses figées d'un pack scellé : jamais lisible par le client avant ouverture.
+      allow read: if admin();
+      allow write: if false;
+    }
+
     match /daily_rotations/{day}/players/{uid} {
       allow read: if owner(uid) || admin();
       allow write: if false;
@@ -281,6 +287,10 @@ service cloud.firestore {
     match /seasons/{id} { allow read: if resource.data.published == true; allow write: if false; }
     match /power_catalog/{id} { allow read: if resource.data.published == true; allow write: if false; }
     match /power_cards/{id} { allow read: if admin(); allow write: if false; }
+    match /anim_catalog/{id} { allow read: if resource.data.published == true; allow write: if false; }
+    match /anim_motifs/{id} { allow read: if admin(); allow write: if false; }
+    match /anim_motif_versions/{id} { allow read: if admin(); allow write: if false; }
+    match /anim_moments/{id} { allow read: if admin(); allow write: if false; }
     match /power_card_versions/{id} { allow read: if admin(); allow write: if false; }
 
     match /admin_drafts/{draftId} {

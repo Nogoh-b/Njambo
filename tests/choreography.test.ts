@@ -73,3 +73,42 @@ describe("sons des cartes", () => {
     expect(isSoundRef("javascript:alert(1)")).toBe(false);
   });
 });
+
+describe("pistes « modèle » (atelier d'animations)", () => {
+  const motifTrack = (patch: Record<string, unknown> = {}) => ({ id: "m1", kind: "motif", startMs: 0, durationMs: 760, motifId: "hand_give", cards: "resolved:outgoing", mode: "move", ...patch });
+
+  it("accepte un modèle connu, avec ou sans surcharges, et calcule sa durée", async () => {
+    const { motifOfTrack } = await import("../engine/power/choreography");
+    const choreo = { tracks: [
+      motifTrack({ overrides: { from: { zone: "hand", player: "target" }, to: { zone: "hand", player: "self" } } }),
+      { id: "fx", kind: "element", startMs: 300, durationMs: 400, target: { element: "card", trackId: "m1" }, effect: "glow" },
+      motifTrack({ id: "m2", startMs: 100, durationMs: 600, motifId: "center_add", cards: "ghost", mode: "display" }),
+    ] };
+    expect(validateChoreography(choreo, "c")).toEqual([]);
+    const resolved = motifOfTrack(choreo.tracks[0] as never);
+    expect(resolved?.from).toEqual({ zone: "hand", player: "target" });
+    expect(resolved?.durationMs).toBe(760);
+    // center_add : 3 cartes (décalage 170 ms) + onde de 520 ms à chaque arrivée.
+    expect(choreographyDuration(choreo as Choreography)).toBe(100 + 2 * 170 + 600 + 520);
+  });
+
+  it("refuse modèle inconnu, carte fantôme en déplacement réel et surcharges invalides", () => {
+    expect(paths({ tracks: [
+      motifTrack({ motifId: "inconnu" }),
+      motifTrack({ id: "m2", cards: "ghost", mode: "move" }),
+      motifTrack({ id: "m3", overrides: { from: { zone: "lune" }, staggerMs: -5 } }),
+      motifTrack({ id: "m4", durationMs: 5_000 }),
+    ] })).toEqual([
+      "c.tracks.0.motifId",
+      "c.tracks.1.mode",
+      "c.tracks.2.overrides.from", "c.tracks.2.overrides.staggerMs",
+      "c.tracks.3.overrides.durationMs",
+    ]);
+  });
+
+  it("refuse un modèle qui déborde des 8 s, décalages et réactions compris", () => {
+    expect(paths({ tracks: [motifTrack({ startMs: 7_500 })] })).toEqual(["c.tracks.0.durationMs"]);
+    // Le vol tient (7 + 0,6 s) mais pas les 3 cartes décalées ni les ondes d'arrivée.
+    expect(paths({ tracks: [motifTrack({ startMs: 7_000, durationMs: 600, motifId: "center_add", cards: "ghost", mode: "display" })] })).toEqual(["c.tracks.0.durationMs"]);
+  });
+});

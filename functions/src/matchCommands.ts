@@ -1,4 +1,5 @@
 import { randomInt } from "node:crypto";
+import { matchCountFor, normalizeGameplayConfig, seriesWinner } from "../../domain/gameplayConfig";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { crownWinGain, displayCosmetics, isPerfectRun, normalizeSeason, readPlayerCosmetics, seasonPointsFor, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, stageMatchRules, type EnergyState, type EventLeaderboardEntry, type PlayerCosmetics, type Reward, type ServerBotDifficulty, type StageMatchRules } from "../../domain";
 import { applyReward, asObject, boundedNumber, db, economyFrom, integer, ledger, requireUid, requiredString, runIdempotent, stableId } from "./core";
@@ -19,8 +20,10 @@ type Suit = "♥" | "♦" | "♣" | "♠";
 interface ServerCard { id: string; suit: Suit; value: number; rank: string; color: string }
 export interface MatchParticipant { uid: string; name: string; emoji: string; bot: boolean; crowns: number; boss?: boolean; avatarUrl?: string; cosmetics?: PlayerCosmetics }
 
-/** Règles propres à une table d'événement (phase 4), stockées sur le match. */
+/** Règles figées au lancement de la table, communes aux quatre modes. */
 export interface MatchTableRules {
+  matchCount: number;
+  maxEquippedPowers: number;
   powersDisabled: boolean;
   turnSeconds: number;
   botDifficulty: ServerBotDifficulty;
@@ -48,6 +51,7 @@ export interface MatchSettlementEntry {
 }
 interface MatchPlay { uid: string; card: ServerCard; turnId: string }
 export interface MatchDocument {
+  series?: { round: number; total: number; winners: string[] };
   status: string;
   mode: MatchMode;
   rules?: MatchTableRules | null;
@@ -117,9 +121,9 @@ function matchCost(mode: MatchMode) {
    affiché — clamp(deadline − now, 0, turnSeconds) — est ainsi synchrone entre
    tous les clients, reste plein pendant le replay/la donne, et atteint 0 au
    moment où le worker d'auto-play peut tirer (matchTimeouts.ts, grâce courte).
-   COUPLÉ à GAME_CONFIG.anim (replayBotThinkMax + dropFlight + landSettle ;
+   COUPLÉ à GAME_CONFIG.anim (replayBotThinkMax + dropFlight + landSettle + botAfterPlay ;
    trickPause ; dealPerCard/dealFlight) — config/gameConfig.ts. */
-const PLAY_ANIM_MS = GAME_CONFIG.anim.replayBotThinkMax + GAME_CONFIG.anim.dropFlight + GAME_CONFIG.anim.landSettle;
+const PLAY_ANIM_MS = GAME_CONFIG.anim.replayBotThinkMax + GAME_CONFIG.anim.dropFlight + GAME_CONFIG.anim.landSettle + GAME_CONFIG.anim.botAfterPlay;
 const TRICK_PAUSE_MS = GAME_CONFIG.anim.trickPause;
 const SERVER_DELIVERY_MARGIN_MS = 2_000;
 /** Miroir de la fenêtre "dealing" client (AuthoritativeGameSync.beginDealingWindow). */
@@ -222,6 +226,7 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
   const eventRunId = typeof data.eventRunId === "string" ? data.eventRunId : undefined;
   let matchId = stableId(uid, "match", String(data.idempotencyKey)).slice(0, 40);
   return runIdempotent(uid, "startMatch", data.idempotencyKey, async (transaction, now) => {
+    const gameplay = normalizeGameplayConfig((await transaction.get(db.doc("runtime_config/gameplay"))).data());
     let participants: MatchParticipant[] = [];
     let eventRunRefs: DocumentReference[] = [];
     let eventRunSnaps: DocumentSnapshot[] = [];
@@ -261,7 +266,7 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
       const stageIndex = Number(ownRunSnap.get("stageIndex") ?? 0);
       const stage = version.stages[stageIndex];
       if (!stage) throw new HttpsError("failed-precondition", "EVENT_STAGE_NOT_FOUND");
-      tableRules = stageMatchRules(stage, GAME_CONFIG.turnSeconds);
+      tableRules = stageMatchRules(stage, gameplay.turnSeconds);
       eventStake = tableRules.stakeNkap;
       eventRanked = stage.crownsEnabled === true;
       if (version.mode === "pve") {
@@ -389,9 +394,10 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     const powersDisabled = tableRules?.powersDisabled === true;
     const equippedByUid = new Map(realParticipants.map((participant, index) => [
       participant.uid,
-      powersDisabled ? [] : devPowerBypass ? allPowerIds : ((inventorySnaps[index].get("equippedCards") ?? []) as PowerCardId[]).filter((id) => getPowerModule(id)),
+      powersDisabled ? [] : devPowerBypass ? allPowerIds : [...new Set((inventorySnaps[index].get("equippedCards") ?? []) as PowerCardId[])].filter((id) => getPowerModule(id)).slice(0, gameplay.maxEquippedPowers),
     ]));
-    const turnSeconds = tableRules?.turnSeconds ?? GAME_CONFIG.turnSeconds;
+    const turnSeconds = tableRules?.turnSeconds ?? gameplay.turnSeconds;
+    const matchCount = tableRules?.matchCount ?? matchCountFor(gameplay, mode === "event" ? "bot" : mode, participants.length);
 
     const deck = secureDeck();
     const hands = new Map<string, ServerCard[]>();
@@ -399,16 +405,19 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     const turnId = stableId(matchId, "turn", "0").slice(0, 24);
     const match = {
       id: matchId, mode, roomId: roomId ?? null, eventRunId: eventRunId ?? null, eventRunIds,
+      series: { round: 1, total: matchCount, winners: [] as string[] },
       ranked: mode === "online" || eventRanked,
       status: "playing", participants, participantUids: realParticipants.map((participant) => participant.uid),
       stakeNkap: stake, energyCost, potNkap: mode === "bot" ? stake * participants.length : stake * realParticipants.length,
       leaderIndex: 0, turnIndex: 0, trickNumber: 0, trickPlays: [], deposits: {},
       handCounts: Object.fromEntries(participants.map((participant) => [participant.uid, 5])),
       turnId, turnStartedAt: now, actionDeadlineAt: now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(participants.length) + turnSeconds * 1_000,
-      ...(tableRules ? { rules: {
-        powersDisabled, turnSeconds, botDifficulty: tableRules.botDifficulty, modifiers: tableRules.modifiers,
-        boss: tableRules.boss ? { name: tableRules.boss.name, botLevel: tableRules.boss.botLevel, avatarUrl: tableRules.boss.avatarUrl ?? null } : null,
-      } } : {}),
+      rules: {
+        powersDisabled, turnSeconds, matchCount, maxEquippedPowers: gameplay.maxEquippedPowers,
+        botDifficulty: tableRules?.botDifficulty ?? (data.difficulty === "easy" || data.difficulty === "hard" ? data.difficulty : "normal"),
+        modifiers: tableRules?.modifiers ?? [],
+        boss: tableRules?.boss ? { name: tableRules.boss.name, botLevel: tableRules.boss.botLevel, avatarUrl: tableRules.boss.avatarUrl ?? null } : null,
+      },
       missedTurns: Object.fromEntries(realParticipants.map((participant) => [participant.uid, 0])),
       result: null, settlementId: null, createdAt: now, updatedAt: now,
     };
@@ -422,6 +431,7 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
       uid: participant.uid,
       hand: hands.get(participant.uid),
       equippedPowers: equippedByUid.get(participant.uid) ?? [],
+      round: 1,
       updatedAt: now,
     }));
     // Pioche restante + état moteur des cartes pouvoir — doc privé illisible
@@ -654,6 +664,12 @@ export async function performGameAction(
       while (!finished && participants[turnIndex].bot) play(participants[turnIndex], null, true, "random");
     }
 
+    const roundFinished = finished;
+    const previousSeries = match.series ?? { round: 1, total: 1, winners: [] };
+    const series = { ...previousSeries, winners: roundFinished ? [...previousSeries.winners, participants[finalWinnerIndex].uid] : previousSeries.winners };
+    const activeUids = participants.filter((participant) => !eliminated.has(participant.uid)).map((participant) => participant.uid);
+    finished = roundFinished && (series.round >= series.total || activeUids.length <= 1);
+    if (finished) finalWinnerIndex = participants.findIndex((participant) => participant.uid === seriesWinner(series.winners, activeUids));
     const handCounts = Object.fromEntries(participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0]));
     const nextTurnId = stableId(matchId, "turn", String(trickNumber), String(actions.length), String(now)).slice(0, 24);
     const result = finished ? {
@@ -908,10 +924,10 @@ export async function performGameAction(
     // coups, le décompte affiché (clampé à turnSeconds) reste plein.
     const animBudget = actions.length * PLAY_ANIM_MS + completedTricks * TRICK_PAUSE_MS;
     const update = {
-      turnIndex, leaderIndex, trickNumber, trickPlays, deposits, handCounts, potNkap: pot,
+      turnIndex, leaderIndex, trickNumber, trickPlays, deposits, handCounts, potNkap: pot, series,
       eliminatedUids: [...eliminated],
       turnId: nextTurnId, turnStartedAt: now, actionDeadlineAt: now + SERVER_DELIVERY_MARGIN_MS + animBudget + nextTurnSeconds * 1_000,
-      status: finished ? "settled" : "playing", result,
+      status: finished ? "settled" : roundFinished ? "between_rounds" : "playing", result,
       recentActions: actions.map((action, index) => ({ ...action, playId: stableId(opts.actionSeed, String(index)).slice(0, 32) })),
       ...(missedTurns ? { missedTurns } : {}),
       settlementId: finished ? stableId("settlement", matchId) : null, updatedAt: now,
@@ -936,6 +952,49 @@ export async function reconnectMatchHandler(request: CallableRequest<unknown>) {
   return publicState(matchId, matchSnap.data() ?? {}, privateSnap.get("hand") ?? [], privateSnap.get("equippedPowers") ?? []);
 }
 
+/** Nouvelle distribution dans la même table : ni nouvelle mise, ni nouvelle énergie. */
+export async function advanceMatchRound(transaction: Transaction, now: number, matchId: string, match: MatchDocument) {
+  if (match.status !== "between_rounds") return;
+  const series = match.series;
+  if (!series || series.round >= series.total) return;
+  const engine = await loadEngineState(transaction, matchId);
+  const deck = secureDeck();
+  const eliminated = new Set(match.eliminatedUids ?? []);
+  const active = match.participants.filter((participant) => !eliminated.has(participant.uid));
+  const hands = new Map(active.map((participant) => [participant.uid, deck.splice(0, GAME_CONFIG.cardsPerPlayer)]));
+  const previousWinner = match.participants.findIndex((participant) => participant.uid === series.winners.at(-1));
+  let leaderIndex = (previousWinner + 1) % match.participants.length;
+  // Un humain ouvre ; les bots suivants sont enchaînés par performGameAction.
+  while (eliminated.has(match.participants[leaderIndex].uid) || match.participants[leaderIndex].bot) leaderIndex = (leaderIndex + 1) % match.participants.length;
+  const update = {
+    status: "playing", series: { ...series, round: series.round + 1 },
+    leaderIndex, turnIndex: leaderIndex, trickNumber: 0, trickPlays: [], deposits: {},
+    handCounts: Object.fromEntries(match.participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0])),
+    turnId: stableId(matchId, "round", String(series.round + 1)).slice(0, 24),
+    turnStartedAt: now,
+    actionDeadlineAt: now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(active.length) + matchTurnSeconds(match) * 1000,
+    recentActions: [], recentPowerActivations: [], result: null, updatedAt: now,
+  };
+  transaction.update(db.doc(`matches/${matchId}`), update);
+  for (const participant of match.participants) transaction.set(db.doc(`matches/${matchId}/private/${participant.uid}`), { hand: hands.get(participant.uid) ?? [], round: series.round + 1, updatedAt: now }, { merge: true });
+  persistEngineState(transaction, matchId, { ...engine, deck: deck as EngineCard[], effects: [], runtime: {} }, now);
+}
+
+export async function advanceMatchRoundHandler(request: CallableRequest<unknown>) {
+  const uid = requireUid(request);
+  const data = asObject(request.data);
+  const matchId = requiredString(data, "matchId", 96);
+  const round = integer(data, "round", 1, 20);
+  return runIdempotent(uid, "advanceMatchRound", data.idempotencyKey, async (transaction, now) => {
+    const snap = await transaction.get(db.doc(`matches/${matchId}`));
+    if (!snap.exists || !(snap.get("participantUids") ?? []).includes(uid)) throw new HttpsError("not-found", "MATCH_NOT_FOUND");
+    const match = snap.data() as MatchDocument;
+    if ((match.eliminatedUids ?? []).includes(uid)) throw new HttpsError("permission-denied", "PLAYER_ELIMINATED");
+    if (match.series?.round === round) await advanceMatchRound(transaction, now, matchId, match);
+    return { matchId };
+  });
+}
+
 export async function abandonMatchHandler(request: CallableRequest<unknown>) {
   const uid = requireUid(request);
   const data = asObject(request.data);
@@ -944,7 +1003,7 @@ export async function abandonMatchHandler(request: CallableRequest<unknown>) {
     const matchRef = db.doc(`matches/${matchId}`);
     const matchSnap = await transaction.get(matchRef);
     if (!matchSnap.exists || !(matchSnap.get("participantUids") ?? []).includes(uid)) throw new HttpsError("not-found", "MATCH_NOT_FOUND");
-    if (matchSnap.get("status") !== "playing") return { matchId, status: matchSnap.get("status") };
+    if (!["playing", "between_rounds"].includes(String(matchSnap.get("status")))) return { matchId, status: matchSnap.get("status") };
     const match = matchSnap.data() as MatchDocument;
     const participants = match.participants as MatchParticipant[];
     const alreadyEliminated = new Set<string>(match.eliminatedUids ?? []);
@@ -953,7 +1012,7 @@ export async function abandonMatchHandler(request: CallableRequest<unknown>) {
     const eventRunIds = (matchSnap.get("eventRunIds") ?? {}) as Record<string, string>;
     const eventRunId = eventRunIds[uid] ?? matchSnap.get("eventRunId");
     const isEvent = matchSnap.get("mode") === "event";
-    if (isEvent) {
+    if (isEvent || match.mode === "bot") {
       let runRef: DocumentReference | null = null;
       let runSnap: DocumentSnapshot | null = null;
       if (eventRunId) {

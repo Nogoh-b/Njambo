@@ -9,6 +9,8 @@
 import { getPowerModule, listPowerModules } from "../../config/powers/registry";
 import type { PowerCardId } from "../../types/game";
 import { eventArt } from "../eventArt";
+import { rewardVisual } from "../eventRewards";
+import type { Reward } from "../../domain";
 import { audioAsset, imageAsset, type AssetRef } from "./AssetLoader";
 
 export interface AssetManifest { critical: AssetRef[]; background: AssetRef[] }
@@ -73,7 +75,7 @@ export function tableManifest(input: TableManifestInput = {}): AssetManifest {
   }
   const background: Array<AssetRef | null> = [];
   for (const cosmetics of input.participants ?? []) {
-    background.push(imageAsset(cosmetics?.avatarFrame?.imageUrl), imageAsset(cosmetics?.badge?.imageUrl));
+    critical.push(imageAsset(cosmetics?.avatarFrame?.imageUrl), imageAsset(cosmetics?.badge?.imageUrl), imageAsset(cosmetics?.cardBack?.imageUrl));
   }
   background.push(...catalogPowerAssets());
   return { critical: critical.filter(Boolean) as AssetRef[], background: background.filter(Boolean) as AssetRef[] };
@@ -111,9 +113,20 @@ export function eventsManifest(events: Array<{ imageUrl?: string | null }> = [])
   };
 }
 
-/** Détail d'un événement : son illustration plein format. */
-export function eventDetailManifest(event: { imageUrl?: string | null } | null | undefined): AssetManifest {
-  return { critical: [imageAsset(eventArt(event).src)!], background: [] };
+type EventLike = {
+  imageUrl?: string | null;
+  stages?: Array<{ boss?: { avatarUrl?: string }; reward?: Reward[] }>;
+  finalReward?: Reward[];
+} | null | undefined;
+
+/** Visuels visibles du parcours et de l'introduction des boss. */
+export function eventDetailManifest(event: EventLike): AssetManifest {
+  const stages = event?.stages ?? [];
+  const critical: Array<AssetRef | null> = [imageAsset(eventArt(event).src)];
+  for (const stage of stages) critical.push(imageAsset(stage.boss?.avatarUrl));
+  const rewards = [...stages.flatMap((stage) => stage.reward ?? []), ...(event?.finalReward ?? [])];
+  critical.push(...rewards.map((reward) => imageAsset(rewardVisual(reward).src)));
+  return { critical: critical.filter(Boolean) as AssetRef[], background: [] };
 }
 
 /** Manifeste statique d'une scène de navigation (pour la porte et le préchargement d'approche). */

@@ -9,6 +9,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOnlinePlayers } from "@/hooks/useOnlinePlayers";
 import { BOTS, NKAP } from "@/data/mock";
 import { MAX_EQUIPPED_POWERS, POWER_CARDS_BY_ID } from "@/config/powerCards";
+import { matchCountFor } from "@/domain/gameplayConfig";
 import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { AvatarIllustration, NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
@@ -130,6 +131,7 @@ function seatPositionsForCount(opponents: number): SeatSlotPos[] {
 
 export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaScreenProps) {
   const { navigateTo, cfg, profile } = useGame();
+  const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const { user } = useAuth();
   const { economy, inventory: serverInventory } = useEconomy();
   const {
@@ -209,8 +211,8 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
     const raw = !isGuest
       ? ((serverInventory.equippedCards ?? []) as PowerCardId[])
       : (profile.equippedPowers ?? []);
-    return raw.filter((id) => owned.has(id) && Boolean(POWER_CARDS_BY_ID[id])).slice(0, MAX_EQUIPPED_POWERS);
-  }, [isGuest, serverInventory.cards, serverInventory.equippedCards, profile.powerInventory, profile.equippedPowers]);
+    return raw.filter((id) => owned.has(id) && Boolean(POWER_CARDS_BY_ID[id])).slice(0, powerLimit);
+  }, [isGuest, serverInventory.cards, serverInventory.equippedCards, profile.powerInventory, profile.equippedPowers, powerLimit]);
 
   /* Liste d'amis invités pour prévisualisation dans les sièges de la table */
   const invitedProfiles = useMemo<PublicPlayerProfile[]>(() => {
@@ -613,7 +615,7 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
                   <small>
                     {botTraining
                       ? "Gratuit · Sans énergie"
-                      : `${requiredEnergy} énergie / manche`}
+                      : `${requiredEnergy} énergie / table`}
                   </small>
                 </div>
               </div>
@@ -625,10 +627,10 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
               type="button"
               className={styles.powerHandDock}
               onClick={() => navigateTo("power_collection")}
-              aria-label={`Cartes pouvoir équipées : ${equippedPowers.length} sur ${MAX_EQUIPPED_POWERS}. Ouvrir mon deck`}
+              aria-label={`Cartes pouvoir équipées : ${equippedPowers.length} sur ${powerLimit}. Ouvrir mon deck`}
             >
               <div className={styles.powerMiniFan} aria-hidden="true">
-                {Array.from({ length: MAX_EQUIPPED_POWERS }, (_, slotIdx) => {
+                {Array.from({ length: Math.min(3, powerLimit) }, (_, slotIdx) => {
                   const id = equippedPowers[slotIdx];
                   const def = id ? POWER_CARDS_BY_ID[id] : null;
                   const pal = def ? CATEGORY_MOTIF_PALETTE[def.category] : null;
@@ -668,7 +670,7 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
               </div>
               <div className={styles.powerDockCopy}>
                 <small>Deck</small>
-                <strong>{equippedPowers.length}/{MAX_EQUIPPED_POWERS}</strong>
+                <strong>{equippedPowers.length}/{powerLimit}</strong>
               </div>
             </button>
           </div>
@@ -734,6 +736,7 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
               </span>
             </div>
 
+            <p>{matchCountFor(cfg, mode, seats)} manche(s) · {cfg.turnSeconds} s par tour{!botTraining && " · mise pour toute la table"}</p>
             {botTraining ? (
               <div className={styles.guestFreePlaque} role="status">
                 <span className={styles.guestFreeIcon}>
@@ -753,7 +756,7 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
                 </button>
               </div>
             ) : (
-              <div className={styles.pokerChipTray} role="radiogroup" aria-label="Mise par manche">
+              <div className={styles.pokerChipTray} role="radiogroup" aria-label="Mise par table">
                 {cfg.stakes.map((stake, idx) => {
                   const active = mise === stake;
                   const short = !isGuest && nkap < stake;

@@ -13,6 +13,7 @@ export interface StageMatchRules {
   botDifficulty: ServerBotDifficulty;
   modifiers: EventStageModifier[];
   boss: EventBoss | null;
+  matchCount: number;
 }
 
 /** Niveau de boss 1-5 → IA : 1-2 facile, 3 normale, 4-5 difficile. */
@@ -25,7 +26,7 @@ const STAGE_DIFFICULTY: Record<EventStage["difficulty"], ServerBotDifficulty> = 
 };
 
 export function stageMatchRules(
-  stage: Pick<EventStage, "stakeNkap" | "powersAllowed" | "modifiers" | "turnTimerSeconds" | "difficulty" | "boss">,
+  stage: Pick<EventStage, "stakeNkap" | "powersAllowed" | "modifiers" | "turnTimerSeconds" | "difficulty" | "boss" | "matchCount">,
   defaultTurnSeconds: number,
 ): StageMatchRules {
   const modifiers = stage.modifiers ?? [];
@@ -36,6 +37,7 @@ export function stageMatchRules(
     botDifficulty: stage.boss ? difficultyForBotLevel(stage.boss.botLevel) : STAGE_DIFFICULTY[stage.difficulty] ?? "normal",
     modifiers,
     boss: stage.boss ?? null,
+    matchCount: stage.matchCount ?? 1,
   };
 }
 

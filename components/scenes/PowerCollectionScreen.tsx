@@ -12,6 +12,7 @@ import {
   type TouchEvent as ReactTouchEvent,
 } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import { countStoredCollectionItems } from "@/domain";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useAuth } from "@/hooks/useAuth";
@@ -22,6 +23,7 @@ import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/Power
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { GameShell } from "@/components/ui/GameShell";
 import { GameModal } from "@/components/ui/GameModal";
+import { CollectionItems } from "./CollectionItems";
 import type { PowerCardDef, PowerCardId, PowerCategory, PowerRarity } from "@/types/game";
 import styles from "./PowerCollectionScreen.module.css";
 
@@ -65,13 +67,15 @@ const FILTERS: Array<{ id: BinderFilter; label: string }> = [
   { id: "economy", label: "Nkap" },
 ];
 
-const ROMAN_SLOTS = ["I", "II", "III"] as const;
+const ROMAN_SLOTS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"] as const;
 
 export function PowerCollectionScreen() {
-  const { navigateTo, profile, setProfile } = useGame();
+  const { navigateTo, profile, setProfile, cfg, collectionTab, setCollectionTab } = useGame();
+  const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const { user } = useAuth();
-  const { inventory: serverInventory, command } = useEconomy();
+  const { inventory: serverInventory, command, pendingBoosterOpening } = useEconomy();
   const motionProfile = useMotionProfile();
+  const storedObjects = useMemo(() => countStoredCollectionItems(serverInventory), [serverInventory]);
 
   const [filter, setFilter] = useState<BinderFilter>("all");
   const [selectedId, setSelectedId] = useState<PowerCardId>(() => POWER_CARDS[0]?.id ?? "eclair_mfoundi");
@@ -106,13 +110,13 @@ export function PowerCollectionScreen() {
     [permanentAccount, serverInventory.cards, profile.powerInventory],
   );
 
-  const rawEquipped = permanentAccount
+  const rawEquipped = useMemo(() => permanentAccount
     ? ((serverInventory.equippedCards ?? []) as PowerCardId[])
-    : (profile.equippedPowers ?? []);
+    : (profile.equippedPowers ?? []), [permanentAccount, serverInventory.equippedCards, profile.equippedPowers]);
 
   const equipped = useMemo(
-    () => rawEquipped.filter((cardId) => (inventory[cardId] ?? 0) > 0).slice(0, MAX_EQUIPPED_POWERS),
-    [rawEquipped, inventory],
+    () => rawEquipped.filter((cardId) => (inventory[cardId] ?? 0) > 0).slice(0, powerLimit),
+    [rawEquipped, inventory, powerLimit],
   );
 
   /* Catalogue dynamique : cartes proposées + cartes archivées que le joueur
@@ -158,26 +162,26 @@ export function PowerCollectionScreen() {
 
   const commitEquipped = useCallback(
     (next: PowerCardId[]) => {
-      const unique = Array.from(new Set(next)).slice(0, MAX_EQUIPPED_POWERS);
+      const unique = Array.from(new Set(next)).slice(0, powerLimit);
       if (permanentAccount) {
         void command("equipPowerCards", { cardIds: unique });
         return;
       }
       setProfile((prev) => ({ ...prev, equippedPowers: unique }));
     },
-    [permanentAccount, command, setProfile],
+    [permanentAccount, command, setProfile, powerLimit],
   );
 
   const dropCardIntoSlot = useCallback(
     (cardId: PowerCardId, targetSlot: number, sourceSlot?: number) => {
-      if ((inventory[cardId] ?? 0) <= 0) return;
+      if ((inventory[cardId] ?? 0) <= 0 || targetSlot < 0 || targetSlot >= powerLimit) return;
       const slots: Array<PowerCardId | null> = Array.from(
-        { length: MAX_EQUIPPED_POWERS },
+        { length: powerLimit },
         (_, i) => equipped[i] ?? null,
       );
 
       const existingIdx = sourceSlot ?? slots.indexOf(cardId);
-      if (existingIdx >= 0 && existingIdx < MAX_EQUIPPED_POWERS) {
+      if (existingIdx >= 0 && existingIdx < powerLimit) {
         if (existingIdx === targetSlot) return;
         const swapped = slots[targetSlot];
         slots[targetSlot] = cardId;
@@ -190,7 +194,7 @@ export function PowerCollectionScreen() {
       commitEquipped(compacted);
       triggerSnapFx(Math.min(targetSlot, Math.max(0, compacted.length - 1)));
     },
-    [inventory, equipped, commitEquipped, triggerSnapFx],
+    [inventory, equipped, commitEquipped, triggerSnapFx, powerLimit],
   );
 
   const removeCardFromDeck = useCallback(
@@ -204,26 +208,27 @@ export function PowerCollectionScreen() {
   const toggleEquip = useCallback(
     (id: PowerCardId) => {
       if ((inventory[id] ?? 0) <= 0) return;
+      if (powerLimit === 0) { showNotice("Les pouvoirs sont désactivés pour les prochaines parties."); return; }
       if (equipped.includes(id)) {
         removeCardFromDeck(id);
         return;
       }
-      if (equipped.length >= MAX_EQUIPPED_POWERS) {
-        dropCardIntoSlot(id, MAX_EQUIPPED_POWERS - 1);
-        showNotice("Emplacement III remplacé dans ton deck !");
+      if (equipped.length >= powerLimit) {
+        dropCardIntoSlot(id, powerLimit - 1);
+        showNotice(`Emplacement ${ROMAN_SLOTS[powerLimit - 1]} remplacé dans ton deck !`);
         return;
       }
       const nextSlot = equipped.length;
       commitEquipped([...equipped, id]);
       triggerSnapFx(nextSlot);
     },
-    [inventory, equipped, removeCardFromDeck, dropCardIntoSlot, showNotice, commitEquipped, triggerSnapFx],
+    [inventory, equipped, removeCardFromDeck, dropCardIntoSlot, showNotice, commitEquipped, triggerSnapFx, powerLimit],
   );
 
   /* ── HIT-TEST MAGNÉTIQUE DES 3 EMPLACEMENTS ── */
   const findHoveredSlot = useCallback((clientX: number, clientY: number): number | null => {
     const pad = 22;
-    for (let i = 0; i < MAX_EQUIPPED_POWERS; i++) {
+    for (let i = 0; i < powerLimit; i++) {
       const el = slotRefs.current[i];
       if (!el) continue;
       const rect = el.getBoundingClientRect();
@@ -237,7 +242,7 @@ export function PowerCollectionScreen() {
       }
     }
     return null;
-  }, []);
+  }, [powerLimit]);
 
   const isInsideTray = useCallback((clientX: number, clientY: number): boolean => {
     const el = trayRef.current;
@@ -515,14 +520,18 @@ export function PowerCollectionScreen() {
             <span className={styles.backLabel}>Salon</span>
           </button>
           <div className={styles.hudCopy}>
-            <span className={styles.hudKicker}>Grimoire Ndop · {ownedCount}/{collectionCards.length}</span>
-            <h1>Cartes Pouvoir</h1>
+            <span className={styles.hudKicker}>
+              {collectionTab === "items"
+                ? `Coffre personnel · ${storedObjects.total} objet${storedObjects.total > 1 ? "s" : ""}`
+                : `Grimoire Ndop · ${ownedCount}/${collectionCards.length}`}
+            </span>
+            <h1>Ma collection</h1>
           </div>
         </div>
 
         <div className={styles.hudRight}>
-          <span className={styles.deckCounter} aria-label={`${equipped.length} cartes équipées sur ${MAX_EQUIPPED_POWERS}`}>
-            Deck <strong>{equipped.length}/{MAX_EQUIPPED_POWERS}</strong>
+          <span className={styles.deckCounter} aria-label={`${equipped.length} cartes équipées sur ${powerLimit}`}>
+            Deck <strong>{equipped.length}/{powerLimit}</strong>
           </span>
           <button
             data-nj-skin="none"
@@ -535,6 +544,36 @@ export function PowerCollectionScreen() {
           </button>
         </div>
       </header>
+
+      {/* Sélecteur Cartes Pouvoir / Mes objets récupérés */}
+      <nav className={styles.collectionModeBar} role="tablist" aria-label="Rayons de ma collection">
+        <button
+          data-nj-skin="none"
+          type="button"
+          role="tab"
+          aria-selected={collectionTab === "powers"}
+          className={`${styles.collectionModeBtn}${collectionTab === "powers" ? ` ${styles.collectionModeActive}` : ""}`}
+          onClick={() => setCollectionTab("powers")}
+        >
+          <NjamboIcon name="cards" tone="cobalt" size={16} />
+          <span>Cartes Pouvoir</span>
+          <span className={styles.modeCount}>{ownedCount}/{collectionCards.length}</span>
+        </button>
+        <button
+          data-nj-skin="none"
+          type="button"
+          role="tab"
+          aria-selected={collectionTab === "items"}
+          className={`${styles.collectionModeBtn}${collectionTab === "items" ? ` ${styles.collectionModeActive}` : ""}`}
+          onClick={() => setCollectionTab("items")}
+        >
+          <NjamboIcon name="sparkle" tone="gold" size={16} />
+          <span>Mes objets</span>
+          <span className={`${styles.modeCount}${storedObjects.total > 0 || pendingBoosterOpening ? ` ${styles.modeCountLive}` : ""}`}>
+            {storedObjects.total}
+          </span>
+        </button>
+      </nav>
 
       {/* Notification rapide */}
       <AnimatePresence>
@@ -552,8 +591,15 @@ export function PowerCollectionScreen() {
         )}
       </AnimatePresence>
 
-      {/* ═══ 2. WORKSPACE DECK BUILDER ═══ */}
-      <div className={styles.builderGrid}>
+      {/* ═══ 2. WORKSPACE : MES OBJETS OU DECK BUILDER ═══ */}
+      {collectionTab === "items" ? (
+        <section className={styles.itemsWorkspace} aria-label="Mes objets récupérés">
+          <CollectionItems />
+        </section>
+      ) : (
+        <>
+          {powerLimit === 0 && <p role="status">Les cartes pouvoir sont désactivées pour les prochaines parties.</p>}
+          <div className={styles.builderGrid}>
         {/* ─── PLATEAU DECK 3 EMPLACEMENTS PROPORTIONNÉS + INSPECTEUR 3D ─── */}
         <aside className={styles.deckColumn} aria-label="Plateau de deck actif">
           <div
@@ -565,7 +611,7 @@ export function PowerCollectionScreen() {
             <div className={styles.trayHeader}>
               <div className={styles.trayHeading}>
                 <span className={styles.trayKicker}>Deck de table</span>
-                <strong>{equipped.length}/{MAX_EQUIPPED_POWERS}</strong>
+                <strong>{equipped.length}/{powerLimit}</strong>
               </div>
               <span className={styles.dragTip}>
                 {isDraggingActive
@@ -580,7 +626,7 @@ export function PowerCollectionScreen() {
 
             {/* 3 emplacements en vraie proportion de carte (3 / 4.25), centrés sans jamais s'écraser */}
             <div className={styles.deckSlotsRow}>
-              {Array.from({ length: MAX_EQUIPPED_POWERS }, (_, slotIdx) => {
+              {Array.from({ length: powerLimit }, (_, slotIdx) => {
                 const cardId = equipped[slotIdx];
                 const card = cardId ? POWER_CARDS_BY_ID[cardId] : undefined;
                 const cardPal = card ? CATEGORY_MOTIF_PALETTE[card.category] : null;
@@ -750,7 +796,7 @@ export function PowerCollectionScreen() {
                   <span>
                     {inspectedEquipped
                       ? "Retirer du deck"
-                      : equipped.length >= MAX_EQUIPPED_POWERS
+                      : equipped.length >= powerLimit
                       ? "Équiper (remplace slot III)"
                       : "Équiper dans mon deck"}
                   </span>
@@ -936,6 +982,8 @@ export function PowerCollectionScreen() {
           </div>
         </section>
       </div>
+        </>
+      )}
 
       {/* ═══ 3. CARTE FANTÔME PENDANT DRAG & DROP (SOURIS + MOBILE) ═══ */}
       {drag?.active && (
@@ -982,7 +1030,7 @@ export function PowerCollectionScreen() {
               <span>
                 {inspectedEquipped
                   ? "Retirer du deck"
-                  : equipped.length >= MAX_EQUIPPED_POWERS
+                  : equipped.length >= powerLimit
                   ? "Équiper (remplace slot III)"
                   : "Équiper dans mon deck"}
               </span>

@@ -34,6 +34,7 @@ echo "▶ Nouveau commit : $(git rev-parse --short HEAD)"
 
 build_and_reload() {
   echo "▶ Installation + build (functions/ + server/)…"
+  npm run install:server
   npm run build:server
   echo "▶ Rechargement PM2…"
   if pm2 describe njambo-server >/dev/null 2>&1; then

@@ -20,6 +20,12 @@
       "port": 8081
     },
     {
+      "name": "atelier",
+      "runtimeExecutable": "python",
+      "runtimeArgs": ["-m", "http.server", "5310", "--bind", "127.0.0.1"],
+      "port": 5310
+    },
+    {
       "name": "gxe-example",
       "runtimeExecutable": "corepack",
       "runtimeArgs": [

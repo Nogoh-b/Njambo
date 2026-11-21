@@ -22,7 +22,7 @@ import { getPowerModule } from "@/config/powers";
 import { FUNCTIONAL_CUES } from "@/engine/power/choreography";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
-import { playChoreography, type ChoreoCards } from "@/components/power/choreo/playChoreography";
+import { moveSourceUi, playChoreography, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
 import type { PowerModule } from "@/engine/power/types";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { T } from "@/config/theme";
@@ -204,7 +204,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     if (!activation.used) return; // sans effet → pas de cues
 
     const hasStatefulFlight = powerModule.script.steps.some((step) => step.choreo
-      ? step.choreo.tracks.some((track) => track.kind === "cardPath" && track.mode === "move")
+      ? step.choreo.tracks.some((track) => (track.kind === "cardPath" || track.kind === "motif") && track.mode === "move")
       : (step.anim ?? []).some((cue) => cue.cue === "flyCards" && cue.mode === "move"));
     // Les vols `move` sont fonctionnels : même le profil lite doit les jouer,
     // avec FlyingCard sans traînée/effets coûteux. Seul le toggle global ou la
@@ -363,7 +363,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     const beats = script.beats ?? {};
     const movingCueCount = script.steps.reduce(
       (count, step) => count + (step.choreo
-        ? step.choreo.tracks.filter((track) => track.kind === "cardPath" && track.mode === "move").length
+        ? step.choreo.tracks.filter((track) => (track.kind === "cardPath" || track.kind === "motif") && track.mode === "move").length
         : (step.anim ?? []).filter((cue) => cue.cue === "flyCards" && cue.mode === "move").length),
       0,
     );
@@ -549,7 +549,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         if (step.choreo && choreoLayerRef.current) {
           const layer = choreoLayerRef.current;
           const asCards = (ref: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight"): ChoreoCards => cardsOf(ref);
-          await playChoreography({
+          const choreoCtx: ChoreoContext = {
             registry: d.registry,
             layer,
             resolveRefUi,
@@ -567,9 +567,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
             motionEnabled: d.motionEnabled,
             lite: d.liteMotion,
             onMoveStart: (track, cards) => {
-              const first = track.waypoints[0]?.at;
-              if (!first || first.kind !== "zone" || first.zone !== "hand") return;
-              const sourceUi = resolveRefUi(first.player)[0];
+              const sourceUi = moveSourceUi(choreoCtx, track);
+              if (sourceUi == null) return;
               const hidden = hiddenHands.get(sourceUi) ?? new Set<number>();
               cards.ids.forEach((cardId, index) => {
                 const idx = cards.fromIndexes[index]
@@ -583,7 +582,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
               }
             },
             onMoveEnd: () => { movingCuesDone += 1; },
-          }, step.choreo, fillPlaceholders);
+          };
+          await playChoreography(choreoCtx, step.choreo, fillPlaceholders);
           if (movingCuesDone >= movingCueCount) await commitTransition();
         }
         if (beats.stepGapMs) await sleep(beats.stepGapMs);

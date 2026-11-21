@@ -80,7 +80,7 @@ export interface Profile {
   cauris?: number;
   /** Inventaire des cartes pouvoir (cardId → quantité) */
   powerInventory?: PowerCardInventory;
-  /** Cartes pouvoir équipées pour la prochaine partie (max 3) */
+  /** Cartes pouvoir équipées pour la prochaine partie (limite définie en régie). */
   equippedPowers?: PowerCardId[];
 }
 
@@ -413,6 +413,7 @@ export interface ResultSettlementEntry {
 
 /** Résultat complet exposé à l'UI (gagnant + gain + infos de la victoire). */
 export type Result = (InstantWinCore | LastTrickWinCore) & {
+  series?: { total: number; scores: number[] };
   winner: Player;
   gain: number;
   playersCount: number;
@@ -566,6 +567,8 @@ export interface TakeoverRequestDoc {
 
 /** État synchronisé du jeu (consommé par TableScreen) */
 export interface GameState {
+  turnStartSeconds?: number;
+  series?: { round: number; total: number; scores: number[]; lastWinnerName?: string };
   phase: Phase;
   trickNo: number;
   trickPlays: TrickPlay[];
@@ -620,6 +623,8 @@ export interface SyncStatus {
 }
 
 export interface GameConfig {
+  maxEquippedPowers: number;
+  matchesByMode: import("../domain/gameplayConfig").GameplayConfig["matchesByMode"];
   ranks: { min: number; max: number };
   suits: Suit[];
   cardsPerPlayer: number;
@@ -652,6 +657,8 @@ export interface GameConfig {
     /** Replay serveur : « réflexion » simulée avant un coup adverse (ms). */
     replayBotThinkMin: number;
     replayBotThinkMax: number;
+    /** Pause après l'atterrissage de la carte d'une IA (ms). */
+    botAfterPlay: number;
   };
   economy: {
     /** Montant du bonus quotidien (F) */

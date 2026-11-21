@@ -1,13 +1,9 @@
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import os from "node:os";
+import path from "node:path";
 import process from "node:process";
 
 const root = process.cwd();
-const npmCli = process.env.npm_execpath;
-
-if (!npmCli) {
-  throw new Error("npm_execpath absent : lance ce script avec `npm run dev`.");
-}
 
 function printMobileWifiUrls() {
   const nets = os.networkInterfaces();
@@ -23,14 +19,29 @@ function printMobileWifiUrls() {
 
 printMobileWifiUrls();
 
+/* Le backend tourne depuis server/dist (code compilé) : sans recompilation, une
+   commande ajoutée côté serveur reste inconnue (404 UNKNOWN_COMMAND) jusqu'au
+   prochain redémarrage. On compile donc au démarrage, puis tsc --watch
+   recompile à chaque modification et node --watch relance le backend. */
+const serverDir = path.join(root, "server");
+const tsc = path.join(serverDir, "node_modules/typescript/bin/tsc");
+console.log("\n🔧 Compilation du backend (server/dist)…");
+const build = spawnSync(process.execPath, [tsc, "-p", "tsconfig.json"], { cwd: serverDir, stdio: "inherit", windowsHide: true });
+if (build.status !== 0) console.warn("⚠️  Le backend a des erreurs de compilation : la dernière version compilée est utilisée en attendant.");
+
 const processes = [
   spawn(process.execPath, ["node_modules/next/dist/bin/next", "dev"], {
     cwd: root,
     stdio: "inherit",
     windowsHide: true,
   }),
-  spawn(process.execPath, [npmCli, "--prefix", "server", "run", "dev"], {
-    cwd: root,
+  spawn(process.execPath, [tsc, "-p", "tsconfig.json", "--watch", "--preserveWatchOutput"], {
+    cwd: serverDir,
+    stdio: "inherit",
+    windowsHide: true,
+  }),
+  spawn(process.execPath, ["--watch", "--env-file=.env", "dist/server/src/index.js"], {
+    cwd: serverDir,
     stdio: "inherit",
     windowsHide: true,
   }),
@@ -42,7 +53,17 @@ function stop(exitCode = 0) {
   if (stopping) return;
   stopping = true;
   for (const child of processes) {
-    if (!child.killed) child.kill();
+    if (!child.pid || child.exitCode !== null || child.signalCode !== null) continue;
+    if (process.platform === "win32") {
+      // Next.js starts workers; killing only its parent leaves ports occupied.
+      const result = spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], {
+        stdio: "ignore",
+        windowsHide: true,
+      });
+      if (result.error || result.status !== 0) child.kill();
+    } else {
+      child.kill();
+    }
   }
   process.exitCode = exitCode;
 }

@@ -576,3 +576,19 @@
   .trickDots { gap: 3px; }
   .capsulePot { font-size: 11px; }
 }
+.seriesScore {
+  position: absolute;
+  top: max(74px, 12%);
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 55;
+  max-width: 90%;
+  padding: 6px 12px;
+  border-radius: 12px;
+  background: rgba(18, 25, 31, .88);
+  color: #fff2cf;
+  text-align: center;
+  font-size: 11px;
+  pointer-events: none;
+}
+.seriesScore span { display: block; margin-top: 3px; }

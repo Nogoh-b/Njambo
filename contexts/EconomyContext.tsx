@@ -2,7 +2,7 @@
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from "react";
 import { doc, onSnapshot } from "@/lib/firestoreClient";
-import { calculateEnergy, rankTier, type PlayerEconomy } from "@/domain";
+import { calculateEnergy, rankTier, type PlayerEconomy, type StoredPack } from "@/domain";
 import { generateSecureId } from "@/lib/cryptoUtils";
 import { db } from "@/lib/firebase";
 import { backendCallable } from "@/lib/backendCallable";
@@ -27,6 +27,8 @@ export interface InventoryState {
   tickets?: Partial<Record<"bronze" | "argent" | "or", number>>;
   cards?: Record<string, { unlockedAt?: number; rarity?: string }>;
   boosterBooks?: Record<string, number>;
+  energyPasses?: Record<string, number>;
+  packs?: StoredPack[];
   equippedCards?: string[];
   [key: string]: unknown;
 }
@@ -36,6 +38,7 @@ interface EconomyContextValue {
   inventory: InventoryState;
   rank: PlayerRank;
   pendingBoosterOpening: { openingId: string; boosterId: string; positions: number[] } | null;
+  clearPendingBoosterOpening: () => void;
   loading: boolean;
   error: string | null;
   refresh: () => Promise<void>;
@@ -59,9 +62,36 @@ export function EconomyProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const clearPendingBoosterOpening = useCallback(() => setPendingBoosterOpening(null), []);
+
   const command = useCallback(async <T,>(name: string, payload: Record<string, unknown> = {}) => {
     const call = backendCallable<Record<string, unknown>, T>(name);
     const result = await call({ ...payload, idempotencyKey: payload.idempotencyKey ?? idempotencyKey(name) });
+    const data = result.data as Record<string, unknown> | null | undefined;
+    if (name === "chooseBoosterCard") setPendingBoosterOpening(null);
+    if (name === "openBoosterBook" && data && typeof data.openingId === "string" && data.status === "awaiting_choice") {
+      setPendingBoosterOpening({
+        openingId: data.openingId,
+        boosterId: String(payload.boosterId ?? ""),
+        positions: Array.isArray(data.positions) ? (data.positions as number[]) : Array.from({ length: 9 }, (_, i) => i),
+      });
+    }
+    if (data && typeof data === "object") {
+      const maybeEco = data.economy as Record<string, unknown> | undefined;
+      if (
+        maybeEco &&
+        typeof maybeEco === "object" &&
+        "nkap" in maybeEco &&
+        maybeEco.energy &&
+        typeof maybeEco.energy === "object" &&
+        "available" in (maybeEco.energy as object)
+      ) {
+        setEconomy(maybeEco as unknown as PublicEconomy);
+      }
+      if (data.inventory && typeof data.inventory === "object") {
+        setInventory(data.inventory as InventoryState);
+      }
+    }
     return result.data;
   }, []);
 
@@ -113,7 +143,10 @@ export function EconomyProvider({ children }: { children: ReactNode }) {
     return () => clearInterval(timer);
   }, [rawEnergy]);
 
-  const value = useMemo(() => ({ economy, inventory, rank, pendingBoosterOpening, loading, error, refresh, command }), [economy, inventory, rank, pendingBoosterOpening, loading, error, refresh, command]);
+  const value = useMemo(
+    () => ({ economy, inventory, rank, pendingBoosterOpening, clearPendingBoosterOpening, loading, error, refresh, command }),
+    [economy, inventory, rank, pendingBoosterOpening, clearPendingBoosterOpening, loading, error, refresh, command],
+  );
   return (
     <EconomyContext.Provider value={value}>
       <InventoryContext.Provider value={inventory}>{children}</InventoryContext.Provider>

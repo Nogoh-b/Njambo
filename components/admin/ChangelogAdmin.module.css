@@ -1,0 +1,306 @@
+/* Section Nouveautés scindée (Côté Admin | Côté App) — Régie du Ter */
+
+.kpiAdmin {
+  border-color: rgba(242, 187, 69, 0.45);
+}
+
+.kpiAdmin strong {
+  color: var(--gold);
+}
+
+.kpiApp {
+  border-color: rgba(69, 214, 181, 0.42);
+}
+
+.kpiApp strong {
+  color: #45d6b5;
+}
+
+.dateKpi {
+  font-size: 18px !important;
+  line-height: 1.3;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 14px;
+}
+
+.filterGroup {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.searchWrap {
+  flex: 1 1 220px;
+  max-width: 320px;
+}
+
+.searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #0c0906;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.searchInput:focus {
+  outline: 2px solid #f2bb4566;
+  border-color: var(--gold);
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.splitGrid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.singleGrid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.column {
+  border-radius: 16px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  padding: 16px;
+  display: grid;
+  gap: 14px;
+}
+
+.colAdmin {
+  border-top: 3px solid var(--gold);
+}
+
+.colApp {
+  border-top: 3px solid #45d6b5;
+}
+
+.colHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+.colKicker {
+  display: block;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+
+.colAdmin .colKicker {
+  color: var(--gold);
+}
+
+.colApp .colKicker {
+  color: #45d6b5;
+}
+
+.colHead h2 {
+  margin: 0;
+  font-size: 19px;
+  font-weight: 900;
+  color: var(--ink);
+}
+
+.colHead p {
+  margin: 4px 0 0;
+  color: var(--muted);
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.colCount {
+  flex: 0 0 auto;
+  min-width: 34px;
+  height: 34px;
+  padding: 0 10px;
+  border-radius: 999px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 900;
+  font-variant-numeric: tabular-nums;
+}
+
+.colAdmin .colCount {
+  background: rgba(242, 187, 69, 0.16);
+  border: 1px solid rgba(242, 187, 69, 0.48);
+  color: var(--gold);
+}
+
+.colApp .colCount {
+  background: rgba(69, 214, 181, 0.15);
+  border: 1px solid rgba(69, 214, 181, 0.46);
+  color: #45d6b5;
+}
+
+.cardList {
+  display: grid;
+  gap: 12px;
+}
+
+.entryCard {
+  border-radius: 13px;
+  border: 1px solid #2e2216;
+  background: var(--panel-2);
+  padding: 14px;
+  display: grid;
+  gap: 9px;
+  transition: border-color 140ms ease;
+}
+
+.colAdmin .entryCard:hover {
+  border-color: rgba(242, 187, 69, 0.5);
+}
+
+.colApp .entryCard:hover {
+  border-color: rgba(69, 214, 181, 0.5);
+}
+
+.entryTop {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.entryTags {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+}
+
+.st_new {
+  background: rgba(242, 187, 69, 0.22);
+  border: 1px solid rgba(242, 187, 69, 0.65);
+  color: #ffe08a;
+}
+
+.st_live {
+  background: rgba(111, 211, 154, 0.18);
+  border: 1px solid rgba(111, 211, 154, 0.45);
+  color: var(--ok);
+}
+
+.st_wip {
+  background: rgba(122, 184, 255, 0.16);
+  border: 1px solid rgba(122, 184, 255, 0.45);
+  color: var(--info);
+}
+
+.categoryPill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #0c0906;
+  border: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.entryDate {
+  color: var(--faint);
+  font-size: 11.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.entryTitle {
+  margin: 0;
+  font-size: 15.5px;
+  font-weight: 850;
+  color: var(--ink);
+  line-height: 1.25;
+}
+
+.entrySummary {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.highlightList {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 5px;
+  color: #dfd0b6;
+  font-size: 12.5px;
+  line-height: 1.42;
+}
+
+.colAdmin .highlightList li::marker {
+  color: var(--gold);
+}
+
+.colApp .highlightList li::marker {
+  color: #45d6b5;
+}
+
+.entryFoot {
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  display: flex;
+  justify-content: flex-end;
+}
+
+.emptyCol {
+  padding: 28px 16px;
+  border-radius: 12px;
+  border: 1px dashed var(--line);
+  text-align: center;
+  color: var(--faint);
+  font-size: 13px;
+}
+
+@media (max-width: 980px) {
+  .splitGrid {
+    grid-template-columns: 1fr;
+  }
+}

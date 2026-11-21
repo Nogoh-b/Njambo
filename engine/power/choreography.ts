@@ -13,6 +13,8 @@
      durée en ms, et peut se superposer aux autres.
    Un client ancien qui ne connaît pas un effet l'ignore (lecture tolérante). */
 
+import { motifTotalMs, validateMotif } from "../anim/motif";
+import { getMotif, resolveMotif, type MotifOverrides } from "../anim/registry";
 import type { PlayerRef, PowerFxPreset, PowerFxTone } from "./types";
 
 /* ─────────────── Repères ─────────────── */
@@ -125,7 +127,23 @@ export type ChoreoTrack =
       /** Identifiant de son (phase D) : upload ou son du jeu. */
       sound: string;
       volume?: number;
+    })
+  | (TrackBase & {
+      /** Modèle de l'atelier d'animations (phase G). `durationMs` = durée du vol d'UNE carte. */
+      kind: "motif";
+      motifId: string;
+      cards: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight" | "ghost";
+      mode: "move" | "display";
+      /** Réglages du modèle remplacés pour cette carte (départ, arrivée, pistes, réactions…). */
+      overrides?: MotifOverrides;
     });
+
+export type MotifTrack = ChoreoTrack & { kind: "motif" };
+
+/** Modèle d'une piste « motif », surcharges et durée de la piste appliquées. */
+export function motifOfTrack(track: MotifTrack) {
+  return resolveMotif(track.motifId, { ...track.overrides, durationMs: track.durationMs });
+}
 
 export interface Choreography {
   tracks: ChoreoTrack[];
@@ -174,7 +192,7 @@ export function validateChoreography(value: unknown, base: string): ChoreoIssue[
   if (tracks.length > CHOREO_LIMITS.tracks) issues.push({ path: `${base}.tracks`, message: `${CHOREO_LIMITS.tracks} pistes maximum.` });
   const ids = new Set<string>();
   const pathIds = new Set<string>();
-  tracks.forEach((raw) => { const t = obj(raw); if (t.kind === "cardPath" && typeof t.id === "string") pathIds.add(t.id); });
+  tracks.forEach((raw) => { const t = obj(raw); if ((t.kind === "cardPath" || t.kind === "motif") && typeof t.id === "string") pathIds.add(t.id); });
   tracks.forEach((raw, index) => {
     const path = `${base}.tracks.${index}`;
     const track = obj(raw);
@@ -235,6 +253,21 @@ export function validateChoreography(value: unknown, base: string): ChoreoIssue[
         if (typeof track.sound !== "string" || !isSoundRefLike(track.sound)) issues.push({ path: `${path}.sound`, message: "Son : préréglage ou fichier uploadé." });
         if (track.volume !== undefined && !isNum(track.volume, 0, 1)) issues.push({ path: `${path}.volume`, message: "Volume : 0 à 100 %." });
         break;
+      case "motif": {
+        if (!["resolved:outgoing", "resolved:incoming", "resolved:highlight", "ghost"].includes(String(track.cards))) issues.push({ path: `${path}.cards`, message: "Cartes animées inconnues." });
+        if (track.mode !== "move" && track.mode !== "display") issues.push({ path: `${path}.mode`, message: "Nature : déplacement réel ou visuel." });
+        if (track.cards === "ghost" && track.mode === "move") issues.push({ path: `${path}.mode`, message: "Une carte fantôme est purement visuelle." });
+        if (typeof track.motifId !== "string" || !getMotif(track.motifId)) { issues.push({ path: `${path}.motifId`, message: "Modèle d'animation inconnu." }); break; }
+        if (track.overrides !== undefined && (typeof track.overrides !== "object" || Array.isArray(track.overrides))) { issues.push({ path: `${path}.overrides`, message: "Surcharges invalides." }); break; }
+        const motif = isInt(track.durationMs, 50, CHOREO_LIMITS.totalMs) ? motifOfTrack(track as unknown as MotifTrack) : null;
+        if (!motif) break;
+        // Le modèle surchargé doit rester valide ; ses erreurs sont rattachées aux surcharges.
+        for (const issue of validateMotif(motif, "m")) issues.push({ path: `${path}.overrides${issue.path.slice(1)}`, message: issue.message });
+        // Le vol seul est déjà borné plus haut ; ici : décalage entre cartes et réactions compris.
+        const start = Number(track.startMs);
+        if (start + Number(track.durationMs) <= CHOREO_LIMITS.totalMs && start + motifTotalMs(motif) > CHOREO_LIMITS.totalMs) issues.push({ path: `${path}.durationMs`, message: "Le modèle dépasse 8 s au total (décalages et réactions compris)." });
+        break;
+      }
       default:
         issues.push({ path: `${path}.kind`, message: "Type de piste inconnu." });
     }
@@ -244,7 +277,13 @@ export function validateChoreography(value: unknown, base: string): ChoreoIssue[
 
 /** Durée totale d'une chorégraphie (fin de la dernière piste). */
 export function choreographyDuration(choreo: Choreography): number {
-  return choreo.tracks.reduce((max, track) => Math.max(max, track.startMs + track.durationMs + (track.kind === "cardPath" ? (track.waypoints ?? []).reduce((sum, point) => sum + (point.holdMs ?? 0), 0) : 0)), 0);
+  return choreo.tracks.reduce((max, track) => {
+    if (track.kind === "motif") {
+      const motif = motifOfTrack(track);
+      return Math.max(max, track.startMs + (motif ? motifTotalMs(motif) : track.durationMs));
+    }
+    return Math.max(max, track.startMs + track.durationMs + (track.kind === "cardPath" ? (track.waypoints ?? []).reduce((sum, point) => sum + (point.holdMs ?? 0), 0) : 0));
+  }, 0);
 }
 
 /* ─────────────── Lien avec les cues existants ─────────────── */

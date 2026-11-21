@@ -16,7 +16,7 @@ const NOW = 1_000_000_000;
 
 describe("stageMatchRules", () => {
   it("table normale : valeurs par défaut", () => {
-    expect(stageMatchRules(stage, 15)).toEqual({ stakeNkap: 100, powersDisabled: false, turnSeconds: 15, botDifficulty: "normal", modifiers: [], boss: null });
+    expect(stageMatchRules(stage, 15)).toEqual({ stakeNkap: 100, powersDisabled: false, turnSeconds: 15, botDifficulty: "normal", modifiers: [], boss: null, matchCount: 1 });
   });
   it("applique mise ×2, pouvoirs interdits et minuteur", () => {
     const rules = stageMatchRules({ ...stage, modifiers: ["double_stake", "no_powers", "turn_timer"], turnTimerSeconds: 8 }, 15);

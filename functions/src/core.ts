@@ -4,11 +4,9 @@ import { getFirestore } from "firebase-admin/firestore";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import type { CompatFirestore, DocumentData, Transaction } from "./firestoreTypes";
 import {
-  COSMETIC_DUPLICATE_CAURIS,
   DEFAULT_ECONOMY,
-  DUPLICATE_COMPENSATION,
+  applyRewardToInventory,
   calculateEnergy,
-  extendUnlimitedEnergy,
   materializeEnergy,
   type PlayerEconomy,
 } from "../../domain";
@@ -157,32 +155,7 @@ export function ledger(
 }
 
 export function applyReward(economy: PlayerEconomy, inventory: DocumentData, reward: Reward, now: number) {
-  const nextEconomy: PlayerEconomy = { ...economy, energy: { ...economy.energy }, daily: { ...economy.daily }, pity: { ...economy.pity } };
-  const nextInventory = {
-    ...inventory,
-    tickets: { bronze: 0, argent: 0, or: 0, ...(inventory.tickets ?? {}) },
-    boosterBooks: { ...(inventory.boosterBooks ?? {}) },
-    cards: { ...(inventory.cards ?? {}) },
-    cosmetics: Array.isArray(inventory.cosmetics) ? [...inventory.cosmetics] as string[] : [] as string[],
-  };
-  if (reward.type === "nkap") nextEconomy.nkap += reward.amount;
-  if (reward.type === "cauris") nextEconomy.cauris += reward.amount;
-  if (reward.type === "energy_pass") nextEconomy.energy = extendUnlimitedEnergy(nextEconomy.energy, reward.durationMinutes * 60_000, now);
-  if (reward.type === "ticket") nextInventory.tickets[reward.tier] = Number(nextInventory.tickets[reward.tier] ?? 0) + reward.amount;
-  if (reward.type === "booster_book") nextInventory.boosterBooks[reward.boosterId] = Number(nextInventory.boosterBooks[reward.boosterId] ?? 0) + reward.amount;
-  if (reward.type === "cosmetic") {
-    // Doublon : compensation en cauris selon la rareté (phase 5).
-    if (nextInventory.cosmetics.includes(reward.cosmeticId)) nextEconomy.cauris += COSMETIC_DUPLICATE_CAURIS[reward.rarity] ?? 10;
-    else nextInventory.cosmetics.push(reward.cosmeticId);
-  }
-  if (reward.type === "card") {
-    if (nextInventory.cards[reward.cardId]) {
-      nextEconomy.cauris += DUPLICATE_COMPENSATION[reward.rarity];
-    } else {
-      nextInventory.cards[reward.cardId] = { unlockedAt: now, rarity: reward.rarity };
-    }
-  }
-  return { economy: nextEconomy, inventory: nextInventory };
+  return applyRewardToInventory(economy, inventory, reward, now);
 }
 
 export function normalizedEnergyForWrite(economy: PlayerEconomy, now: number): PlayerEconomy {

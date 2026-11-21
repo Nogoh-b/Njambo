@@ -3,22 +3,32 @@
 /* Table de démonstration (admin) : reproduit les zones de la vraie table
    (mains, dépôts, avatars/minuteurs, pioche, pot) dans un cadre téléphone,
    les enregistre dans son propre registre de zones, et joue la chorégraphie
-   avec EXACTEMENT le même lecteur que le jeu (playChoreography). */
+   avec EXACTEMENT le même lecteur que le jeu (playChoreography), ou un
+   modèle de l'atelier seul (playMotif). */
 
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties } from "react";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { ZoneRegistry, ZoneRegistryProvider, useRegisterZone, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
+import { sameAnchor, type AnimMotif } from "@/engine/anim/motif";
 import type { Choreography } from "@/engine/power/choreography";
 import type { PlayerRef, PowerFxTone } from "@/engine/power/types";
 import type { Card } from "@/types/game";
 import { ChoreoLayer, type ChoreoLayerHandle } from "./ChoreoLayer";
-import { playChoreography, type ChoreoCards } from "./playChoreography";
+import { moveSourceUi, playChoreography, type ChoreoCards, type ChoreoContext } from "./playChoreography";
+import { playMotif } from "./playMotif";
 import { playPowerSound } from "@/lib/powerSounds";
 
 const card = (id: string, rank: string, value: number, suit: string): Card => ({ id, rank, value, suit, color: suit === "♥" || suit === "♦" ? "#c0392b" : "#1e1e1e" });
 const MY_HAND = [card("h1", "3", 3, "♣"), card("h2", "9", 9, "♥"), card("h3", "K", 13, "♠"), card("h4", "5", 5, "♦"), card("h5", "Q", 12, "♥")];
 const STOLEN = card("demo_out", "A", 14, "♠");
 const GIVEN = card("demo_in", "4", 4, "♣");
+const RANK_VALUES: Record<string, number> = { A: 14, K: 13, Q: 12, J: 11 };
+/** « 7♦ » → carte de démonstration (aperçu des modèles). */
+const demoCard = (label: string, index: number): Card => {
+  const suit = label.replace("*", "").slice(-1), rank = label.replace("*", "").slice(0, -1);
+  return card(`motif_${index}_${label}`, rank, RANK_VALUES[rank] ?? (Number(rank) || 0), suit);
+};
+const PREVIEW_POOL = ["A♠", "7♦", "Q♣", "5♥", "10♠", "2♦"];
 
 const SEATS = [
   { ui: 0, name: "Toi", emoji: "🎴", style: { left: "50%", bottom: "3%", transform: "translateX(-50%)" } },
@@ -26,34 +36,46 @@ const SEATS = [
   { ui: 2, name: "Joueur 3", emoji: "🎺", style: { left: "3%", top: "38%" } },
   { ui: 3, name: "Joueur 4", emoji: "🐘", style: { right: "3%", top: "38%" } },
 ] as const;
+const RESOLVE_REF: Record<PlayerRef, number[]> = { self: [0], target: [1], each_target: [1], all_opponents: [1, 2, 3], all: [0, 1, 2, 3] };
 
 function DemoTimer({ ui, emoji, name }: { ui: number; emoji: string; name: string }) {
   const ref = useRef<HTMLDivElement>(null);
   const [frozen, setFrozen] = useState(false);
   const [delta, setDelta] = useState<{ key: number; seconds: number } | null>(null);
   const [aura, setAura] = useState<string | null>(null);
+  const [rich, setRich] = useState(false);
   useRegisterZone(`timer:${ui}` as ZoneKey, {
     getRect: () => ref.current?.getBoundingClientRect() ?? null,
     getElement: () => ref.current,
     showFreeze: (ms: number) => { setFrozen(true); setTimeout(() => setFrozen(false), ms); },
     showDelta: (seconds: number) => { setDelta({ key: Date.now(), seconds }); setTimeout(() => setDelta(null), 1200); },
     showAura: (style) => setAura(style),
+    pulseBalance: (ms: number) => { setRich(true); setTimeout(() => setRich(false), ms); },
   });
   return (
     <div ref={ref} style={{ position: "relative", display: "grid", placeItems: "center", width: 44, height: 44, borderRadius: "50%", background: "#132a22", border: `3px solid ${frozen ? "#9fe2ff" : "#f2bb45"}`, boxShadow: frozen ? "0 0 14px #9fe2ff" : "none", fontSize: 22 }} title={name}>
       {emoji}
       {aura && <span style={{ position: "absolute", top: -8, right: -8, fontSize: 14 }}>{({ shield: "🛡️", mask: "🎭", totem: "🗿", lucky: "🍀" } as Record<string, string>)[aura]}</span>}
       {delta && <span key={delta.key} style={{ position: "absolute", top: -18, fontWeight: 900, fontSize: 13, color: delta.seconds >= 0 ? "#5fe3a1" : "#ff5b82" }}>{delta.seconds >= 0 ? `+${delta.seconds}` : delta.seconds}s</span>}
+      {rich && <span style={{ position: "absolute", bottom: -16, fontWeight: 900, fontSize: 11, color: "#ffe08a", textShadow: "0 0 8px #f2bb45", whiteSpace: "nowrap" }}>+ Nkap</span>}
     </div>
   );
 }
 
-function DemoHand({ ui, faceUp, hidden }: { ui: number; faceUp: boolean; hidden: Set<number> }) {
+const NONE: Set<number> = new Set();
+
+function DemoHand({ ui, faceUp, hidden, round }: { ui: number; faceUp: boolean; hidden: Set<number>; round: number }) {
   const ref = useRef<HTMLDivElement>(null);
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [hiddenIdx, setHiddenIdx] = useState<number[]>([]);
+  const [collapsed, setCollapsed] = useState<{ idx: Set<number>; ms: number }>(() => ({ idx: new Set(), ms: 0 }));
+  const [room, setRoom] = useState<{ count: number; ms: number }>({ count: 0, ms: 0 });
+  const [dimKeep, setDimKeep] = useState<Set<number> | null>(null);
+  const [tempHidden, setTempHidden] = useState<Set<number>>(() => new Set());
   useEffect(() => setHiddenIdx([...hidden]), [hidden]);
   const width = ui === 0 ? 40 : 22;
+  const overlap = width * 0.35;
+  const center = (MY_HAND.length - 1) / 2;
   useRegisterZone(`hand:${ui}` as ZoneKey, {
     getRect: () => ref.current?.getBoundingClientRect() ?? null,
     getElement: () => ref.current,
@@ -62,14 +84,57 @@ function DemoHand({ ui, faceUp, hidden }: { ui: number; faceUp: boolean; hidden:
     setHiddenCard: (index) => setHiddenIdx(index === null ? [] : [index]),
     setHiddenCards: (indexes) => setHiddenIdx(indexes),
     beginSelection: () => () => undefined,
+    cardCount: () => MY_HAND.length,
+    getCardSlot: (index: number) => {
+      const el = cardRefs.current[index];
+      if (!el) return null;
+      const box = el.getBoundingClientRect();
+      const total = MY_HAND.length + room.count;
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2, width, rotate: (index - (total - 1) / 2) * 6 };
+    },
+    collapseCards: (indexes, ms) => setCollapsed((current) => ({ idx: new Set([...current.idx, ...indexes]), ms })),
+    makeRoom: (count, ms) => setRoom({ count, ms }),
+    dimCards: (keep, ms) => { setDimKeep(new Set(keep)); setTimeout(() => setDimKeep(null), ms); },
+    hideCardsFor: (indexes, ms) => {
+      setTempHidden((current) => new Set([...current, ...indexes]));
+      setTimeout(() => setTempHidden((current) => new Set([...current].filter((index) => !indexes.includes(index)))), ms);
+    },
   });
+  // Fin d'une démonstration : la main reprend sa forme.
+  useEffect(() => {
+    setCollapsed({ idx: new Set(), ms: 0 });
+    setRoom({ count: 0, ms: 0 });
+    setDimKeep(null);
+    setTempHidden(new Set());
+  }, [round]);
+  const slots = [...MY_HAND.map((item) => ({ item, spacer: false })), ...Array.from({ length: room.count }, () => ({ item: null, spacer: true }))];
   return (
     <div ref={ref} style={{ display: "flex", justifyContent: "center" }}>
-      {MY_HAND.map((item, index) => (
-        <div key={item.id} ref={(el) => { cardRefs.current[index] = el; }} style={{ marginLeft: index ? -width * 0.35 : 0, transform: `rotate(${(index - 2) * 6}deg)`, opacity: hiddenIdx.includes(index) ? 0 : 1 }}>
-          <PlayCard card={faceUp ? item : undefined} hidden={!faceUp} w={width} />
-        </div>
-      ))}
+      {slots.map(({ item, spacer }, index) => {
+        const isCollapsed = collapsed.idx.has(index);
+        const style: CSSProperties = {
+          marginLeft: isCollapsed ? (index === 0 ? -overlap : -width) : index ? -overlap : 0,
+          transition: `margin-left ${isCollapsed ? collapsed.ms : 180}ms cubic-bezier(.22,1,.36,1)`,
+          transform: `rotate(${(index - (spacer ? (slots.length - 1) / 2 : center)) * 6}deg)`,
+          opacity: spacer || hiddenIdx.includes(index) || tempHidden.has(index) ? 0 : 1,
+          filter: dimKeep && !dimKeep.has(index) ? "brightness(.45) saturate(.5)" : undefined,
+        };
+        return (
+          <div
+            key={item?.id ?? `room_${index}`}
+            ref={(el) => {
+              cardRefs.current[index] = el;
+              if (spacer && el && !el.dataset.grown) {
+                el.dataset.grown = "1";
+                el.animate([{ marginLeft: `${-width}px` }, { marginLeft: `${-overlap}px` }], { duration: room.ms, easing: "cubic-bezier(.22,1,.36,1)" });
+              }
+            }}
+            style={style}
+          >
+            <PlayCard card={faceUp && item ? item : undefined} hidden={!faceUp || !item} w={width} />
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -111,6 +176,8 @@ export interface ChoreoDemoHandle {
   /** Rejoue la chorégraphie (ou celle passée en paramètre). `cards` remplace
    *  les cartes de démonstration par les cartes calculées (bac à sable). */
   play(override?: Choreography | null, cards?: Partial<Record<string, Card[]>>): Promise<void>;
+  /** Joue un modèle de l'atelier seul (même brouillon non publié), puis remet la table en place. */
+  playMotif(motif: AnimMotif): Promise<void>;
 }
 
 export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreography | null; tone?: PowerFxTone; width?: number }>(function ChoreoDemoStage({ choreo, tone = "gold", width = 340 }, ref) {
@@ -118,13 +185,50 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
   const stageRef = useRef<HTMLDivElement>(null);
   const layerRef = useRef<ChoreoLayerHandle | null>(null);
   const [hidden, setHidden] = useState<Record<number, Set<number>>>({});
+  const [round, setRound] = useState(0);
   const busy = useRef(false);
+
+  const hide = useCallback((ui: number, indexes: number[]) => {
+    setHidden((current) => ({ ...current, [ui]: new Set([...(current[ui] ?? []), ...indexes]) }));
+  }, []);
+
+  const contextFor = useCallback((layer: ChoreoLayerHandle, cardsOf: ChoreoContext["cardsOf"]): ChoreoContext => {
+    const ctx: ChoreoContext = {
+      registry,
+      layer,
+      resolveRefUi: (playerRef) => RESOLVE_REF[playerRef],
+      winnerUi: () => 1,
+      cardsOf,
+      visibleCard: (_id, index, cards) => cards.snapshots[index] ?? null,
+      handCardRect: (ui, index) => registry.hand(ui)?.getCardRect(index) ?? null,
+      burst: (_preset, rect, burstTone) => {
+        const host = layerRef.current?.container();
+        if (!host || !rect) return;
+        const ring = document.createElement("div");
+        ring.setAttribute("data-choreo-fx", "burst");
+        const size = Math.max(rect.width, rect.height, 30) * 1.4;
+        Object.assign(ring.style, { position: "absolute", left: `${rect.left + rect.width / 2 - size / 2}px`, top: `${rect.top + rect.height / 2 - size / 2}px`, width: `${size}px`, height: `${size}px`, borderRadius: "50%", border: `3px solid ${({ gold: "#f2bb45", teal: "#1de4be", pink: "#ff5b82", cobalt: "#6fa8ff" })[burstTone]}` });
+        host.appendChild(ring);
+        void ring.animate([{ opacity: 0.9, transform: "scale(.4)" }, { opacity: 0, transform: "scale(1.3)" }], { duration: 650 }).finished.then(() => ring.remove(), () => ring.remove());
+      },
+      playSound: (sound, volume) => playPowerSound(sound, volume),
+      impactShake: () => { void stageRef.current?.animate([0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translateX(${x}px)` })), { duration: 380 }); },
+      defaultTone: tone,
+      viewport: () => stageRef.current?.getBoundingClientRect() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight),
+      motionEnabled: true,
+      lite: false,
+      onMoveStart: (track, cards) => {
+        const ui = moveSourceUi(ctx, track);
+        if (ui != null) hide(ui, cards.fromIndexes);
+      },
+    };
+    return ctx;
+  }, [hide, registry, tone]);
 
   const play = useCallback(async (override?: Choreography | null, cards?: Partial<Record<string, Card[]>>) => {
     const current = override ?? choreo;
     if (!current || busy.current || !layerRef.current) return;
     busy.current = true;
-    const resolveRefUi = (playerRef: PlayerRef): number[] => ({ self: [0], target: [1], each_target: [1], all_opponents: [1, 2, 3], all: [0, 1, 2, 3] })[playerRef];
     const cardsOf = (key: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight"): ChoreoCards => cards?.[key]?.length
       ? { ids: cards[key]!.map((item) => item.id), snapshots: cards[key]!, fromIndexes: cards[key]!.map((_, index) => index + 1), toIndexes: cards[key]!.map((_, index) => index + 1) }
       : key === "resolved:outgoing"
@@ -132,44 +236,46 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
       : key === "resolved:incoming" ? { ids: [GIVEN.id], snapshots: [GIVEN], fromIndexes: [1], toIndexes: [1] }
         : { ids: [MY_HAND[1].id], snapshots: [MY_HAND[1]], fromIndexes: [1], toIndexes: [1] };
     try {
-      await playChoreography({
-        registry,
-        layer: layerRef.current,
-        resolveRefUi,
-        cardsOf,
-        visibleCard: (_id, index, cards) => cards.snapshots[index] ?? null,
-        handCardRect: (ui, index) => registry.hand(ui)?.getCardRect(index) ?? null,
-        burst: (_preset, rect, burstTone) => {
-          const host = layerRef.current?.container();
-          if (!host || !rect) return;
-          const ring = document.createElement("div");
-          ring.setAttribute("data-choreo-fx", "burst");
-          const size = Math.max(rect.width, rect.height, 30) * 1.4;
-          Object.assign(ring.style, { position: "absolute", left: `${rect.left + rect.width / 2 - size / 2}px`, top: `${rect.top + rect.height / 2 - size / 2}px`, width: `${size}px`, height: `${size}px`, borderRadius: "50%", border: `3px solid ${({ gold: "#f2bb45", teal: "#1de4be", pink: "#ff5b82", cobalt: "#6fa8ff" })[burstTone]}` });
-          host.appendChild(ring);
-          void ring.animate([{ opacity: 0.9, transform: "scale(.4)" }, { opacity: 0, transform: "scale(1.3)" }], { duration: 650 }).finished.then(() => ring.remove(), () => ring.remove());
-        },
-        playSound: (sound, volume) => playPowerSound(sound, volume),
-        impactShake: () => { void stageRef.current?.animate([0, -6, 6, -4, 4, 0].map((x) => ({ transform: `translateX(${x}px)` })), { duration: 380 }); },
-        defaultTone: tone,
-        viewport: () => stageRef.current?.getBoundingClientRect() ?? new DOMRect(0, 0, window.innerWidth, window.innerHeight),
-        motionEnabled: true,
-        lite: false,
-        onMoveStart: (track, cards) => {
-          const first = track.waypoints[0]?.at;
-          if (first?.kind === "zone" && first.zone === "hand") {
-            const ui = resolveRefUi(first.player)[0];
-            setHidden((current) => ({ ...current, [ui]: new Set([...(current[ui] ?? []), ...cards.fromIndexes]) }));
-          }
-        },
-      }, current, (text) => text.replace("{activator}", "Toi").replace("{target}", "La cible"));
+      await playChoreography(contextFor(layerRef.current, cardsOf), current, (text) => text.replace("{activator}", "Toi").replace("{target}", "La cible"));
     } finally {
-      setTimeout(() => setHidden({}), 400);
+      setTimeout(() => { setHidden({}); setRound((value) => value + 1); }, 400);
       busy.current = false;
     }
-  }, [choreo, registry, tone]);
+  }, [choreo, contextFor]);
 
-  useImperativeHandle(ref, () => ({ play }), [play]);
+  const playMotifAlone = useCallback(async (motif: AnimMotif) => {
+    if (busy.current || !layerRef.current) return;
+    busy.current = true;
+    const layer = layerRef.current;
+    // Cartes de l'aperçu : prises dans la main de démonstration, ou celles du modèle.
+    const fromHand = motif.from.zone === "hand";
+    const handUi = "player" in motif.from ? (motif.from.player === "winner" ? 1 : RESOLVE_REF[motif.from.player][0]) : 0;
+    // « Chacun » (d'un côté ou de l'autre : distribution, ramassage du pli) : une série par joueur.
+    const players = (anchor: AnimMotif["from"]) => ("player" in anchor ? (anchor.player === "all" ? 4 : anchor.player === "all_opponents" ? 3 : 1) : 1);
+    const perSide = motif.count * Math.max(players(motif.from), players(motif.to));
+    const count = Math.min(perSide, fromHand ? MY_HAND.length : 12);
+    const pick = Math.max(0, Math.min(MY_HAND.length - count, motif.preview?.pick ?? MY_HAND.length - count));
+    const labels = motif.preview?.cards ?? PREVIEW_POOL;
+    const snapshots = fromHand
+      ? MY_HAND.slice(pick, pick + count)
+      : Array.from({ length: count }, (_, index) => demoCard(labels[index % labels.length], index));
+    const fromIndexes = fromHand ? snapshots.map((_, index) => pick + index) : [];
+    const cards: ChoreoCards = { ids: snapshots.map((item) => item.id), snapshots, fromIndexes, toIndexes: [] };
+    const ctx = contextFor(layer, () => cards);
+    const inPlace = sameAnchor(motif.from, motif.to);
+    try {
+      if (fromHand && !inPlace) hide(handUi, fromIndexes);
+      await playMotif(ctx, { id: `apercu_${motif.id}`, motif, cards, mode: "move" });
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    } finally {
+      layer.clear();
+      setHidden({});
+      setRound((value) => value + 1);
+      busy.current = false;
+    }
+  }, [contextFor, hide]);
+
+  useImperativeHandle(ref, () => ({ play, playMotif: playMotifAlone }), [play, playMotifAlone]);
 
   const felt: CSSProperties = { position: "relative", width, height: width * 1.75, borderRadius: 26, overflow: "hidden", background: "radial-gradient(ellipse at 50% 46%, #1f6b4f, #0c2a20 70%)", border: "8px solid #000", boxShadow: "0 20px 50px #0008" };
   return (
@@ -178,8 +284,8 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
         {SEATS.map((seat) => (
           <div key={seat.ui} style={{ position: "absolute", display: "grid", justifyItems: "center", gap: 6, ...seat.style }}>
             {seat.ui === 0 && <DemoDeposit ui={0} />}
-            {seat.ui === 0 ? <DemoHand ui={0} faceUp hidden={hidden[0] ?? new Set()} /> : <DemoTimer ui={seat.ui} emoji={seat.emoji} name={seat.name} />}
-            {seat.ui === 0 ? <DemoTimer ui={0} emoji={seat.emoji} name={seat.name} /> : <DemoHand ui={seat.ui} faceUp={false} hidden={hidden[seat.ui] ?? new Set()} />}
+            {seat.ui === 0 ? <DemoHand ui={0} faceUp hidden={hidden[0] ?? NONE} round={round} /> : <DemoTimer ui={seat.ui} emoji={seat.emoji} name={seat.name} />}
+            {seat.ui === 0 ? <DemoTimer ui={0} emoji={seat.emoji} name={seat.name} /> : <DemoHand ui={seat.ui} faceUp={false} hidden={hidden[seat.ui] ?? NONE} round={round} />}
             {seat.ui !== 0 && <DemoDeposit ui={seat.ui} />}
           </div>
         ))}

@@ -1,5 +1,7 @@
 import type { CallableRequest } from "firebase-functions/v2/https";
+import { saveGameplayConfigHandler } from "../../functions/src/gameplayCommands";
 import {
+  buyBoosterBookHandler,
   buyDailyGridSlotHandler,
   chooseBoosterCardHandler,
   claimDailyRewardHandler,
@@ -10,12 +12,14 @@ import {
   joinEventHandler,
   leaveEventHandler,
   openBoosterBookHandler,
+  openPackHandler,
   publishAdminDraftHandler,
   purchaseOfferHandler,
   spinLoyaltyWheelHandler,
+  useEnergyPassHandler,
   verifyStorePurchaseHandler,
 } from "../../functions/src/economyCommands";
-import { abandonMatchHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "../../functions/src/matchCommands";
+import { abandonMatchHandler, advanceMatchRoundHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "../../functions/src/matchCommands";
 import { usePowerCardHandler } from "../../functions/src/powerCommands";
 import { migrateLegacyPlayerHandler, saveAdminDraftHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "../../functions/src/adminCommands";
 import {
@@ -72,6 +76,14 @@ import {
   duplicatePowerCardHandler,
   discardPowerCardDraftHandler,
 } from "../../functions/src/powerCardAdminCommands";
+import {
+  listAdminAnimMotifsHandler,
+  saveAnimMotifDraftHandler,
+  publishAnimMotifHandler,
+  discardAnimMotifDraftHandler,
+  setAnimMotifArchivedHandler,
+  setGameMomentsHandler,
+} from "../../functions/src/animMotifAdminCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -91,11 +103,16 @@ import {
 type Handler = (request: CallableRequest<unknown>) => Promise<unknown>;
 
 export const commands: Record<string, Handler> = {
+  saveGameplayConfig: saveGameplayConfigHandler,
+  advanceMatchRound: advanceMatchRoundHandler,
   ensurePlayerProfile: ensurePlayerProfileHandler,
   getPlayerEconomy: getPlayerEconomyHandler,
   claimDailyReward: claimDailyRewardHandler,
   purchaseOffer: purchaseOfferHandler,
+  buyBoosterBook: buyBoosterBookHandler,
   openBoosterBook: openBoosterBookHandler,
+  openPack: openPackHandler,
+  useEnergyPass: useEnergyPassHandler,
   chooseBoosterCard: chooseBoosterCardHandler,
   buyDailyGridSlot: buyDailyGridSlotHandler,
   spinLoyaltyWheel: spinLoyaltyWheelHandler,
@@ -127,6 +144,12 @@ export const commands: Record<string, Handler> = {
   publishPowerCard: publishPowerCardHandler,
   duplicatePowerCard: duplicatePowerCardHandler,
   discardPowerCardDraft: discardPowerCardDraftHandler,
+  listAdminAnimMotifs: listAdminAnimMotifsHandler,
+  saveAnimMotifDraft: saveAnimMotifDraftHandler,
+  publishAnimMotif: publishAnimMotifHandler,
+  discardAnimMotifDraft: discardAnimMotifDraftHandler,
+  setAnimMotifArchived: setAnimMotifArchivedHandler,
+  setGameMoments: setGameMomentsHandler,
   getSeasons: getSeasonsHandler,
   claimSeasonTier: claimSeasonTierHandler,
   listSeasons: listSeasonsHandler,

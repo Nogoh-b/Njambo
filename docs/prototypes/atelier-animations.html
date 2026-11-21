@@ -1,0 +1,1421 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Atelier d'animations</title>
+<!--
+  Prototype autonome de l'atelier d'animations Njambo.
+  Ouvrir directement dans un navigateur (double-clic) : les images du tapis et
+  du dos de carte sont lues dans public/assets/njambo, les polices dans app/fonts.
+  Sans ces fichiers, des dégradés de secours prennent le relais.
+  Rien n'est envoyé au jeu : les réglages sont gardés dans ce navigateur.
+-->
+<style>
+@font-face{font-family:"NjDisplay";src:url("../../app/fonts/bricolage-grotesque-latin.woff2") format("woff2");font-weight:700 800;font-display:swap}
+@font-face{font-family:"NjSans";src:url("../../app/fonts/manrope-latin.woff2") format("woff2");font-weight:400 800;font-display:swap}
+:root{
+  --bg:#0b0807;--panel:#140f0c;--panel2:#1b1511;--line:#2e231b;--line2:#45352a;
+  --gold:#f2bb45;--raffia:#d7a957;--copper:#c75b3a;--pink:#d83c68;--teal:#10b7a6;--cobalt:#3154d4;
+  --cream:#fff0d0;--text:#fff4df;--muted:#a99b8b;--bad:#ff7182;--good:#6ee59c;
+  --display:"NjDisplay","Trebuchet MS",system-ui,sans-serif;--sans:"NjSans","Segoe UI",system-ui,sans-serif;
+  --card-back:url("../../public/assets/njambo/card-back.webp");
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{background:radial-gradient(900px 600px at 55% -10%,#2b1a10 0,transparent 65%),var(--bg);color:var(--text);font:13px/1.45 var(--sans);-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit;cursor:pointer}
+.app{display:grid;grid-template-columns:250px minmax(0,1fr) 392px;height:100vh}
+
+/* ── Bibliothèque ── */
+.lib{background:rgba(18,13,10,.94);border-right:1px solid var(--line);overflow:auto;padding:16px 12px 24px}
+.brand{display:flex;gap:10px;align-items:center;margin:0 4px 14px}
+.logo{width:34px;height:34px;border-radius:10px;display:grid;place-items:center;background:linear-gradient(135deg,var(--gold),var(--copper));color:#1b1010;font:800 18px var(--display)}
+.brand b{display:block;font:800 15px/1.1 var(--display)}
+.brand small{color:var(--muted)}
+.btn{border:1px solid var(--line2);background:#17110d;border-radius:10px;padding:7px 12px;font-weight:700;transition:background .15s,border-color .15s}
+.btn:hover{border-color:var(--raffia);background:#21180f}
+.btn.gold{background:var(--gold);color:#1b1010;border-color:var(--gold)}
+.btn.wide{width:100%;margin-bottom:14px}
+.btn.sm{padding:5px 10px;font-size:12px}
+.btn.danger{color:var(--bad)}
+.btn.icon{width:36px;height:36px;padding:0;display:grid;place-items:center;font-size:15px}
+.lg{margin-bottom:12px}
+.lg h4{margin:0 6px 6px;font:800 11px/1 var(--display);letter-spacing:.09em;text-transform:uppercase;color:var(--raffia)}
+.li{display:block;width:100%;text-align:left;border:1px solid transparent;background:none;border-radius:10px;padding:7px 9px;margin-bottom:2px}
+.li:hover{background:#1d1510}
+.li.on{background:#2a1d12;border-color:rgba(242,187,69,.55)}
+.li b{display:block;font-weight:700;font-size:13px}
+.li small{color:var(--muted);font-size:11px}
+.lib-note{color:var(--muted);font-size:11px;margin:16px 6px 0;line-height:1.5}
+
+/* ── Scène ── */
+.stage{display:grid;grid-template-rows:auto minmax(0,1fr) auto auto;gap:10px;padding:14px 18px 12px;min-width:0;min-height:0}
+.stage-head{display:flex;justify-content:space-between;gap:16px;align-items:flex-start}
+.stage-head .grp{font:800 11px var(--display);letter-spacing:.09em;text-transform:uppercase;color:var(--raffia)}
+.stage-head h1{margin:2px 0 4px;font:800 22px/1.1 var(--display)}
+.stage-head p{margin:0;color:var(--muted);max-width:620px}
+.pills{display:flex;flex-wrap:wrap;gap:6px;justify-content:flex-end;max-width:340px}
+.pill{border:1px solid var(--line2);border-radius:999px;padding:4px 10px;font-size:12px;font-weight:700;background:#120d0a;white-space:nowrap}
+.pill.a{border-color:var(--teal);color:#7ee7dc}
+.pill.b{border-color:var(--pink);color:#ff9cb6}
+.phone-wrap{display:grid;place-items:center;min-height:0;overflow:hidden;padding:14px}
+.sizer{position:relative}
+.phone{position:absolute;left:0;top:0;width:390px;height:800px;transform-origin:0 0;border-radius:40px;overflow:hidden;background:#0d0a08;box-shadow:0 0 0 9px #050404,0 0 0 10px #3a2b20,0 30px 80px rgba(0,0,0,.65)}
+.transport{display:flex;flex-wrap:wrap;gap:10px;align-items:center}
+.time{font:700 13px var(--display);min-width:118px;font-variant-numeric:tabular-nums}
+.seg{display:flex;border:1px solid var(--line2);border-radius:10px;overflow:hidden}
+.seg button{border:0;background:#17110d;padding:6px 10px;font-weight:700;font-size:12px}
+.seg button.on{background:var(--gold);color:#1b1010}
+.chk{display:inline-flex;gap:6px;align-items:center;font-size:12px;cursor:pointer;user-select:none}
+.chk input{accent-color:var(--gold)}
+
+/* ── Ligne de temps ── */
+.tl{position:relative;display:grid;gap:3px;background:#100c09;border:1px solid var(--line);border-radius:12px;padding:8px 10px 10px;user-select:none;touch-action:none}
+.tl-row{display:grid;grid-template-columns:112px 1fr;align-items:center;min-height:16px}
+.tl-lab{font-size:11px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-right:8px}
+.tl-track{position:relative;height:14px;background:#17110d;border-radius:5px;cursor:crosshair}
+.tl-ruler{position:relative;height:18px;cursor:crosshair}
+.tl-ruler i{position:absolute;top:10px;width:1px;height:6px;background:var(--line2)}
+.tl-ruler i.maj{top:4px;height:12px;background:#6a5442}
+.tl-ruler em{position:absolute;left:4px;top:-4px;font-style:normal;font-size:10px;color:var(--muted);white-space:nowrap}
+.tl-bar{position:absolute;top:2px;bottom:2px;border-radius:4px;background:linear-gradient(90deg,var(--gold),#e69a3a)}
+.tl-bar.sq{background:repeating-linear-gradient(90deg,rgba(242,187,69,.5) 0 3px,transparent 3px 6px)}
+.tl-rxbar{position:absolute;top:5px;height:4px;border-radius:2px;opacity:.55}
+.tl-dia{position:absolute;top:1px;width:12px;height:12px;margin-left:-6px;transform:rotate(45deg);background:var(--c);border:2px solid #100c09;border-radius:2px;cursor:ew-resize;z-index:2}
+.tl-dia:hover{outline:2px solid #fff4df}
+.tl-more{font-size:11px;color:var(--muted);padding-left:112px}
+.tl-phwrap{position:absolute;top:6px;bottom:6px;left:122px;right:10px;pointer-events:none}
+.tl-ph{position:absolute;top:0;bottom:0;width:2px;margin-left:-1px;background:#fff4df;box-shadow:0 0 8px rgba(255,244,223,.7)}
+.tl-ph::before{content:"";position:absolute;top:-4px;left:-4px;border:5px solid transparent;border-top-color:#fff4df}
+
+/* ── Inspecteur ── */
+.insp{background:rgba(18,13,10,.94);border-left:1px solid var(--line);overflow:auto}
+.sec{padding:14px 16px;border-bottom:1px solid var(--line)}
+.sec h3{margin:0 0 10px;font:800 11px/1.2 var(--display);letter-spacing:.09em;text-transform:uppercase;color:var(--raffia);display:flex;justify-content:space-between;gap:8px;align-items:baseline}
+.hint{font:500 11px var(--sans);letter-spacing:0;text-transform:none;color:var(--muted)}
+.sec-top{display:flex;gap:8px;align-items:center;margin-bottom:8px}
+.name-in{flex:1;font:800 16px var(--display)!important}
+.btnrow{display:flex;gap:6px}
+select,input[type=text],textarea{background:#0e0b09;border:1px solid var(--line2);color:var(--text);border-radius:9px;padding:7px 9px;font:500 13px var(--sans);width:100%}
+textarea{resize:vertical;color:var(--muted)}
+select:focus,input:focus,textarea:focus{outline:2px solid rgba(242,187,69,.5);outline-offset:1px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.fld{display:grid;gap:4px;font-size:12px;color:var(--muted);margin-bottom:8px}
+.rng{display:grid;gap:2px;margin:6px 0;font-size:12px;color:var(--muted)}
+.rng>span{display:flex;justify-content:space-between}
+.rng b{color:var(--text);font-weight:700}
+input[type=range]{width:100%;accent-color:var(--gold);margin:2px 0}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line2);background:#120e0b;border-radius:999px;padding:5px 10px;font-weight:600;font-size:12px}
+.chip:hover{border-color:var(--raffia)}
+.chip.on{background:var(--gold);color:#1b1010;border-color:var(--gold)}
+.ease{display:grid;grid-template-columns:150px 1fr;gap:12px;align-items:start}
+.ease svg{width:150px;height:auto;touch-action:none}
+.ease code{grid-column:1/-1;font-size:11px;color:var(--muted)}
+.lane{margin-bottom:10px}
+.lane.off{opacity:.4;pointer-events:none}
+.lane-top{display:flex;align-items:center;gap:8px;font-size:12px;margin-bottom:3px}
+.lane-top b{flex:1}
+.lane-top .lv{color:var(--gold);font-weight:700;font-variant-numeric:tabular-nums}
+.lane svg{width:100%;height:auto;display:block;touch-action:none;cursor:copy}
+.x{border:0;background:none;color:var(--muted);font-size:14px;padding:0 4px;line-height:1}
+.x:hover{color:var(--text)}
+.rx{border:1px solid var(--line);border-radius:10px;padding:8px 10px;margin-bottom:8px;background:#110d0a}
+.rx-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.rx-top b{font-size:12px;display:flex;gap:7px;align-items:center}
+.dot{display:inline-block;width:9px;height:9px;transform:rotate(45deg);border-radius:2px}
+.empty{color:var(--muted);font-size:12px;margin:0 0 8px}
+pre#json{background:#0c0907;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:11px;line-height:1.4;max-height:260px;overflow:auto;color:#d9ccb8;margin:10px 0 0}
+
+/* ── Table (repère 390 × 800) ── */
+#world{position:absolute;inset:0}
+.bg{position:absolute;inset:0;background:radial-gradient(420px 300px at 50% 100%,rgba(199,91,58,.18),transparent 70%),radial-gradient(circle at 20% 15%,#1a1410 0,#0b0907 70%)}
+.felt{position:absolute;left:-4px;top:44px;width:398px;height:604px;background:url("../../public/assets/njambo/table-portrait.webp") center/100% 100% no-repeat,radial-gradient(ellipse 46% 48% at 50% 50%,#0e6a60 0 85%,#7a3b22 86% 93%,transparent 94%)}
+.hud{position:absolute;left:50%;top:28px;transform:translate(-50%,-50%);display:flex;gap:10px;align-items:center;padding:7px 14px;border-radius:999px;background:rgba(10,8,6,.78);border:1px solid rgba(242,187,69,.35);font:800 12px var(--display);white-space:nowrap}
+.hud i{width:7px;height:7px;border-radius:50%;background:#4a3a2c;display:inline-block;margin-right:3px}
+.hud i.on{background:var(--gold);box-shadow:0 0 6px var(--gold)}
+.round{position:absolute;top:28px;width:36px;height:36px;margin:-18px 0 0 -18px;border-radius:50%;display:grid;place-items:center;background:rgba(10,8,6,.78);border:1.5px solid rgba(242,187,69,.6);font:800 14px var(--display);color:var(--gold)}
+.av{position:absolute;width:46px;height:46px;border-radius:50%;transform:translate(-50%,-50%);display:grid;place-items:center;font:800 15px var(--display);color:#fff4df;background:radial-gradient(circle at 35% 30%,var(--c),#1a0d0d 95%);box-shadow:0 0 0 3px var(--gold),0 4px 12px rgba(0,0,0,.55)}
+.tag{position:absolute;transform:translate(-50%,0);background:rgba(10,8,6,.84);border:1px solid rgba(242,187,69,.32);border-radius:999px;padding:3px 10px;font:700 10.5px/1.15 var(--sans);text-align:center;white-space:nowrap}
+.tag b{display:block;font-weight:600;color:var(--raffia);font-size:9.5px}
+.dep{position:absolute;width:52px;height:72px;transform:translate(-50%,-50%);border:1.5px dashed rgba(255,240,208,.28);border-radius:9px}
+.zone-center{position:absolute;width:186px;height:90px;transform:translate(-50%,-50%);border:1.5px dashed rgba(16,183,166,.4);border-radius:16px;opacity:0;transition:opacity .2s}
+.show-schema .zone-center{opacity:1}
+.deck{position:absolute;width:46px;height:67px;transform:translate(-50%,-50%)}
+.deck i{position:absolute;inset:0;border-radius:6px;background:var(--card-back) center/cover no-repeat,repeating-linear-gradient(45deg,#6b3a22 0 6px,#4a2615 6px 12px);border:1px solid rgba(0,0,0,.45);box-shadow:0 2px 5px rgba(0,0,0,.4);transform:rotate(-4deg)}
+.deck i:nth-child(1){transform:translate(3px,3px) rotate(-1deg)}
+.deck i:nth-child(2){transform:translate(1.5px,1.5px) rotate(-3deg)}
+.pot{position:absolute;transform:translate(-50%,-50%);padding:6px 12px;border-radius:999px;background:rgba(10,8,6,.82);border:1px solid rgba(242,187,69,.45);font:800 12px var(--display);white-space:nowrap}
+.pot b{color:var(--gold)}
+.me{position:absolute;left:12px;top:642px;width:174px;height:50px;border-radius:16px;background:rgba(10,8,6,.84);border:1px solid rgba(242,187,69,.32);padding:7px 10px 0 60px;font:800 13px/1.15 var(--display)}
+.me span{display:block;font:600 11px var(--sans);color:var(--raffia);margin-top:2px}
+.powers{position:absolute;left:230px;top:642px;width:148px;height:50px;border-radius:16px;background:linear-gradient(135deg,rgba(49,84,212,.35),rgba(216,60,104,.3)),rgba(10,8,6,.84);border:1px solid rgba(242,187,69,.6);display:flex;align-items:center;gap:10px;padding:0 12px}
+.powers .mini{position:relative;width:26px;height:30px}
+.powers .mini i{position:absolute;width:18px;height:26px;border-radius:3px;background:linear-gradient(160deg,#3154d4,#d83c68);border:1px solid #fff0d0}
+.powers .mini i:last-child{left:8px;top:3px;transform:rotate(10deg)}
+.powers small{display:block;font:800 8.5px var(--display);letter-spacing:.08em;color:#9fd8ff}
+.powers b{font:800 13px var(--display)}
+#cards{position:absolute;inset:0;z-index:1}
+.card{position:absolute;left:0;top:0;width:62px;height:90px;perspective:700px;transform-origin:50% 50%;will-change:transform}
+.card .in{position:absolute;inset:0;transform-style:preserve-3d}
+.card .f{position:absolute;inset:0;border-radius:7px;backface-visibility:hidden;-webkit-backface-visibility:hidden;
+  box-shadow:0 calc(2px + var(--lift,0)*12px) calc(5px + var(--lift,0)*22px) rgba(0,0,0,calc(.35 + var(--lift,0)*.25)),0 0 calc(var(--glow,0)*26px) calc(var(--glow,0)*3px) rgba(242,187,69,calc(var(--glow,0)*.95))}
+.card .fr{background:linear-gradient(160deg,#fffaf0,#f1e0bf);border:1px solid rgba(70,40,20,.35);color:#1b1010}
+.card .fr.red{color:#c8283f}
+.card .bk{transform:rotateY(180deg);background:var(--card-back) center/cover no-repeat,repeating-linear-gradient(45deg,#6b3a22 0 6px,#4a2615 6px 12px);border:1px solid rgba(0,0,0,.4)}
+.fr .c{position:absolute;font:800 15px/.95 var(--display);text-align:center}
+.fr .tl{left:5px;top:5px}
+.fr .br{right:5px;bottom:5px;transform:rotate(180deg)}
+.fr .mid{position:absolute;left:50%;top:52%;transform:translate(-50%,-50%);font-size:32px;line-height:1}
+.crown{position:absolute;left:0;top:0;z-index:2;font-size:28px;line-height:1;color:var(--gold);text-shadow:0 0 12px rgba(242,187,69,.9),0 2px 0 #7a3b22;opacity:0;pointer-events:none}
+#fx{position:absolute;left:0;top:0;z-index:3;width:390px;height:800px;pointer-events:none}
+#schema{position:absolute;left:0;top:0;z-index:4;width:390px;height:800px;pointer-events:none}
+#schema .anc circle{fill:rgba(255,240,208,.16);stroke:rgba(255,240,208,.5);stroke-width:1;opacity:.7}
+#schema .anc.used circle,#schema .anc.hov circle{opacity:1}
+#schema .anc.used circle{fill:var(--gold);stroke:#1b1010;stroke-width:1.5}
+#schema .anc.hov circle{fill:rgba(16,183,166,.55);stroke:var(--teal);stroke-width:2}
+#schema .lbl{font:700 10px var(--sans);fill:#fff4df;stroke:rgba(0,0,0,.85);stroke-width:3px;paint-order:stroke;stroke-linejoin:round}
+#schema .tr{fill:none;stroke:var(--gold);stroke-width:2;stroke-dasharray:6 5}
+#schema .tr.faint{opacity:.35;stroke-width:1.2}
+#schema .sp{fill:#fff0d0;opacity:.85}
+#schema .guide{stroke:rgba(255,240,208,.5);stroke-width:1;stroke-dasharray:3 3;fill:none}
+#schema .glyph circle{fill:#1b1010;stroke:var(--gold);stroke-width:1.5}
+#schema .glyph text{font:800 11px var(--sans);fill:var(--gold);text-anchor:middle;dominant-baseline:central}
+#schema .h{pointer-events:all;cursor:grab}
+#schema .h circle{stroke:#1b1010;stroke-width:2}
+#schema .hA circle{fill:var(--teal)}
+#schema .hB circle{fill:var(--pink)}
+#schema .h text{font:800 10px var(--display);fill:#fff;text-anchor:middle;dominant-baseline:central;pointer-events:none}
+#schema .hC rect{fill:var(--gold);stroke:#1b1010;stroke-width:2}
+#schema .hint-t{font:600 10px var(--sans);fill:#7ee7dc;stroke:rgba(0,0,0,.85);stroke-width:3px;paint-order:stroke}
+
+/* ── Matrice des transitions ── */
+.modal{position:fixed;inset:0;background:rgba(5,4,3,.75);display:grid;place-items:center;z-index:50;padding:20px}
+.modal[hidden]{display:none}
+.modal-box{background:var(--panel);border:1px solid var(--line2);border-radius:18px;max-width:900px;width:100%;max-height:92vh;overflow:auto;padding:18px 20px}
+.modal-box header{display:flex;justify-content:space-between;gap:16px}
+.modal-box h2{margin:0 0 4px;font:800 20px var(--display)}
+.modal-box p{margin:0 0 14px;color:var(--muted)}
+.mx{display:grid;grid-template-columns:110px repeat(9,1fr);gap:4px}
+.mx .hd{font:700 10.5px/1.2 var(--sans);color:var(--muted);display:flex;align-items:flex-end;justify-content:center;text-align:center;padding:4px 2px}
+.mx .rh{justify-content:flex-end;align-items:center;text-align:right;padding-right:8px}
+.mx button{aspect-ratio:1.4;border:1px dashed var(--line2);background:#110d0a;border-radius:8px;font-size:11px;color:var(--muted);padding:2px;line-height:1.15}
+.mx button:hover{border-color:var(--raffia);color:var(--text)}
+.mx button.has{border-style:solid;border-color:rgba(242,187,69,.6);background:#2a1d12;color:var(--cream);font-weight:700}
+.mx button.diag{background:#0f1414}
+.mx-legend{margin-top:12px;color:var(--muted);font-size:12px}
+
+@media (max-width:1100px){
+  .app{grid-template-columns:1fr;height:auto}
+  .lib{max-height:300px;border-right:0;border-bottom:1px solid var(--line)}
+  .stage{height:auto;padding:14px 16px}
+  .phone-wrap{height:78vh}
+  .insp{border-left:0;border-top:1px solid var(--line)}
+  .stage-head{flex-direction:column}
+  .pills{justify-content:flex-start}
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="lib">
+    <div class="brand"><span class="logo">N</span><div><b>Atelier d'animations</b><small>Njambo · prototype</small></div></div>
+    <button class="btn wide" id="openMatrix" type="button">▦ Toutes les transitions</button>
+    <div id="libList"></div>
+    <p class="lib-note">Prototype autonome : rien n'est envoyé au jeu. Tes réglages restent dans ce navigateur.<br>Espace : lecture / pause · ← → : image par image.</p>
+  </aside>
+
+  <main class="stage">
+    <header class="stage-head">
+      <div><div class="grp" id="mGroup"></div><h1 id="mName"></h1><p id="mDesc"></p></div>
+      <div class="pills" id="mPills"></div>
+    </header>
+    <div class="phone-wrap" id="phoneWrap">
+      <div class="sizer" id="sizer">
+        <div class="phone show-schema" id="phone"><div id="world"></div></div>
+      </div>
+    </div>
+    <div class="transport">
+      <button class="btn icon gold" id="bPlay" type="button" title="Lecture / pause">❚❚</button>
+      <button class="btn icon" id="bRestart" type="button" title="Rejouer depuis le début">↺</button>
+      <span class="time" id="tRead">0,00 s</span>
+      <div class="seg" id="speed">
+        <button type="button" data-s="0.1">0,1×</button><button type="button" data-s="0.25">¼×</button><button type="button" data-s="0.5">½×</button><button type="button" data-s="1" class="on">1×</button>
+      </div>
+      <label class="chk"><input type="checkbox" id="cLoop" checked> Boucle</label>
+      <label class="chk"><input type="checkbox" id="cChain"> Tout enchaîner</label>
+      <label class="chk"><input type="checkbox" id="cSchema" checked> Schéma</label>
+    </div>
+    <div class="tl" id="timeline"></div>
+  </main>
+
+  <aside class="insp" id="insp"></aside>
+</div>
+
+<div class="modal" id="matrix" hidden>
+  <div class="modal-box">
+    <header>
+      <div><h2>Toutes les transitions</h2><p>Chaque case est un trajet « de → vers ». Les cases dorées ont déjà une animation. Une case vide en crée une à partir du modèle le plus proche ; la diagonale correspond aux animations sur place.</p></div>
+      <button class="x" id="mClose" type="button" title="Fermer" style="font-size:22px">×</button>
+    </header>
+    <div class="mx" id="mGrid"></div>
+    <div class="mx-legend" id="mLegend"></div>
+  </div>
+</div>
+
+<script>
+"use strict";
+/* ═══════════════ Géométrie de la table (repère 390 × 800, comme un téléphone) ═══════════════ */
+const W = 390, H = 800, CW = 62, CH = 90;
+const ZONES = {
+  deck: { x: 150, y: 300, label: "Pioche", short: "Pioche" },
+  pot: { x: 262, y: 300, label: "Pot", short: "Pot" },
+  center: { x: 195, y: 392, label: "Espace central", short: "Centre" },
+  "hand:me": { x: 195, y: 738, label: "Ma main", short: "Ma main" },
+  "deposit:me": { x: 195, y: 505, label: "Mon dépôt", short: "Mon dépôt" },
+  "avatar:me": { x: 40, y: 667, label: "Mon avatar", short: "Mon avatar" },
+  "hand:top": { x: 195, y: 166, label: "Main de Ya Pauline", short: "Main adv." },
+  "deposit:top": { x: 195, y: 232, label: "Dépôt de Ya Pauline", short: "Dépôt adv." },
+  "avatar:top": { x: 195, y: 86, label: "Avatar de Ya Pauline", short: "Avatar adv." },
+  "hand:left": { x: 16, y: 352, label: "Main de Tonton Rene", short: "Main gauche" },
+  "deposit:left": { x: 82, y: 400, label: "Dépôt de Tonton Rene", short: "Dépôt gauche" },
+  "avatar:left": { x: 44, y: 262, label: "Avatar de Tonton Rene", short: "Avatar gauche" },
+  "hand:right": { x: 374, y: 352, label: "Main de Mado Biyem", short: "Main droite" },
+  "deposit:right": { x: 308, y: 400, label: "Dépôt de Mado Biyem", short: "Dépôt droite" },
+  "avatar:right": { x: 346, y: 262, label: "Avatar de Mado Biyem", short: "Avatar droite" },
+  "off:top": { x: 195, y: -70, label: "Hors de l'écran (haut)", short: "Hors-écran ↑" },
+  "off:bottom": { x: 195, y: 880, label: "Hors de l'écran (bas)", short: "Hors-écran ↓" },
+  "off:left": { x: -70, y: 400, label: "Hors de l'écran (gauche)", short: "Hors-écran ←" },
+  "off:right": { x: 460, y: 400, label: "Hors de l'écran (droite)", short: "Hors-écran →" },
+};
+const ZONE_GROUPS = [
+  ["Table", ["deck", "pot", "center"]],
+  ["Moi", ["hand:me", "deposit:me", "avatar:me"]],
+  ["Ya Pauline (en face)", ["hand:top", "deposit:top", "avatar:top"]],
+  ["Tonton Rene (gauche)", ["hand:left", "deposit:left", "avatar:left"]],
+  ["Mado Biyem (droite)", ["hand:right", "deposit:right", "avatar:right"]],
+  ["Hors de l'écran", ["off:top", "off:bottom", "off:left", "off:right"]],
+];
+/* Zones qui gardent leurs cartes (mises en page) ; les autres sont des sources / puits. */
+const LAYOUT = ["hand:top", "hand:left", "hand:right", "deposit:top", "deposit:left", "deposit:right", "center", "deposit:me", "hand:me"];
+const isLayout = (z) => LAYOUT.includes(z);
+const isOppHand = (z) => z === "hand:top" || z === "hand:left" || z === "hand:right";
+const DEAL = ["hand:left", "hand:top", "hand:right", "hand:me"];
+const DEP_ROT = [-4, 5, -2, 7, -6, 3], CEN_ROT = [-3, 2, -1, 3, -2, 1];
+const POOL = ["A♠", "7♦", "Q♣", "5♥", "10♠", "2♦", "K♥", "8♠", "J♣", "6♦", "4♥", "9♣"];
+const BASE_SCENE = {
+  "hand:me": ["9♥", "10♥", "6♥", "9♠", "8♣"], "hand:top": 4, "hand:left": 4, "hand:right": 4,
+  "deposit:top": ["K♠"], "deposit:left": ["4♣"], "deposit:right": ["J♦"], "deposit:me": [], center: [],
+};
+
+const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
+const clamp01 = (v) => clamp(v, 0, 1);
+const lerp = (a, b, t) => a + (b - a) * t;
+const smooth = (t) => { t = clamp01(t); return t * t * (3 - 2 * t); };
+const hash = (n) => { const s = Math.sin(n * 127.1 + 311.7) * 43758.5453; return s - Math.floor(s); };
+const fmtS = (ms) => (ms / 1000).toFixed(2).replace(".", ",") + " s";
+const fmtN = (n) => Math.round(n).toLocaleString("fr-FR");
+const esc = (s) => String(s ?? "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const clone = (o) => JSON.parse(JSON.stringify(o));
+const $ = (s, r = document) => r.querySelector(s);
+
+/** Emplacements des cartes d'une zone qui en contient n. s = échelle par rapport à une carte de main (62 × 90). */
+function slots(z, n) {
+  const a = ZONES[z], out = [];
+  for (let i = 0; i < n; i++) {
+    const off = i - (n - 1) / 2;
+    if (z === "hand:me") {
+      const sp = n > 1 ? Math.min(46, 230 / (n - 1)) : 0, ang = n > 1 ? Math.min(7, 30 / (n - 1)) : 0;
+      out.push({ x: a.x + off * sp, y: a.y + off * off * 2.6, s: 1, rot: off * ang, face: 0 });
+    } else if (z === "hand:top") out.push({ x: a.x + off * 10, y: a.y + Math.abs(off) * 1.2, s: 0.48, rot: 180 - off * 4, face: 180 });
+    else if (z === "hand:left") out.push({ x: a.x + Math.abs(off) * 1.2, y: a.y + off * 12, s: 0.48, rot: 90 + off * 4, face: 180 });
+    else if (z === "hand:right") out.push({ x: a.x - Math.abs(off) * 1.2, y: a.y + off * 12, s: 0.48, rot: -90 - off * 4, face: 180 });
+    else if (z.startsWith("deposit:")) out.push({ x: a.x + off * 8, y: a.y - i * 3, s: 0.74, rot: DEP_ROT[i % DEP_ROT.length], face: 0 });
+    else if (z === "center") out.push({ x: a.x + off * (n > 3 ? 150 / (n - 1) : 50), y: a.y, s: 0.74, rot: CEN_ROT[i % CEN_ROT.length], face: 0 });
+  }
+  return out;
+}
+/** Emplacement d'une zone ponctuelle (pioche, pot, avatar, hors-écran). face null = garde la face de départ. */
+function pointSlot(z) {
+  const a = ZONES[z];
+  if (z === "deck") return { x: a.x, y: a.y, s: 0.74, rot: -4, face: 180 };
+  if (z.startsWith("avatar:") || z === "pot") return { x: a.x, y: a.y, s: 0.6, rot: 0, face: 0 };
+  return { x: a.x, y: a.y, s: 0.74, rot: 0, face: null };
+}
+const disp = (z) => { const a = ZONES[z]; return { x: clamp(a.x, 14, W - 14), y: clamp(a.y, 14, H - 14) }; };
+const zBase = (z) => (z === "hand:me" ? 300 : isOppHand(z) ? 20 : z === "center" ? 80 : 60);
+const zoneLabel = (z) => (z === "hand:all" ? "Toutes les mains" : ZONES[z]?.label ?? z);
+const zoneShort = (z) => (z === "hand:all" ? "Toutes les mains" : ZONES[z]?.short ?? z);
+const parseCard = (s) => (typeof s === "object" ? { ...s } : { id: String(s).replace("*", ""), down: String(s).endsWith("*") });
+
+/** Courbe de Bézier cubique CSS (y peut dépasser 0–1 pour les rebonds). */
+function bez(x1, y1, x2, y2) {
+  const cx = 3 * x1, bx = 3 * (x2 - x1) - cx, ax = 1 - cx - bx;
+  const cy = 3 * y1, by = 3 * (y2 - y1) - cy, ay = 1 - cy - by;
+  const sx = (t) => ((ax * t + bx) * t + cx) * t, sy = (t) => ((ay * t + by) * t + cy) * t, dx = (t) => (3 * ax * t + 2 * bx) * t + cx;
+  return (x) => {
+    if (x <= 0) return 0;
+    if (x >= 1) return 1;
+    let t = x;
+    for (let i = 0; i < 8; i++) { const e = sx(t) - x; if (Math.abs(e) < 1e-5) return sy(t); const d = dx(t); if (Math.abs(d) < 1e-6) break; t -= e / d; }
+    let lo = 0, hi = 1; t = x;
+    for (let i = 0; i < 40; i++) { const v = sx(t); if (Math.abs(v - x) < 1e-5) break; if (v < x) lo = t; else hi = t; t = (lo + hi) / 2; }
+    return sy(t);
+  };
+}
+/** Valeur d'une piste de propriété (points [temps 0–1, valeur], interpolation linéaire). */
+function lane(pts, x) {
+  if (!pts || !pts.length) return 0;
+  if (x <= pts[0][0]) return pts[0][1];
+  for (let i = 1; i < pts.length; i++) {
+    const [x1, y1] = pts[i];
+    if (x <= x1) { const [x0, y0] = pts[i - 1]; return x1 === x0 ? y1 : y0 + (y1 - y0) * (x - x0) / (x1 - x0); }
+  }
+  return pts[pts.length - 1][1];
+}
+const qb = (a, c, b, t) => { const u = 1 - t; return { x: u * u * a.x + 2 * u * t * c.x + t * t * b.x, y: u * u * a.y + 2 * u * t * c.y + t * t * b.y }; };
+function ctrlOf(from, to, arc) {
+  const dx = to.x - from.x, dy = to.y - from.y, d = Math.hypot(dx, dy);
+  if (d < 1) return { x: from.x, y: from.y };
+  const nx = -dy / d, ny = dx / d;
+  return { x: from.x + dx * arc.along + nx * arc.perp * d, y: from.y + dy * arc.along + ny * arc.perp * d };
+}
+
+/* ═══════════════ Bibliothèques ═══════════════ */
+const LANES = [
+  { k: "scale", label: "Échelle", min: 0, max: 2, step: 0.01, ticks: [1], fmt: (v) => "×" + v.toFixed(2).replace(".", ",") },
+  { k: "flip", label: "Retournement (0° face · 180° dos)", min: 0, max: 180, step: 1, ticks: [90], fmt: (v) => (v <= 30 ? "face visible" : v >= 150 ? "dos" : "sur la tranche") },
+  { k: "rotate", label: "Rotation", min: -45, max: 45, step: 1, ticks: [0], fmt: (v) => Math.round(v) + "°" },
+  { k: "opacity", label: "Opacité", min: 0, max: 1, step: 0.01, ticks: [], fmt: (v) => Math.round(v * 100) + " %" },
+  { k: "glow", label: "Lueur dorée", min: 0, max: 1, step: 0.01, ticks: [], fmt: (v) => Math.round(v * 100) + " %" },
+  { k: "lift", label: "Élévation (ombre portée)", min: 0, max: 1, step: 0.01, ticks: [], fmt: (v) => Math.round(v * 100) + " %" },
+];
+const EASES = {
+  "Linéaire": [0, 0, 1, 1], "Douce": [0.45, 0, 0.25, 1], "Accélère": [0.55, 0, 1, 0.45], "Freine": [0.1, 0.7, 0.3, 1],
+  "Rebond léger": [0.25, 1.25, 0.5, 1], "Ressort": [0.3, 1.7, 0.5, 0.85], "Aspiré": [0.75, 0, 0.9, 0.25], "Éclair": [0.1, 0.9, 0.05, 1],
+};
+const TRAILS = [["none", "Aucune"], ["light", "Traînée lumineuse"], ["sparks", "Étincelles"], ["blur", "Flou de vitesse"]];
+const RX = {
+  flash: { label: "Flash lumineux", dur: 380, zone: true, color: "#fff0d0" },
+  ring: { label: "Onde d'impact", dur: 520, zone: true, color: "#f2bb45" },
+  burst: { label: "Gerbe d'étincelles", dur: 620, zone: true, color: "#ffcf6b" },
+  glow: { label: "Surbrillance de la zone", dur: 900, zone: true, color: "#10b7a6" },
+  crown: { label: "Couronne (carte gagnante)", dur: 420, zone: true, color: "#e0a526" },
+  avatarPulse: { label: "Pulsation de l'avatar", dur: 650, zone: true, color: "#d83c68" },
+  nkap: { label: "Les Nkap clignotent (+500)", dur: 900, color: "#6ee59c" },
+  deckShake: { label: "La pioche tremble", dur: 420, color: "#c75b3a" },
+  dim: { label: "Assombrir les autres cartes", dur: 900, color: "#8a7f9e" },
+  shake: { label: "Secousse de l'écran", dur: 320, color: "#ff7182" },
+};
+
+const DEF_LANES = () => ({
+  scale: [[0, 1], [1, 1]], flip: [[0, 0], [1, 0]], rotate: [[0, 0], [1, 0]],
+  opacity: [[0, 1], [1, 1]], glow: [[0, 0], [1, 0]], lift: [[0, 0.2], [0.5, 1], [1, 0]],
+});
+function mk(o) {
+  const m = Object.assign({
+    id: "", group: "Mes animations", name: "", desc: "", from: "deck", to: "hand:me", count: 1, staggerMs: 120, durationMs: 650,
+    pick: null, easing: [0.45, 0, 0.25, 1], arc: { along: 0.5, perp: 0.2 }, faceMode: "lane", trail: "none", squash: false,
+    reactions: [], setup: null, cards: null,
+  }, clone(o));
+  m.lanes = Object.assign(DEF_LANES(), o.lanes ? clone(o.lanes) : {});
+  return m;
+}
+const R = (type, anchor = "arrival", offsetMs = 0, extra = {}) => Object.assign({ type, anchor, offsetMs }, extra);
+const EMPTY_TABLE = { "hand:me": [], "hand:top": 0, "hand:left": 0, "hand:right": 0, "deposit:top": [], "deposit:left": [], "deposit:right": [] };
+
+const PRESETS = [
+  mk({ id: "draw", group: "Les 7 trajets", name: "Piocher", from: "deck", to: "hand:me", durationMs: 720, easing: [0.25, 1.25, 0.5, 1], arc: { along: 0.45, perp: -0.28 }, cards: ["Q♦"],
+    desc: "La carte quitte la pioche par une courbe, se retourne en vol (rotateY) et s'insère dans l'éventail ; les autres cartes s'écartent. Léger rebond à l'arrivée.",
+    lanes: { flip: [[0, 180], [0.2, 180], [0.75, 0], [1, 0]], scale: [[0, 1], [0.55, 1.18], [1, 1]], rotate: [[0, 0], [0.5, -12], [1, 0]], lift: [[0, 0.3], [0.5, 1], [1, 0.1]] } }),
+  mk({ id: "play", group: "Les 7 trajets", name: "Jouer une carte", from: "hand:me", to: "deposit:me", pick: 2, durationMs: 560, easing: [0.55, 0, 0.2, 1], arc: { along: 0.5, perp: 0.14 }, squash: true,
+    desc: "La carte quitte l'éventail et se pose sur ton dépôt : elle accélère puis freine, grossit en arrivant et son ombre retombe à la pose. Flash à l'impact, couronne si elle gagne.",
+    lanes: { scale: [[0, 1], [0.75, 1.32], [1, 1]], rotate: [[0, 0], [1, -4]], lift: [[0, 0.3], [0.6, 1], [0.9, 0.9], [1, 0]] },
+    reactions: [R("flash"), R("ring"), R("crown", "arrival", 140)] }),
+  mk({ id: "reveal", group: "Les 7 trajets", name: "Retourner sur la table", from: "deck", to: "center", durationMs: 640, easing: [0.15, 0.75, 0.25, 1], arc: { along: 0.5, perp: -0.4 }, trail: "blur", cards: ["7♦"],
+    desc: "Une carte vole de la pioche vers l'espace central et se retourne pendant le trajet (le « flip »), avec un léger flou de vitesse.",
+    lanes: { flip: [[0, 180], [0.2, 180], [0.8, 0], [1, 0]], scale: [[0, 1], [0.5, 1.45], [1, 1]], lift: [[0, 0.2], [0.5, 1], [1, 0]] },
+    reactions: [R("ring")] }),
+  mk({ id: "pickup", group: "Les 7 trajets", name: "Ramasser", from: "deposit:me", to: "hand:me", setup: { "deposit:me": ["6♣"] }, durationMs: 700, easing: [0.3, 0.1, 0.25, 1], arc: { along: 0.5, perp: 0.45 },
+    desc: "La carte quitte ton dépôt et revient dans la main par un arc ; elle devient un peu transparente juste avant de « fusionner » avec l'éventail.",
+    lanes: { scale: [[0, 1.05], [0.4, 1.15], [0.85, 0.88], [1, 1]], opacity: [[0, 1], [0.7, 1], [0.88, 0.7], [1, 1]], rotate: [[0, 0], [0.5, 10], [1, 0]], lift: [[0, 0.2], [0.4, 1], [1, 0]] } }),
+  mk({ id: "discard", group: "Les 7 trajets", name: "Défausser", from: "hand:me", to: "deck", pick: 4, durationMs: 520, easing: [0.75, 0, 0.9, 0.25], arc: { along: 0.5, perp: -0.2 },
+    desc: "Effet « aspiré » : la carte accélère brusquement vers la pioche, se retourne face cachée et disparaît en fondu. La pioche tressaille en l'avalant.",
+    lanes: { flip: [[0, 0], [0.25, 0], [0.7, 180], [1, 180]], scale: [[0, 1], [0.6, 0.92], [1, 0.7]], opacity: [[0, 1], [0.82, 1], [1, 0]], rotate: [[0, 0], [1, -30]], lift: [[0, 0.4], [0.4, 1], [1, 0.2]] },
+    reactions: [R("deckShake")] }),
+  mk({ id: "buff", group: "Les 7 trajets", name: "Vers le joueur (bonus)", from: "deck", to: "avatar:me", durationMs: 820, easing: [0.4, 0, 0.3, 1], arc: { along: 0.45, perp: 0.3 }, trail: "sparks", cards: ["A♥"],
+    desc: "Une carte vole vers ton avatar dans un nuage d'étincelles et s'y résorbe (échelle → 0). L'avatar pulse et tes Nkap clignotent.",
+    lanes: { flip: [[0, 180], [0.35, 0], [1, 0]], scale: [[0, 1], [0.3, 1.3], [0.75, 0.9], [1, 0]], glow: [[0, 0], [0.3, 0.8], [1, 1]], lift: [[0, 0.3], [0.3, 1], [1, 0.5]] },
+    reactions: [R("avatarPulse", "arrival", 0, { zone: "to" }), R("nkap"), R("burst", "arrival", 0, { zone: "to" })] }),
+  mk({ id: "ability", group: "Les 7 trajets", name: "Lancer une capacité", from: "avatar:me", to: "center", durationMs: 430, easing: [0.1, 0.9, 0.05, 1], arc: { along: 0.5, perp: -0.18 }, trail: "light", cards: ["K♠"],
+    desc: "Une carte « naît » de ton avatar (échelle 0 → 1) et file vers le centre comme un éclair, avec une traînée lumineuse.",
+    lanes: { scale: [[0, 0], [0.35, 1.25], [1, 1]], glow: [[0, 1], [0.7, 0.6], [1, 0.15]], lift: [[0, 1], [0.8, 0.8], [1, 0]] },
+    reactions: [R("avatarPulse", "start", 0, { zone: "from" }), R("flash", "start", 0, { zone: "from" }), R("flash"), R("ring")] }),
+
+  mk({ id: "flipShow", group: "Carte", name: "Retourner · afficher", from: "center", to: "center", setup: { center: ["7♦*"] }, durationMs: 560,
+    desc: "Sur place : la carte se soulève, pivote sur l'axe Y et révèle sa face.",
+    lanes: { flip: [[0, 180], [0.25, 180], [0.75, 0], [1, 0]], lift: [[0, 0], [0.4, 1], [1, 0.1]], scale: [[0, 1], [0.5, 1.18], [1, 1]] } }),
+  mk({ id: "flipHide", group: "Carte", name: "Retourner · cacher", from: "center", to: "center", setup: { center: ["7♦"] }, durationMs: 560,
+    desc: "Sur place : la carte se soulève et se retourne face cachée.",
+    lanes: { flip: [[0, 0], [0.25, 0], [0.75, 180], [1, 180]], lift: [[0, 0], [0.4, 1], [1, 0.1]], scale: [[0, 1], [0.5, 1.18], [1, 1]] } }),
+
+  mk({ id: "handFocus", group: "Main", name: "Mise en évidence", from: "hand:me", to: "hand:me", pick: 1, durationMs: 900, easing: [0.25, 1.2, 0.5, 1],
+    desc: "Sur place : une carte de ta main se soulève et brille, les autres s'assombrissent.",
+    lanes: { lift: [[0, 0], [0.3, 1], [1, 1]], glow: [[0, 0], [0.3, 1], [0.65, 0.55], [1, 1]], scale: [[0, 1], [0.3, 1.12], [1, 1.12]] },
+    reactions: [R("dim", "start", 0, { dur: 1000 })] }),
+  mk({ id: "handOut", group: "Main", name: "Deux cartes sortent", from: "hand:me", to: "center", pick: 1, count: 2, staggerMs: 130, durationMs: 560, easing: [0.5, 0, 0.2, 1], arc: { along: 0.5, perp: 0.15 },
+    desc: "Deux cartes quittent la main l'une après l'autre et se posent au centre ; l'éventail se resserre.",
+    lanes: { scale: [[0, 1], [0.6, 1.15], [1, 1]], lift: [[0, 0.3], [0.6, 1], [1, 0]] },
+    reactions: [R("ring", "arrival", 0, { each: true })] }),
+  mk({ id: "handIn", group: "Main", name: "Trois cartes entrent", from: "deck", to: "hand:me", count: 3, staggerMs: 150, durationMs: 640, easing: [0.25, 1.2, 0.5, 1], arc: { along: 0.45, perp: -0.25 }, cards: ["2♠", "J♥", "5♦"],
+    desc: "Trois cartes arrivent de la pioche en cascade ; l'éventail s'ouvre pour leur faire de la place.",
+    lanes: { flip: [[0, 180], [0.25, 180], [0.75, 0], [1, 0]], scale: [[0, 1], [0.55, 1.12], [1, 1]], rotate: [[0, 0], [0.5, -10], [1, 0]], lift: [[0, 0.3], [0.5, 1], [1, 0.1]] } }),
+  mk({ id: "give", group: "Main", name: "Donner une carte", from: "hand:me", to: "hand:top", pick: 0, durationMs: 760, easing: [0.45, 0, 0.25, 1], arc: { along: 0.5, perp: 0.3 }, trail: "light",
+    desc: "Ta carte part vers la main de Ya Pauline et se retourne face cachée en route.",
+    lanes: { flip: [[0, 0], [0.3, 0], [0.7, 180], [1, 180]], scale: [[0, 1], [0.4, 1.15], [1, 1]], lift: [[0, 0.3], [0.5, 1], [1, 0]] } }),
+
+  mk({ id: "depGlow", group: "Dépôt", name: "Surbrillance", from: "deposit:me", to: "deposit:me", setup: { "deposit:me": ["6♥"] }, durationMs: 1100, easing: [0, 0, 1, 1],
+    desc: "Sur place : la carte du dépôt pulse et la zone s'illumine.",
+    lanes: { glow: [[0, 0], [0.2, 1], [0.45, 0.35], [0.7, 1], [1, 0]], lift: [[0, 0], [0.2, 0.6], [1, 0]], scale: [[0, 1], [0.2, 1.08], [1, 1]] },
+    reactions: [R("glow", "start", 0, { zone: "from", dur: 1100 })] }),
+  mk({ id: "depIn", group: "Dépôt", name: "Deux cartes entrent", from: "deck", to: "deposit:me", count: 2, staggerMs: 180, durationMs: 560, easing: [0.2, 0.8, 0.25, 1], arc: { along: 0.5, perp: -0.3 }, squash: true, cards: ["9♦", "3♣"],
+    desc: "Deux cartes tombent sur ton dépôt l'une sur l'autre, avec un flash à chaque impact.",
+    lanes: { flip: [[0, 180], [0.2, 180], [0.8, 0], [1, 0]], scale: [[0, 1], [0.5, 1.3], [1, 1]], lift: [[0, 0.2], [0.5, 1], [1, 0]] },
+    reactions: [R("flash", "arrival", 0, { each: true })] }),
+  mk({ id: "depOut", group: "Dépôt", name: "Deux cartes sont éjectées", from: "deposit:me", to: "off:right", setup: { "deposit:me": ["6♥", "Q♣"] }, count: 2, staggerMs: 110, durationMs: 620, easing: [0.6, 0, 0.9, 0.4], arc: { along: 0.5, perp: -0.25 },
+    desc: "Les cartes du dépôt sont projetées hors de la table en tournoyant.",
+    lanes: { rotate: [[0, 0], [1, 45]], opacity: [[0, 1], [0.7, 1], [1, 0]], lift: [[0, 0], [0.3, 1], [1, 1]] },
+    reactions: [R("glow", "start", 0, { zone: "from", dur: 500 })] }),
+
+  mk({ id: "centerAdd", group: "Espace central", name: "Ajouter trois cartes", from: "deck", to: "center", count: 3, staggerMs: 170, durationMs: 600, easing: [0.15, 0.75, 0.25, 1], arc: { along: 0.5, perp: -0.3 }, cards: ["A♠", "7♦", "Q♣"],
+    desc: "Trois cartes sont distribuées au centre et se retournent une à une.",
+    lanes: { flip: [[0, 180], [0.25, 180], [0.8, 0], [1, 0]], scale: [[0, 1], [0.5, 1.3], [1, 1]], lift: [[0, 0.2], [0.5, 1], [1, 0]] },
+    reactions: [R("ring", "arrival", 0, { each: true })] }),
+  mk({ id: "centerRemove", group: "Espace central", name: "Retirer trois cartes", from: "center", to: "off:left", setup: { center: ["A♠", "7♦", "Q♣"] }, count: 3, staggerMs: 90, durationMs: 640, easing: [0.55, 0, 0.85, 0.35], arc: { along: 0.5, perp: 0.12 },
+    desc: "Les cartes du centre sont balayées hors de la table.",
+    lanes: { scale: [[0, 1], [0.3, 1.08], [1, 0.8]], opacity: [[0, 1], [0.75, 1], [1, 0]], rotate: [[0, 0], [1, -25]], lift: [[0, 0], [0.3, 1], [1, 0.6]] } }),
+
+  mk({ id: "deal", group: "Partie", name: "Distribution", from: "deck", to: "hand:all", count: 8, staggerMs: 110, durationMs: 480, easing: [0.2, 0.75, 0.3, 1], arc: { along: 0.5, perp: -0.12 }, faceMode: "auto", setup: EMPTY_TABLE,
+    desc: "La donne : la pioche distribue deux cartes à chaque joueur, à tour de rôle. Tes cartes se retournent en arrivant, celles des adversaires restent cachées.",
+    lanes: { scale: [[0, 1], [0.5, 1.1], [1, 1]], lift: [[0, 0.3], [0.5, 0.9], [1, 0]] } }),
+];
+const PRESET_BY_ID = Object.fromEntries(PRESETS.map((p) => [p.id, p]));
+const GROUP_ORDER = ["Les 7 trajets", "Carte", "Main", "Dépôt", "Espace central", "Partie", "Mes animations"];
+
+/* ═══════════════ État ═══════════════ */
+const STORE = "njambo-atelier-animations-v1";
+const state = { motifs: [], sel: null, t: 0, playing: true, speed: 1, loop: true, chain: false, schema: true };
+let _plan = null, schemaDirty = true, timelineDirty = true, jsonDirty = true, headDirty = true;
+let drag = null, laneDrag = null, easeDrag = null, tlDrag = null;
+
+function restore() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(STORE) || "null"); } catch (e) { saved = null; }
+  const list = PRESETS.map(clone);
+  if (saved && Array.isArray(saved.motifs)) {
+    const byId = new Map(saved.motifs.map((m) => [m.id, m]));
+    for (let i = 0; i < list.length; i++) if (byId.has(list[i].id)) list[i] = mk(byId.get(list[i].id));
+    for (const m of saved.motifs) if (m.custom && !list.some((x) => x.id === m.id)) list.push(mk(m));
+  }
+  state.motifs = list;
+  state.sel = saved && list.some((m) => m.id === saved.sel) ? saved.sel : list[0].id;
+}
+let persistTimer = 0;
+function persist() {
+  clearTimeout(persistTimer);
+  persistTimer = setTimeout(() => {
+    try { localStorage.setItem(STORE, JSON.stringify({ v: 1, sel: state.sel, motifs: state.motifs })); } catch (e) { /* stockage indisponible : on continue sans */ }
+  }, 250);
+}
+const cur = () => state.motifs.find((m) => m.id === state.sel) || state.motifs[0];
+const plan = () => _plan || (_plan = buildPlan(cur()));
+function changed({ restart = false } = {}) {
+  _plan = null; schemaDirty = timelineDirty = jsonDirty = headDirty = true;
+  if (restart) { state.t = 0; }
+  persist();
+}
+
+/* ═══════════════ Plan d'une animation (calculé une fois, lu à chaque image) ═══════════════ */
+function buildPlan(m) {
+  const sc = {};
+  for (const z of LAYOUT) {
+    const v = m.setup && m.setup[z] !== undefined ? m.setup[z] : BASE_SCENE[z];
+    sc[z] = typeof v === "number" ? Array.from({ length: v }, (_, i) => ({ id: POOL[(i + 5) % POOL.length], down: true })) : v.map(parseCard);
+  }
+  const S = m.from, D = m.to, inPlace = S === D, srcLayout = isLayout(S);
+  const n = clamp(Math.round(m.count) || 1, 1, D === "hand:all" ? 12 : 6);
+  const deal = DEAL.filter((z) => z !== S);
+  const destOf = (k) => (D === "hand:all" ? deal[k % deal.length] : D);
+
+  const picks = [];
+  if (srcLayout) {
+    const arr = sc[S];
+    while (arr.length < n) arr.push({ id: POOL[(arr.length + 3) % POOL.length], down: isOppHand(S) });
+    const N = arr.length, st = m.pick == null ? N - n : clamp(m.pick, 0, N - n);
+    for (let k = 0; k < n; k++) picks.push(st + k);
+  }
+  const srcBefore = srcLayout ? slots(S, sc[S].length) : null;
+  const srcAfter = srcLayout && !inPlace ? slots(S, sc[S].length - n) : srcBefore;
+  const arrivals = {};
+  if (!inPlace) for (let k = 0; k < n; k++) { const z = destOf(k); arrivals[z] = (arrivals[z] || 0) + 1; }
+  const destBefore = {}, destAfter = {};
+  for (const z in arrivals) if (isLayout(z)) { destBefore[z] = slots(z, sc[z].length); destAfter[z] = slots(z, sc[z].length + arrivals[z]); }
+
+  const seen = {}, fl = [];
+  for (let k = 0; k < n; k++) {
+    const dz = inPlace ? S : destOf(k);
+    let card, from, zBefore;
+    if (srcLayout) {
+      const i = picks[k];
+      card = sc[S][i];
+      from = { ...srcBefore[i], face: card.down ? 180 : srcBefore[i].face };
+      zBefore = zBase(S) + i;
+    } else {
+      card = { id: (m.cards && m.cards[k]) || POOL[k % POOL.length], down: false };
+      const ps = pointSlot(S);
+      from = { ...ps, face: ps.face == null ? 180 : ps.face };
+      zBefore = 650 + k;
+    }
+    let to, zAfter = zBefore;
+    if (inPlace) to = { ...from };
+    else if (isLayout(dz)) {
+      const idx = sc[dz].length + (seen[dz] || 0);
+      seen[dz] = (seen[dz] || 0) + 1;
+      to = { ...destAfter[dz][idx] };
+      zAfter = zBase(dz) + idx;
+    } else { const ps = pointSlot(dz); to = { ...ps, face: ps.face == null ? from.face : ps.face }; }
+    const start = k * m.staggerMs;
+    fl.push({ k, key: srcLayout ? S + "#" + picks[k] : "gen#" + k, card, from, to, dz, start, dur: m.durationMs, end: start + m.durationMs, zBefore, zAfter, ctrl: ctrlOf(from, to, m.arc) });
+  }
+  const P = { m, sc, S, D, inPlace, srcLayout, n, picks, fl, srcBefore, srcAfter, destBefore, destAfter, ease: bez(...m.easing), spreadWin: {} };
+  for (const z in destBefore) {
+    const ends = fl.filter((f) => f.dz === z).map((f) => f.end);
+    P.spreadWin[z] = [Math.min(...ends) - 340, Math.max(...ends)];
+  }
+  P.rx = buildReactions(m, P);
+  let total = Math.max(...fl.map((f) => f.end)) + (m.squash && !inPlace ? 280 : 0);
+  for (const r of P.rx) total = Math.max(total, r.at + r.dur);
+  P.total = Math.max(300, total);
+  return P;
+}
+function buildReactions(m, P) {
+  const out = [];
+  m.reactions.forEach((r, ri) => {
+    const def = RX[r.type];
+    if (!def) return;
+    const fls = r.each ? P.fl : [r.anchor === "start" ? P.fl[0] : P.fl[P.fl.length - 1]];
+    for (const f of fls) {
+      const base = r.anchor === "start" ? f.start : f.end;
+      const zr = r.zone || "to";
+      const zoneId = zr === "to" ? f.dz : zr === "from" ? P.S : zr;
+      const pos = zr === "to" ? { x: f.to.x, y: f.to.y } : zr === "from" ? { x: f.from.x, y: f.from.y } : disp(zr);
+      out.push({ ri, type: r.type, base, at: base + (r.offsetMs || 0), dur: r.dur || def.dur, zoneId, pos, f });
+    }
+  });
+  return out;
+}
+function posAt(P, f, time) {
+  const p = clamp01((time - f.start) / f.dur);
+  return qb(f.from, f.ctrl, f.to, clamp(P.ease(p), -0.25, 1.25));
+}
+function flipOf(m, f, p) {
+  if (m.faceMode === "auto") return lerp(f.from.face ?? 0, f.to.face ?? f.from.face ?? 0, smooth((p - 0.25) / 0.55));
+  return lane(m.lanes.flip, p);
+}
+
+/* ═══════════════ Rendu d'une image ═══════════════ */
+const ZEL = {};
+const cardEls = new Map();
+
+function buildTable() {
+  const w = $("#world");
+  const at = (z, dy = 0) => `left:${ZONES[z].x}px;top:${ZONES[z].y + dy}px`;
+  const seat = (z, id, ini, name, color) =>
+    `<div class="av" id="${id}" style="${at(z)};--c:${color}">${ini}</div><div class="tag" style="${at(z, 28)}">${name}<b>5 000 Nkap</b></div>`;
+  w.innerHTML = `
+    <div class="bg"></div><div class="felt"></div>
+    <div class="round" style="left:34px">?</div><div class="round" style="left:356px">⌂</div>
+    <div class="hud"><span><i class="on"></i><i></i><i></i><i></i></span><span>◎ 600 Nkap</span></div>
+    ${seat("avatar:top", "av-top", "YP", "Ya Pauline", "#3154d4")}
+    ${seat("avatar:left", "av-left", "TR", "Tonton Rene", "#d83c68")}
+    ${seat("avatar:right", "av-right", "MB", "Mado Biyem", "#10b7a6")}
+    <div class="dep" id="dep-top" style="${at("deposit:top")}"></div>
+    <div class="dep" id="dep-left" style="${at("deposit:left")}"></div>
+    <div class="dep" id="dep-right" style="${at("deposit:right")}"></div>
+    <div class="dep" id="dep-me" style="${at("deposit:me")}"></div>
+    <div class="zone-center" id="zone-center" style="${at("center")}"></div>
+    <div class="deck" id="deck" style="${at("deck")}"><i></i><i></i><i></i></div>
+    <div class="pot" id="pot" style="${at("pot")}">Pot <b>600</b></div>
+    <div class="me"><span style="color:var(--text);font:800 13px var(--display);margin:0">Bobby</span><span id="nkap">1 000 000 Nkap</span></div>
+    <div class="av" id="av-me" style="${at("avatar:me")};--c:#c75b3a">B</div>
+    <div class="powers"><div class="mini"><i></i><i></i></div><div><small>MODE TEST</small><b>21 pouvoirs</b></div></div>
+    <div id="cards"></div>
+    <div class="crown" id="crown">♛</div>
+    <canvas id="fx"></canvas>
+    <svg id="schema" viewBox="0 0 ${W} ${H}"></svg>`;
+  Object.assign(ZEL, {
+    "avatar:me": $("#av-me"), "avatar:top": $("#av-top"), "avatar:left": $("#av-left"), "avatar:right": $("#av-right"),
+    "deposit:me": $("#dep-me"), "deposit:top": $("#dep-top"), "deposit:left": $("#dep-left"), "deposit:right": $("#dep-right"),
+    center: $("#zone-center"), deck: $("#deck"), pot: $("#pot"),
+  });
+  const cv = $("#fx"), dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = W * dpr; cv.height = H * dpr;
+  cv._ctx = cv.getContext("2d"); cv._dpr = dpr;
+}
+
+function setFace(el, id) {
+  el._id = id;
+  const suit = id.slice(-1), rank = id.slice(0, -1);
+  const fr = el._fr;
+  fr.className = "f fr" + (/[♥♦]/.test(suit) ? " red" : "");
+  fr.innerHTML = `<span class="c tl">${esc(rank)}<br>${suit}</span><span class="mid">${suit}</span><span class="c br">${esc(rank)}<br>${suit}</span>`;
+}
+function makeCardEl() {
+  const el = document.createElement("div");
+  el.className = "card";
+  el.innerHTML = `<div class="in"><div class="f fr"></div><div class="f bk"></div></div>`;
+  el._in = el.firstChild;
+  el._fr = el._in.firstChild;
+  el._id = null;
+  return el;
+}
+function drawCards(items) {
+  const used = new Set(), host = $("#cards");
+  for (const it of items) {
+    let el = cardEls.get(it.key);
+    if (!el) { el = makeCardEl(); cardEls.set(it.key, el); host.appendChild(el); }
+    used.add(it.key);
+    if (el._id !== it.card.id) setFace(el, it.card.id);
+    const s = it.scale;
+    el.style.transform = `translate(${(it.x - CW / 2).toFixed(2)}px,${(it.y - CH / 2 - it.lift * 22).toFixed(2)}px) rotate(${it.rot.toFixed(2)}deg) scale(${(s * it.sx).toFixed(4)},${(s * it.sy).toFixed(4)})`;
+    el._in.style.transform = `rotateY(${it.flip.toFixed(1)}deg)`;
+    el.style.opacity = clamp01(it.opacity).toFixed(3);
+    el.style.zIndex = it.z;
+    el.style.setProperty("--glow", clamp01(it.glow).toFixed(3));
+    el.style.setProperty("--lift", clamp01(it.lift).toFixed(3));
+    const f = [];
+    if (it.blur > 0.2) f.push(`blur(${it.blur.toFixed(2)}px)`);
+    if (it.dim > 0) f.push(`brightness(${(1 - 0.55 * it.dim).toFixed(3)}) saturate(${(1 - 0.5 * it.dim).toFixed(3)})`);
+    el.style.filter = f.join(" ");
+  }
+  for (const [k, el] of cardEls) if (!used.has(k)) { el.remove(); cardEls.delete(k); }
+}
+const lerpSlot = (a, b, u) => ({ x: lerp(a.x, b.x, u), y: lerp(a.y, b.y, u), rot: lerp(a.rot, b.rot, u), s: lerp(a.s, b.s, u), face: b.face });
+function staticItem(z, i, c, s, dim) {
+  return { key: z + "#" + i, card: c, x: s.x, y: s.y, rot: s.rot, scale: s.s, sx: 1, sy: 1, flip: c.down ? 180 : s.face, opacity: 1, glow: 0, lift: z === "hand:me" ? 0.15 : 0, z: zBase(z) + i, blur: 0, dim };
+}
+function flightItem(f, t, P, m) {
+  const raw = (t - f.start) / f.dur, before = raw < 0, after = raw > 1;
+  if (before && !P.srcLayout) return null;
+  if (after && !(P.inPlace ? P.srcLayout : isLayout(f.dz))) return null; // la carte a été « avalée » par sa destination
+  const p = clamp01(raw), pe = P.ease(p), k = clamp01(pe);
+  const pos = qb(f.from, f.ctrl, f.to, clamp(pe, -0.25, 1.25));
+  let sx = 1, sy = 1, blur = 0;
+  if (m.squash && !P.inPlace && t > f.end && t < f.end + 280) { const q = (t - f.end) / 280, s = Math.sin(q * Math.PI * 2) * (1 - q) * 0.16; sx = 1 + s; sy = 1 - s; }
+  if (m.trail === "blur" && !before && !after) { const a = qb(f.from, f.ctrl, f.to, P.ease(clamp01(p - 0.03))); blur = Math.min(3.2, Math.hypot(pos.x - a.x, pos.y - a.y) * 0.09); }
+  return {
+    key: f.key, card: f.card, x: pos.x, y: pos.y,
+    rot: lerp(f.from.rot, f.to.rot, k) + lane(m.lanes.rotate, p), scale: lerp(f.from.s, f.to.s, k) * lane(m.lanes.scale, p), sx, sy,
+    flip: flipOf(m, f, p), opacity: lane(m.lanes.opacity, p), glow: lane(m.lanes.glow, p), lift: lane(m.lanes.lift, p),
+    z: P.inPlace ? f.zBefore + 60 : after ? f.zAfter : before ? f.zBefore : 700 + f.k, blur, dim: 0,
+  };
+}
+function reactionState(t, P) {
+  const rs = { pulse: {}, glow: {}, gain: 0, blink: 0, deck: 0, shake: 0, dim: 0, crown: null };
+  for (const r of P.rx) {
+    const q = (t - r.at) / r.dur;
+    if (r.type === "nkap") { if (q >= 0) { rs.gain = Math.max(rs.gain, 500 * smooth(q)); if (q <= 1) rs.blink = Math.max(rs.blink, 1 - q); } continue; }
+    if (r.type === "crown") { if (q >= 0) rs.crown = { x: r.pos.x, y: r.pos.y - 46 * (r.f.to.s || 0.74), q: Math.min(1, q) }; continue; }
+    if (q < 0 || q > 1) continue;
+    const bell = Math.sin(q * Math.PI);
+    if (r.type === "avatarPulse") { const z = r.zoneId && r.zoneId.startsWith("avatar:") ? r.zoneId : "avatar:me"; rs.pulse[z] = Math.max(rs.pulse[z] || 0, bell); }
+    else if (r.type === "glow") rs.glow[r.zoneId] = Math.max(rs.glow[r.zoneId] || 0, bell * (0.6 + 0.4 * Math.abs(Math.sin(q * Math.PI * 3))));
+    else if (r.type === "deckShake") rs.deck = Math.sin(q * Math.PI * 8) * (1 - q);
+    else if (r.type === "shake") rs.shake = Math.sin(q * Math.PI * 9) * (1 - q);
+    else if (r.type === "dim") rs.dim = Math.max(rs.dim, smooth(q * 5) * smooth((1 - q) * 5));
+  }
+  return rs;
+}
+function applyDom(rs) {
+  for (const z of ["avatar:me", "avatar:top", "avatar:left", "avatar:right"]) {
+    const el = ZEL[z], p = Math.max(rs.pulse[z] || 0, rs.glow[z] || 0);
+    el.style.transform = `translate(-50%,-50%) scale(${(1 + 0.16 * (rs.pulse[z] || 0)).toFixed(3)})`;
+    el.style.boxShadow = p > 0 ? `0 0 0 3px #f2bb45, 0 0 ${(10 + 30 * p).toFixed(1)}px ${(3 + 8 * p).toFixed(1)}px rgba(242,187,69,${(0.8 * p).toFixed(2)})` : "";
+  }
+  for (const z of ["deposit:me", "deposit:top", "deposit:left", "deposit:right", "center", "pot", "deck"]) {
+    const g = rs.glow[z] || 0, el = ZEL[z];
+    el.style.boxShadow = g > 0 ? `0 0 ${(8 + 26 * g).toFixed(1)}px ${(2 + 6 * g).toFixed(1)}px rgba(16,183,166,${(0.85 * g).toFixed(2)}), inset 0 0 ${(14 * g).toFixed(1)}px rgba(16,183,166,${(0.6 * g).toFixed(2)})` : "";
+    if (z !== "deck" && z !== "pot") el.style.borderColor = g > 0 ? `rgba(126,231,220,${(0.3 + 0.7 * g).toFixed(2)})` : "";
+  }
+  ZEL.deck.style.transform = `translate(-50%,-50%) translateX(${(rs.deck * 5).toFixed(2)}px) rotate(${(rs.deck * 3).toFixed(2)}deg)`;
+  const nk = $("#nkap");
+  nk.textContent = fmtN(1000000 + rs.gain) + " Nkap";
+  const on = rs.blink > 0 && Math.floor(rs.blink * 9) % 2 === 0;
+  nk.style.color = on ? "#ffe08a" : rs.gain > 0 ? "#6ee59c" : "";
+  nk.style.textShadow = on ? "0 0 10px rgba(242,187,69,.9)" : "";
+  const cr = $("#crown");
+  if (rs.crown) {
+    const q = rs.crown.q, s = q < 0.6 ? lerp(0.2, 1.25, smooth(q / 0.6)) : lerp(1.25, 1, smooth((q - 0.6) / 0.4));
+    cr.style.opacity = smooth(q * 3).toFixed(2);
+    cr.style.transform = `translate(${(rs.crown.x - 11).toFixed(1)}px,${(rs.crown.y - 16).toFixed(1)}px) scale(${s.toFixed(3)})`;
+  } else cr.style.opacity = 0;
+  $("#world").style.transform = rs.shake ? `translate(${(rs.shake * 6).toFixed(2)}px,${(rs.shake * -3).toFixed(2)}px)` : "";
+}
+function drawFx(t, P, m) {
+  const cv = $("#fx"), ctx = cv._ctx;
+  ctx.setTransform(cv._dpr, 0, 0, cv._dpr, 0, 0);
+  ctx.clearRect(0, 0, W, H);
+  ctx.globalCompositeOperation = "lighter";
+  for (const f of P.fl) {
+    if (P.inPlace || t < f.start || t > f.end + 520) continue;
+    if (m.trail === "light" && t <= f.end + 160) {
+      const pts = [];
+      for (let i = 0; i <= 16; i++) { const tt = t - 170 + (i * 170) / 16; if (tt >= f.start && tt <= f.end) pts.push(posAt(P, f, tt)); }
+      for (let i = 1; i < pts.length; i++) {
+        const a = i / pts.length;
+        ctx.strokeStyle = `rgba(255,214,120,${(a * 0.8).toFixed(3)})`;
+        ctx.lineWidth = 1 + a * 10; ctx.lineCap = "round";
+        ctx.beginPath(); ctx.moveTo(pts[i - 1].x, pts[i - 1].y); ctx.lineTo(pts[i].x, pts[i].y); ctx.stroke();
+      }
+      if (t <= f.end) { const h = posAt(P, f, t), g = ctx.createRadialGradient(h.x, h.y, 0, h.x, h.y, 34); g.addColorStop(0, "rgba(255,240,200,.55)"); g.addColorStop(1, "rgba(242,187,69,0)"); ctx.fillStyle = g; ctx.fillRect(h.x - 34, h.y - 34, 68, 68); }
+    } else if (m.trail === "sparks") {
+      const life = 520, stepMs = 22, now = Math.floor(t / stepMs) * stepMs;
+      for (let k = 0; k < 24; k++) {
+        const te = now - k * stepMs, age = t - te;
+        if (te < f.start || te > f.end || age > life) continue;
+        const p0 = posAt(P, f, te), seed = f.k * 977 + te / stepMs;
+        const r1 = hash(seed), r2 = hash(seed + 7.3), u = age / life;
+        const ang = r1 * Math.PI * 2, sp = 10 + r2 * 34;
+        const x = p0.x + Math.cos(ang) * sp * u, y = p0.y + Math.sin(ang) * sp * u + 14 * u * u;
+        ctx.fillStyle = r1 < 0.45 ? `rgba(242,187,69,${1 - u})` : r1 < 0.8 ? `rgba(255,240,208,${1 - u})` : `rgba(16,183,166,${1 - u})`;
+        ctx.beginPath(); ctx.arc(x, y, (1.1 + 2.2 * r2) * (1 - u * 0.6), 0, Math.PI * 2); ctx.fill();
+      }
+    }
+  }
+  for (const r of P.rx) {
+    const q = (t - r.at) / r.dur;
+    if (q < 0 || q > 1) continue;
+    const { x, y } = r.pos;
+    if (r.type === "flash") {
+      const a = (1 - q) * (1 - q), rad = 40 + 50 * q, g = ctx.createRadialGradient(x, y, 0, x, y, rad);
+      g.addColorStop(0, `rgba(255,250,232,${(0.95 * a).toFixed(3)})`); g.addColorStop(0.35, `rgba(242,187,69,${(0.6 * a).toFixed(3)})`); g.addColorStop(1, "rgba(242,187,69,0)");
+      ctx.fillStyle = g; ctx.fillRect(x - rad, y - rad, rad * 2, rad * 2);
+    } else if (r.type === "ring") {
+      ctx.strokeStyle = `rgba(242,187,69,${(1 - q).toFixed(3)})`; ctx.lineWidth = 5 * (1 - q) + 0.5;
+      ctx.beginPath(); ctx.ellipse(x, y, 14 + q * 80, 10 + q * 52, 0, 0, Math.PI * 2); ctx.stroke();
+      if (q > 0.15) { const q2 = (q - 0.15) / 0.85; ctx.strokeStyle = `rgba(16,183,166,${(0.8 * (1 - q2)).toFixed(3)})`; ctx.lineWidth = 3 * (1 - q2) + 0.5; ctx.beginPath(); ctx.ellipse(x, y, 10 + q2 * 56, 7 + q2 * 36, 0, 0, Math.PI * 2); ctx.stroke(); }
+    } else if (r.type === "burst") {
+      const e = 1 - (1 - q) * (1 - q);
+      for (let i = 0; i < 22; i++) {
+        const ang = (i / 22) * Math.PI * 2 + hash(i) * 0.4, dist = (22 + hash(i + 9) * 52) * e;
+        ctx.fillStyle = i % 3 === 0 ? `rgba(16,183,166,${1 - q})` : `rgba(255,214,120,${1 - q})`;
+        ctx.beginPath(); ctx.arc(x + Math.cos(ang) * dist, y + Math.sin(ang) * dist, 2.6 * (1 - q) + 0.5, 0, Math.PI * 2); ctx.fill();
+      }
+    } else if (r.type === "avatarPulse") {
+      const p = r.zoneId && r.zoneId.startsWith("avatar:") ? ZONES[r.zoneId] : ZONES["avatar:me"];
+      ctx.strokeStyle = `rgba(242,187,69,${(0.9 * (1 - q)).toFixed(3)})`; ctx.lineWidth = 3 * (1 - q) + 0.5;
+      ctx.beginPath(); ctx.arc(p.x, p.y, 26 + q * 34, 0, Math.PI * 2); ctx.stroke();
+    } else if (r.type === "glow" && !ZEL[r.zoneId]) {
+      const a = disp(r.zoneId) || { x, y }, wide = r.zoneId === "hand:me" ? 2.6 : 1.4, b = Math.sin(q * Math.PI);
+      ctx.save(); ctx.translate(a.x, a.y); ctx.scale(wide, 1);
+      const g = ctx.createRadialGradient(0, 0, 0, 0, 0, 60);
+      g.addColorStop(0, `rgba(16,183,166,${(0.55 * b).toFixed(3)})`); g.addColorStop(1, "rgba(16,183,166,0)");
+      ctx.fillStyle = g; ctx.fillRect(-60, -60, 120, 120); ctx.restore();
+    }
+  }
+  ctx.globalCompositeOperation = "source-over";
+}
+function renderFrame(t) {
+  const P = plan(), m = P.m, rs = reactionState(t, P), items = [];
+  for (const z of LAYOUT) {
+    const arr = P.sc[z];
+    if (!arr.length) continue;
+    if (z === P.S && !P.inPlace) {
+      const cp = smooth((t - P.fl[0].start - 40) / 360);
+      let j = 0;
+      arr.forEach((c, i) => { if (!P.picks.includes(i)) items.push(staticItem(z, i, c, lerpSlot(P.srcBefore[i], P.srcAfter[j++], cp), 0)); });
+    } else if (P.destBefore[z]) {
+      const [a, b] = P.spreadWin[z], sp = smooth((t - a) / Math.max(1, b - a));
+      arr.forEach((c, i) => items.push(staticItem(z, i, c, lerpSlot(P.destBefore[z][i], P.destAfter[z][i], sp), 0)));
+    } else {
+      const sl = z === P.S ? P.srcBefore : slots(z, arr.length);
+      arr.forEach((c, i) => { if (!(P.inPlace && z === P.S && P.picks.includes(i))) items.push(staticItem(z, i, c, sl[i], z === P.S ? rs.dim : 0)); });
+    }
+  }
+  for (const f of P.fl) { const it = flightItem(f, t, P, m); if (it) items.push(it); }
+  drawCards(items);
+  applyDom(rs);
+  drawFx(t, P, m);
+  updatePlayheads(t, P);
+}
+
+/* ═══════════════ Schéma (repères, trajectoire, poignées) ═══════════════ */
+function drawSchema() {
+  const svg = $("#schema");
+  $("#phone").classList.toggle("show-schema", state.schema);
+  if (!state.schema) { svg.innerHTML = ""; return; }
+  const P = plan(), m = P.m;
+  const used = new Set([m.from, ...(m.to === "hand:all" ? DEAL.filter((z) => z !== m.from) : [m.to])]);
+  let s = "";
+  for (const z of Object.keys(ZONES)) {
+    const d = disp(z), u = used.has(z), hov = drag && drag.hover === z;
+    s += `<g class="anc${u ? " used" : ""}${hov ? " hov" : ""}"><circle cx="${d.x}" cy="${d.y}" r="${hov ? 9 : u ? 5.5 : 4}"/></g>`;
+  }
+  const f0 = P.fl[0];
+  if (P.inPlace) {
+    s += `<circle class="guide" cx="${f0.from.x}" cy="${f0.from.y}" r="40"/>`;
+  } else {
+    P.fl.slice(0, 12).forEach((f, i) => { s += `<path class="tr${i ? " faint" : ""}" d="M${f.from.x} ${f.from.y} Q${f.ctrl.x} ${f.ctrl.y} ${f.to.x} ${f.to.y}"/>`; });
+    for (let i = 1; i < 16; i++) { const p = qb(f0.from, f0.ctrl, f0.to, P.ease(i / 16)); s += `<circle class="sp" cx="${p.x.toFixed(1)}" cy="${p.y.toFixed(1)}" r="2"/>`; }
+    let flipP = null;
+    if (m.faceMode === "auto") { if ((f0.from.face ?? 0) !== (f0.to.face ?? f0.from.face ?? 0)) flipP = 0.525; }
+    else for (let i = 1; i <= 100; i++) { const a = lane(m.lanes.flip, (i - 1) / 100), b = lane(m.lanes.flip, i / 100); if ((a - 90) * (b - 90) <= 0 && a !== b) { flipP = i / 100; break; } }
+    if (flipP != null) { const p = qb(f0.from, f0.ctrl, f0.to, P.ease(flipP)); s += `<g class="glyph" transform="translate(${(p.x + 14).toFixed(1)},${(p.y - 12).toFixed(1)})"><circle r="8"/><text>↻</text></g>`; }
+  }
+  const lbl = (z, d, extra = "") => {
+    const anchor = d.x < 70 ? "start" : d.x > W - 70 ? "end" : "middle", dx = anchor === "start" ? -6 : anchor === "end" ? 6 : 0;
+    return `<text class="lbl" x="${d.x + dx}" y="${d.y - 14}" text-anchor="${anchor}">${esc(zoneShort(z))}${extra}</text>`;
+  };
+  if (m.to === "hand:all") for (const z of used) if (z !== m.from) s += lbl(z, disp(z));
+  const A = drag && drag.which === "A" ? drag.pos : P.srcLayout ? { x: f0.from.x, y: f0.from.y } : disp(m.from);
+  let B;
+  if (drag && drag.which === "B") B = drag.pos;
+  else if (P.inPlace) B = { x: clamp(f0.from.x + 34, 14, W - 14), y: clamp(f0.from.y - 34, 14, H - 14) };
+  else B = m.to === "hand:all" ? { x: f0.to.x, y: f0.to.y } : isLayout(m.to) ? { x: f0.to.x, y: f0.to.y } : disp(m.to);
+  B = { x: clamp(B.x, 14, W - 14), y: clamp(B.y, 14, H - 14) };
+  if (drag && drag.hover) s += lbl(drag.hover, disp(drag.hover));
+  s += lbl(m.from, disp(m.from));
+  if (m.to !== "hand:all" && !P.inPlace) s += lbl(m.to, disp(m.to));
+  if (!P.inPlace) {
+    const C = { x: clamp(f0.ctrl.x, 10, W - 10), y: clamp(f0.ctrl.y, 10, H - 10) };
+    s += `<path class="guide" d="M${f0.from.x} ${f0.from.y} L${C.x} ${C.y} L${f0.to.x} ${f0.to.y}"/>`;
+    s += `<g class="h hC" data-h="C" transform="translate(${C.x},${C.y}) rotate(45)"><rect x="-7" y="-7" width="14" height="14" rx="2"/></g>`;
+  } else {
+    s += `<text class="hint-t" x="${B.x + 14}" y="${B.y - 4}">tire B pour en faire un trajet</text>`;
+  }
+  s += `<g class="h hA" data-h="A" transform="translate(${A.x},${A.y})"><circle r="10"/><text>A</text></g>`;
+  s += `<g class="h hB" data-h="B" transform="translate(${B.x},${B.y})"><circle r="10"/><text>B</text></g>`;
+  svg.innerHTML = s;
+}
+function svgPoint(svg, e) {
+  const pt = svg.createSVGPoint();
+  pt.x = e.clientX; pt.y = e.clientY;
+  return pt.matrixTransform(svg.getScreenCTM().inverse());
+}
+function nearestZone(p, radius) {
+  let best = null, bd = radius;
+  for (const z of Object.keys(ZONES)) { const d = disp(z), dist = Math.hypot(d.x - p.x, d.y - p.y); if (dist < bd) { bd = dist; best = z; } }
+  return best;
+}
+function naturalFace(z) { return z === "deck" || isOppHand(z) || z.startsWith("off:") ? 180 : 0; }
+/** Quand on change de zone, la face de départ / d'arrivée suit la zone (sauf si elle est déjà cohérente). */
+function autoFaces(m) {
+  if (m.to === "hand:all") { m.faceMode = "auto"; return; }
+  if (m.from === m.to || m.faceMode === "auto") return;
+  const a = naturalFace(m.from), b = m.to.startsWith("off:") ? a : naturalFace(m.to), L = m.lanes.flip;
+  if (L[0][1] === a && L[L.length - 1][1] === b) return;
+  m.lanes.flip = a === b ? [[0, a], [1, a]] : [[0, a], [0.25, a], [0.75, b], [1, b]];
+}
+function setEndpoint(which, z) {
+  const m = cur();
+  if (which === "A") m.from = z; else m.to = z;
+  autoFaces(m);
+  changed({ restart: true });
+  state.playing = true;
+}
+function bindSchema() {
+  const svg = $("#schema");
+  svg.addEventListener("pointerdown", (e) => {
+    const h = e.target.closest("[data-h]");
+    if (!h) return;
+    e.preventDefault();
+    const m = cur();
+    drag = { which: h.dataset.h, orig: h.dataset.h === "A" ? m.from : m.to, hover: null, pos: svgPoint(svg, e) };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const p = svgPoint($("#schema"), e);
+    drag.pos = p;
+    if (drag.which === "C") {
+      const f = plan().fl[0], dx = f.to.x - f.from.x, dy = f.to.y - f.from.y, d2 = dx * dx + dy * dy, d = Math.sqrt(d2);
+      if (d > 1) {
+        const rx = p.x - f.from.x, ry = p.y - f.from.y;
+        cur().arc = { along: +clamp((rx * dx + ry * dy) / d2, 0.05, 0.95).toFixed(2), perp: +clamp((rx * -dy + ry * dx) / d2, -1, 1).toFixed(2) };
+        changed();
+        syncArcInputs();
+      }
+    } else {
+      const z = nearestZone(p, 40);
+      if (z !== drag.hover) { drag.hover = z; if (z) setEndpoint(drag.which, z); }
+    }
+    schemaDirty = true;
+  });
+  window.addEventListener("pointerup", () => {
+    if (!drag) return;
+    if (drag.which !== "C" && !drag.hover) setEndpoint(drag.which, drag.orig);
+    drag = null;
+    schemaDirty = true;
+    renderInspector();
+    renderLib();
+  });
+}
+
+/* ═══════════════ Ligne de temps ═══════════════ */
+function buildTimeline() {
+  const P = plan(), m = P.m, el = $("#timeline"), total = P.total + 250;
+  el._total = total;
+  const pct = (ms) => ((ms / total) * 100).toFixed(3) + "%";
+  const step = total > 3000 ? 250 : 100;
+  let ticks = "";
+  for (let ms = 0; ms <= total; ms += step) { const maj = ms % 500 === 0; ticks += `<i class="${maj ? "maj" : ""}" style="left:${pct(ms)}">${maj ? `<em>${fmtS(ms)}</em>` : ""}</i>`; }
+  const shown = P.fl.slice(0, 6);
+  const rows = shown.map((f) => `<div class="tl-row"><span class="tl-lab">Carte ${f.k + 1} · ${esc(f.card.id)}${P.inPlace ? " (sur place)" : ""}</span><div class="tl-track"><div class="tl-bar" style="left:${pct(f.start)};width:${pct(f.dur)}"></div>${m.squash && !P.inPlace ? `<div class="tl-bar sq" style="left:${pct(f.end)};width:${pct(280)}"></div>` : ""}</div></div>`).join("");
+  const more = P.fl.length > shown.length ? `<div class="tl-more">+ ${P.fl.length - shown.length} autres cartes, même rythme</div>` : "";
+  const rx = P.rx.map((r, j) => `<div class="tl-rxbar" style="left:${pct(r.at)};width:${pct(r.dur)};background:${RX[r.type].color}"></div><div class="tl-dia" data-j="${j}" style="left:${pct(r.at)};--c:${RX[r.type].color}" title="${esc(RX[r.type].label)} · glisser pour décaler"></div>`).join("");
+  el.innerHTML = `<div class="tl-row"><span class="tl-lab">Temps</span><div class="tl-ruler">${ticks}</div></div>${rows}${more}
+    <div class="tl-row"><span class="tl-lab">Réactions</span><div class="tl-track" id="rxTrack">${rx}</div></div>
+    <div class="tl-phwrap"><div class="tl-ph" id="tlPh"></div></div>`;
+}
+function bindTimeline() {
+  const el = $("#timeline");
+  const fracOf = (e) => { const r = el.querySelector(".tl-phwrap").getBoundingClientRect(); return clamp01((e.clientX - r.left) / r.width); };
+  el.addEventListener("pointerdown", (e) => {
+    const dia = e.target.closest(".tl-dia");
+    if (dia) {
+      const j = +dia.dataset.j, r = plan().rx[j];
+      tlDrag = { kind: "rx", ri: r.ri, base: r.base, el: dia };
+    } else {
+      if (e.clientX < el.querySelector(".tl-phwrap").getBoundingClientRect().left) return;
+      tlDrag = { kind: "seek" };
+      state.playing = false; updatePlayBtn();
+      state.t = fracOf(e) * el._total;
+    }
+    e.preventDefault();
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!tlDrag) return;
+    const abs = fracOf(e) * el._total;
+    if (tlDrag.kind === "seek") { state.t = abs; return; }
+    const r = cur().reactions[tlDrag.ri];
+    r.offsetMs = clamp(Math.round((abs - tlDrag.base) / 10) * 10, -800, 1200);
+    tlDrag.el.style.left = (((tlDrag.base + r.offsetMs) / el._total) * 100).toFixed(3) + "%";
+    _plan = null; jsonDirty = true; persist();
+  });
+  window.addEventListener("pointerup", () => {
+    if (!tlDrag) return;
+    if (tlDrag.kind === "rx") { timelineDirty = true; renderRx(); }
+    tlDrag = null;
+  });
+}
+
+/* ═══════════════ Inspecteur ═══════════════ */
+const FMT = { iCount: (v) => v, iStagger: (v) => v + " ms", iDur: (v) => fmtS(v), iPerp: (v) => (v > 0 ? "+" : "") + v + " %", iAlong: (v) => v + " %" };
+function rng(id, label, val, min, max, step) {
+  return `<label class="rng"><span>${label} <b id="v-${id}">${FMT[id](val)}</b></span><input type="range" id="${id}" min="${min}" max="${max}" step="${step}" value="${val}"></label>`;
+}
+function zoneOptions(sel, withAll) {
+  let h = "";
+  for (const [g, zs] of ZONE_GROUPS) h += `<optgroup label="${g}">` + zs.map((z) => `<option value="${z}"${z === sel ? " selected" : ""}>${esc(ZONES[z].label)}</option>`).join("") + "</optgroup>";
+  if (withAll) h += `<optgroup label="Partie"><option value="hand:all"${sel === "hand:all" ? " selected" : ""}>Toutes les mains (distribution)</option></optgroup>`;
+  return h;
+}
+const sameEase = (a, b) => a.every((v, i) => Math.abs(v - b[i]) < 1e-3);
+function renderInspector() {
+  const m = cur(), P = plan(), preset = PRESET_BY_ID[m.id] && !m.custom;
+  const maxCount = m.to === "hand:all" ? 12 : 6;
+  let pick = "";
+  if (m.from === "hand:me") {
+    const hand = P.sc["hand:me"];
+    pick = `<label class="fld"><span>Carte de ta main</span><select id="iPick"><option value="">La dernière</option>${hand.map((c, i) => `<option value="${i}"${m.pick === i ? " selected" : ""}>Carte ${i + 1} · ${esc(c.id)}</option>`).join("")}</select></label>`;
+  }
+  $("#insp").innerHTML = `
+  <section class="sec">
+    <div class="sec-top"><input type="text" class="name-in" id="iName" value="${esc(m.name)}" aria-label="Nom de l'animation">
+      <div class="btnrow"><button type="button" class="btn sm" id="bDup">Dupliquer</button>${preset ? `<button type="button" class="btn sm" id="bReset">Réinitialiser</button>` : `<button type="button" class="btn sm danger" id="bDel">Supprimer</button>`}</div></div>
+    <textarea id="iDesc" rows="3" placeholder="À quoi sert cette animation ?">${esc(m.desc)}</textarea>
+  </section>
+  <section class="sec"><h3>Trajet <span class="hint">ou tire A, B et ◆ sur le schéma</span></h3>
+    <div class="grid2"><label class="fld"><span>De (A)</span><select id="iFrom">${zoneOptions(m.from)}</select></label><label class="fld"><span>Vers (B)</span><select id="iTo">${zoneOptions(m.to, true)}</select></label></div>
+    ${pick}
+    ${rng("iCount", "Cartes", m.count, 1, maxCount, 1)}
+    ${rng("iStagger", "Décalage entre cartes", m.staggerMs, 0, 400, 10)}
+    ${rng("iDur", "Durée du vol", m.durationMs, 150, 2000, 10)}
+    ${rng("iPerp", "Bombé de la courbe", Math.round(m.arc.perp * 100), -100, 100, 1)}
+    ${rng("iAlong", "Position du sommet", Math.round(m.arc.along * 100), 5, 95, 1)}
+    <label class="chk"><input type="checkbox" id="iAuto"${m.faceMode === "auto" ? " checked" : ""}> Face automatique <span class="hint">· la carte prend la face de sa destination</span></label>
+  </section>
+  <section class="sec"><h3>Courbe de vitesse <span class="hint">tire les deux poignées</span></h3>
+    <div class="ease"><svg id="easeSvg" viewBox="0 0 160 220"></svg><div class="chips" id="easeChips">${Object.entries(EASES).map(([n, v]) => `<button type="button" class="chip${sameEase(v, m.easing) ? " on" : ""}" data-ease="${v.join(",")}">${n}</button>`).join("")}</div>
+    <code id="easeCode"></code></div>
+  </section>
+  <section class="sec"><h3>Propriétés dans le temps <span class="hint">double-clic : ajouter · clic droit : retirer</span></h3><div id="lanes"></div></section>
+  <section class="sec"><h3>Effets pendant le vol</h3>
+    <div class="chips" id="trailChips">${TRAILS.map(([k, l]) => `<button type="button" class="chip${m.trail === k ? " on" : ""}" data-trail="${k}">${l}</button>`).join("")}</div>
+    <label class="chk" style="margin-top:10px"><input type="checkbox" id="iSquash"${m.squash ? " checked" : ""}> Atterrissage écrasé <span class="hint">· la carte s'aplatit puis rebondit</span></label>
+  </section>
+  <section class="sec"><h3>Réactions de la table <span class="hint">losanges de la ligne de temps</span></h3><div id="rxList"></div>
+    <select id="rxAdd"><option value="">+ Ajouter une réaction…</option>${Object.entries(RX).map(([k, d]) => `<option value="${k}">${d.label}</option>`).join("")}</select>
+  </section>
+  <section class="sec"><h3>Données <span class="hint">ce que l'éditeur enregistrerait</span></h3><button type="button" class="btn sm" id="bCopy">Copier le JSON</button><pre id="json"></pre></section>`;
+  renderEase(); renderLanes(); renderRx();
+  jsonDirty = true;
+}
+function syncArcInputs() {
+  const m = cur(), p = $("#iPerp"), a = $("#iAlong");
+  if (!p || !a) return;
+  p.value = Math.round(m.arc.perp * 100); $("#v-iPerp").textContent = FMT.iPerp(+p.value);
+  a.value = Math.round(m.arc.along * 100); $("#v-iAlong").textContent = FMT.iAlong(+a.value);
+}
+function bindInspector() {
+  const ins = $("#insp");
+  ins.addEventListener("input", (e) => {
+    const m = cur(), t = e.target, v = t.value;
+    if (t.id === "iName") { m.name = v; headDirty = true; renderLib(); persist(); jsonDirty = true; return; }
+    if (t.id === "iDesc") { m.desc = v; headDirty = true; persist(); jsonDirty = true; return; }
+    if (FMT[t.id]) $("#v-" + t.id).textContent = FMT[t.id](+v);
+    if (t.id === "iCount") { m.count = +v; changed(); renderRx(); return; }
+    if (t.id === "iStagger") { m.staggerMs = +v; changed(); return; }
+    if (t.id === "iDur") { m.durationMs = +v; changed(); return; }
+    if (t.id === "iPerp") { m.arc = { ...m.arc, perp: +v / 100 }; changed(); return; }
+    if (t.id === "iAlong") { m.arc = { ...m.arc, along: +v / 100 }; changed(); return; }
+  });
+  ins.addEventListener("change", (e) => {
+    const m = cur(), t = e.target;
+    if (t.id === "iFrom" || t.id === "iTo") {
+      if (t.id === "iFrom") m.from = t.value; else m.to = t.value;
+      if (m.to !== "hand:all" && m.count > 6) m.count = 6;
+      autoFaces(m); changed({ restart: true }); state.playing = true; updatePlayBtn(); renderInspector(); renderLib(); return;
+    }
+    if (t.id === "iPick") { m.pick = t.value === "" ? null : +t.value; changed({ restart: true }); return; }
+    if (t.id === "iAuto") { m.faceMode = t.checked ? "auto" : "lane"; if (!t.checked) autoFaces(m); changed(); renderLanes(); return; }
+    if (t.id === "iSquash") { m.squash = t.checked; changed(); return; }
+    if (t.id === "rxAdd" && t.value) {
+      m.reactions.push(R(t.value, "arrival", 0, RX[t.value].zone ? { zone: t.value === "avatarPulse" ? "avatar:me" : "to" } : {}));
+      t.value = ""; changed(); renderRx(); return;
+    }
+  });
+  ins.addEventListener("click", (e) => {
+    const m = cur(), b = e.target.closest("button");
+    if (!b) return;
+    if (b.dataset.ease) { m.easing = b.dataset.ease.split(",").map(Number); changed(); renderEase(); return; }
+    if (b.dataset.trail) { m.trail = b.dataset.trail; changed(); ins.querySelectorAll("[data-trail]").forEach((x) => x.classList.toggle("on", x === b)); return; }
+    if (b.id === "bDup") { duplicate(m); return; }
+    if (b.id === "bReset") { const i = state.motifs.indexOf(m); state.motifs[i] = clone(PRESET_BY_ID[m.id]); changed({ restart: true }); renderInspector(); renderLib(); return; }
+    if (b.id === "bDel") { if (!confirm(`Supprimer « ${m.name} » ?`)) return; const i = state.motifs.indexOf(m); state.motifs.splice(i, 1); select(state.motifs[Math.max(0, i - 1)].id); return; }
+    if (b.id === "bCopy") {
+      const txt = JSON.stringify(exportOf(m), null, 2);
+      const done = () => { b.textContent = "Copié ✓"; setTimeout(() => (b.textContent = "Copier le JSON"), 1400); };
+      if (navigator.clipboard) navigator.clipboard.writeText(txt).then(done, () => selectJson()); else selectJson();
+    }
+  });
+}
+function selectJson() { const r = document.createRange(); r.selectNodeContents($("#json")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+function exportOf(m) { const { group, custom, ...rest } = m; return rest; }
+
+/* Réactions */
+function rxZoneOptions(sel) {
+  const opts = [["to", "Destination (B)"], ["from", "Départ (A)"], ...Object.keys(ZONES).filter((z) => !z.startsWith("off:")).map((z) => [z, ZONES[z].label])];
+  return opts.map(([v, l]) => `<option value="${v}"${v === sel ? " selected" : ""}>${esc(l)}</option>`).join("");
+}
+function renderRx() {
+  const m = cur(), list = $("#rxList");
+  if (!list) return;
+  const ms = (v) => (v > 0 ? "+" : "") + v + " ms";
+  list.innerHTML = m.reactions.map((r, i) => {
+    const d = RX[r.type];
+    return `<div class="rx" data-i="${i}">
+      <div class="rx-top"><b><i class="dot" style="background:${d.color}"></i>${d.label}</b><button type="button" class="x" data-act="del" title="Retirer">×</button></div>
+      <div class="grid2"><label class="fld"><span>Moment</span><select data-k="anchor"><option value="start"${r.anchor === "start" ? " selected" : ""}>au départ</option><option value="arrival"${r.anchor !== "start" ? " selected" : ""}>à l'arrivée</option></select></label>
+      ${d.zone ? `<label class="fld"><span>Où</span><select data-k="zone">${rxZoneOptions(r.zone || "to")}</select></label>` : ""}</div>
+      <label class="rng"><span>Décalage <b data-v="offsetMs">${ms(r.offsetMs || 0)}</b></span><input type="range" data-k="offsetMs" min="-800" max="1200" step="10" value="${r.offsetMs || 0}"></label>
+      <label class="rng"><span>Durée <b data-v="dur">${fmtS(r.dur || d.dur)}</b></span><input type="range" data-k="dur" min="100" max="2000" step="10" value="${r.dur || d.dur}"></label>
+      ${m.count > 1 ? `<label class="chk"><input type="checkbox" data-k="each"${r.each ? " checked" : ""}> Pour chaque carte</label>` : ""}
+    </div>`;
+  }).join("") || `<p class="empty">Aucune réaction : seule la carte bouge.</p>`;
+}
+function bindRx() {
+  const host = $("#insp");
+  const handler = (e) => {
+    const row = e.target.closest(".rx"), k = e.target.dataset.k;
+    if (!row || !k) return;
+    const r = cur().reactions[+row.dataset.i];
+    if (k === "each") r.each = e.target.checked;
+    else if (k === "offsetMs" || k === "dur") { r[k] = +e.target.value; row.querySelector(`[data-v="${k}"]`).textContent = k === "dur" ? fmtS(r.dur) : (r.offsetMs > 0 ? "+" : "") + r.offsetMs + " ms"; }
+    else r[k] = e.target.value;
+    changed();
+  };
+  host.addEventListener("input", handler);
+  host.addEventListener("change", (e) => { if (e.target.closest(".rx")) handler(e); });
+  host.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act=del]"), row = e.target.closest(".rx");
+    if (!b || !row) return;
+    cur().reactions.splice(+row.dataset.i, 1);
+    changed(); renderRx();
+  });
+}
+
+/* Courbe de vitesse */
+const EX = (x) => 20 + x * 120, EY = (y) => 170 - y * 120;
+function renderEase() {
+  const svg = $("#easeSvg");
+  if (!svg) return;
+  const [x1, y1, x2, y2] = cur().easing, e = bez(x1, y1, x2, y2);
+  let d = "";
+  for (let i = 0; i <= 48; i++) { const x = i / 48; d += (i ? "L" : "M") + EX(x).toFixed(1) + " " + EY(e(x)).toFixed(1); }
+  svg.innerHTML = `<rect x="20" y="50" width="120" height="120" fill="#120e0b" stroke="#45352a" rx="4"/>
+    <line x1="20" y1="170" x2="140" y2="50" stroke="#45352a" stroke-dasharray="3 3"/>
+    <text x="20" y="190" fill="#a99b8b" font-size="9">temps →</text><text x="12" y="46" fill="#a99b8b" font-size="9">avancée</text>
+    <line x1="${EX(0)}" y1="${EY(0)}" x2="${EX(x1)}" y2="${EY(y1)}" stroke="#10b7a6" stroke-width="1.5"/>
+    <line x1="${EX(1)}" y1="${EY(1)}" x2="${EX(x2)}" y2="${EY(y2)}" stroke="#d83c68" stroke-width="1.5"/>
+    <path d="${d}" fill="none" stroke="#f2bb45" stroke-width="2.5"/>
+    <circle id="easeDot" r="4.5" fill="#fff4df" cx="20" cy="170"/>
+    <circle data-h="1" cx="${EX(x1)}" cy="${EY(y1)}" r="7" fill="#10b7a6" stroke="#1b1010" stroke-width="2" style="cursor:grab"/>
+    <circle data-h="2" cx="${EX(x2)}" cy="${EY(y2)}" r="7" fill="#d83c68" stroke="#1b1010" stroke-width="2" style="cursor:grab"/>`;
+  $("#easeCode").textContent = `cubic-bezier(${cur().easing.join(", ")})`;
+  document.querySelectorAll("[data-ease]").forEach((b) => b.classList.toggle("on", sameEase(b.dataset.ease.split(",").map(Number), cur().easing)));
+}
+function bindEase() {
+  $("#insp").addEventListener("pointerdown", (e) => {
+    const h = e.target.closest("#easeSvg [data-h]");
+    if (!h) return;
+    e.preventDefault();
+    easeDrag = { h: +h.dataset.h };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!easeDrag) return;
+    const p = svgPoint($("#easeSvg"), e), m = cur();
+    const x = +clamp((p.x - 20) / 120, 0, 1).toFixed(2), y = +clamp((170 - p.y) / 120, -0.4, 1.4).toFixed(2);
+    const ez = [...m.easing];
+    if (easeDrag.h === 1) { ez[0] = x; ez[1] = y; } else { ez[2] = x; ez[3] = y; }
+    m.easing = ez;
+    changed(); renderEase();
+  });
+  window.addEventListener("pointerup", () => { easeDrag = null; });
+}
+
+/* Pistes de propriétés */
+const LW = 300, LH = 64, LP = 8;
+const LX = (x) => LP + x * (LW - 2 * LP);
+const LY = (v, L) => LH - LP - ((v - L.min) / (L.max - L.min)) * (LH - 2 * LP);
+function laneSvg(L) {
+  const pts = cur().lanes[L.k];
+  let grid = L.ticks.map((v) => `<line x1="${LP}" x2="${LW - LP}" y1="${LY(v, L)}" y2="${LY(v, L)}" stroke="#45352a" stroke-dasharray="3 3"/>`).join("");
+  const line = pts.map(([x, v]) => `${LX(x).toFixed(1)},${LY(v, L).toFixed(1)}`).join(" ");
+  const area = `M${LX(0)} ${LH - LP} L${line.replace(/ /g, " L")} L${LX(1)} ${LH - LP}Z`;
+  const dots = pts.map(([x, v], i) => `<circle data-i="${i}" cx="${LX(x).toFixed(1)}" cy="${LY(v, L).toFixed(1)}" r="5.5" fill="${i === 0 || i === pts.length - 1 ? "#d7a957" : "#f2bb45"}" stroke="#1b1010" stroke-width="2" style="cursor:grab"/>`).join("");
+  return `<rect width="${LW}" height="${LH}" rx="8" fill="#120e0b" stroke="#2e231b"/>${grid}
+    <path d="${area}" fill="rgba(242,187,69,.10)"/><polyline points="${line}" fill="none" stroke="#f2bb45" stroke-width="2"/>
+    <line id="ph-${L.k}" x1="${LP}" x2="${LP}" y1="3" y2="${LH - 3}" stroke="#fff4df" stroke-width="1.2" opacity=".7"/>${dots}`;
+}
+function renderLanes() {
+  const host = $("#lanes");
+  if (!host) return;
+  const m = cur();
+  host.innerHTML = LANES.map((L) => {
+    const off = L.k === "flip" && m.faceMode === "auto";
+    return `<div class="lane${off ? " off" : ""}" data-k="${L.k}"><div class="lane-top"><b>${L.label}${off ? " · automatique" : ""}</b><span class="lv" id="lv-${L.k}"></span><button type="button" class="x" data-act="lane-reset" title="Remettre à plat">↺</button></div>
+      <svg viewBox="0 0 ${LW} ${LH}" data-k="${L.k}">${laneSvg(L)}</svg></div>`;
+  }).join("");
+}
+function refreshLane(k) {
+  const L = LANES.find((x) => x.k === k), svg = document.querySelector(`#lanes svg[data-k="${k}"]`);
+  if (svg) svg.innerHTML = laneSvg(L);
+  schemaDirty = jsonDirty = true;
+  persist();
+}
+function bindLanes() {
+  const ins = $("#insp");
+  const valueAt = (L, svg, e) => {
+    const p = svgPoint(svg, e);
+    let v = L.min + ((LH - LP - p.y) / (LH - 2 * LP)) * (L.max - L.min);
+    v = clamp(Math.round(v / L.step) * L.step, L.min, L.max);
+    if (L.k === "flip") for (const snap of [0, 90, 180]) if (Math.abs(v - snap) < 7) v = snap;
+    return { x: clamp01((p.x - LP) / (LW - 2 * LP)), v: +v.toFixed(3) };
+  };
+  ins.addEventListener("pointerdown", (e) => {
+    const c = e.target.closest("#lanes circle[data-i]");
+    if (!c || e.button !== 0) return;
+    e.preventDefault();
+    const svg = c.ownerSVGElement;
+    laneDrag = { k: svg.dataset.k, i: +c.dataset.i, svg };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!laneDrag) return;
+    const L = LANES.find((x) => x.k === laneDrag.k), pts = cur().lanes[L.k], i = laneDrag.i;
+    const { x, v } = valueAt(L, laneDrag.svg, e);
+    const last = pts.length - 1;
+    pts[i] = [i === 0 ? 0 : i === last ? 1 : +clamp(x, pts[i - 1][0] + 0.01, pts[i + 1][0] - 0.01).toFixed(3), v];
+    refreshLane(L.k);
+  });
+  window.addEventListener("pointerup", () => { laneDrag = null; });
+  ins.addEventListener("dblclick", (e) => {
+    const svg = e.target.closest("#lanes svg");
+    if (!svg || e.target.closest("circle")) return;
+    const L = LANES.find((x) => x.k === svg.dataset.k), pts = cur().lanes[L.k], { x, v } = valueAt(L, svg, e);
+    if (x <= 0.01 || x >= 0.99) return;
+    pts.push([+x.toFixed(3), v]);
+    pts.sort((a, b) => a[0] - b[0]);
+    refreshLane(L.k);
+  });
+  ins.addEventListener("contextmenu", (e) => {
+    const c = e.target.closest("#lanes circle[data-i]");
+    if (!c) return;
+    e.preventDefault();
+    const k = c.ownerSVGElement.dataset.k, pts = cur().lanes[k], i = +c.dataset.i;
+    if (i === 0 || i === pts.length - 1) return;
+    pts.splice(i, 1);
+    refreshLane(k);
+  });
+  ins.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-act=lane-reset]");
+    if (!b) return;
+    const k = b.closest(".lane").dataset.k, v = DEF_LANES()[k];
+    cur().lanes[k] = k === "lift" ? [[0, 0], [1, 0]] : [[0, v[0][1]], [1, v[0][1]]];
+    refreshLane(k);
+  });
+}
+
+/* ═══════════════ Têtes de lecture (à chaque image) ═══════════════ */
+function updatePlayheads(t, P) {
+  const tl = $("#timeline"), ph = $("#tlPh");
+  if (ph && tl._total) ph.style.left = ((t / tl._total) * 100).toFixed(3) + "%";
+  $("#tRead").textContent = `${fmtS(t)} / ${fmtS(P.total)}`;
+  const f0 = P.fl[0], p = clamp01((t - f0.start) / f0.dur), m = P.m;
+  const dot = $("#easeDot");
+  if (dot) { dot.setAttribute("cx", EX(p).toFixed(1)); dot.setAttribute("cy", EY(P.ease(p)).toFixed(1)); }
+  for (const L of LANES) {
+    const line = document.getElementById("ph-" + L.k), lv = document.getElementById("lv-" + L.k);
+    if (line) { const x = LX(p).toFixed(1); line.setAttribute("x1", x); line.setAttribute("x2", x); }
+    if (lv) lv.textContent = L.fmt(L.k === "flip" ? flipOf(m, f0, p) : lane(m.lanes[L.k], p));
+  }
+}
+
+/* ═══════════════ Bibliothèque, en-tête, matrice ═══════════════ */
+const route = (m) => (m.from === m.to ? `${zoneShort(m.from)} · sur place` : `${zoneShort(m.from)} → ${zoneShort(m.to)}`);
+function renderLib() {
+  const groups = {};
+  for (const m of state.motifs) (groups[m.group] ||= []).push(m);
+  $("#libList").innerHTML = GROUP_ORDER.filter((g) => groups[g]).map((g) => `<div class="lg"><h4>${g}</h4>${groups[g].map((m) => `<button type="button" class="li${m.id === state.sel ? " on" : ""}" data-id="${m.id}"><b>${esc(m.name)}</b><small>${esc(route(m))}</small></button>`).join("")}</div>`).join("");
+}
+function updateHead() {
+  const m = cur(), P = plan();
+  $("#mGroup").textContent = m.group;
+  $("#mName").textContent = m.name;
+  $("#mDesc").textContent = m.desc;
+  const easeName = Object.entries(EASES).find(([, v]) => sameEase(v, m.easing))?.[0] || "Courbe perso";
+  $("#mPills").innerHTML = `<span class="pill a">A · ${esc(zoneShort(m.from))}</span>${m.from === m.to ? `<span class="pill">sur place</span>` : `<span class="pill b">B · ${esc(zoneShort(m.to))}</span>`}
+    <span class="pill">${P.n} carte${P.n > 1 ? "s" : ""}</span><span class="pill">${fmtS(P.total)}</span><span class="pill">${esc(easeName)}</span>`;
+}
+function select(id) {
+  state.sel = id;
+  state.t = 0;
+  changed();
+  renderInspector(); renderLib();
+}
+function duplicate(m, overrides = {}) {
+  const copy = Object.assign(clone(m), { id: "perso-" + Date.now().toString(36), name: m.name + " (copie)", group: "Mes animations", custom: true }, overrides);
+  const i = state.motifs.indexOf(m);
+  state.motifs.splice(i + 1, 0, copy);
+  select(copy.id);
+}
+const MX = ["deck", "hand:me", "deposit:me", "center", "hand:top", "deposit:top", "avatar:me", "pot", "off:top"];
+function templateFor(from, to) {
+  if (from === to) return from === "hand:me" ? "handFocus" : isLayout(from) ? "depGlow" : "flipShow";
+  if (to === "deck") return "discard";
+  if (to.startsWith("avatar:")) return "buff";
+  if (from.startsWith("avatar:")) return "ability";
+  if (to.startsWith("off:")) return "centerRemove";
+  if (to.startsWith("hand:")) return "draw";
+  if (from === "deck") return "reveal";
+  return "play";
+}
+function renderMatrix() {
+  let h = `<div class="hd rh">de ↓ · vers →</div>` + MX.map((z) => `<div class="hd">${esc(zoneShort(z))}</div>`).join("");
+  let filled = 0;
+  for (const a of MX) {
+    h += `<div class="hd rh">${esc(zoneShort(a))}</div>`;
+    for (const b of MX) {
+      const found = state.motifs.find((m) => m.from === a && m.to === b);
+      if (found) filled++;
+      h += `<button type="button" class="${found ? "has" : ""}${a === b ? " diag" : ""}" data-a="${a}" data-b="${b}" title="${esc(zoneLabel(a))} → ${esc(zoneLabel(b))}">${found ? esc(found.name) : a === b ? "sur place" : "+"}</button>`;
+    }
+  }
+  $("#mGrid").innerHTML = h;
+  $("#mLegend").textContent = `${filled} transitions définies sur ${MX.length * MX.length} dans cette grille. Les zones des deux autres adversaires et les quatre bords de l'écran sont aussi accessibles depuis les menus « De » et « Vers ».`;
+}
+function bindChrome() {
+  $("#libList").addEventListener("click", (e) => { const b = e.target.closest("[data-id]"); if (b) { select(b.dataset.id); state.playing = true; updatePlayBtn(); } });
+  $("#openMatrix").addEventListener("click", () => { renderMatrix(); $("#matrix").hidden = false; });
+  $("#mClose").addEventListener("click", () => ($("#matrix").hidden = true));
+  $("#matrix").addEventListener("click", (e) => {
+    if (e.target.id === "matrix") { $("#matrix").hidden = true; return; }
+    const b = e.target.closest("[data-a]");
+    if (!b) return;
+    const a = b.dataset.a, z = b.dataset.b, found = state.motifs.find((m) => m.from === a && m.to === z);
+    $("#matrix").hidden = true;
+    if (found) { select(found.id); return; }
+    const tpl = clone(PRESET_BY_ID[templateFor(a, z)]);
+    const m = Object.assign(tpl, { id: "perso-" + Date.now().toString(36), group: "Mes animations", custom: true, from: a, to: z, count: 1, pick: null, setup: null, cards: null,
+      name: a === z ? `${zoneShort(a)} · sur place` : `${zoneShort(a)} → ${zoneShort(z)}`, desc: `Créée depuis le modèle « ${PRESET_BY_ID[templateFor(a, z)].name} ».` });
+    m.reactions = m.reactions.filter((r) => !r.each);
+    autoFaces(m);
+    state.motifs.push(m);
+    select(m.id);
+  });
+  $("#bPlay").addEventListener("click", () => { if (!state.playing && state.t >= plan().total) state.t = 0; state.playing = !state.playing; updatePlayBtn(); });
+  $("#bRestart").addEventListener("click", () => { state.t = 0; state.playing = true; updatePlayBtn(); });
+  $("#speed").addEventListener("click", (e) => { const b = e.target.closest("[data-s]"); if (!b) return; state.speed = +b.dataset.s; document.querySelectorAll("#speed button").forEach((x) => x.classList.toggle("on", x === b)); });
+  $("#cLoop").addEventListener("change", (e) => (state.loop = e.target.checked));
+  $("#cChain").addEventListener("change", (e) => (state.chain = e.target.checked));
+  $("#cSchema").addEventListener("change", (e) => { state.schema = e.target.checked; schemaDirty = true; });
+  document.addEventListener("keydown", (e) => {
+    if (e.target.closest("input,select,textarea")) return;
+    if (e.code === "Space") { e.preventDefault(); $("#bPlay").click(); }
+    if (e.key === "ArrowRight" || e.key === "ArrowLeft") { state.playing = false; updatePlayBtn(); state.t = clamp(state.t + (e.key === "ArrowRight" ? 16 : -16), 0, plan().total); }
+    if (e.key === "Escape") $("#matrix").hidden = true;
+  });
+}
+function updatePlayBtn() { $("#bPlay").textContent = state.playing ? "❚❚" : "▶"; }
+
+/* ═══════════════ Mise à l'échelle du téléphone ═══════════════ */
+function fit() {
+  const r = $("#phoneWrap").getBoundingClientRect();
+  const s = Math.max(0.3, Math.min((r.width - 34) / W, (r.height - 34) / H, 1.25));
+  $("#phone").style.transform = `scale(${s})`;
+  $("#sizer").style.width = W * s + "px";
+  $("#sizer").style.height = H * s + "px";
+}
+
+/* ═══════════════ Boucle ═══════════════ */
+let last = performance.now();
+function tick(now) {
+  const dt = Math.min(64, now - last);
+  last = now;
+  let P = plan();
+  if (state.playing) {
+    state.t += dt * state.speed;
+    if (state.t > P.total + 700) {
+      if (state.chain) { const i = state.motifs.findIndex((m) => m.id === state.sel); select(state.motifs[(i + 1) % state.motifs.length].id); P = plan(); }
+      else if (state.loop) state.t = 0;
+      else { state.t = P.total; state.playing = false; updatePlayBtn(); }
+    }
+  }
+  if (schemaDirty) { drawSchema(); schemaDirty = false; }
+  if (timelineDirty && !tlDrag) { buildTimeline(); timelineDirty = false; }
+  if (headDirty) { updateHead(); headDirty = false; }
+  if (jsonDirty) { const pre = $("#json"); if (pre) pre.textContent = JSON.stringify(exportOf(cur()), null, 2); jsonDirty = false; }
+  renderFrame(Math.min(state.t, P.total));
+  requestAnimationFrame(tick);
+}
+
+restore();
+buildTable();
+bindSchema(); bindTimeline(); bindInspector(); bindRx(); bindEase(); bindLanes(); bindChrome();
+renderLib(); renderInspector();
+new ResizeObserver(fit).observe($("#phoneWrap"));
+fit();
+requestAnimationFrame(tick);
+</script>
+</body>
+</html>

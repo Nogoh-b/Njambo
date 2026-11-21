@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, forwardRef, useRef, useState } from "react";
+import { memo, forwardRef, useEffect, useRef, useState } from "react";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { NjamboIcon } from "@/components/ui/Art";
 import { useRegisterZone, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
@@ -35,6 +35,13 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
   const cardRefs = useRef<Array<HTMLDivElement | null>>([]);
   const [selection, setSelection] = useState<DepositSelection | null>(null);
   const selectionRef = useRef<DepositSelection | null>(null);
+  // Modèles d'animation : cartes momentanément remplacées par leur sprite (pli gagné, pli ramassé).
+  // Par identité de carte : une carte « ramassée » reste cachée jusqu'à ce que le dépôt se vide.
+  const [hiddenIds, setHiddenIds] = useState<Set<string>>(() => new Set());
+  const depositRef = useRef(deposit);
+  depositRef.current = deposit;
+  const hideTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  useEffect(() => () => hideTimers.current.forEach(clearTimeout), []);
 
   useRegisterZone(seatIdx !== undefined ? (`deposit:${seatIdx}` as ZoneKey) : undefined, {
     getRect: () => rootRef.current?.getBoundingClientRect() ?? null,
@@ -47,6 +54,11 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
       cardRefs.current[cardIdx]?.getBoundingClientRect() ??
       rootRef.current?.getBoundingClientRect() ??
       null,
+    hideCardsFor: (cardIdxs: number[], durationMs: number) => {
+      const ids = cardIdxs.map((idx) => depositRef.current[idx]?.id).filter((id): id is string => !!id);
+      setHiddenIds((current) => new Set([...current, ...ids]));
+      hideTimers.current.push(setTimeout(() => setHiddenIds((current) => new Set([...current].filter((id) => !ids.includes(id)))), durationMs));
+    },
     beginSelection: (filter: DepositSelection["filter"], onPick: DepositSelection["onPick"]) => {
       const sel: DepositSelection = { filter, onPick };
       selectionRef.current = sel;
@@ -125,7 +137,7 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
               position: "absolute",
               transform: `translate3d(${c.dx || 0}px, ${c.dy || 0}px, 0) rotate(${dropRot}deg)`,
               cursor: selectable ? "pointer" : undefined,
-              opacity: selection && !selectable ? 0.5 : 1,
+              opacity: hiddenIds.has(c.id) ? 0 : selection && !selectable ? 0.5 : 1,
               pointerEvents: selection ? "auto" : undefined,
               zIndex: showCrown ? 6 : top ? 3 : 1,
             }}

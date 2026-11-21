@@ -32,6 +32,7 @@ function refresh() {
 refresh();
 subscribePowerCatalog(refresh);
 
+/** Valeur de repli ; les parties utilisent runtime_config/gameplay. */
 export const MAX_EQUIPPED_POWERS = 3;
 
 export const CAURIS_REWARDS = {

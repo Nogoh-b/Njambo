@@ -8,3 +8,4 @@ export * from "./eventRules";
 export * from "./cosmetics";
 export * from "./seasons";
 export * from "./eventChallenges";
+export * from "./changelog";

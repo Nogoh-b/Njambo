@@ -1,4 +1,10 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { eventDetailManifest } from "../lib/assets/manifests";
+
+it("précharge le décor, les boss et les récompenses avant le parcours", () => {
+  const manifest = eventDetailManifest({ imageUrl: "https://assets.example/event.webp", stages: [{ boss: { avatarUrl: "https://assets.example/boss.webp" }, reward: [{ type: "nkap", amount: 100 }] }] });
+  expect(manifest.critical.map((asset) => asset.url)).toEqual(expect.arrayContaining(["https://assets.example/event.webp", "https://assets.example/boss.webp", "/assets/njambo/economy/nkap-stack-64.webp"]));
+});
 
 /* Faux navigateur minimal : Image dont le chargement est piloté par le test. */
 const pending: Array<{ src: string; img: FakeImage }> = [];

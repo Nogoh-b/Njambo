@@ -67,6 +67,7 @@ export function normalizeEventStage(raw: unknown, index: number): EventStage {
     seasonPoints: num(source.seasonPoints, 0),
   };
   if (typeof source.turnTimerSeconds === "number") stage.turnTimerSeconds = source.turnTimerSeconds;
+  if (source.matchCount !== undefined) stage.matchCount = num(source.matchCount, NaN);
   if (typeof boss.name === "string" && boss.name.length > 0) {
     stage.boss = { name: boss.name, botLevel: num(boss.botLevel, 3), ...(optStr(boss.avatarUrl) ? { avatarUrl: optStr(boss.avatarUrl) } : {}) };
   }
@@ -218,6 +219,7 @@ export function validateEventVersion(event: EventVersion): EventValidationIssue[
     if (!isInt(stage.stakeNkap, 0, 1_000_000)) push(`${base}.stakeNkap`, "Mise en Nkap invalide.");
     if (!isInt(stage.seasonPoints, 0, 10_000)) push(`${base}.seasonPoints`, "Points de saison invalides.");
     if (stage.modifiers.includes("turn_timer") && !isInt(stage.turnTimerSeconds, 5, 120)) push(`${base}.turnTimerSeconds`, "Minuteur : 5 à 120 secondes.");
+    if (stage.matchCount !== undefined && !isInt(stage.matchCount, 1, 20)) push(`${base}.matchCount`, "Manches : 1 à 20.");
     if (stage.boss) {
       if (stage.boss.name.trim().length < 2 || stage.boss.name.length > 32) push(`${base}.boss.name`, "Nom du boss : 2 à 32 caractères.");
       if (!isInt(stage.boss.botLevel, 1, 5)) push(`${base}.boss.botLevel`, "Niveau du boss : 1 à 5.");

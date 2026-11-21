@@ -7,6 +7,8 @@ import { generateSecureId } from "@/lib/cryptoUtils";
 import { db } from "@/lib/firebase";
 import { backendCallable } from "@/lib/backendCallable";
 import { GAME_CONFIG } from "@/config/gameConfig";
+import { loadAssets, imageAsset, prefetchAssets } from "@/lib/assets/AssetLoader";
+import { tableManifest } from "@/lib/assets/manifests";
 import { legalCards } from "@/engine/rules";
 import type { PowerChoices } from "@/engine/power";
 import type {
@@ -19,7 +21,8 @@ interface ServerAction { uid: string; card: Card; playId: string; automatic: boo
 interface ServerMatch {
   id: string;
   mode: "bot" | "online" | "friends" | "event";
-  status: "playing" | "settled" | "forfeit" | "cancelled";
+  status: "playing" | "between_rounds" | "settled" | "forfeit" | "cancelled";
+  series?: { round: number; total: number; winners: string[] };
   participants: ServerParticipant[];
   participantUids: string[];
   eliminatedUids?: string[];
@@ -32,6 +35,8 @@ interface ServerMatch {
   turnId: string;
   actionDeadlineAt: number;
   potNkap: number;
+  /** Règles de la table (événement : minuteur par table, etc.). */
+  rules?: { turnSeconds?: number; maxEquippedPowers?: number };
   result: null | {
     winnerUid: string; winnerName: string; winnerIsBot: boolean; type: "lastTrick"; crownGain?: number;
     /** Règlement par joueur calculé au serveur (cf. matchCommands, settle). */
@@ -56,6 +61,7 @@ interface Options {
   profile: Profile;
   stake: number;
   botCount: number;
+  difficulty?: string;
   onResult: (result: Result) => void;
 }
 
@@ -116,6 +122,9 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private dealtMatchIds = new Set<string>();
   /** Si true, le premier doc match contient déjà des coups d'ouverture à rejouer après la donne. */
   private pendingOpeningReplay = false;
+  private advancingRound = 0;
+  private pendingRoundMatch: ServerMatch | null = null;
+  private roundHands = new Map<number, Card[]>();
 
   private stateListeners = new Set<(state: GameState) => void>();
   private playListeners = new Set<PlayListener>();
@@ -136,6 +145,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.consumedMatchId = this.matchId;
     this.stopMatchSnapshots(); this.stopDealing(); this.stopReplay();
     this.matchId = null; this.match = null; this.hand = [];
+    this.advancingRound = 0; this.pendingRoundMatch = null; this.roundHands.clear();
     this.emittedActions.clear(); this.emittedPowerIds.clear(); this.emittedResult = false;
     void this.startRound();
   };
@@ -157,11 +167,15 @@ export class AuthoritativeGameSync implements GameSyncActions {
         botCount: this.opts.botCount,
         roomId: this.opts.roomId,
         eventRunId: this.opts.eventRunId,
+        difficulty: this.opts.difficulty,
       });
+      if (this.destroyed) return;
       if ("waiting" in response.data) {
         this.status("connecting", `File du Ter : ${response.data.playersFound}/${response.data.playersRequired} joueurs`);
         return;
       }
+      await this.prepareAssets(response.data);
+      if (this.destroyed) return;
       this.beginDealingWindow(response.data.match, true);
       this.applyServerState(response.data);
       this.subscribe(response.data.matchId);
@@ -272,9 +286,11 @@ export class AuthoritativeGameSync implements GameSyncActions {
     try {
       const call = backendCallable<Record<string, unknown>, ServerState>("reconnectMatch");
       const response = await call({ idempotencyKey: `reconnect_${generateSecureId(24)}`, matchId });
+      await this.prepareAssets(response.data);
       // Reprise en cours de partie : état appliqué directement, AUCUN replay
       // des vols du dernier batch (le passage par le seed d'ingestMatch
       // marque les playIds existants comme déjà émis).
+      if (this.destroyed) return;
       this.stopReplay();
       this.match = null;
       this.emittedActions.clear(); this.emittedPowerIds.clear(); this.emittedResult = false;
@@ -298,7 +314,11 @@ export class AuthoritativeGameSync implements GameSyncActions {
     }, () => this.status("offline", "Synchronisation interrompue"));
     this.handUnsub = onSnapshot(doc(db, "matches", matchId, "private", this.opts.uid), (snapshot) => {
       if (!snapshot.exists()) return;
-      this.hand = (snapshot.get("hand") ?? []) as Card[];
+      const round = Number(snapshot.get("round") ?? this.match?.series?.round ?? 1);
+      const hand = (snapshot.get("hand") ?? []) as Card[];
+      this.roundHands.set(round, hand);
+      if (round !== (this.match?.series?.round ?? 1)) return;
+      this.hand = hand;
       this.equippedPowers = (snapshot.get("equippedPowers") ?? this.equippedPowers) as PowerCardId[];
       // Éviter un repaint intermédiaire pendant qu'un coup optimiste est encore en vol.
       if (!this.optimisticCardId) this.emitState();
@@ -309,24 +329,26 @@ export class AuthoritativeGameSync implements GameSyncActions {
       // turnSeconds garde l'anneau plein pendant le replay et la donne).
       const source = this.targetMatch ?? this.match;
       const animationsPending = this.dealing || this.replaying || this.replayQueue.length > 0;
-      if (this.destroyed || this.emittedResult || (source && source.status !== "playing" && !animationsPending)) {
+      if (this.destroyed || this.emittedResult || (source && ["settled", "forfeit", "cancelled"].includes(source.status) && !animationsPending)) {
         if (this.timer) {
           clearInterval(this.timer);
           this.timer = null;
         }
         return;
       }
+      const budget = this.turnBudget(source);
       const seconds = animationsPending
-        ? GAME_CONFIG.turnSeconds
+        ? budget
         : source?.status === "playing"
-        ? Math.max(0, Math.min(GAME_CONFIG.turnSeconds, Math.ceil((source.actionDeadlineAt - Date.now()) / 1_000)))
-        : GAME_CONFIG.turnSeconds;
+        ? Math.max(0, Math.min(budget, Math.ceil((source.actionDeadlineAt - Date.now()) / 1_000)))
+        : budget;
       this.timerListeners.forEach((listener) => listener(seconds));
     }, 1_000);
     this.status("live");
   }
 
   private applyServerState(state: ServerState) {
+    if ((state.match.series?.round ?? 1) < (this.match?.series?.round ?? 1)) return;
     this.matchId = state.matchId; this.hand = state.hand;
     if (state.equippedPowers) this.equippedPowers = state.equippedPowers;
     this.ingestMatch(state.match);
@@ -338,6 +360,16 @@ export class AuthoritativeGameSync implements GameSyncActions {
    *  cible (targetMatch) et appende ses nouveaux coups. */
   private ingestMatch(match: ServerMatch) {
     if (this.destroyed) return;
+    if ((match.series?.round ?? 1) < (this.match?.series?.round ?? 1)) return;
+    if (this.match && (match.series?.round ?? 1) > (this.match.series?.round ?? 1)) {
+      if (this.replaying || this.dealing) { this.pendingRoundMatch = match; return; }
+      this.match = null;
+      this.displayMatch = null;
+      this.hand = this.roundHands.get(match.series!.round) ?? [];
+      this.emittedActions.clear(); this.emittedPowerIds.clear();
+      this.simTrickPlays = [];
+      this.beginDealingWindow(match, true);
+    }
     // Match déjà réglé et écran de résultat ouvert : figer définitivement la partie.
     if (this.emittedResult && match.id === this.matchId && match.status === "settled") {
       this.match = match;
@@ -389,6 +421,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
         this.simTrickPlays = match.trickPlays.map((play) => ({ uid: play.uid, card: play.card }));
         this.emitState();
         this.maybeEmitResult();
+        this.scheduleNextSeriesRound();
         return;
       }
     }
@@ -468,8 +501,10 @@ export class AuthoritativeGameSync implements GameSyncActions {
         this.emitPlay(step.action);
         this.applyPlayToDisplay(step.action);
         this.emitState();
-        // Espacer d'au moins la durée du vol pour ne jamais écraser un vol en cours.
-        this.replayTimer = setTimeout(() => this.pump(), GAME_CONFIG.anim.dropFlight + GAME_CONFIG.anim.landSettle);
+        // Espacer d'au moins la durée du vol pour ne jamais écraser un vol en
+        // cours ; une IA marque en plus une pause après sa carte.
+        const afterPlay = this.isBot(step.action.uid) ? GAME_CONFIG.anim.botAfterPlay : 0;
+        this.replayTimer = setTimeout(() => this.pump(), GAME_CONFIG.anim.dropFlight + GAME_CONFIG.anim.landSettle + afterPlay);
       };
       if (step.delayBefore <= 0) run();
       else this.replayTimer = setTimeout(run, step.delayBefore);
@@ -499,6 +534,38 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.maybeEmitResult();
     if (this.replayQueue.length > 0) { this.pump(); return; }
     this.replaying = false;
+    if (this.pendingRoundMatch) {
+      const next = this.pendingRoundMatch;
+      this.pendingRoundMatch = null;
+      this.ingestMatch(next);
+      return;
+    }
+    this.scheduleNextSeriesRound();
+  }
+
+  private scheduleNextSeriesRound() {
+    const match = this.match;
+    if (match?.status !== "between_rounds" || !match.series || this.advancingRound >= match.series.round) return;
+    this.advancingRound = match.series.round;
+    this.replayTimer = setTimeout(() => {
+      if (this.destroyed || !this.matchId) return;
+      const call = backendCallable("advanceMatchRound");
+      void call({ idempotencyKey: `round_${this.matchId}_${match.series!.round}`, matchId: this.matchId, round: match.series!.round })
+        .catch(() => this.status("connecting", "Préparation de la manche suivante…"));
+    }, 2200);
+  }
+
+  private async prepareAssets(state: ServerState) {
+    const manifest = tableManifest({ myPowers: state.equippedPowers, participants: state.match.participants.map((participant) => participant.cosmetics) });
+    const avatars = state.match.participants.map((participant) => imageAsset(participant.avatarUrl));
+    this.status("connecting", "Chargement des visuels de la table…");
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+    await Promise.race([
+      loadAssets([...manifest.critical, ...avatars]),
+      new Promise<void>((resolve) => { timeout = setTimeout(resolve, 6000); }),
+    ]);
+    if (timeout) clearTimeout(timeout);
+    prefetchAssets(manifest.background);
   }
 
   private emitPlay(action: ServerAction) {
@@ -573,7 +640,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
   /** Démarre la fenêtre "dealing" dès qu'un match neuf commence (y compris en
    *  multijoueur pour les invités ou quand un bot ouvre le 1er pli côté serveur). */
   private beginDealingWindow(match: ServerMatch, allowOpeningReplay = false) {
-    if (this.destroyed || match.status !== "playing" || this.dealtMatchIds.has(match.id)) return;
+    const dealKey = `${match.id}:${match.series?.round ?? 1}`;
+    if (this.destroyed || match.status !== "playing" || this.dealtMatchIds.has(dealKey)) return;
     const actionCount = (match.recentActions ?? []).length;
     const fresh = match.trickNumber === 0 && (
       allowOpeningReplay
@@ -581,7 +649,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
         : match.trickPlays.length === 0 && actionCount === 0
     );
     if (!fresh) return;
-    this.dealtMatchIds.add(match.id);
+    this.dealtMatchIds.add(dealKey);
     this.pendingOpeningReplay = allowOpeningReplay && actionCount > 0;
     const { dealPerCard, dealFlight } = GAME_CONFIG.anim;
     const dealTime = match.participants.length * GAME_CONFIG.cardsPerPlayer * dealPerCard + dealFlight + 200;
@@ -639,6 +707,16 @@ export class AuthoritativeGameSync implements GameSyncActions {
     });
   }
 
+  private isBot(uid: string): boolean {
+    return Boolean((this.targetMatch ?? this.match)?.participants.find((participant) => participant.uid === uid)?.bot);
+  }
+
+  /** Secondes par tour de CE match (minuteur de table d'événement), sinon la valeur globale. */
+  private turnBudget(match: ServerMatch | null | undefined): number {
+    const seconds = Number(match?.rules?.turnSeconds);
+    return Number.isFinite(seconds) && seconds > 0 ? seconds : GAME_CONFIG.turnSeconds;
+  }
+
   private emitState() {
     const match = this.viewMatch();
     if (!match) return;
@@ -668,7 +746,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     }
 
     const state: GameState = {
-      phase: match.status === "settled" ? "result" : this.dealing ? "dealing" : "turns",
+      phase: match.status === "settled" ? "result" : match.status === "between_rounds" ? "trickEnd" : this.dealing ? "dealing" : "turns",
       trickNo: match.trickNumber + 1,
       trickPlays: mappedTrickPlays,
       leaderIdx: Math.max(0, this.localIndex(match.leaderIndex)),
@@ -677,6 +755,12 @@ export class AuthoritativeGameSync implements GameSyncActions {
       dominantIdx,
       banner: "",
       players: this.players(),
+      turnStartSeconds: this.turnBudget(match),
+      ...(match.series ? { series: {
+        round: match.series.round, total: match.series.total,
+        scores: this.localOrder().map((index) => match.series!.winners.filter((uid) => uid === match.participants[index].uid).length),
+        lastWinnerName: match.status === "between_rounds" ? match.participants.find((participant) => participant.uid === match.series!.winners.at(-1))?.name : undefined,
+      } } : {}),
     };
     this.stateListeners.forEach((listener) => listener(state));
   }
@@ -720,6 +804,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     const result: Result = {
       type: "lastTrick", winnerIdx, winner: players[winnerIdx], doubles: false, lastCard,
       gain: match.potNkap, playersCount: players.length, players, settlement,
+      series: match.series ? { total: match.series.total, scores: this.localOrder().map((index) => match.series!.winners.filter((uid) => uid === match.participants[index].uid).length) } : undefined,
     };
     this.roundListeners.forEach((listener) => listener(result));
     this.opts.onResult(result);
@@ -804,7 +889,16 @@ export class AuthoritativeGameSync implements GameSyncActions {
 
   /** Abandon volontaire : le serveur élimine le joueur avant le retour menu. */
   abandon = async () => {
-    if (!this.matchId || this.match?.status !== "playing") return;
+    if (!this.matchId && this.opts.mode === "event" && this.opts.eventRunId) {
+      const leave = backendCallable<Record<string, unknown>, { matchId?: string }>("leaveEvent");
+      const response = await leave({ idempotencyKey: `leave_${generateSecureId(24)}`, runId: this.opts.eventRunId });
+      if (response.data.matchId) {
+        const abandon = backendCallable("abandonMatch");
+        await abandon({ idempotencyKey: `abandon_${generateSecureId(24)}`, matchId: response.data.matchId });
+      }
+      return;
+    }
+    if (!this.matchId || !["playing", "between_rounds"].includes(this.match?.status ?? "")) return;
     const call = backendCallable<Record<string, unknown>, { matchId: string; status: string }>("abandonMatch");
     await call({ idempotencyKey: `abandon_${generateSecureId(24)}`, matchId: this.matchId });
   };
@@ -830,10 +924,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.latestRoomSnapshot = null;
   }
   destroy = () => {
-    if (this.opts.mode === "event" && this.opts.eventRunId && !this.matchId) {
-      const leave = backendCallable<Record<string, unknown>, { ticketReturned: boolean }>("leaveEvent");
-      void leave({ idempotencyKey: `leave_${generateSecureId(24)}`, runId: this.opts.eventRunId });
-    }
+    // Nettoyage technique uniquement : l'abandon est une action explicite.
     this.destroyed = true;
     this.stopSnapshots();
     this.stopDealing();

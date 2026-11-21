@@ -16,6 +16,7 @@ export interface SyncStatusPresentation {
 
 /** Texte de résultat partagé par tous les modes, sans modifier le calcul du moteur. */
 export function getResultReasonLabels(result: Result): string[] {
+  if (result.series && result.series.total > 1) return [`Série de ${result.series.total} manches remportée`];
   if (result.type === "lastTrick") {
     return [
       "Dernier tour dominé",

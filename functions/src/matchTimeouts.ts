@@ -13,7 +13,7 @@
    le mappe sur la phase "turns"). Les compteurs sont déjà incrémentés ici. */
 
 import { db, stableId } from "./core";
-import { performGameAction, type MatchDocument, type MatchParticipant } from "./matchCommands";
+import { advanceMatchRound, performGameAction, type MatchDocument, type MatchParticipant } from "./matchCommands";
 
 /** Grâce au-delà de la deadline serveur. Le budget d'animation du replay est
     DÉJÀ inclus dans actionDeadlineAt (PLAY_ANIM_MS/TRICK_PAUSE_MS et
@@ -24,6 +24,15 @@ const TIMEOUT_GRACE_MS = 0;
 
 export async function autoPlayExpiredMatchesImpl(): Promise<void> {
   const cutoff = Date.now() - TIMEOUT_GRACE_MS;
+  const between = await db.collection("matches").where("status", "==", "between_rounds").where("actionDeadlineAt", "<=", cutoff).limit(20).get();
+  for (const snapshot of between.docs) {
+    try {
+      await db.runTransaction(async (transaction) => {
+        const fresh = await transaction.get(db.doc(`matches/${snapshot.id}`));
+        if (fresh.exists && fresh.get("status") === "between_rounds" && Number(fresh.get("actionDeadlineAt")) <= cutoff) await advanceMatchRound(transaction, Date.now(), snapshot.id, fresh.data() as MatchDocument);
+      });
+    } catch (error) { console.error(`advanceMatchRound: ${snapshot.id}`, error); }
+  }
   const expired = await db.collection("matches")
     .where("status", "==", "playing")
     .where("actionDeadlineAt", "<=", cutoff)

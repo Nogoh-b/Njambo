@@ -167,7 +167,26 @@ export const adminApi = {
   setPowerCardStatus: (cardId: string, status: { archived?: boolean; disabled?: boolean }) => call<{ cardId: string }>("setPowerCardStatus", { cardId, ...status }),
   seedPowerCards: () => call<{ created: number; total: number; published: number; catalogRevision: number }>("seedPowerCards"),
   uploads: (kind?: string) => call<{ uploads: AdminUpload[] }>("listAdminUploads", kind ? { kind } : {}),
+  animMotifs: () => call<{ motifs: AdminMotifRow[]; moments: import("@/engine/anim/moments").MomentMap }>("listAdminAnimMotifs"),
+  setGameMoments: (moments: import("@/engine/anim/moments").MomentMap) => call<{ moments: import("@/engine/anim/moments").MomentMap; catalogRevision: number }>("setGameMoments", { moments }),
+  saveAnimMotifDraft: (motif: import("@/engine/anim/motif").AnimMotif) => call<{ motifId: string; issues: Array<{ path: string; message: string }> }>("saveAnimMotifDraft", { motif }),
+  publishAnimMotif: (motifId: string) => call<{ motifId: string; revision: number; catalogRevision: number }>("publishAnimMotif", { motifId }),
+  discardAnimMotifDraft: (motifId: string) => call<{ motifId: string }>("discardAnimMotifDraft", { motifId }),
+  setAnimMotifArchived: (motifId: string, archived: boolean) => call<{ motifId: string; archived: boolean }>("setAnimMotifArchived", { motifId, archived }),
 };
+
+/** Modèle d'animation vu par l'admin (atelier, phase G3). */
+export interface AdminMotifRow {
+  id: string;
+  motif: import("@/engine/anim/motif").AnimMotif;
+  published: boolean;
+  revision: number;
+  hasDraft: boolean;
+  isDefault: boolean;
+  archived: boolean;
+  updatedAt: number;
+  issues: Array<{ path: string; message: string }>;
+}
 
 export async function uploadImage(file: File, kind: "event" | "boss" | "cosmetic" | "season" | "power") {
   const user = auth.currentUser;
@@ -201,6 +220,11 @@ const ERROR_LABELS: Record<string, string> = {
   EVENT_INVALID: "La fiche contient des erreurs : corrige-les avant de publier.",
   EVENT_ALREADY_ENDED: "La date de fin est déjà passée.",
   DRAFT_NOT_FOUND: "Aucun brouillon à publier : enregistre d'abord.",
+  ANIM_MOTIF_INVALID: "Le modèle contient des erreurs : corrige-les avant de publier.",
+  ANIM_MOTIF_NOT_FOUND: "Modèle introuvable (jamais enregistré).",
+  ANIM_MOTIF_MOMENT_CONFLICT: "Un moment du jeu utilise ce modèle : cette version ne lui convient plus (départ, arrivée ou durée). Change d'abord l'attribution des moments.",
+  GAME_MOMENTS_INVALID: "L'attribution des moments contient des erreurs.",
+  INVALID_MOTIFID: "Identifiant du modèle : 3 à 48 caractères a-z, 0-9 ou _.",
   EVENT_ID_TAKEN: "Cet identifiant est déjà utilisé.",
   NOTHING_SCHEDULED: "Aucune publication programmée.",
   ADMIN_REQUIRED: "Droits admin requis.",

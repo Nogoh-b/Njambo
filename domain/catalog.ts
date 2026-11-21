@@ -1,5 +1,5 @@
-import type { CosmeticRarity } from "./cosmetics";
-import type { CardRarity, TicketTier, WeightedValue } from "./economy";
+import { COSMETIC_DUPLICATE_CAURIS, type CosmeticRarity } from "./cosmetics";
+import { DUPLICATE_COMPENSATION, type CardRarity, type PlayerEconomy, type TicketTier, type WeightedValue } from "./economy";
 
 export type Reward =
   | { type: "nkap"; amount: number }
@@ -30,6 +30,118 @@ export interface OfferDefinition {
   startsAt?: number;
   endsAt?: number;
   ageRestrictedXaf?: boolean;
+}
+
+export interface StoredPack {
+  packInstanceId: string;
+  offerId: string;
+  title: string;
+  description?: string;
+  acquiredAt: number;
+  orderId?: string;
+  /** Contenus garantis (visibles avant ouverture sans dévoiler les lots aléatoires). */
+  guaranteedRewards?: Reward[];
+  /** Indique la présence de lots aléatoires révélés uniquement à l'ouverture. */
+  hasRandomRewards?: boolean;
+}
+
+export interface InventoryLike {
+  tickets?: Partial<Record<TicketTier, number>>;
+  boosterBooks?: Record<string, number>;
+  energyPasses?: Record<string, number>;
+  packs?: StoredPack[];
+}
+
+/** Indique si une offre boutique doit être stockée comme pack scellé à ouvrir dans Ma collection. */
+export function isStoredPackOffer(
+  offer: Pick<OfferDefinition, "id" | "type" | "rewards" | "randomRewards" | "rewardGroups">,
+): boolean {
+  if (offer.type !== "element_pack") return false;
+  if (offer.id === "daily_grid_slot_xaf" || offer.id.startsWith("booster_")) return false;
+  return offer.rewards.length > 0 || Boolean(offer.randomRewards?.length) || Boolean(offer.rewardGroups?.length);
+}
+
+/** Formate une durée de pass énergie en français lisible (ex. 60 -> "1 h", 90 -> "1 h 30", 1440 -> "24 h"). */
+export function formatEnergyDuration(durationMinutes: number): string {
+  const mins = Math.max(1, Math.round(durationMinutes));
+  if (mins < 60) return `${mins} min`;
+  const hours = Math.floor(mins / 60);
+  const rem = mins % 60;
+  return rem === 0 ? `${hours} h` : `${hours} h ${String(rem).padStart(2, "0")}`;
+}
+
+/** Compte le total d'objets récupérés stockés (packs, livres, pass énergie, tickets). */
+export function countStoredCollectionItems(inventory?: InventoryLike | null): {
+  packs: number;
+  books: number;
+  energy: number;
+  tickets: number;
+  total: number;
+} {
+  const packs = Array.isArray(inventory?.packs) ? inventory.packs.length : 0;
+  const books = Object.values(inventory?.boosterBooks ?? {}).reduce((sum, n) => sum + Math.max(0, Number(n ?? 0)), 0);
+  const energy = Object.values(inventory?.energyPasses ?? {}).reduce((sum, n) => sum + Math.max(0, Number(n ?? 0)), 0);
+  const tickets = Object.values(inventory?.tickets ?? {}).reduce((sum, n) => sum + Math.max(0, Number(n ?? 0)), 0);
+  return { packs, books, energy, tickets, total: packs + books + energy + tickets };
+}
+
+/** Applique une récompense de façon pure : les monnaies créditent le portefeuille,
+ *  tandis que les tickets, livres et pass énergie sont stockés dans l'inventaire
+ *  pour être utilisés au clic depuis Ma collection. */
+export function applyRewardToInventory<TInv extends Record<string, unknown>>(
+  economy: PlayerEconomy,
+  inventory: TInv,
+  reward: Reward,
+  now: number,
+) {
+  const nextEconomy: PlayerEconomy = {
+    ...economy,
+    energy: { ...economy.energy },
+    daily: { ...economy.daily },
+    pity: { ...economy.pity },
+  };
+  const inv = inventory as Record<string, unknown>;
+  const existingTickets = (inv.tickets ?? {}) as Partial<Record<TicketTier, number>>;
+  const existingBooks = (inv.boosterBooks ?? {}) as Record<string, number>;
+  const existingEnergy = (inv.energyPasses ?? {}) as Record<string, number>;
+  const existingCards = (inv.cards ?? {}) as Record<string, unknown>;
+  const nextInventory = {
+    ...inventory,
+    tickets: { bronze: 0, argent: 0, or: 0, ...existingTickets } as Record<TicketTier, number>,
+    boosterBooks: { ...existingBooks },
+    energyPasses: { ...existingEnergy },
+    packs: Array.isArray(inv.packs) ? [...(inv.packs as StoredPack[])] : ([] as StoredPack[]),
+    cards: { ...existingCards },
+    cosmetics: Array.isArray(inv.cosmetics) ? ([...(inv.cosmetics as string[])] as string[]) : ([] as string[]),
+  };
+
+  if (reward.type === "nkap") nextEconomy.nkap += reward.amount;
+  if (reward.type === "cauris") nextEconomy.cauris += reward.amount;
+  if (reward.type === "energy_pass") {
+    const minutesKey = String(Math.max(1, Math.floor(reward.durationMinutes)));
+    nextInventory.energyPasses[minutesKey] = Number(nextInventory.energyPasses[minutesKey] ?? 0) + 1;
+  }
+  if (reward.type === "ticket") {
+    nextInventory.tickets[reward.tier] = Number(nextInventory.tickets[reward.tier] ?? 0) + reward.amount;
+  }
+  if (reward.type === "booster_book") {
+    nextInventory.boosterBooks[reward.boosterId] = Number(nextInventory.boosterBooks[reward.boosterId] ?? 0) + reward.amount;
+  }
+  if (reward.type === "cosmetic") {
+    if (nextInventory.cosmetics.includes(reward.cosmeticId)) {
+      nextEconomy.cauris += COSMETIC_DUPLICATE_CAURIS[reward.rarity] ?? 10;
+    } else {
+      nextInventory.cosmetics.push(reward.cosmeticId);
+    }
+  }
+  if (reward.type === "card") {
+    if (nextInventory.cards[reward.cardId]) {
+      nextEconomy.cauris += DUPLICATE_COMPENSATION[reward.rarity];
+    } else {
+      nextInventory.cards[reward.cardId] = { unlockedAt: now, rarity: reward.rarity };
+    }
+  }
+  return { economy: nextEconomy, inventory: nextInventory };
 }
 
 export interface BoosterDefinition {

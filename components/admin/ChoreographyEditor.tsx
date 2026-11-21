@@ -12,6 +12,9 @@ import {
   type Anchor, type ChoreoTrack, type Choreography, type ElementKind, type Waypoint,
 } from "@/engine/power/choreography";
 import type { PlayerRef, PowerFxTone } from "@/engine/power/types";
+import { MOTIF_GROUPS, MOTIF_PLAYERS, MOTIF_PLAYER_ZONES, MOTIF_TABLE_ZONES, OFFSCREEN_SIDES, type MotifAnchor, type MotifGroup } from "@/engine/anim/motif";
+import { anchorLabel as motifAnchorLabel } from "./anim/MotifInspector";
+import { getMotif, listMotifs } from "@/engine/anim/registry";
 import { FX_PRESETS, PLAYER_REFS, POWER_TONES } from "@/engine/power/validate";
 import { FX_PRESET_LABELS, PLAYER_LABELS, TONE_LABELS } from "./powerLabels";
 import { SoundField } from "./SoundField";
@@ -21,12 +24,18 @@ type ErrorFor = (path: string) => string | undefined;
 
 const KIND_LABELS: Record<ChoreoTrack["kind"], { label: string; color: string }> = {
   cardPath: { label: "Trajectoire", color: "#f2bb45" },
+  motif: { label: "Modèle", color: "#7ee08a" },
   element: { label: "Élément", color: "#1de4be" },
   screen: { label: "Écran", color: "#ff5b82" },
   text: { label: "Texte", color: "#c18cff" },
   sound: { label: "Son", color: "#7ab8ff" },
 };
-const ELEMENT_LABELS: Record<ElementKind, string> = { card: "Carte en vol", hand: "Main", deposit: "Dépôt", deck: "Pioche", timer: "Minuteur", avatar: "Avatar", pot: "Pot" };
+const MOTIF_ANCHOR_OPTIONS: MotifAnchor[] = [
+  ...MOTIF_PLAYER_ZONES.flatMap((zone) => MOTIF_PLAYERS.map((player) => ({ zone, player }) as MotifAnchor)),
+  ...MOTIF_TABLE_ZONES.map((zone) => ({ zone }) as MotifAnchor),
+  ...OFFSCREEN_SIDES.map((side) => ({ zone: "offscreen", side }) as MotifAnchor),
+];
+const ELEMENT_LABELS: Record<ElementKind, string> ={ card: "Carte en vol", hand: "Main", deposit: "Dépôt", deck: "Pioche", timer: "Minuteur", avatar: "Avatar", pot: "Pot" };
 const EFFECT_LABELS: Record<string, string> = {
   lift: "Se soulever", pulse: "Pulser", glow: "Briller", shake: "Trembler", flip: "Se retourner", crack: "Se fendre", dissolve: "Se dissoudre",
   burn: "S'enflammer", freeze: "Geler", shrink: "Rétrécir", grow: "Grandir", fanOpen: "S'ouvrir en éventail", tighten: "Se resserrer",
@@ -194,9 +203,65 @@ function TrackForm({ track, tracks, onChange, errorFor, path }: { track: ChoreoT
         </div>
       );
     }
+    case "motif": {
+      const motif = getMotif(track.motifId);
+      const groups = Object.entries(MOTIF_GROUPS) as Array<[MotifGroup, string]>;
+      const overrides = track.overrides ?? {};
+      // Surcharges : ce que la carte change au modèle (le reste suit l'atelier, y compris ses futures publications).
+      const setOverride = (patch: Partial<NonNullable<typeof track.overrides>>) => {
+        const next = { ...overrides, ...patch } as Record<string, unknown>;
+        for (const key of Object.keys(next)) if (next[key] === undefined) delete next[key];
+        onChange({ ...track, overrides: Object.keys(next).length ? next as typeof track.overrides : undefined });
+      };
+      const anchorField = (key: "from" | "to", label: string) => (
+        <F label={label} error={e(`overrides.${key}`)}>
+          <select value={overrides[key] ? JSON.stringify(overrides[key]) : ""} onChange={(ev) => setOverride({ [key]: ev.target.value ? JSON.parse(ev.target.value) as MotifAnchor : undefined })}>
+            <option value="">Celui du modèle{motif ? ` (${motifAnchorLabel(motif[key])})` : ""}</option>
+            {MOTIF_ANCHOR_OPTIONS.map((anchor) => <option key={JSON.stringify(anchor)} value={JSON.stringify(anchor)}>{motifAnchorLabel(anchor)}</option>)}
+          </select>
+        </F>
+      );
+      return (
+        <div className={styles.grid3}>
+          <F label="Modèle d'animation" error={e("motifId")}>
+            <select value={track.motifId} onChange={(ev) => onChange({ ...track, motifId: ev.target.value, durationMs: getMotif(ev.target.value)?.durationMs ?? track.durationMs })}>
+              {groups.map(([group, label]) => {
+                const items = listMotifs().filter((item) => item.group === group || item.id === track.motifId);
+                return items.length ? <optgroup key={group} label={label}>{items.filter((item) => item.group === group).map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}</optgroup> : null;
+              })}
+            </select>
+          </F>
+          {timing}
+          <F label="Cartes" error={e("cards")}>
+            <select value={track.cards} onChange={(ev) => onChange({ ...track, cards: ev.target.value as typeof track.cards, ...(ev.target.value === "ghost" ? { mode: "display" as const } : {}) })}>
+              <option value="resolved:outgoing">Cartes qui partent</option><option value="resolved:incoming">Cartes qui arrivent</option>
+              <option value="resolved:highlight">Carte mise en valeur</option><option value="ghost">Cartes décoratives</option>
+            </select>
+          </F>
+          <F label="Nature" error={e("mode")}><select value={track.mode} disabled={track.cards === "ghost"} onChange={(ev) => onChange({ ...track, mode: ev.target.value as "move" | "display" })}><option value="move">Accompagne un vrai déplacement</option><option value="display">Purement visuelle</option></select></F>
+          {motif && <p className={`${styles.hint} ${styles.full}`}>{motif.description} La durée ci-dessus est celle du vol d&apos;une carte. Le reste du modèle se règle dans la section Animations : ses publications s&apos;appliquent aussi à cette carte.</p>}
+          <h3 className={styles.full} style={{ margin: "6px 0 0" }}>Surcharges pour cette carte</h3>
+          {anchorField("from", "Départ")}
+          {anchorField("to", "Arrivée")}
+          <F label="Décalage entre cartes (s)" error={e("overrides.staggerMs")}><input type="number" min={0} max={1} step={0.05} value={overrides.staggerMs === undefined ? "" : seconds(overrides.staggerMs)} placeholder={motif ? seconds(motif.staggerMs) : ""} onChange={(ev) => setOverride({ staggerMs: ev.target.value === "" ? undefined : ms(ev.target.value) })} /></F>
+          <F label="Traînée" error={e("overrides.trail")}>
+            <select value={overrides.trail ?? ""} onChange={(ev) => setOverride({ trail: (ev.target.value || undefined) as never })}>
+              <option value="">Celle du modèle</option><option value="none">Aucune</option><option value="light">Traînée lumineuse</option><option value="sparks">Étincelles</option><option value="blur">Flou de vitesse</option>
+            </select>
+          </F>
+          <F label="Atterrissage écrasé" error={e("overrides.squash")}>
+            <select value={overrides.squash === undefined ? "" : String(overrides.squash)} onChange={(ev) => setOverride({ squash: ev.target.value === "" ? undefined : ev.target.value === "true" })}>
+              <option value="">Comme le modèle</option><option value="true">Oui</option><option value="false">Non</option>
+            </select>
+          </F>
+          {track.overrides && <div className={styles.full}><button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => onChange({ ...track, overrides: undefined })}>Retirer toutes les surcharges</button></div>}
+          {e("overrides") && <span className={`${styles.fieldError} ${styles.full}`}>{e("overrides")}</span>}
+        </div>
+      );
+    }
     case "element": {
       const element = track.target.element as ElementKind;
-      const paths = tracks.filter((item) => item.kind === "cardPath");
+      const paths = tracks.filter((item) => item.kind === "cardPath" || item.kind === "motif");
       return (
         <div className={styles.grid3}>
           {timing}
@@ -268,6 +333,7 @@ function newTrack(kind: ChoreoTrack["kind"], tracks: ChoreoTrack[], at: number):
     case "screen": return { id, kind, startMs: at, durationMs: 300, effect: "flash", intensity: 2 };
     case "text": return { id, kind, startMs: at, durationMs: 1200, text: "{activator} frappe !", at: { kind: "screen", at: "tableCenter", dy: -10 }, size: "m" };
     case "sound": return { id, kind, startMs: at, durationMs: 0, sound: "preset:tambour", volume: 1 };
+    case "motif": return { id, kind, startMs: at, durationMs: getMotif("hand_give")?.durationMs ?? 760, motifId: "hand_give", cards: "resolved:outgoing", mode: "display" };
   }
 }
 

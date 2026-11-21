@@ -113,6 +113,8 @@ export function stabilizeGameState(prev: GameState, next: GameState): GameState 
     && prev.pot === next.pot
     && prev.dominantIdx === next.dominantIdx
     && prev.banner === next.banner
+    && prev.turnStartSeconds === next.turnStartSeconds
+    && sameDeep(prev.series, next.series)
     && players === prev.players
     && activePowerEffects === prev.activePowerEffects
     && revealedHands === prev.revealedHands

@@ -173,9 +173,9 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     // L'écriture de usedPowers reste inchangée pour ne pas diverger du moteur.
     const devBypass = process.env.POWERS_DEV_BYPASS === "1";
 
-    // Équipement : source de vérité serveur (inventaire), pas le client.
-    const inventorySnap = await transaction.get(db.doc(`inventories/${uid}`));
-    const equipped = (inventorySnap.get("equippedCards") ?? []) as string[];
+    // Équipement figé au lancement, même si l'inventaire change pendant la partie.
+    const loadoutSnap = await transaction.get(db.doc(`matches/${matchId}/private/${uid}`));
+    const equipped = (loadoutSnap.get("equippedPowers") ?? []) as string[];
     if (!devBypass && !equipped.includes(cardId)) throw new HttpsError("failed-precondition", "POWER_NOT_EQUIPPED");
 
     const engine = await loadEngineState(transaction, matchId);

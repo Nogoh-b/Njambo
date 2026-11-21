@@ -15,6 +15,7 @@ import { validatePowerCard } from "../../engine/power/validate";
 import type { PowerModule } from "../../engine/power/types";
 import { asObject, db, requireAdmin, requiredString, runIdempotent } from "./core";
 import { ensurePowerCatalogFresh } from "./powerCatalog";
+import { ensureMotifCatalogFresh } from "./animCatalog";
 
 /** Carte sérialisable (sans composant React). */
 export function storableCard(card: PowerModule): PowerModule {
@@ -22,6 +23,8 @@ export function storableCard(card: PowerModule): PowerModule {
 }
 
 export async function rebuildPowerCatalog(updatedBy: string) {
+  // Les chorégraphies peuvent viser des modèles publiés : registre des modèles à jour avant de valider.
+  await ensureMotifCatalogFresh(true);
   const snap = await db.collection("power_cards").where("published", "==", true).get();
   const rows = snap.docs.map((doc) => doc.data() ?? {})
     .sort((a, b) => Number(a.order ?? 0) - Number(b.order ?? 0) || String(a.def?.id).localeCompare(String(b.def?.id)));
@@ -65,6 +68,7 @@ export async function seedPowerCardsHandler(request: CallableRequest<unknown>) {
 
 export async function listAdminPowerCardsHandler(request: CallableRequest<unknown>) {
   requireAdmin(request);
+  await ensureMotifCatalogFresh();
   await ensurePowerCatalogFresh(true);
   const snap = await db.collection("power_cards").get();
   const cards = snap.docs.map((doc) => {
@@ -123,6 +127,7 @@ function cardFromInput(raw: unknown): PowerModule {
 
 export async function getAdminPowerCardHandler(request: CallableRequest<unknown>) {
   requireAdmin(request);
+  await ensureMotifCatalogFresh();
   const cardId = requiredString(asObject(request.data), "cardId", 48);
   const snap = await db.doc(`power_cards/${cardId}`).get();
   if (!snap.exists) throw new HttpsError("not-found", "POWER_CARD_NOT_FOUND");
@@ -139,6 +144,7 @@ export async function getAdminPowerCardHandler(request: CallableRequest<unknown>
 /** Enregistre le brouillon (même invalide) ; crée la fiche si la carte est nouvelle. */
 export async function savePowerCardDraftHandler(request: CallableRequest<unknown>) {
   const uid = requireAdmin(request);
+  await ensureMotifCatalogFresh();
   const data = asObject(request.data);
   const card = cardFromInput(data.card);
   const cardId = String(card.def.id ?? "");
@@ -160,6 +166,7 @@ export async function savePowerCardDraftHandler(request: CallableRequest<unknown
 
 export async function publishPowerCardHandler(request: CallableRequest<unknown>) {
   const uid = requireAdmin(request);
+  await ensureMotifCatalogFresh();
   const data = asObject(request.data);
   const cardId = requiredString(data, "cardId", 48);
   const result = await runIdempotent(uid, "publishPowerCard", data.idempotencyKey, async (transaction, now) => {

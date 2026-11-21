@@ -108,6 +108,76 @@
   text-align: center;
 }
 
+.collectionModeBar {
+  flex: 0 0 auto;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.collectionModeBtn {
+  height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 13px;
+  border: 1.5px solid rgba(255, 248, 234, 0.16);
+  background: linear-gradient(175deg, rgba(32, 24, 44, 0.92), rgba(13, 14, 22, 0.96));
+  color: #cddbd5;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 3px 0 #09060d;
+  transition: transform 120ms ease, border-color 140ms ease;
+}
+
+.collectionModeBtn:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 214, 96, 0.58);
+}
+
+.collectionModeActive {
+  color: #241203;
+  border-color: #fff2b2;
+  background: linear-gradient(180deg, #ffe573 0%, #f0a81b 60%, #c97308 100%);
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 3.5px 0 #703903;
+}
+
+.modeCount {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 10.5px;
+  font-weight: 900;
+}
+
+.collectionModeActive .modeCount {
+  background: rgba(36, 18, 3, 0.18);
+}
+
+.modeCountLive {
+  background: linear-gradient(180deg, #ff5b82, #d41c4a);
+  color: #fff;
+}
+
+.itemsWorkspace {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 11px 12px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 212, 92, 0.28);
+  background:
+    radial-gradient(ellipse 80% 34% at 50% 0%, rgba(255, 207, 64, 0.12), transparent 62%),
+    linear-gradient(168deg, rgba(24, 20, 30, 0.95), rgba(10, 11, 16, 0.98));
+  box-shadow: inset 0 1px 0 rgba(255, 248, 224, 0.14), 0 16px 32px rgba(0, 0, 0, 0.48);
+  overflow: hidden;
+}
+
 /* ═══ 2. GRILLE DECK BUILDER ═══ */
 .builderGrid {
   flex: 1 1 auto;
@@ -188,6 +258,10 @@
   position: relative;
   z-index: 2;
   display: flex;
+  flex-wrap: wrap;
+  max-height: 240px;
+  overflow-y: auto;
+  padding: 6px;
   align-items: center;
   justify-content: center;
   gap: clamp(10px, 3vw, 18px);

@@ -15,6 +15,7 @@
 | D | Sons des cartes : upload, bibliothèque, lecture en jeu (pistes de la ligne de temps) | ✅ Terminé |
 | E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ✅ Terminé |
 | F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ✅ Terminé |
+| G | **Atelier d'animations** : modèles réutilisables édités visuellement, pour les pouvoirs **et** tout le jeu ; suivi dans [`atelier-animations-suivi.md`](atelier-animations-suivi.md) | 🟡 Prototype, G1 (modèle), G2 (lecteur) et G3 (atelier admin) terminés ; G4 et G5 à faire |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -33,6 +34,10 @@ Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 | Animations | Aller au-delà des cues prédéfinis : **repères de déplacement** (main, centre de l'écran, dépôt, pioche, minuteur, pot…), **trajectoires** de cartes, et une **animation propre à chaque élément** (carte, main, dépôt, pioche, minuteur…), le tout sur une **ligne de temps** (phase C). |
 | Carte archivée *(décidé)* | Retirée de la boutique et des livres ; les joueurs qui la possèdent la **gardent et peuvent encore la jouer** (rien de payé n'est perdu). L'**interrupteur d'urgence** (phase F) est distinct : il bloque l'activation pour tous. |
 | Langues *(décidé)* | Textes en français pour l'instant ; le modèle prévoit un champ `translations` facultatif (anglais, duala) pour plus tard, non édité dans ce plan. |
+| Portée des animations *(décidé, phase G)* | **Tout le jeu** : la même bibliothèque anime la donne, les cartes jouées, le pli, la pioche, la défausse **et** les pouvoirs. Bascule par étapes, la synchro en ligne restant intacte. |
+| Atelier ↔ chorégraphies *(décidé, phase G)* | **Modèles réutilisables** : une animation de l'atelier est un modèle nommé ; la chorégraphie d'une carte se compose en déposant des modèles sur sa ligne de temps, avec des réglages surchargeables. Les chorégraphies existantes continuent de marcher. |
+| Stockage des modèles *(décidé, phase G)* | **Admin, versionnés et publiés** comme les cartes : appliqués à tous les joueurs sans redéployer. |
+| Styles des joueurs *(décidé, phase G)* | **Prévus dans le modèle** : un cosmétique pourra surcharger certains réglages visuels d'un modèle (traînée, impact, teinte). La boutique viendra plus tard. |
 
 ---
 
@@ -624,6 +629,129 @@ L'état exact, lui, est détaillé à gauche.
 
 ---
 
+## Phase G — Atelier d'animations (modèles réutilisables)
+
+### Idée
+Les chorégraphies (phase C) se construisent piste par piste, dans des
+formulaires, et chaque carte repart de zéro. La phase G ajoute une
+**bibliothèque de modèles d'animation** :
+- chaque modèle est édité **visuellement** sur un schéma de la table ;
+- il est **réutilisé** par les cartes de pouvoir ;
+- il anime aussi **les mouvements de base du jeu** (donne, carte jouée,
+  pli, pioche, défausse).
+
+Changer le modèle « Jouer une carte » change donc le toucher de toute la
+partie.
+
+### Prototype (validé)
+`docs/prototypes/atelier-animations.html`, autonome. Pour l'ouvrir, un
+double-clic suffit, ou bien la configuration `atelier` de
+`.claude/launch.json` (serveur statique sur le port 5310) puis
+`/docs/prototypes/atelier-animations.html`.
+
+Il reprend la vraie disposition portrait (tapis, dos de carte, 3
+adversaires, pioche, pot, dépôts, avatar et bouton pouvoirs) et contient
+19 modèles :
+- **les 7 trajets** : piocher, jouer, retourner sur la table, ramasser,
+  défausser, vers le joueur, lancer une capacité ;
+- **carte** : retourner (afficher / cacher) ;
+- **main** : mise en évidence, cartes qui sortent, cartes qui entrent,
+  donner une carte ;
+- **dépôt** : surbrillance, entrée, éjection ;
+- **espace central** : ajout, retrait ;
+- **partie** : la distribution.
+
+Ce qui s'y édite visuellement :
+- **Schéma** : poignées **A** (départ) et **B** (arrivée), aimantées sur
+  les zones ; le **◆** courbe la trajectoire (Bézier). Les points montrent
+  l'effet de la courbe de vitesse et le ↻ marque l'instant du retournement.
+- **Courbe de vitesse** : courbe de Bézier à deux poignées, avec des
+  préréglages (douce, freine, rebond, ressort, aspiré, éclair…).
+- **Propriétés dans le temps** : échelle, retournement, rotation,
+  opacité, lueur et élévation, sous forme de courbes à points.
+- **Réactions de la table** : flash, onde, gerbe, surbrillance de zone,
+  couronne, pulsation d'avatar, Nkap qui clignotent, pioche qui tremble,
+  assombrir les autres cartes, secousse. Elles se calent « au départ » ou
+  « à l'arrivée » de chaque carte et se déplacent sur la **ligne de temps**.
+- **Matrice** des 81 transitions « de → vers » : une case vide crée un
+  modèle à partir du plus proche.
+
+Le prototype calcule chaque image à partir du temps (fonction pure), donc
+on peut le parcourir au ralenti ou image par image. Son JSON exporté sert
+de base au modèle de données.
+
+### Modèle (`AnimMotif`)
+`{ from, to, count, staggerMs, durationMs, pick, easing: [x1,y1,x2,y2],
+arc: { along, perp }, lanes: { scale, flip, rotate, opacity, glow, lift },
+faceMode: "lane" | "auto", trail, squash, reactions[] }`
+
+- Les **pistes** sont des points `[temps 0–1, valeur]`.
+- Une **réaction** vaut `{ type, anchor: "start" | "arrival", offsetMs,
+  dur, each, zone }`.
+- `from` / `to` reprennent les repères de `engine/power/choreography.ts`,
+  avec en plus :
+  - `hand:all` : distribution à tour de rôle ;
+  - plusieurs sources (« ramasser le pli » : tous les dépôts vers le
+    gagnant), à ajouter.
+
+### Étapes
+L'avancement détaillé (cases à cocher, statut de chaque étape, journal)
+est tenu dans [`atelier-animations-suivi.md`](atelier-animations-suivi.md),
+mis à jour à chaque avancée.
+
+- **G1 — Modèle** : `engine/anim/motifs.ts` regroupe :
+  - les types, la normalisation et la validation avec bornes : durée
+    (≤ 3 s pour un mouvement de base, afin de garder le rythme de
+    `gameConfig.anim`), points par piste, échelle, réactions ;
+  - les 19 modèles du prototype comme modèles par défaut ;
+  - un modèle « Jouer une carte » qui reproduit le vol actuel
+    (`FlyingCard`) : même position, rotation et face, taille à moins de
+    1 % ;
+  - des tests.
+- **G2 — Lecteur** : `playChoreography.ts` gagne une piste
+  `{ kind: "motif", motifId, cards, overrides? }`. Le lecteur gère :
+  - les pistes de propriétés, la courbe de Bézier et le bombé ;
+  - la face automatique, la traînée et l'écrasement ;
+  - les réactions.
+
+  Côté zones : `HandHandle` gagne l'écartement et le resserrement de
+  l'éventail ; les auras d'avatar, les Nkap et la pioche reçoivent leurs
+  réactions. Le tout reste coupé par `useMotionEnabled()`. La table de
+  démonstration joue les modèles.
+- **G3 — Atelier dans l'admin** : une section « Animations » porte
+  l'atelier du prototype en React :
+  - côté serveur : brouillon, publication versionnée, catalogue
+    `anim_catalog/current` lu par le client comme `power_catalog` ;
+  - dans l'onglet Animation d'une carte : « + Modèle » dépose un modèle
+    sur la ligne de temps, avec ses surcharges.
+- **G4 — Moments du jeu** : une table « moment → modèle » couvre la
+  donne, la carte jouée, la pioche, la défausse, le pli gagné, la fin de
+  pli, l'activation d'un pouvoir et le gain du pot.
+
+  Décision (2026-11-21) : la fin de pli est une animation **sur place**.
+  Les règles ne ramassent pas le pli : chaque dépôt garde ses cartes
+  jusqu'à la donne suivante.
+
+  Les vols de `TableScreen` basculent un par un et gardent la coordination
+  actuelle :
+  - `animatingRef` ;
+  - `animationEndsAtRef`, alimenté par la durée réelle du modèle ;
+  - l'apparition différée sur le dépôt, qui évite les cartes en double en
+    ligne.
+
+  Chaque bascule se vérifie en local et en ligne avec deux comptes.
+- **G5 — Styles des joueurs** : un cosmétique peut surcharger une
+  **liste blanche** de réglages visuels (traînée, réactions, teinte,
+  lueur), jamais la durée. Le rythme reste ainsi le même pour tous et la
+  synchro n'en dépend pas. Le style s'applique aux mouvements du joueur
+  qui le possède.
+
+**Critère de fin** : un admin modifie « Jouer une carte » dans l'atelier,
+publie, et chaque carte jouée de chaque partie (en local et en ligne)
+prend la nouvelle mise en scène, sans déploiement ni carte en double.
+
+---
+
 ---
 
 ## Recette — à faire avant / après la mise en production
@@ -674,6 +802,7 @@ L'état exact, lui, est détaillé à gauche.
 
 | Date | Phase | Changement |
 | --- | --- | --- |
+| 2026-11-21 | G | Prototype de l'atelier d'animations (19 modèles, schéma à poignées, courbe de vitesse, pistes de propriétés, réactions, matrice des transitions) vérifié dans le navigateur ; décisions : tout le jeu, modèles réutilisables, publiés depuis l'admin, styles des joueurs prévus. |
 | 2026-11-20 | — | Plan créé ; décisions : éditeur de briques, son upload + bibliothèque, 21 cartes migrées et éditables, chargeur hybride. |
 | 2026-11-20 | F | Bac à sable dans l'éditeur (vrai moteur sur une donne reproductible, avant/après, journal, animation et son avec les vraies cartes), interrupteur d'urgence étendu au mode local, 7 tests du domaine dont la migration à l'identique des 21 cartes, cycle de vie complet en base (19/19), vérification visuelle. **Plan terminé.** |
 | 2026-11-20 | E | Chargeur d'assets : file à priorités avec décodage, manifestes par écran (table calculée depuis le dos de carte et les pouvoirs équipés), écran de chargement sans flash avec délai maximum, préchargement d'approche, cache des uploads dans le service worker, CORS sur /uploads, mesures ; 4 tests et vérification visuelle. **Phase E terminée.** |

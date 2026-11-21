@@ -1,0 +1,1104 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   MA COLLECTION — Objets récupérés (Packs, Livres, Pass Énergie, Tickets)
+   Harmonisé Salon Royal : cartes 2,5D, ouvertures animées et tirage 3×3
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  width: 100%;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+}
+
+.compact {
+  height: auto;
+}
+
+.pendingBanner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 10px 13px;
+  border-radius: 14px;
+  border: 1.5px solid #ffe573;
+  background: linear-gradient(120deg, rgba(84, 52, 12, 0.92), rgba(34, 20, 44, 0.94));
+  color: #fff6d6;
+  font-size: 12.5px;
+  font-weight: 850;
+  box-shadow: 0 0 18px rgba(255, 207, 64, 0.3);
+}
+
+.pendingBtn {
+  flex: 0 0 auto;
+  padding: 7px 12px;
+  border-radius: 10px;
+  border: 1.5px solid #fff2b2;
+  background: linear-gradient(180deg, #ffe573, #e69210);
+  color: #241203;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 850;
+}
+
+.notice_success {
+  background: rgba(16, 86, 62, 0.92);
+  border: 1px solid #3ce078;
+  color: #d8ffe6;
+}
+
+.notice_error {
+  background: rgba(102, 16, 36, 0.92);
+  border: 1px solid #ff4772;
+  color: #ffd4df;
+}
+
+.notice button {
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+/* ── FILTRES (WRAP PROPRE SANS DÉBORDEMENT) ── */
+.filterRow {
+  flex: 0 0 auto;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  width: 100%;
+  min-width: 0;
+}
+
+.filterPill {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 11px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 214, 96, 0.3);
+  background: rgba(12, 20, 19, 0.9);
+  color: #cdded6;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 850;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  cursor: pointer;
+  transition: transform 110ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.filterPill:hover {
+  transform: translateY(-1px);
+  border-color: rgba(255, 214, 96, 0.68);
+}
+
+.filterPillActive {
+  color: #241203;
+  border-color: #fff2b2;
+  background: linear-gradient(180deg, #ffe573, #ee9e12);
+  box-shadow: 0 3px 0 #703903, 0 5px 12px rgba(255, 207, 64, 0.25);
+}
+
+.filterCount {
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.28);
+  font-size: 10px;
+  font-weight: 900;
+  display: inline-grid;
+  place-items: center;
+}
+
+.filterPillActive .filterCount {
+  background: rgba(36, 18, 3, 0.2);
+}
+
+.scrollArea {
+  flex: 1 1 auto;
+  min-height: 0;
+  min-width: 0;
+  width: 100%;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 2px 2px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 207, 64, 0.45) transparent;
+}
+
+.compact .scrollArea {
+  overflow-y: visible;
+  padding: 2px 0 4px;
+}
+
+/* ── GRILLE D'OBJETS 2,5D ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(154px, 1fr));
+  gap: 11px;
+  width: 100%;
+  min-width: 0;
+}
+
+.compact .grid {
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 10px;
+}
+
+@media (max-width: 460px) {
+  .grid,
+  .compact .grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+}
+
+.itemCard {
+  --tone: #ffcf40;
+  --glow: rgba(255, 207, 64, 0.34);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: space-between;
+  gap: 7px;
+  min-height: 176px;
+  padding: 10px 9px 11px;
+  border-radius: 18px;
+  border: 1.5px solid color-mix(in srgb, var(--tone) 58%, rgba(255, 255, 255, 0.14));
+  background:
+    radial-gradient(circle at 50% 32%, var(--glow), transparent 64%),
+    linear-gradient(175deg, rgba(36, 26, 21, 0.95), rgba(11, 17, 15, 0.98));
+  color: #fff8ea;
+  font: inherit;
+  text-align: center;
+  cursor: pointer;
+  box-shadow: 0 12px 24px rgba(0, 0, 0, 0.46);
+  transition: transform 170ms cubic-bezier(0.2, 0.9, 0.25, 1.2), border-color 160ms ease, box-shadow 170ms ease;
+}
+
+.itemCard:hover {
+  transform: translateY(-4px);
+  border-color: color-mix(in srgb, var(--tone) 90%, #ffffff);
+  box-shadow: 0 16px 30px rgba(0, 0, 0, 0.56), 0 0 26px var(--glow);
+}
+
+.itemCard:active {
+  transform: translateY(1px);
+}
+
+.cardSheen {
+  position: absolute;
+  inset: -35%;
+  width: 36%;
+  background: linear-gradient(112deg, transparent, rgba(255, 252, 230, 0.16) 50%, transparent);
+  transform: translateX(-180%);
+  transition: transform 520ms ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.itemCard:hover .cardSheen {
+  transform: translateX(420%);
+}
+
+.tonePack { --tone: #9b6dff; --glow: rgba(155, 109, 255, 0.38); }
+.toneBook { --tone: #4b8eff; --glow: rgba(75, 142, 255, 0.38); }
+.toneBookGold { --tone: #ffcf40; --glow: rgba(255, 207, 64, 0.44); }
+.toneEnergy { --tone: #1de4be; --glow: rgba(29, 228, 190, 0.38); }
+.toneTicket { --tone: #ff8a2b; --glow: rgba(255, 138, 43, 0.38); }
+
+.cardTop {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.kindChip {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: rgba(8, 12, 12, 0.88);
+  border: 1px solid color-mix(in srgb, var(--tone) 62%, #ffffff);
+  color: color-mix(in srgb, var(--tone) 86%, #ffffff);
+  font-size: 8.5px;
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.qtyBadge {
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #ffe573, #e69210);
+  color: #241203;
+  font-size: 10px;
+  font-weight: 950;
+  font-variant-numeric: tabular-nums;
+}
+
+.artWrap {
+  position: relative;
+  z-index: 2;
+  width: 82px;
+  height: 82px;
+  display: grid;
+  place-items: center;
+}
+
+.artHalo {
+  position: absolute;
+  inset: 4px;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--glow), transparent 70%);
+  opacity: 0.72;
+  pointer-events: none;
+}
+
+.artImg {
+  position: relative;
+  z-index: 2;
+  object-fit: contain;
+  filter: drop-shadow(0 9px 15px rgba(0, 0, 0, 0.58));
+  transition: transform 220ms cubic-bezier(0.2, 0.9, 0.25, 1.25);
+}
+
+.itemCard:hover .artImg {
+  transform: translateY(-5px) scale(1.09) rotate(-2deg);
+}
+
+.artPedestal {
+  position: absolute;
+  bottom: 2px;
+  width: 56px;
+  height: 11px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--tone) 48%, transparent), transparent 72%);
+  pointer-events: none;
+}
+
+.itemTitle {
+  position: relative;
+  z-index: 2;
+  font-family: var(--font-display), sans-serif;
+  font-size: 13.5px;
+  font-weight: 900;
+  line-height: 1.15;
+  color: #fffaf0;
+}
+
+.itemActionPill {
+  position: relative;
+  z-index: 2;
+  width: 100%;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--tone) 18%, rgba(8, 14, 13, 0.85));
+  border: 1px solid color-mix(in srgb, var(--tone) 48%, transparent);
+  color: color-mix(in srgb, var(--tone) 88%, #ffffff);
+  font-size: 10.5px;
+  font-weight: 900;
+  letter-spacing: 0.02em;
+}
+
+.emptyState {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 28px 16px;
+  text-align: center;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 214, 96, 0.3);
+  background: rgba(10, 16, 15, 0.62);
+}
+
+.emptyState strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 15.5px;
+  color: #fff6df;
+}
+
+.emptyState p {
+  margin: 0;
+  max-width: 340px;
+  font-size: 12px;
+  line-height: 1.48;
+  color: #b5cfc5;
+}
+
+.emptyCta {
+  margin-top: 4px;
+  padding: 9px 16px;
+  border-radius: 12px;
+  border: 1.5px solid #fff0a8;
+  background: linear-gradient(180deg, #ffe370, #e69210);
+  color: #241203;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 950;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #703903;
+}
+
+/* ── SCÈNE HÉROÏQUE ANIMÉE (MODALE DÉTAIL & CHARGE D'OUVERTURE) ── */
+.detailBox {
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+
+.detailHeroStage {
+  --stage-tone: #ffcf40;
+  --stage-glow: rgba(255, 207, 64, 0.36);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  padding: 18px 16px 14px;
+  border-radius: 18px;
+  border: 1.5px solid color-mix(in srgb, var(--stage-tone) 56%, rgba(255, 255, 255, 0.14));
+  background:
+    radial-gradient(circle at 50% 38%, var(--stage-glow), transparent 64%),
+    linear-gradient(170deg, rgba(34, 24, 22, 0.94), rgba(9, 17, 15, 0.98));
+  text-align: center;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 12px 26px rgba(0, 0, 0, 0.45);
+}
+
+.stagePack { --stage-tone: #a77dff; --stage-glow: rgba(155, 109, 255, 0.42); }
+.stageBook { --stage-tone: #5c9bff; --stage-glow: rgba(75, 142, 255, 0.42); }
+.stageBookGold { --stage-tone: #ffcf40; --stage-glow: rgba(255, 207, 64, 0.48); }
+.stageEnergy { --stage-tone: #1de4be; --stage-glow: rgba(29, 228, 190, 0.44); }
+.stageTicket { --stage-tone: #ff9436; --stage-glow: rgba(255, 138, 43, 0.42); }
+
+.stageCharging {
+  border-color: #fff4b8;
+  box-shadow: 0 0 38px var(--stage-glow), inset 0 0 28px var(--stage-glow);
+}
+
+.heroSunburst {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  top: 40%;
+  left: 50%;
+  margin: -150px 0 0 -150px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--stage-tone) 22%, transparent) 0deg 12deg,
+    transparent 12deg 28deg
+  );
+  animation: slowSpin 20s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stageCharging .heroSunburst {
+  animation-duration: 3.5s;
+  opacity: 1;
+}
+
+.heroRuneRing {
+  position: absolute;
+  width: 176px;
+  height: 176px;
+  top: 40%;
+  left: 50%;
+  margin: -88px 0 0 -88px;
+  border-radius: 50%;
+  border: 2px dashed color-mix(in srgb, var(--stage-tone) 62%, transparent);
+  box-shadow: inset 0 0 30px color-mix(in srgb, var(--stage-tone) 26%, transparent);
+  animation: slowSpin 16s linear infinite reverse;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.stageCharging .heroRuneRing {
+  animation-duration: 2.2s;
+}
+
+.energyWave {
+  position: absolute;
+  width: 120px;
+  height: 120px;
+  top: 42%;
+  left: 50%;
+  margin: -60px 0 0 -60px;
+  border-radius: 50%;
+  border: 2px solid rgba(77, 245, 216, 0.65);
+  animation: energyPulse 2.4s ease-out infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.energyWave2 {
+  animation-delay: 1.2s;
+}
+
+@keyframes energyPulse {
+  0% { transform: scale(0.7); opacity: 0.85; }
+  100% { transform: scale(2.15); opacity: 0; }
+}
+
+.shockwaveRing {
+  position: absolute;
+  width: 96px;
+  height: 96px;
+  top: 40%;
+  left: 50%;
+  margin: -48px 0 0 -48px;
+  border-radius: 50%;
+  border: 3px solid #fff5be;
+  box-shadow: 0 0 24px var(--stage-glow);
+  animation: shockExpand 0.65s ease-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.shockwaveDelay {
+  animation-delay: 0.32s;
+}
+
+@keyframes shockExpand {
+  0% { transform: scale(0.5); opacity: 1; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+.heroSpark {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #fff6c8;
+  box-shadow: 0 0 10px var(--stage-tone);
+  animation: sparkTwinkle 2.4s ease-in-out infinite;
+  pointer-events: none;
+  z-index: 1;
+}
+
+@keyframes sparkTwinkle {
+  0%, 100% { transform: scale(0.45); opacity: 0.25; }
+  50% { transform: scale(1.25); opacity: 1; }
+}
+
+@keyframes slowSpin {
+  to { transform: rotate(360deg); }
+}
+
+.heroVisualWrap {
+  position: relative;
+  z-index: 2;
+  height: 128px;
+  display: grid;
+  place-items: center;
+}
+
+.detailHeroImg {
+  position: relative;
+  z-index: 2;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 22px rgba(0, 0, 0, 0.62));
+}
+
+.heroLevitate {
+  animation: heroFloat 3.1s ease-in-out infinite;
+}
+
+@keyframes heroFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+
+.heroPedestalDisc {
+  position: absolute;
+  bottom: 0;
+  width: 92px;
+  height: 18px;
+  border-radius: 50%;
+  background: radial-gradient(ellipse, color-mix(in srgb, var(--stage-tone) 55%, transparent), transparent 72%);
+  border-bottom: 1.5px solid color-mix(in srgb, var(--stage-tone) 55%, transparent);
+  pointer-events: none;
+}
+
+.heroCaption {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  justify-items: center;
+  gap: 6px;
+}
+
+.heroCaption p {
+  margin: 0;
+  max-width: 390px;
+  font-size: 12.5px;
+  line-height: 1.44;
+  color: #cfe4dc;
+}
+
+.detailStockPill {
+  padding: 3px 11px;
+  border-radius: 999px;
+  background: rgba(12, 20, 18, 0.85);
+  border: 1px solid color-mix(in srgb, var(--stage-tone) 68%, #ffffff);
+  color: color-mix(in srgb, var(--stage-tone) 88%, #ffffff);
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.detailSection {
+  display: grid;
+  gap: 8px;
+}
+
+.detailSection h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffcf40;
+}
+
+.rewardList {
+  display: grid;
+  gap: 7px;
+}
+
+.rewardRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 11px;
+  border-radius: 12px;
+  background: rgba(12, 22, 19, 0.9);
+  border: 1px solid rgba(255, 214, 96, 0.22);
+}
+
+.rewardRowCopy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.rewardRowCopy strong {
+  font-size: 12.5px;
+  color: #fffaf0;
+}
+
+.rewardRowCopy small {
+  font-size: 10.5px;
+  color: #a8c7bc;
+}
+
+.infoBanner {
+  margin: 0;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(29, 228, 190, 0.12);
+  border: 1px solid rgba(29, 228, 190, 0.36);
+  color: #b7fff0;
+  font-size: 12px;
+  line-height: 1.44;
+  font-weight: 700;
+}
+
+.rarityBar {
+  display: flex;
+  height: 9px;
+  border-radius: 999px;
+  overflow: hidden;
+  gap: 2px;
+  background: rgba(0, 0, 0, 0.38);
+}
+
+.bar_village { background: #1de4be; }
+.bar_notable { background: #4b8eff; }
+.bar_chef { background: #ff4772; }
+.bar_ancetre { background: #ffcf40; }
+
+.oddsRows {
+  display: grid;
+  gap: 6px;
+}
+
+.oddsRow {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 7px 11px;
+  border-radius: 10px;
+  background: rgba(12, 22, 19, 0.88);
+  border: 1px solid rgba(255, 214, 96, 0.22);
+  font-size: 12.5px;
+}
+
+.oddsRow strong {
+  color: #ffe573;
+}
+
+.eventList {
+  display: grid;
+  gap: 7px;
+}
+
+.eventBtn {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 207, 64, 0.34);
+  background: rgba(12, 22, 19, 0.92);
+  color: #fff6df;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 800;
+  text-align: left;
+  cursor: pointer;
+  transition: transform 120ms ease, border-color 140ms ease, background 140ms ease;
+}
+
+.eventBtn:hover {
+  transform: translateY(-1px);
+  border-color: #ffe573;
+  background: rgba(28, 42, 34, 0.95);
+}
+
+.eventBtn small {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 700;
+  color: #8eead7;
+}
+
+.primaryActionBtn {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+  min-height: 46px;
+  padding: 0 16px;
+  border-radius: 14px;
+  border: 1.5px solid #fff2b2;
+  background: linear-gradient(180deg, #ffe573 0%, #f0a81b 60%, #c97308 100%);
+  color: #241203;
+  font-family: var(--font-display), sans-serif;
+  font-size: 14.5px;
+  font-weight: 950;
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 4px 0 #703903;
+  cursor: pointer;
+  transition: transform 110ms ease, filter 140ms ease;
+}
+
+.primaryActionTeal {
+  border-color: #96ffec;
+  background: linear-gradient(180deg, #54f7db 0%, #16c9a8 60%, #0b9179 100%);
+  color: #04221c;
+  box-shadow: inset 0 1.5px 0 rgba(255, 255, 255, 0.65), 0 4px 0 #055748;
+}
+
+.primaryActionBtn:hover:not(:disabled) {
+  filter: brightness(1.07);
+  transform: translateY(-1px);
+}
+
+.primaryActionBtn:active:not(:disabled) {
+  transform: translateY(2px);
+}
+
+.primaryActionBtn:disabled {
+  opacity: 0.56;
+  cursor: not-allowed;
+}
+
+.btnSheen {
+  position: absolute;
+  inset: 0;
+  width: 34%;
+  background: linear-gradient(108deg, transparent, rgba(255, 255, 255, 0.48) 50%, transparent);
+  transform: translateX(-160%);
+  animation: btnSweep 4.2s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes btnSweep {
+  0%, 62% { transform: translateX(-160%); }
+  92%, 100% { transform: translateX(380%); }
+}
+
+/* ── ARÈNE 3×3 OUVERTURE DE LIVRE ── */
+.pickArena {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.pickHint {
+  margin: 0;
+  font-size: 12.5px;
+  color: #cde6dc;
+  text-align: center;
+}
+
+.pickFeltFrame {
+  position: relative;
+  padding: 14px;
+  border-radius: 22px;
+  border: 2.5px solid rgba(255, 214, 96, 0.65);
+  background: radial-gradient(ellipse 75% 68% at 50% 45%, #229470 0%, #105843 62%, #072e22 100%);
+  box-shadow: inset 0 6px 22px rgba(0, 0, 0, 0.54), 0 0 0 4px #451e0e, 0 14px 30px rgba(0, 0, 0, 0.5);
+}
+
+.pickFeltStitch {
+  position: absolute;
+  inset: 6px;
+  border-radius: 16px;
+  border: 1px dashed rgba(255, 214, 96, 0.34);
+  pointer-events: none;
+}
+
+.pickGrid {
+  position: relative;
+  z-index: 2;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(72px, 108px));
+  gap: 10px;
+  perspective: 900px;
+}
+
+.pickCardBtn {
+  position: relative;
+  aspect-ratio: 3 / 4.2;
+  border-radius: 13px;
+  overflow: hidden;
+  border: 2px solid rgba(255, 207, 64, 0.74);
+  cursor: pointer;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.54);
+  display: grid;
+  place-items: center;
+  background: #14100d;
+}
+
+.pickCardBtn:disabled {
+  opacity: 0.72;
+  cursor: wait;
+}
+
+.pickGlint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(120deg, transparent 30%, rgba(255, 248, 214, 0.34) 50%, transparent 70%);
+  transform: translateX(-140%);
+  transition: transform 360ms ease;
+  pointer-events: none;
+  z-index: 1;
+}
+
+.pickCardBtn:hover .pickGlint {
+  transform: translateX(140%);
+}
+
+.cardCharging {
+  animation: chargeShake 0.32s ease-in-out infinite !important;
+  border-color: #fff6c2 !important;
+  box-shadow: 0 0 28px rgba(255, 207, 64, 0.9) !important;
+}
+
+@keyframes chargeShake {
+  0%, 100% { transform: rotate(0deg) scale(1.05); }
+  25% { transform: rotate(-4.5deg) scale(1.08); }
+  75% { transform: rotate(4.5deg) scale(1.08); }
+}
+
+.pickOrb {
+  position: relative;
+  z-index: 2;
+  width: 34px;
+  height: 34px;
+  border-radius: 999px;
+  border: 1.5px solid #fff2b2;
+  background: rgba(14, 14, 18, 0.88);
+  color: #ffe573;
+  font-family: var(--font-display), sans-serif;
+  font-size: 17px;
+  font-weight: 950;
+  display: grid;
+  place-items: center;
+}
+
+/* ── RÉVÉLATIONS SPECTACULAIRES (CARTE / PACK / ÉNERGIE) ── */
+.revealBox {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  text-align: center;
+}
+
+.revealStage {
+  --rev-tone: #ffcf40;
+  position: relative;
+  width: 240px;
+  height: 256px;
+  display: grid;
+  place-items: center;
+  perspective: 900px;
+}
+
+.revealStageEnergy {
+  --rev-tone: #1de4be;
+  height: 196px;
+}
+
+.revealBurstRays {
+  position: absolute;
+  width: 280px;
+  height: 280px;
+  border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    color-mix(in srgb, var(--rev-tone, #ffcf40) 34%, transparent) 0deg 14deg,
+    transparent 14deg 30deg
+  );
+  animation: slowSpin 14s linear infinite;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.burstParticles {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  pointer-events: none;
+  z-index: 3;
+}
+
+.burstDot {
+  position: absolute;
+  border-radius: 50%;
+  background: #fff5be;
+  box-shadow: 0 0 12px #ffcf40;
+}
+
+.burstDotTeal {
+  background: #b8fff2;
+  box-shadow: 0 0 12px #1de4be;
+}
+
+.revealCardFrame {
+  position: relative;
+  z-index: 2;
+  width: 176px;
+  filter: drop-shadow(0 18px 34px rgba(0, 0, 0, 0.65)) drop-shadow(0 0 28px color-mix(in srgb, var(--rev-tone) 56%, transparent));
+}
+
+.revealCardArtifact {
+  width: 176px;
+  max-width: 176px;
+}
+
+.revealBox strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 20px;
+  color: #fffaf0;
+}
+
+.revealBox p {
+  margin: 0;
+  font-size: 13px;
+  color: #b8d3c9;
+  line-height: 1.46;
+}
+
+.energyWinOrb {
+  position: relative;
+  z-index: 2;
+  width: 138px;
+  height: 138px;
+  border-radius: 50%;
+  border: 2.5px solid #96ffec;
+  background: radial-gradient(circle, rgba(29, 228, 190, 0.36), rgba(8, 22, 20, 0.94));
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 36px rgba(29, 228, 190, 0.56);
+}
+
+.energyWinDuration {
+  font-size: 26px !important;
+  color: #70ffe4 !important;
+  text-shadow: 0 0 18px rgba(29, 228, 190, 0.5);
+}
+
+/* ── RÉVÉLATION DE PACK EN GRILLE DE TRÉSORS ── */
+.packRevealWrap {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.packBurstBanner {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 16px 12px 12px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 214, 96, 0.42);
+  background:
+    radial-gradient(circle at 50% 45%, rgba(255, 207, 64, 0.28), transparent 64%),
+    linear-gradient(170deg, rgba(44, 28, 20, 0.92), rgba(11, 18, 16, 0.96));
+}
+
+.packBurstOrb {
+  position: relative;
+  z-index: 2;
+  width: 98px;
+  height: 98px;
+  border-radius: 50%;
+  border: 2px solid #ffe573;
+  background: radial-gradient(circle, rgba(255, 207, 64, 0.32), rgba(18, 14, 22, 0.94));
+  display: grid;
+  place-items: center;
+  box-shadow: 0 0 30px rgba(255, 207, 64, 0.5);
+}
+
+.packBurstTag {
+  position: relative;
+  z-index: 2;
+  padding: 3px 12px;
+  border-radius: 999px;
+  background: rgba(255, 207, 64, 0.18);
+  border: 1px solid rgba(255, 229, 115, 0.58);
+  color: #fff2b2;
+  font-size: 11.5px;
+  font-weight: 900;
+}
+
+.lotGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  perspective: 900px;
+}
+
+.lotGridSingle {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.lotCard {
+  --lot-tone: #ffcf40;
+  --lot-glow: rgba(255, 207, 64, 0.28);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 5px;
+  padding: 11px 10px;
+  border-radius: 15px;
+  border: 1.5px solid color-mix(in srgb, var(--lot-tone) 62%, rgba(255, 255, 255, 0.14));
+  background:
+    radial-gradient(circle at 50% 24%, var(--lot-glow), transparent 66%),
+    linear-gradient(175deg, rgba(28, 22, 18, 0.94), rgba(10, 17, 15, 0.98));
+  text-align: center;
+  box-shadow: 0 10px 22px rgba(0, 0, 0, 0.44);
+}
+
+.lotGold { --lot-tone: #ffcf40; --lot-glow: rgba(255, 207, 64, 0.34); }
+.lotPink { --lot-tone: #ff5b82; --lot-glow: rgba(255, 91, 130, 0.34); }
+.lotTeal { --lot-tone: #1de4be; --lot-glow: rgba(29, 228, 190, 0.34); }
+.lotOrange { --lot-tone: #ff9436; --lot-glow: rgba(255, 148, 54, 0.34); }
+.lotPurple { --lot-tone: #a77dff; --lot-glow: rgba(167, 125, 255, 0.36); }
+
+.lotTargetPill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(8, 14, 13, 0.86);
+  border: 1px solid color-mix(in srgb, var(--lot-tone) 54%, transparent);
+  color: color-mix(in srgb, var(--lot-tone) 88%, #ffffff);
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.lotIconWrap {
+  width: 56px;
+  height: 56px;
+  display: grid;
+  place-items: center;
+}
+
+.lotIcon {
+  object-fit: contain;
+  filter: drop-shadow(0 6px 12px rgba(0, 0, 0, 0.5));
+}
+
+.lotCard strong {
+  font-family: var(--font-display), sans-serif;
+  font-size: 13.5px;
+  color: #fffaf0;
+  line-height: 1.15;
+}
+
+.lotCard small {
+  font-size: 10px;
+  color: #adc9bf;
+  line-height: 1.3;
+}
+
+/* Respect mouvement réduit */
+.motionReduced .heroSunburst,
+.motionReduced .heroRuneRing,
+.motionReduced .energyWave,
+.motionReduced .shockwaveRing,
+.motionReduced .heroSpark,
+.motionReduced .heroLevitate,
+.motionReduced .btnSheen,
+.motionReduced .revealBurstRays {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .heroSunburst,
+  .heroRuneRing,
+  .energyWave,
+  .shockwaveRing,
+  .heroSpark,
+  .heroLevitate,
+  .btnSheen,
+  .revealBurstRays {
+    animation: none !important;
+  }
+}

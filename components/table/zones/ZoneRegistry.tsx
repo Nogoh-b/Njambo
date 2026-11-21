@@ -41,6 +41,19 @@ export interface HandHandle {
     filter: (card: Card, cardIdx: number) => boolean,
     onPick: (cardIdx: number) => void,
   ): () => void;
+  /* ── Modèles d'animation (phase G) : facultatifs, une zone ancienne les ignore ── */
+  /** Nombre de cartes affichées (places supplémentaires de `makeRoom` non comprises). */
+  cardCount?(): number;
+  /** Centre, largeur (sans rotation) et rotation à l'écran d'une carte ; au-delà de la dernière : place réservée par `makeRoom`. */
+  getCardSlot?(cardIdx: number): { x: number; y: number; width: number; rotate: number } | null;
+  /** Resserre l'éventail : les cartes parties ne prennent plus de place (jusqu'au prochain état). */
+  collapseCards?(cardIdxs: number[], durationMs: number): void;
+  /** Écarte l'éventail pour `count` cartes à venir ; `getCardRect(longueur + i)` donne alors leur place. */
+  makeRoom?(count: number, durationMs: number): void;
+  /** Assombrit toutes les cartes sauf celles-ci pendant durationMs. */
+  dimCards?(keepIdxs: number[], durationMs: number): void;
+  /** Cache des cartes pendant durationMs, puis les réaffiche (animation sur place). */
+  hideCardsFor?(cardIdxs: number[], durationMs: number): void;
 }
 
 export interface DepositHandle {
@@ -53,6 +66,8 @@ export interface DepositHandle {
     filter: (card: DepositedCard, cardIdx: number) => boolean,
     onPick: (cardIdx: number) => void,
   ): () => void;
+  /** Modèles d'animation : cache des cartes du dépôt pendant durationMs (leur sprite les remplace). Facultatif. */
+  hideCardsFor?(cardIdxs: number[], durationMs: number): void;
 }
 
 export interface DeckHandle {
@@ -81,6 +96,8 @@ export interface TimerHandle {
   showDelta(seconds: number): void;
   /** Aura persistante (bouclier, masque, totem, chance). null = retirer. */
   showAura(style: "shield" | "mask" | "totem" | "lucky" | null): void;
+  /** Modèles d'animation : le solde (Nkap) clignote pendant durationMs. Facultatif. */
+  pulseBalance?(durationMs: number): void;
 }
 
 export interface RevealHandle {

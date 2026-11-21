@@ -7,10 +7,14 @@
    ne dépendent jamais de la mise en scène). */
 
 import type { ZoneRegistry } from "@/components/table/zones/ZoneRegistry";
-import type { Anchor, ChoreoTrack, Choreography, ElementTarget, Easing, Waypoint } from "@/engine/power/choreography";
+import { motifOfTrack, type Anchor, type ChoreoTrack, type Choreography, type ElementTarget, type Easing, type MotifTrack, type Waypoint } from "@/engine/power/choreography";
 import type { PlayerRef, PowerFxIntensity, PowerFxPreset, PowerFxTone } from "@/engine/power/types";
 import type { Card } from "@/types/game";
 import type { ChoreoLayerHandle } from "./ChoreoLayer";
+import { motifPlayersUi, playMotif } from "./playMotif";
+
+/** Pistes qui font voler des cartes (trajectoire libre ou modèle de l'atelier). */
+export type MovingTrack = ChoreoTrack & { kind: "cardPath" | "motif" };
 
 export interface ChoreoCards {
   ids: string[];
@@ -38,10 +42,25 @@ export interface ChoreoContext {
   viewport?(): DOMRect;
   motionEnabled: boolean;
   lite: boolean;
-  /** Appelé quand une piste « move » démarre / se termine (masquage de la source). */
-  onMoveStart?(track: ChoreoTrack & { kind: "cardPath" }, cards: ChoreoCards): void;
-  onMoveEnd?(track: ChoreoTrack & { kind: "cardPath" }): void;
+  /** Gagnant du pli / de la manche (rôle « winner » des modèles) ; défaut : le lanceur. */
+  winnerUi?(): number | null;
+  /** Appelé quand une piste « move » démarre / se termine (masquage de la source, voir `moveSourceUi`). */
+  onMoveStart?(track: MovingTrack, cards: ChoreoCards): void;
+  onMoveEnd?(track: MovingTrack): void;
 }
+
+/** Main (index UI) d'où partent les cartes d'une piste, ou null si elles ne partent pas d'une main. */
+export function moveSourceUi(ctx: ChoreoContext, track: MovingTrack): number | null {
+  if (track.kind === "cardPath") {
+    const first = track.waypoints[0]?.at;
+    return first?.kind === "zone" && first.zone === "hand" ? ctx.resolveRefUi(first.player)[0] ?? null : null;
+  }
+  const from = motifOfTrack(track)?.from;
+  return from?.zone === "hand" ? motifPlayersUi(ctx, from.player)[0] ?? null : null;
+}
+
+const cardsOfTrack = (ctx: ChoreoContext, track: MovingTrack): ChoreoCards =>
+  track.cards === "ghost" ? { ids: [], snapshots: [], fromIndexes: [], toIndexes: [] } : ctx.cardsOf(track.cards);
 
 const TONE_COLORS: Record<PowerFxTone, string> = { gold: "#f2bb45", teal: "#1de4be", pink: "#ff5b82", cobalt: "#6fa8ff" };
 const EASING_CSS: Record<Easing, string> = {
@@ -381,14 +400,27 @@ async function playText(ctx: ChoreoContext, track: ChoreoTrack & { kind: "text" 
   node.remove();
 }
 
+async function playMotifTrack(ctx: ChoreoContext, track: MotifTrack, spriteEls: Map<string, HTMLElement[]>) {
+  // Un modèle inconnu (catalogue plus récent ailleurs) est ignoré, comme un effet inconnu.
+  const motif = motifOfTrack(track);
+  if (!motif) return;
+  const cards = track.cards === "ghost" ? null : ctx.cardsOf(track.cards);
+  if (cards && cards.ids.length === 0) return;
+  if (track.mode === "move" && cards) ctx.onMoveStart?.(track, cards);
+  try {
+    await playMotif(ctx, { id: track.id, motif, cards, mode: track.mode }, spriteEls);
+  } finally {
+    if (track.mode === "move" && cards) ctx.onMoveEnd?.(track);
+  }
+}
+
 /** Joue toute la chorégraphie ; se résout quand la dernière piste est finie. */
 export async function playChoreography(ctx: ChoreoContext, choreo: Choreography, fill: (text: string) => string = (t) => t): Promise<void> {
   if (!ctx.motionEnabled) {
     // Animations coupées : on ne garde que les pistes qui accompagnent un vrai déplacement (pour libérer l'état).
-    choreo.tracks.filter((track) => track.kind === "cardPath" && track.mode === "move").forEach((track) => {
-      const path = track as ChoreoTrack & { kind: "cardPath" };
-      ctx.onMoveStart?.(path, ctx.cardsOf(path.cards as "resolved:outgoing"));
-      ctx.onMoveEnd?.(path);
+    choreo.tracks.filter((track): track is MovingTrack => (track.kind === "cardPath" || track.kind === "motif") && track.mode === "move").forEach((track) => {
+      ctx.onMoveStart?.(track, cardsOfTrack(ctx, track));
+      ctx.onMoveEnd?.(track);
     });
     return;
   }
@@ -403,6 +435,14 @@ export async function playChoreography(ctx: ChoreoContext, choreo: Choreography,
         let markStarted: () => void = () => undefined;
         pathStarted.set(track.id, new Promise((resolve) => { markStarted = resolve; }));
         const done = playCardPath(ctx, track, spriteEls);
+        setTimeout(markStarted, 60);
+        await done;
+        return;
+      }
+      case "motif": {
+        let markStarted: () => void = () => undefined;
+        pathStarted.set(track.id, new Promise((resolve) => { markStarted = resolve; }));
+        const done = playMotifTrack(ctx, track, spriteEls);
         setTimeout(markStarted, 60);
         await done;
         return;

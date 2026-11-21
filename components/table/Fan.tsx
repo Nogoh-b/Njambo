@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { MotionCard } from "@/components/cards/MotionCard";
 import type { DealOrigin } from "@/components/cards/PlayCard";
@@ -86,6 +86,23 @@ export const Fan = memo(function Fan({
   const [dealOrigins, setDealOrigins] = useState<DealOrigin[] | null>(null);
   const highlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const selectionRef = useRef<HandSelection | null>(null);
+  /* Modèles d'animation (phase G) : éventail qui se resserre / s'écarte, cartes assombries ou cachées un instant. */
+  const [collapsed, setCollapsed] = useState<{ ids: Set<string>; ms: number }>(() => ({ ids: new Set(), ms: 0 }));
+  const [room, setRoom] = useState<{ count: number; ms: number }>({ count: 0, ms: 0 });
+  const [dimKeep, setDimKeep] = useState<Set<string> | null>(null);
+  const [tempHidden, setTempHidden] = useState<Set<string>>(() => new Set());
+  const motifTimers = useRef<Array<ReturnType<typeof setTimeout>>>([]);
+  const cardsRef = useRef(cards);
+  cardsRef.current = cards;
+  const later = (ms: number, fn: () => void) => { motifTimers.current.push(setTimeout(fn, ms)); };
+  const idsOf = (idxs: number[]) => idxs.map((i) => cardsRef.current[i]?.id).filter((id): id is string => !!id);
+  useEffect(() => () => motifTimers.current.forEach(clearTimeout), []);
+  // Le nouvel état de la main (autres cartes) remplace l'écartement / le resserrement provisoire.
+  const handKey = cards.map((card) => card.id).join(",");
+  useEffect(() => {
+    setRoom((current) => (current.count ? { count: 0, ms: 0 } : current));
+    setCollapsed((current) => (current.ids.size ? { ids: new Set([...current.ids].filter((id) => cardsRef.current.some((card) => card.id === id))), ms: current.ms } : current));
+  }, [handKey]);
 
   const cardRect = useCallback((cardIdx: number): DOMRect | null => {
     const children = rootRef.current?.children;
@@ -120,6 +137,37 @@ export const Fan = memo(function Fan({
           setSelection(null);
         }
       };
+    },
+    cardCount: () => cardsRef.current.length,
+    getCardSlot: (cardIdx: number) => {
+      const root = rootRef.current;
+      const el = root?.children[cardIdx] as HTMLElement | undefined;
+      if (!root || !el) return null;
+      const box = el.getBoundingClientRect();
+      const rootBox = root.getBoundingClientRect();
+      // Échelle des ancêtres (sièges à 0°, 90°, 180° ou 270° : l'aire est conservée).
+      const scale = Math.sqrt((rootBox.width * rootBox.height) / Math.max(1, root.offsetWidth * root.offsetHeight));
+      const total = root.children.length;
+      return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: el.offsetWidth * scale, rotate: seatAngle + (cardIdx - (total - 1) / 2) * 8 };
+    },
+    collapseCards: (cardIdxs: number[], durationMs: number) => {
+      const ids = idsOf(cardIdxs);
+      setCollapsed((current) => ({ ids: new Set([...current.ids, ...ids]), ms: durationMs }));
+      // Filet de sécurité si l'état de la main n'arrive jamais.
+      later(6000, () => setCollapsed((current) => ({ ids: new Set([...current.ids].filter((id) => !ids.includes(id))), ms: current.ms })));
+    },
+    makeRoom: (count: number, durationMs: number) => {
+      setRoom({ count, ms: durationMs });
+      later(durationMs + 2500, () => setRoom((current) => (current.count === count ? { count: 0, ms: 0 } : current)));
+    },
+    dimCards: (keepIdxs: number[], durationMs: number) => {
+      setDimKeep(new Set(idsOf(keepIdxs)));
+      later(durationMs, () => setDimKeep(null));
+    },
+    hideCardsFor: (cardIdxs: number[], durationMs: number) => {
+      const ids = idsOf(cardIdxs);
+      setTempHidden((current) => new Set([...current, ...ids]));
+      later(durationMs, () => setTempHidden((current) => new Set([...current].filter((id) => !ids.includes(id)))));
     },
   });
 
@@ -181,6 +229,7 @@ export const Fan = memo(function Fan({
           : playable
             ? () => onCardClick(ci)
             : undefined;
+        const isCollapsed = collapsed.ids.has(card.id);
         return (
           <MotionCard
             key={card.id}
@@ -190,15 +239,16 @@ export const Fan = memo(function Fan({
             w={w}
             rot={(ci - c) * 8}
             lift={playable ? -w * 0.24 : Math.pow(Math.abs(ci - c), 1.5) * 4}
-            dim={faceUp && ((selection != null && !selectable) || (selection == null && legal != null && !playable))}
+            dim={(faceUp && ((selection != null && !selectable) || (selection == null && legal != null && !playable))) || (dimKeep != null && !dimKeep.has(card.id))}
             glow={!!playable}
             onClick={handleTap}
             dealDelay={dealing ? (ci * playerCount + seatIdx) * GAME_CONFIG.anim.dealPerCard : null}
             dealOrigin={dealing ? (dealOrigins?.[ci] ?? null) : null}
             style={{
-              marginLeft: ci === 0 ? 0 : -(w * 0.5),
-              visibility: hiddenIndexes.has(ci) ? "hidden" : "visible",
-              transition: dealing ? undefined : "margin-left 180ms cubic-bezier(.22,1,.36,1)",
+              // Carte partie (modèle d'animation) : elle ne prend plus de place, l'éventail se resserre.
+              marginLeft: isCollapsed ? (ci === 0 ? -(w * 0.5) : -w) : ci === 0 ? 0 : -(w * 0.5),
+              visibility: hiddenIndexes.has(ci) || tempHidden.has(card.id) ? "hidden" : "visible",
+              transition: dealing ? undefined : `margin-left ${isCollapsed ? collapsed.ms : 180}ms cubic-bezier(.22,1,.36,1)`,
             }}
             anim={
               draggable
@@ -226,6 +276,19 @@ export const Fan = memo(function Fan({
           />
         );
       })}
+      {/* Places réservées aux cartes qui arrivent (modèle d'animation) : l'éventail s'écarte en douceur. */}
+      {Array.from({ length: room.count }, (_, j) => (
+        <div
+          key={`room-${j}`}
+          aria-hidden="true"
+          ref={(el) => {
+            if (!el || el.dataset.grown) return;
+            el.dataset.grown = "1";
+            el.animate([{ marginLeft: `${-w}px` }, { marginLeft: `${-w * 0.5}px` }], { duration: room.ms, easing: "cubic-bezier(.22,1,.36,1)" });
+          }}
+          style={{ flex: "0 0 auto", width: w, height: w * 1.45, marginLeft: -(w * 0.5), visibility: "hidden", pointerEvents: "none" }}
+        />
+      ))}
     </div>
   );
 });

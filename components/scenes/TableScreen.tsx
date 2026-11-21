@@ -1,12 +1,20 @@
 "use client";
 
-import { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useSfx } from "@gxe/react";
 
 
 import { PlayCard } from "@/components/cards/PlayCard";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import { usePowerFxOrchestrator } from "@/components/power/PowerFxOrchestrator";
+import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
+import type { ChoreoCards, ChoreoContext } from "@/components/power/choreo/playChoreography";
+import { playMotif } from "@/components/power/choreo/playMotif";
+import type { AnimMotif } from "@/engine/anim/motif";
+import { momentDurationMs } from "@/engine/anim/moments";
+import { getMomentMotif } from "@/engine/anim/registry";
+import { motifSchedule } from "@/engine/anim/sample";
+import { useMotifCatalogRevision } from "@/hooks/useMotifCatalog";
 import { PowerTargetModal } from "@/components/power/PowerTargetModal";
 import { Avatar, type OpponentPowerSlot } from "@/components/table/Avatar";
 import { DepositZone } from "@/components/table/DepositZone";
@@ -452,6 +460,9 @@ export function TableScreen({
     return () => markPerformance("table:unmount");
   }, []);
   const { profile, cfg } = useGame();
+  const latestConfigRef = useRef(cfg);
+  latestConfigRef.current = cfg;
+  const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   /* Tous les sons de cet écran sont migrés vers GXE (lib/gxeSfx.ts). D'autres
      écrans (ResultScreen, SettlementArena) utilisent encore `sfx` de
      `useGame()` (lib/sound.ts) tant que leur propre migration n'est pas
@@ -566,7 +577,7 @@ export function TableScreen({
      (NEXT_PUBLIC_DEV_ALL_POWERS/POWER_COUNT — le serveur accepte via
      POWERS_DEV_BYPASS) ; sync local (invité) → profil local. */
   const fallbackEquippedPowers: PowerCardId[] = isLocalSync
-    ? (profile.equippedPowers ?? [])
+    ? (profile.equippedPowers ?? []).slice(0, powerLimit)
     : devEquippedPowers((serverInventory.equippedCards ?? []) as PowerCardId[]);
   const [usedPowers, setUsedPowers] = useState<Set<PowerCardId>>(new Set());
   const [targetingCard, setTargetingCard] = useState<PowerCardId | null>(null);
@@ -643,11 +654,10 @@ export function TableScreen({
   const displayedPot = roundIntro ? mise * Math.max(expectedPlayerCount, 1) : pot;
   const you = players[0];
   const yourHand = you?.hand;
-  const authoritativePowers = you?.equippedPowers?.length
-    ? you.equippedPowers
-    : (serverInventory.equippedCards ?? []) as PowerCardId[];
+  const authoritativePowers = you?.equippedPowers
+    ?? ((serverInventory.equippedCards ?? []) as PowerCardId[]).slice(0, powerLimit);
   const equippedPowers: PowerCardId[] = isLocalSync
-    ? fallbackEquippedPowers
+    ? you?.equippedPowers ?? fallbackEquippedPowers
     : devEquippedPowers(authoritativePowers);
   const ledSuit: string | null = trickPlays[0]?.card.suit ?? null;
   const ledInfo: Suit | undefined = ledSuit ? cfg.suits.find((s) => s.s === ledSuit) : undefined;
@@ -659,7 +669,7 @@ export function TableScreen({
 
   /* Quitter : confirmation quand une partie est EN COURS ; sinon retour direct.
      En ligne, la confirmation serveur précède toujours le retour au menu. */
-  const matchInProgress = phase === "turns" || phase === "dealing" || phase === "trickEnd";
+  const matchInProgress = phase === "turns" || phase === "dealing" || phase === "trickEnd" || (gameMode === "event" && phase === "idle");
   const handleMenuTap = () => {
     if (matchInProgress) setConfirmQuit(true);
     else onMenu();
@@ -696,6 +706,12 @@ export function TableScreen({
   useEffect(() => {
     gameStateRef.current = gameState;
   }, [gameState]);
+
+  /* Secondes par tour : celles du match (minuteur de table d'événement) si le
+     serveur les fournit, sinon la configuration globale. */
+  const turnSeconds = gameState.turnStartSeconds ?? cfg.turnSeconds;
+  const turnSecondsRef = useRef(turnSeconds);
+  turnSecondsRef.current = turnSeconds;
 
   useEffect(() => {
     animationsOnRef.current = motionEnabled;
@@ -952,6 +968,76 @@ export function TableScreen({
     }, TABLE_REACTION_MS);
   }, []);
 
+  /* ----- Moments du jeu pilotés par l'atelier d'animations (phase G4) -----
+     Un moment sans modèle attribué garde l'animation actuelle du jeu. */
+  const momentLayerRef = useRef<ChoreoLayerHandle | null>(null);
+  const runMoment = useCallback((motif: AnimMotif, opts: {
+    actorUi: number;
+    winnerUi?: number;
+    cards: ChoreoCards | null;
+    mode: "move" | "display";
+    release: "landing" | "end";
+    /** Carte montrée face visible (sinon : dos) ; par défaut toutes. */
+    visible?: (index: number) => boolean;
+  }): Promise<void> => {
+    const layer = momentLayerRef.current;
+    if (!layer) return Promise.resolve();
+    const all = Array.from({ length: playersRef.current.length }, (_, index) => index);
+    const ctx: ChoreoContext = {
+      registry: zoneRegistry,
+      layer,
+      resolveRefUi: (ref) => (ref === "all" ? all : ref === "all_opponents" ? all.filter((index) => index !== opts.actorUi) : [opts.actorUi]),
+      winnerUi: () => opts.winnerUi ?? opts.actorUi,
+      cardsOf: () => opts.cards ?? { ids: [], snapshots: [], fromIndexes: [], toIndexes: [] },
+      visibleCard: (_id, index, cards) => ((opts.visible ? opts.visible(index) : true) ? cards.snapshots[index] ?? null : null),
+      handCardRect: (ui, index) => zoneRegistry.hand(ui)?.getCardRect(index) ?? null,
+      burst: () => undefined,
+      impactShake: (intensity) => impactShake((intensity ?? 2) * 3),
+      defaultTone: "gold",
+      motionEnabled: true,
+      lite: liteMotion,
+    };
+    return playMotif(ctx, { id: `moment_${Date.now().toString(36)}`, motif, cards: opts.cards, mode: opts.mode, release: opts.release });
+  }, [impactShake, liteMotion, zoneRegistry]);
+  const runMomentRef = useRef(runMoment);
+  runMomentRef.current = runMoment;
+
+  /* Moment « Distribution » : les sprites partent de la pioche au rythme du jeu ; les vraies cartes
+     restent cachées jusqu'à l'arrivée de leur sprite (l'animation intégrée de la main est coupée). */
+  const motifRevision = useMotifCatalogRevision();
+  const dealMotif = useMemo(() => (motionEnabled && phase === "dealing" ? getMomentMotif("deal") : null), [motionEnabled, phase, motifRevision]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dealPlayedRef = useRef<string | null>(null);
+  const [dealRetry, setDealRetry] = useState(0);
+  useLayoutEffect(() => {
+    if (phase !== "dealing") { dealPlayedRef.current = null; return; }
+    if (!dealMotif) return;
+    const hands = players.map((player) => player.hand);
+    const perPlayer = hands[0]?.length ?? 0;
+    if (perPlayer === 0 || hands.some((hand) => hand.length !== perPlayer)) return;
+    const key = hands.map((hand) => hand.map((card) => card.id).join(",")).join("|");
+    if (dealPlayedRef.current === key) return;
+    // Mains pas encore enregistrées (premier rendu de la donne) : on réessaie à l'image suivante.
+    if (hands.some((_, ui) => !zoneRegistry.hand(ui))) {
+      const frame = requestAnimationFrame(() => setDealRetry((value) => value + 1));
+      return () => cancelAnimationFrame(frame);
+    }
+    dealPlayedRef.current = key;
+    const count = hands.length;
+    const ids: string[] = [], snapshots: Card[] = [], toIndexes: number[] = [];
+    // Ordre de la donne : une carte à chaque joueur, tour après tour (« chacun » = sièges 0..n-1).
+    for (let round = 0; round < perPlayer; round++) {
+      for (let ui = 0; ui < count; ui++) { ids.push(hands[ui][round].id); snapshots.push(hands[ui][round]); toIndexes.push(round); }
+    }
+    const schedule = motifSchedule(dealMotif, ids.length);
+    hands.forEach((_, ui) => {
+      for (let round = 0; round < perPlayer; round++) zoneRegistry.hand(ui)?.hideCardsFor?.([round], schedule[round * count + ui].endMs + 30);
+    });
+    void runMomentRef.current(dealMotif, {
+      actorUi: 0, cards: { ids, snapshots, fromIndexes: [], toIndexes }, mode: "display", release: "landing",
+      visible: (index) => index % count === 0,
+    });
+  }, [dealMotif, dealRetry, phase, players, zoneRegistry]);
+
   /* ----- Orchestrateur générique des animations de pouvoir ----- */
 
   /** seat moteur (activation.resolved.targetSeats) → index UI (0 = moi). */
@@ -1011,8 +1097,8 @@ export function TableScreen({
     }
     powerTransitionDepthRef.current += 1;
     animatingRef.current = true;
-    timerStore.set(cfg.turnSeconds);
-  }, [cfg.turnSeconds, timerStore]);
+    timerStore.set(turnSecondsRef.current);
+  }, [timerStore]);
 
   const commitStateTransition = useCallback(() => {
     const pending = pendingPowerStateRef.current;
@@ -1195,6 +1281,7 @@ export function TableScreen({
         profile,
         bots: BOTS,
         cfg,
+        getConfig: () => latestConfigRef.current,
         mise,
         initialBotCount,
         difficulty: initialDifficulty,
@@ -1217,6 +1304,7 @@ export function TableScreen({
         profile,
         stake: mise,
         botCount: initialBotCount,
+        difficulty: initialDifficulty,
         onResult,
       });
     } else {
@@ -1284,28 +1372,40 @@ export function TableScreen({
       const to = zoneRegistry.deposit(playerIdx)?.getRect() ?? null;
 
       if (from && to) {
+        // Moment « Carte jouée » : modèle de l'atelier si l'admin en a attribué un (vol borné à 0,9 s).
+        const playMotifMoment = animationsOnRef.current ? getMomentMotif("play") : null;
+        const flightMs = playMotifMoment ? Math.min(900, Math.max(200, playMotifMoment.durationMs)) : A.dropFlight;
         animatingRef.current = true;
-        timerStore.set(cfg.turnSeconds);
-        animationEndsAtRef.current = Date.now() + A.dropFlight;
+        timerStore.set(turnSecondsRef.current);
+        animationEndsAtRef.current = Date.now() + flightMs;
         const dropRot = Math.random() * 14 - 7;
         const flightKey = `${card.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         handZone?.setHiddenCard(cardIdx);
-        setFlights((f) => [
-          ...f,
-          {
-            key: flightKey,
-            card,
-            from,
-            to,
-            w: depW,
-            angle: seatAngle[seatEdge(playerIdx)],
-            dropRot,
-            isYou: playerIdx === 0,
-          },
-        ]);
+        if (playMotifMoment) {
+          void runMomentRef.current({ ...playMotifMoment, durationMs: flightMs }, {
+            actorUi: playerIdx,
+            cards: { ids: [card.id], snapshots: [card], fromIndexes: [cardIdx], toIndexes: [] },
+            mode: "move",
+            release: "landing",
+          });
+        } else {
+          setFlights((f) => [
+            ...f,
+            {
+              key: flightKey,
+              card,
+              from,
+              to,
+              w: depW,
+              angle: seatAngle[seatEdge(playerIdx)],
+              dropRot,
+              isYou: playerIdx === 0,
+            },
+          ]);
+        }
         const landingTimer = setTimeout(() => {
           animatingRef.current = false;
-          setFlights((f) => f.filter((item) => item.key !== flightKey));
+          if (!playMotifMoment) setFlights((f) => f.filter((item) => item.key !== flightKey));
           handZone?.setHiddenCard(null);
           if (pausedRef.current) return;
           if (animationsOnRef.current && premiumFxAllowed) {
@@ -1324,10 +1424,37 @@ export function TableScreen({
             }, 460);
             burstTimersRef.current.push(cleanupTimer);
           }
-        }, A.dropFlight);
+        }, flightMs);
         burstTimersRef.current.push(landingTimer);
       }
     });
+
+    /* Moments « Pli gagné » puis « Fin de pli » (modèles de l'atelier, s'ils sont attribués), sur place :
+       chaque dépôt garde ses cartes jusqu'à la donne suivante. */
+    const playTrickMoments = (winnerIdx: number) => {
+      const win = getMomentMotif("trickWin");
+      const collect = getMomentMotif("trickCollect");
+      const deposits = playersRef.current.map((player) => player.deposit);
+      const winnerDeposit = deposits[winnerIdx] ?? [];
+      const top = winnerDeposit[winnerDeposit.length - 1];
+      if (win && top) {
+        void runMomentRef.current(win, {
+          actorUi: winnerIdx, winnerUi: winnerIdx, mode: "display", release: "end",
+          cards: { ids: [top.id], snapshots: [top], fromIndexes: [winnerDeposit.length - 1], toIndexes: [] },
+        });
+      }
+      // Une carte par joueur (ordre des sièges) : sinon on n'anime pas la fin de pli.
+      if (!collect || deposits.length === 0 || deposits.some((deposit) => deposit.length === 0)) return;
+      const collectTimer = setTimeout(() => {
+        if (pausedRef.current) return;
+        const tops = deposits.map((deposit) => deposit[deposit.length - 1]);
+        void runMomentRef.current(collect, {
+          actorUi: winnerIdx, winnerUi: winnerIdx, mode: "display", release: "end",
+          cards: { ids: tops.map((card) => card.id), snapshots: tops, fromIndexes: deposits.map((deposit) => deposit.length - 1), toIndexes: [] },
+        });
+      }, win && top ? momentDurationMs("trickWin", win) : 0);
+      burstTimersRef.current.push(collectTimer);
+    };
 
     const unsubTrickEnd = sync.onTrickEnd((winnerIdx) => {
       if (pausedRef.current) return;
@@ -1342,6 +1469,7 @@ export function TableScreen({
         gxeSfxRef.current.playChime(DOMINANCE_SOUND);
         if (animationsOnRef.current) {
           setGoldFlash(true);
+          playTrickMoments(winnerIdx);
         }
         const bannerTimer = setTimeout(() => {
           setBanner("");
@@ -1361,6 +1489,7 @@ export function TableScreen({
       // L'écran de fin de match (ResultScreen) prend immédiatement le relais :
       // on fige la table et on coupe tout overlay/son résiduel de la table.
       pausedRef.current = true;
+      momentLayerRef.current?.clear();
       momentOverlayQueueRef.current = [];
       momentOverlayActiveRef.current = false;
       if (momentOverlayTimerRef.current) {
@@ -1382,7 +1511,7 @@ export function TableScreen({
     const unsubTimer = sync.onTimerTick((s) => {
       if (pausedRef.current || gameStateRef.current?.phase !== "turns") return;
       if (animatingRef.current || powerTransitionDepthRef.current > 0) {
-        timerStore.set(cfg.turnSeconds);
+        timerStore.set(turnSecondsRef.current);
         return;
       }
       timerStore.set(s);
@@ -1415,6 +1544,10 @@ export function TableScreen({
           });
         }
       }
+      // Moment « Pouvoir lancé » : carte décorative depuis l'avatar du lanceur (modèle attribué par l'admin).
+      const launchMotif = animationsOnRef.current && activation.used ? getMomentMotif("powerLaunch") : null;
+      const launcherUi = launchMotif ? (mine ? 0 : uiIndexFromPowerUid(activation.activatedByUid)) : null;
+      if (launchMotif && launcherUi !== null) void runMomentRef.current(launchMotif, { actorUi: launcherUi, cards: null, mode: "display", release: "end" });
       // Toute l'animation est GÉNÉRIQUE : l'orchestrateur rejoue le script de
       // la carte (config/powers) depuis activation.resolved — zéro branche
       // par carte ou par tag ici. Ajouter une carte = écrire son script.
@@ -1539,7 +1672,7 @@ export function TableScreen({
       setBanner("");
       setPowerChoiceConfirm(null);
       setConfirmQuit(false);
-      timerStore.set(cfg.turnSeconds);
+      timerStore.set(turnSecondsRef.current);
       setUsedPowers(new Set());
       setOpponentPowerUses({});
       setTargetingCard(null);
@@ -1740,7 +1873,7 @@ export function TableScreen({
   const activeTurnEdge = phase === "turns" && players[turnIdx] ? seatEdge(turnIdx) : null;
   const suitIsRed = ledInfo?.color === "#c1292e";
   const hasPowersOnTable = equippedPowers.length > 0 && players.length > 0 && !roundIntro;
-  const isTestPowerMode = equippedPowers.length > MAX_EQUIPPED_POWERS;
+  const isTestPowerMode = equippedPowers.length > 3;
   const turnStatusBottom = portrait
     ? cockpitBottom + (hasPowersOnTable && !isTestPowerMode ? 64 : 54)
     : Math.round(fanHy * 1.24);
@@ -1859,6 +1992,11 @@ export function TableScreen({
         )}
       </TableStatusBar>
       <TableLiveRegion message={tableAnnouncement} />
+      {gameState.series && gameState.series.total > 1 && <div className={styles.seriesScore} role="status" aria-live="polite">
+        <strong>Manche {gameState.series.round} / {gameState.series.total}</strong>
+        <span>{players.map((player, index) => `${player.isYou ? "Toi" : player.name} : ${gameState.series!.scores[index] ?? 0}`).join(" · ")}</span>
+        {phase === "trickEnd" && gameState.series.lastWinnerName && <span>{gameState.series.lastWinnerName} remporte la manche</span>}
+      </div>}
 
       {/* Centre : pioche 3D discrète + médaillon Pot (handles "deck" et "pot") */}
       <DeckZone
@@ -1958,7 +2096,7 @@ export function TableScreen({
               seatIdx={i}
               seatAngle={a.angle}
               playerCount={n}
-              dealing={motionEnabled && phase === "dealing"}
+              dealing={motionEnabled && phase === "dealing" && !dealMotif}
               legal={p.isYou ? yourLegal : null}
               onCardClick={handleCardClick}
               motionOn={motionEnabled}
@@ -1992,7 +2130,7 @@ export function TableScreen({
               const total =
                 p.equippedPowers !== undefined
                   ? Math.max(p.equippedPowers.length, played.length)
-                  : Math.max(MAX_EQUIPPED_POWERS, played.length);
+                  : Math.max(powerLimit, played.length);
               if (total <= 0) return undefined;
               return Array.from({ length: total }, (_, idx) =>
                 played[idx] ? { revealedCardId: played[idx], used: true } : { used: false },
@@ -2006,7 +2144,7 @@ export function TableScreen({
             player={p}
             seatIdx={i}
             active={active}
-            turnSeconds={cfg.turnSeconds}
+            turnSeconds={turnSeconds}
             size={p.isYou ? 44 : portrait ? 44 : 50}
             compactHorizontal={p.isYou}
             unlimitedTime={isLocalSync && DEV.unlimitedTime}
@@ -2128,6 +2266,9 @@ export function TableScreen({
         </div>
       )}
 
+      {/* Moments du jeu pilotés par l'atelier d'animations (au niveau des cartes en vol). */}
+      <ChoreoLayer ref={momentLayerRef} zIndex={300} />
+
       {/* Cartes en vol */}
       <TransientAnimationLayer
         store={transientStore}
@@ -2182,7 +2323,7 @@ export function TableScreen({
               className={styles.testTriggerBtn}
               onClick={() => setTestDrawerOpen((open) => !open)}
               aria-expanded={testDrawerOpen}
-              aria-label={`Ouvrir le tiroir de test des ${equippedPowers.length} cartes pouvoir`}
+              aria-label={`Ouvrir les ${equippedPowers.length} cartes pouvoir`}
             >
               <span className={styles.testTriggerFan} aria-hidden="true">
                 <span className={styles.testTriggerMini} />
@@ -2190,7 +2331,7 @@ export function TableScreen({
                 <span className={styles.testTriggerMini} />
               </span>
               <span className={styles.testTriggerCopy}>
-                <small>Mode test</small>
+                <small>Mon deck</small>
                 <strong>{equippedPowers.length} pouvoirs</strong>
               </span>
             </button>
@@ -2247,12 +2388,12 @@ export function TableScreen({
           <div
             className={styles.testPowerDrawer}
             role="dialog"
-            aria-label="Grimoire de test des cartes pouvoir"
+            aria-label="Cartes pouvoir de la partie"
             onClick={(e) => e.stopPropagation()}
           >
             <div className={styles.testDrawerHead}>
               <div className={styles.testDrawerTitle}>
-                <span className={styles.testBadge}>Mode test</span>
+                <span className={styles.testBadge}>Mon deck</span>
                 <span>{filteredTestPowers.length} / {equippedPowers.length} cartes</span>
               </div>
               <button
@@ -2429,7 +2570,7 @@ export function TableScreen({
         <PowerTargetModal
           cardId={targetingCard}
           players={players}
-          turnSeconds={cfg.turnSeconds}
+          turnSeconds={turnSeconds}
           allowSelf={powerScriptOf(targetingCard).target.allowSelf}
           onPick={(i) => void handleUsePower(targetingCard, i)}
           onCancel={() => setTargetingCard(null)}

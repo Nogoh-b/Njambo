@@ -39,6 +39,12 @@ function cloneSnapshot(value: GameState): GameState {
 }
 
 describe("stabilizeGameState", () => {
+  it("conserve les changements de durée et de score sans changement de cartes", () => {
+    const prev = state();
+    const next = { ...cloneSnapshot(prev), turnStartSeconds: 37, series: { round: 2, total: 3, scores: [1, 0] } };
+    expect(stabilizeGameState(prev, next)).toMatchObject({ turnStartSeconds: 37, series: next.series });
+    expect(stabilizeGameState(next, cloneSnapshot(next))).toBe(next);
+  });
   it("retourne l'ancien état quand le snapshot est identique", () => {
     const prev = state();
     expect(stabilizeGameState(prev, cloneSnapshot(prev))).toBe(prev);

@@ -32,7 +32,10 @@ const LEDGER_FILTERS: Array<{ id: LedgerFilter; label: string }> = [
 const COMMAND_LABELS: Record<string, { label: string; icon: NjamboIconName }> = {
   claimDailyReward: { label: "Bonus quotidien", icon: "sparkle" },
   purchaseOffer: { label: "Achat boutique", icon: "coin" },
+  buyBoosterBook: { label: "Achat d’un livre", icon: "cards" },
   openBoosterBook: { label: "Ouverture d’un livre", icon: "cards" },
+  openPack: { label: "Ouverture d’un pack", icon: "sparkle" },
+  useEnergyPass: { label: "Pass énergie activé", icon: "sparkle" },
   chooseBoosterCard: { label: "Carte choisie", icon: "cards" },
   buyDailyGridSlot: { label: "Grille du jour", icon: "cards" },
   spinLoyaltyWheel: { label: "Gain roulette", icon: "trophy" },
