@@ -23,15 +23,23 @@ if [[ ! -f server/.env ]]; then
   exit 1
 fi
 
-# server/.env n'est plus suivi par Git (secrets) : celui du VPS fait foi.
-# `git reset --hard` le supprimerait (commit qui le retire du suivi) ou
-# l'écraserait (retour à un ancien commit qui le suivait) : on le remet après.
-ENV_BACKUP="$(mktemp)"
-trap 'rm -f "$ENV_BACKUP"' EXIT
-cp server/.env "$ENV_BACKUP"
+# Secrets plus suivis par Git : ceux du VPS font foi. `git reset --hard` les
+# supprimerait (commit qui les retire du suivi) ou les écraserait (retour à
+# un ancien commit qui les suivait) : on les remet après chaque reset.
+LOCAL_SECRETS=(server/.env server/service-account.json)
+SECRETS_BACKUP="$(mktemp -d)"
+trap 'rm -rf "$SECRETS_BACKUP"' EXIT
+for file in "${LOCAL_SECRETS[@]}"; do
+  if [[ -f "$file" ]]; then
+    mkdir -p "$SECRETS_BACKUP/$(dirname "$file")"
+    cp -p "$file" "$SECRETS_BACKUP/$file"
+  fi
+done
 reset_to() {
   git reset --hard "$1"
-  cp "$ENV_BACKUP" server/.env
+  for file in "${LOCAL_SECRETS[@]}"; do
+    if [[ -f "$SECRETS_BACKUP/$file" ]]; then mkdir -p "$(dirname "$file")" && cp -p "$SECRETS_BACKUP/$file" "$file"; fi
+  done
 }
 
 PREVIOUS="$(git rev-parse HEAD)"

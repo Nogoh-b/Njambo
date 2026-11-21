@@ -39,8 +39,9 @@ yarn-error.log*
 # env files (can opt-in for committing if needed)
 # .env*.local
 # .env
-# Secrets du backend : chaque machine garde le sien (modèle : server/.env.example)
+# Secrets du backend : chaque machine garde les siens (modèle : server/.env.example)
 /server/.env
+/server/*service-account*.json
 
 # logs d'exécution du serveur (PM2, reprise)
 /logs/
