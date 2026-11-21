@@ -19,9 +19,20 @@ HEALTH_URL="http://127.0.0.1:${PORT}/healthz"
 cd "$APP_DIR"
 
 if [[ ! -f server/.env ]]; then
-  echo "✖ server/.env introuvable (DATABASE_URL, GOOGLE_APPLICATION_CREDENTIALS, PORT)." >&2
+  echo "✖ server/.env introuvable (modèle : server/.env.example)." >&2
   exit 1
 fi
+
+# server/.env n'est plus suivi par Git (secrets) : celui du VPS fait foi.
+# `git reset --hard` le supprimerait (commit qui le retire du suivi) ou
+# l'écraserait (retour à un ancien commit qui le suivait) : on le remet après.
+ENV_BACKUP="$(mktemp)"
+trap 'rm -f "$ENV_BACKUP"' EXIT
+cp server/.env "$ENV_BACKUP"
+reset_to() {
+  git reset --hard "$1"
+  cp "$ENV_BACKUP" server/.env
+}
 
 PREVIOUS="$(git rev-parse HEAD)"
 echo "▶ Commit actuel : ${PREVIOUS:0:7}"
@@ -29,7 +40,7 @@ echo "▶ Commit actuel : ${PREVIOUS:0:7}"
 echo "▶ Récupération de origin/${BRANCH}…"
 git fetch origin "$BRANCH"
 git checkout -q "$BRANCH"
-git reset --hard "origin/${BRANCH}"
+reset_to "origin/${BRANCH}"
 echo "▶ Nouveau commit : $(git rev-parse --short HEAD)"
 
 build_and_reload() {
@@ -58,7 +69,7 @@ if build_and_reload && health_check; then
   echo "✔ Back déployé ($(git rev-parse --short HEAD))."
 else
   echo "✖ Échec du déploiement — retour à ${PREVIOUS:0:7}…" >&2
-  git reset --hard "$PREVIOUS"
+  reset_to "$PREVIOUS"
   build_and_reload
   health_check && echo "↩ Rollback OK." || echo "✖ Rollback échoué : voir pm2 logs njambo-server" >&2
   exit 1

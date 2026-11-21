@@ -18,6 +18,13 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 
 ### Serveur local
 
+Le serveur lit sa configuration dans `server/.env`, qui n'est pas suivi par Git
+car il contient des secrets. Au premier lancement, copiez le modèle et remplissez-le :
+
+```bash
+cp server/.env.example server/.env
+```
+
 Pour installer ou renouveler les dépendances du serveur, arrêtez d'abord le serveur
 (Ctrl+C dans le terminal où il tourne), puis lancez :
 
