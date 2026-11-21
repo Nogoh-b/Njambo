@@ -6,7 +6,7 @@ import type { CosmeticDefinition, EventLifecycle, EventValidationIssue, EventVer
 import { BACKEND_URL, BackendError, callBackend } from "@/lib/backend";
 import type { EventLeaderboardData } from "@/hooks/useEventLeaderboard";
 import { auth } from "@/lib/authClient";
-import type { AiMessage, AiModule, AiProviderId, AiSettings, ProviderCapabilities } from "../../server/src/ai/types";
+import type { AiContext, AiMessage, AiModule, AiProviderId, AiSettings, ProviderCapabilities } from "../../server/src/ai/types";
 
 export interface AdminEventSummary {
   eventId: string;
@@ -155,7 +155,7 @@ export const adminApi = {
   aiConfig: () => call<AiConfigView>("aiAssistantConfig"),
   aiConversations: () => call<{ conversations: AiConversationSummary[] }>("aiAssistantConversations"),
   aiConversation: (conversationId: string) => call<AiConversationView>("aiAssistantConversation", { conversationId }),
-  aiSend: (args: { conversationId?: string; module: AiModule; text: string; settings: AiSettings }) => call<AiConversationView>("aiAssistantSend", args),
+  aiSend: (args: { conversationId?: string; module: AiModule; context?: AiContext; working?: unknown; text: string; settings: AiSettings }) => call<AiConversationView>("aiAssistantSend", args),
   aiContinue: (conversationId: string, settings?: AiSettings) => call<AiConversationView>("aiAssistantContinue", { conversationId, ...(settings ? { settings } : {}) }),
   aiResolve: (conversationId: string, proposalId: string, outcome: "confirmed" | "dismissed") => call<AiConversationView>("aiAssistantResolve", { conversationId, proposalId, outcome }),
   aiDelete: (conversationId: string) => call<{ conversationId: string }>("aiAssistantDelete", { conversationId }),
@@ -190,7 +190,7 @@ export const adminApi = {
 
 /* ─────────────── Assistant IA ─────────────── */
 
-export type { AiModule, AiSettings, AiProviderId, ThinkingLevel, AiToolResult, AiProposal } from "../../server/src/ai/types";
+export type { AiContext, AiContextKind, AiModule, AiSettings, AiProviderId, ThinkingLevel, AiToolResult, AiProposal } from "../../server/src/ai/types";
 
 export interface AiProviderView {
   id: AiProviderId;
@@ -214,6 +214,7 @@ export interface AiConversationSummary {
   id: string;
   title: string;
   module: AiModule;
+  context: AiContext | null;
   updatedAt: number;
   provider: AiProviderId | null;
   model: string | null;
@@ -227,6 +228,7 @@ export interface AiConversationView {
   id: string;
   title: string;
   module: AiModule;
+  context: AiContext | null;
   settings: AiSettings;
   messages: AiViewMessage[];
   rounds: number;
@@ -292,6 +294,10 @@ const ERROR_LABELS: Record<string, string> = {
   TOOL_ROUNDS_LIMIT: "L'assistant a atteint sa limite d'étapes pour ce message : écris-lui pour continuer.",
   PROPOSAL_ALREADY_RESOLVED: "Cette proposition a déjà été traitée.",
   INVALID_MODEL: "Nom de modèle invalide.",
+  INVALID_CONTEXT: "Page d'origine de la conversation invalide.",
+  INVALID_WORKING_COPY: "Copie de travail illisible.",
+  WORKING_COPY_TOO_LARGE: "Tes modifications non enregistrées sont trop longues pour être jointes : enregistre le brouillon d'abord.",
+  NOTHING_TO_CONTINUE: "L'assistant n'a rien à poursuivre : écris-lui.",
   COSMETIC_NOT_FOUND: "Cosmétique introuvable.",
   ANIM_MOTIF_MOMENT_CONFLICT: "Un moment du jeu utilise ce modèle : cette version ne lui convient plus (départ, arrivée ou durée). Change d'abord l'attribution des moments.",
   GAME_MOMENTS_INVALID: "L'attribution des moments contient des erreurs.",

@@ -69,6 +69,11 @@ const SPECS: Record<string, ToolSpec & { modules: AiModule[] }> = {
     description: "Propose à l'admin de PUBLIER le brouillon d'un modèle (tous les joueurs le reçoivent). Tu ne publies pas : l'admin confirme. Refusé si le brouillon a des erreurs ou ne convient plus à un moment qui l'utilise.",
     parameters: { type: "object", properties: { id: { type: "string" }, reason: reasonParam }, required: ["id", "reason"], additionalProperties: false },
   },
+  find_animation_usage: {
+    name: "find_animation_usage", modules: ["animations", "powers", "all"],
+    description: "Où un modèle d'animation sert en jeu : moments du jeu qui l'utilisent, et cartes de pouvoir dont une chorégraphie le reprend (version publiée et brouillon, chemin de la piste). À lire avant de modifier un modèle.",
+    parameters: idParam("Identifiant du modèle (ex. play_classic)."),
+  },
   get_game_moments: {
     name: "get_game_moments", modules: ["animations", "all"],
     description: "Lit les moments du jeu (carte jouée, distribution, pli gagné, fin de pli, pouvoir lancé) : contraintes, plafonds, modèle attribué, modèles compatibles avec leur durée.",
@@ -145,6 +150,15 @@ async function logWrite(ctx: ToolContext, tool: string, target: string) {
   await db.collection("admin_audit").doc().set({ uid: ctx.adminUid, action: "assistant_tool_write", tool, target, conversationId: ctx.conversationId, createdAt: Date.now() });
 }
 
+/** Chemins des pistes « modèle » d'un script qui reprennent ce modèle (chorégraphies des étapes). */
+export function motifTrackPaths(value: unknown, motifId: string, path = "script"): string[] {
+  if (!value || typeof value !== "object") return [];
+  if (Array.isArray(value)) return value.flatMap((item, index) => motifTrackPaths(item, motifId, `${path}.${index}`));
+  const node = value as Json;
+  const here = node.kind === "motif" && node.motifId === motifId ? [path] : [];
+  return [...here, ...Object.entries(node).flatMap(([key, child]) => motifTrackPaths(child, motifId, `${path}.${key}`))];
+}
+
 function proposal(kind: AiProposal["kind"], label: string, payload: Json): AiProposal {
   return { id: randomUUID(), kind, label, payload, status: "pending" };
 }
@@ -204,6 +218,24 @@ async function run(call: AiToolCall, ctx: ToolContext): Promise<ToolOutcome> {
       if (conflicts.length) return fail("Cette version ne conviendrait plus à un moment qui utilise ce modèle.", conflicts);
       const item = proposal("publish_motif", `Publier le modèle « ${row.motif.name} » (${id})`, { motifId: id, reason: str("reason") });
       return ok({ proposalId: item.id, status: "en attente de l'admin" }, `Propose de publier « ${row.motif.name} ».`, { proposal: item });
+    }
+    case "find_animation_usage": {
+      const id = str("id");
+      await ensureMotifCatalogFresh(true);
+      if (!getMotif(id)) return fail(`Modèle « ${id} » introuvable.`);
+      const assigned = momentMap();
+      const moments = GAME_MOMENT_KEYS.filter((moment) => assigned[moment] === id).map((moment) => ({ moment, label: (GAME_MOMENTS[moment] as { label: string }).label }));
+      const cards: Array<{ id: string; name: string; version: "publiée" | "brouillon"; tracks: string[] }> = [];
+      for (const doc of (await db.collection("power_cards").get()).docs) {
+        const row = (doc.data() ?? {}) as Json & { def?: { name?: string }; draft?: { def?: { name?: string }; script?: unknown } };
+        const name = row.def?.name ?? row.draft?.def?.name ?? doc.id;
+        for (const [version, script] of [["publiée", row.def ? row.script : undefined], ["brouillon", row.draft?.script]] as const) {
+          const tracks = motifTrackPaths(script, id);
+          if (tracks.length) cards.push({ id: doc.id, name, version, tracks });
+        }
+      }
+      const cardCount = new Set(cards.map((card) => card.id)).size;
+      return ok({ id, moments, cards }, `Usages de « ${id} » : ${moments.length} moment(s) du jeu, ${cardCount} carte(s) de pouvoir.`);
     }
     case "get_game_moments": {
       await ensureMotifCatalogFresh(true);

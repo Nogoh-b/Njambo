@@ -5,9 +5,12 @@
    schématique rejouée au ralenti avec le schéma éditable (A, B, ◆), ligne
    de temps, inspecteur, matrice des transitions et lecture sur la table de
    démonstration (même lecteur que le jeu). Brouillon → publication
-   versionnée → catalogue diffusé à tous les joueurs. */
+   versionnée → catalogue diffusé à tous les joueurs. Le panneau de
+   l'assistant IA (✦) suit le modèle ouvert et recharge son brouillon quand
+   l'assistant l'écrit. */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ChangelogAdminSection } from "@/domain";
 import { ChoreoDemoStage, type ChoreoDemoHandle } from "@/components/power/choreo/ChoreoDemoStage";
 import { DEFAULT_MOTIFS_BY_ID } from "@/engine/anim/defaults";
 import { GAME_MOMENTS, GAME_MOMENT_KEYS, momentIssuesForMotif, type MomentMap } from "@/engine/anim/moments";
@@ -15,6 +18,8 @@ import { MOTIF_GROUPS, normalizeMotif, validateMotif, type AnimMotif, type Motif
 import { getMotif } from "@/engine/anim/registry";
 import { adminApi, adminErrorText, issuesFromError, type AdminMotifRow } from "./adminApi";
 import { createMotifClock, useClockState, type MotifClock } from "./anim/clock";
+import { AssistantButton, AssistantDrawer, useAssistantDrawer } from "./assistant/AssistantDrawer";
+import type { AssistantChange } from "./assistant/useAssistant";
 import { GameMomentsPanel } from "./anim/GameMomentsPanel";
 import { MotifCanvas } from "./anim/MotifCanvas";
 import { MotifInspector, anchorLabel } from "./anim/MotifInspector";
@@ -40,7 +45,7 @@ function templateFor(from: SceneZone, to: SceneZone): string {
 
 const status = (row: AdminMotifRow) => row.archived ? "Archivé" : row.hasDraft ? (row.published ? `Brouillon (en ligne : rév. ${row.revision})` : "Brouillon") : row.published ? `Publié · rév. ${row.revision}` : "Modèle du jeu";
 
-export function AnimationsAdmin() {
+export function AnimationsAdmin({ onOpenSection }: { onOpenSection?(section: ChangelogAdminSection): void } = {}) {
   const [rows, setRows] = useState<AdminMotifRow[] | null>(null);
   const [editing, setEditing] = useState<Editing | null>(null);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -52,6 +57,9 @@ export function AnimationsAdmin() {
   const [showArchived, setShowArchived] = useState(false);
   const [moments, setMoments] = useState<MomentMap>({});
   const [momentsOpen, setMomentsOpen] = useState(false);
+  const [assistantOpen, setAssistantOpen] = useAssistantDrawer();
+  /** Version écrite par l'assistant pendant que l'admin avait des modifications non enregistrées. */
+  const [assistantVersion, setAssistantVersion] = useState<AnimMotif | null>(null);
   const clockRef = useRef<MotifClock | null>(null);
   if (!clockRef.current && typeof window !== "undefined") clockRef.current = createMotifClock();
   const clock = clockRef.current;
@@ -74,6 +82,7 @@ export function AnimationsAdmin() {
     const normalized = normalizeMotif(motif);
     setEditing({ motif: normalized, isNew, saved: isNew ? "" : JSON.stringify(normalized) });
     setServerIssues([]);
+    setAssistantVersion(null);
     clock?.play(true);
   };
   // Ouvre le premier modèle au chargement.
@@ -156,12 +165,32 @@ export function AnimationsAdmin() {
     open({ ...template, id: uniqueId(`${from}_${to}`.replace(/[^a-z0-9]+/g, "_")), name: `${MATRIX_LABELS[from]} → ${MATRIX_LABELS[to]}`.slice(0, 40), group: "custom", from: zoneAnchor(from), to: zoneAnchor(to), preview: undefined, description: `Créé depuis le modèle « ${template.name} ».` }, true);
   };
 
+  /** L'assistant a écrit un brouillon ou fait publier : la bibliothèque et le modèle ouvert se rechargent. */
+  const assistantChanged = async (changes: AssistantChange[]) => {
+    const next = await load();
+    const current = motif;
+    if (!next || !current || !changes.some((change) => change.kind === "motif" && change.id === current.id)) return;
+    const fresh = next.find((item) => item.id === current.id);
+    if (!fresh) return;
+    if (dirty) { setAssistantVersion(fresh.motif); return; }
+    open(fresh.motif);
+    setNotice({ kind: "ok", text: `L'assistant a modifié « ${fresh.motif.name} » : sa version est chargée, rejoue-la.` });
+  };
+  const openDraft = async (draft: { kind: "motif" | "power_card"; id: string }) => {
+    if (draft.kind !== "motif") { onOpenSection?.("powers"); return; }
+    if (draft.id === motif?.id) { await assistantChanged([{ kind: "motif", id: draft.id }]); return; }
+    if (dirty && !window.confirm("Quitter ce modèle sans enregistrer tes modifications ?")) return;
+    const fresh = (await load())?.find((item) => item.id === draft.id);
+    if (fresh) open(fresh.motif);
+  };
+
   const visibleRows = (rows ?? []).filter((item) => showArchived || !item.archived);
   return (
-    <div>
+    <div className={assistantOpen ? styles.withAssistant : undefined}>
       <div className={styles.pageHead}>
         <div><h1>Animations</h1><p>L&apos;atelier des modèles d&apos;animation : cartes de pouvoir et mouvements du jeu. Tire les poignées sur la table, règle les courbes, publie.</p></div>
         <div className={styles.row}>
+          {!assistantOpen && <AssistantButton onClick={() => setAssistantOpen(true)} />}
           <button type="button" className={styles.btn} data-testid="open-moments" onClick={() => setMomentsOpen(true)}>⚑ Moments du jeu</button>
           <button type="button" className={styles.btn} onClick={() => setMatrix(true)}>▦ Toutes les transitions</button>
           <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={createNew}>+ Nouveau modèle</button>
@@ -205,7 +234,18 @@ export function AnimationsAdmin() {
                       <p className={styles.hint} style={{ margin: "4px 0 0" }}>{anchorLabel(motif.from)} → {anchorLabel(motif.to)} · {editing?.isNew ? "nouveau" : row ? status(row) : ""}{dirty ? " · modifications non enregistrées" : ""}</p>
                       {usedBy.length > 0 && <p className={styles.hint} style={{ margin: "4px 0 0", color: "var(--gold)" }}>Anime dans le jeu : {usedBy.join(", ")}. Une publication change ce moment pour tous les joueurs.</p>}
                     </div>
+                    {!assistantOpen && <AssistantButton small label="✦ Demander à l'assistant" title="Expliquer, vérifier ou modifier ce modèle avec l'assistant IA" onClick={() => setAssistantOpen(true)} />}
                   </div>
+                  {assistantVersion && (
+                    <div className={`${styles.notice} ${styles.ok}`} style={{ marginTop: 10 }} data-testid="assistant-version">
+                      L&apos;assistant a enregistré un brouillon de ce modèle pendant que tu le modifiais.
+                      <div className={styles.row} style={{ marginTop: 6, gap: 6 }}>
+                        <button type="button" className={`${styles.btn} ${styles.small} ${styles.primary}`} onClick={() => open(assistantVersion)}>Charger sa version</button>
+                        <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => setAssistantVersion(null)}>Garder la mienne</button>
+                        <span className={styles.hint}>Charger sa version remplace tes modifications non enregistrées.</span>
+                      </div>
+                    </div>
+                  )}
                   <div className={styles.row} style={{ marginTop: 10 }}>
                     <button type="button" className={styles.btn} disabled={busy} onClick={() => void saveDraft()}>Enregistrer le brouillon</button>
                     <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy || issues.length > 0} data-testid="publish-motif" onClick={() => void publish()}>Publier</button>
@@ -269,6 +309,17 @@ export function AnimationsAdmin() {
       )}
 
       {demo && motif && <DemoDialog motif={motif} onClose={() => setDemo(false)} />}
+
+      {assistantOpen && (
+        <AssistantDrawer
+          context={motif ? { kind: "animation_model", id: motif.id, label: motif.name } : { kind: "animation_library" }}
+          working={motif && (dirty || editing?.isNew) ? motif : null}
+          onChanged={(changes) => void assistantChanged(changes)}
+          onOpenDraft={(draft) => void openDraft(draft)}
+          onOpenSection={onOpenSection}
+          onClose={() => setAssistantOpen(false)}
+        />
+      )}
     </div>
   );
 }

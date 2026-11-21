@@ -2,16 +2,22 @@
 
 /* Section « Cartes de pouvoir » : catalogue, création, édition (identité,
    cible, effet, animation, économie), publication versionnée, archivage et
-   interrupteur d'urgence. Validation en direct par validatePowerCard. */
+   interrupteur d'urgence. Validation en direct par validatePowerCard. Le
+   panneau de l'assistant IA (✦) s'ouvre sur le catalogue, sur une carte de
+   la liste ou sur la carte en cours d'édition, qu'il recharge quand
+   l'assistant écrit son brouillon. */
 
 import { PowerSandbox } from "./PowerSandbox";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import type { ChangelogAdminSection } from "@/domain";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import { NJAMBO_ICON_NAMES } from "@/components/ui/Art";
 import type { PowerModule, PowerScript } from "@/engine/power/types";
 import { POWER_ANIM_TAGS, POWER_BOOSTER_TIERS, POWER_CATEGORIES, POWER_RARITIES, POWER_TARGET_MODES, POWER_TONES, validatePowerCard } from "@/engine/power/validate";
 import type { PowerCardDef } from "@/types/game";
 import { adminApi, adminErrorText, issuesFromError, type AdminPowerCardRow } from "./adminApi";
+import { AssistantButton, AssistantDrawer, useAssistantDrawer } from "./assistant/AssistantDrawer";
+import type { AssistantChange } from "./assistant/useAssistant";
 import { ImageField } from "./ImageField";
 import { SoundField } from "./SoundField";
 import { StepsEditor, TargetEditor } from "./PowerScriptEditor";
@@ -38,8 +44,13 @@ const ANIM_TAG_LABELS: Record<string, string> = {
   future_block: "Blocage futur", result_economy: "Économie de fin de manche",
 };
 
-export function PowerCardsAdmin() {
+type DraftRef = { kind: "motif" | "power_card"; id: string };
+
+export function PowerCardsAdmin({ onOpenSection }: { onOpenSection?(section: ChangelogAdminSection): void } = {}) {
   const [rows, setRows] = useState<AdminPowerCardRow[] | null>(null);
+  const [assistantOpen, setAssistantOpen] = useAssistantDrawer();
+  /** Carte de la liste sur laquelle le panneau est ouvert (null : tout le catalogue). */
+  const [assistantCard, setAssistantCard] = useState<{ id: string; label?: string } | null>(null);
   const [seeded, setSeeded] = useState(true);
   const [filter, setFilter] = useState<string>("all");
   const [editing, setEditing] = useState<{ card: Card; isNew: boolean; published: boolean; revision: number } | null>(null);
@@ -76,6 +87,11 @@ export function PowerCardsAdmin() {
     }
   };
 
+  const openDraft = (draft: DraftRef) => {
+    if (draft.kind === "motif") onOpenSection?.("animations");
+    else void open(draft.id);
+  };
+
   if (editing) {
     return (
       <PowerCardEditor
@@ -86,23 +102,35 @@ export function PowerCardsAdmin() {
         revision={editing.revision}
         onClose={() => { setEditing(null); void load(); }}
         onPublished={(revision) => setEditing((current) => (current ? { ...current, isNew: false, published: true, revision } : current))}
+        onStatus={(published, revision) => setEditing((current) => (current ? { ...current, published, revision } : current))}
+        assistantOpen={assistantOpen}
+        onAssistant={setAssistantOpen}
+        onOpenDraft={(draft) => (draft.kind === "power_card" && draft.id !== editing.card.def.id ? void open(draft.id) : openDraft(draft))}
+        onOpenSection={onOpenSection}
       />
     );
   }
+
+  const assistantChanged = (changes: AssistantChange[]) => {
+    if (changes.some((change) => change.kind === "power_card")) void load();
+  };
 
   const visible = (rows ?? []).filter((row) => filter === "all"
     || (filter === "archived" ? row.def?.archived : filter === "disabled" ? row.def?.disabled : filter === "draft" ? row.hasDraft || !row.published : row.def?.category === filter));
 
   return (
-    <div>
+    <div className={assistantOpen ? styles.withAssistantFluid : undefined}>
       <div className={styles.pageHead}>
         <div><h1>Cartes de pouvoir</h1><p>Crée et règle les cartes sans toucher au code : identité, cible, effet (briques), animation, prix.</p></div>
+        <div className={styles.row}>
+        <AssistantButton title="Questions sur tout le catalogue" onClick={() => { setAssistantCard(null); setAssistantOpen(true); }} />
         <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={!seeded} onClick={() => {
           const id = window.prompt("Identifiant de la nouvelle carte (a-z, 0-9, _ ; définitif) :")?.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
           if (!id) return;
           if ((rows ?? []).some((row) => row.id === id)) { setNotice({ kind: "error", text: "Identifiant déjà utilisé." }); return; }
           setEditing({ card: blankPowerCard(id), isNew: true, published: false, revision: 0 });
         }}>+ Nouvelle carte</button>
+        </div>
       </div>
       {notice && <div className={`${styles.notice} ${styles[notice.kind]}`}>{notice.text}</div>}
       {!seeded && (
@@ -137,6 +165,8 @@ export function PowerCardsAdmin() {
                 <span className={styles.hint}><code>{row.id}</code>{row.revision ? ` · rév. ${row.revision}` : ""}</span>
                 <div className={styles.row} style={{ gap: 4 }}>
                   <button type="button" className={`${styles.btn} ${styles.small} ${styles.primary}`} disabled={busy} onClick={() => void open(row.id)}>Modifier</button>
+                  <button type="button" className={`${styles.btn} ${styles.small}`} data-testid={`ask-card-${row.id}`} title="Demander à l'assistant IA sur cette carte"
+                    onClick={() => { setAssistantCard({ id: row.id, label: row.def?.name }); setAssistantOpen(true); }}>✦</button>
                   <button type="button" className={`${styles.btn} ${styles.small}`} disabled={busy} onClick={() => {
                     const id = window.prompt("Identifiant de la copie :")?.trim().toLowerCase().replace(/[^a-z0-9_]/g, "_");
                     if (id) void act(async () => { await adminApi.duplicatePowerCard(row.id, id); return `Copie « ${id} » créée en brouillon.`; });
@@ -161,12 +191,28 @@ export function PowerCardsAdmin() {
           </div>
         )}
       </section>
+
+      {assistantOpen && (
+        <AssistantDrawer
+          context={assistantCard ? { kind: "power_card", id: assistantCard.id, ...(assistantCard.label ? { label: assistantCard.label } : {}) } : { kind: "power_catalog" }}
+          onChanged={assistantChanged}
+          onOpenDraft={openDraft}
+          onOpenSection={onOpenSection}
+          onClose={() => setAssistantOpen(false)}
+        />
+      )}
     </div>
   );
 }
 
-export function PowerCardEditor({ initial, isNew, published, revision, onClose, onPublished }: {
+export function PowerCardEditor({ initial, isNew, published, revision, onClose, onPublished, onStatus, assistantOpen = false, onAssistant, onOpenDraft, onOpenSection }: {
   initial: Card; isNew: boolean; published: boolean; revision: number; onClose: () => void; onPublished: (revision: number) => void;
+  /** Statut relu après une action de l'assistant (brouillon, publication confirmée). */
+  onStatus?(published: boolean, revision: number): void;
+  assistantOpen?: boolean;
+  onAssistant?(open: boolean): void;
+  onOpenDraft?(draft: DraftRef): void;
+  onOpenSection?(section: ChangelogAdminSection): void;
 }) {
   const [card, setCard] = useState<Card>(initial);
   const [saved, setSaved] = useState(() => (isNew ? "" : JSON.stringify(initial)));
@@ -174,6 +220,8 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const [serverIssues, setServerIssues] = useState<Array<{ path: string; message: string }>>([]);
+  /** Version écrite par l'assistant pendant que l'admin avait des modifications non enregistrées. */
+  const [assistantVersion, setAssistantVersion] = useState<Card | null>(null);
   const issues = useMemo(() => validatePowerCard(card), [card]);
   const dirty = JSON.stringify(card) !== saved;
   const errorFor = useCallback((path: string) => issues.find((issue) => issue.path === path)?.message, [issues]);
@@ -206,6 +254,27 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
     return `Révision ${result.revision} publiée : les nouvelles parties l'utilisent (les parties en cours gardent leur version).`;
   });
 
+  const loadVersion = (next: Card) => {
+    setCard(next);
+    setSaved(JSON.stringify(next));
+    setAssistantVersion(null);
+  };
+  /** L'assistant a écrit le brouillon de cette carte ou l'a fait publier : on relit la carte. */
+  const assistantChanged = async (changes: AssistantChange[]) => {
+    if (!changes.some((change) => change.kind === "power_card" && change.id === def.id)) return;
+    try {
+      const detail = await adminApi.powerCard(def.id);
+      onStatus?.(detail.published, detail.revision);
+      if (!detail.working) return;
+      const next: Card = { def: detail.working.def, script: detail.working.script, dev: detail.working.dev };
+      if (dirty) { setAssistantVersion(next); return; }
+      loadVersion(next);
+      setNotice({ kind: "ok", text: "L'assistant a modifié cette carte : sa version est chargée (essaie-la dans le bac à sable)." });
+    } catch (cause) {
+      setNotice({ kind: "error", text: adminErrorText(cause) });
+    }
+  };
+
   const numberField = (label: string, key: "costCauris" | "costNkap") => (
     <label className={`${styles.field} ${errorFor(`def.${key}`) ? styles.invalid : ""}`}>
       <span>{label}</span>
@@ -223,7 +292,7 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
   );
 
   return (
-    <div>
+    <div className={assistantOpen ? styles.withAssistantFluid : undefined}>
       <div className={styles.editorHead}>
         <button type="button" className={styles.btn} onClick={() => { if (!dirty || window.confirm("Quitter sans enregistrer ?")) onClose(); }}>← Cartes</button>
         <h1>{def.name}</h1>
@@ -232,8 +301,19 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
         {dirty && <span className={styles.hint}>Modifications non enregistrées</span>}
         <button type="button" className={styles.btn} disabled={busy || !dirty} onClick={() => void save()}>Enregistrer le brouillon</button>
         <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy || issues.length > 0} title={issues.length ? "Corrige les erreurs d'abord" : undefined} onClick={() => void publish()}>Publier</button>
+        {onAssistant && !assistantOpen && <AssistantButton label="✦ Demander à l'assistant" title="Expliquer, vérifier ou modifier cette carte avec l'assistant IA" onClick={() => onAssistant(true)} />}
       </div>
       {notice && <div className={`${styles.notice} ${styles[notice.kind]}`}>{notice.text}</div>}
+      {assistantVersion && (
+        <div className={`${styles.notice} ${styles.ok}`} data-testid="assistant-version">
+          L&apos;assistant a enregistré un brouillon de cette carte pendant que tu la modifiais.
+          <div className={styles.row} style={{ marginTop: 6, gap: 6 }}>
+            <button type="button" className={`${styles.btn} ${styles.small} ${styles.primary}`} onClick={() => loadVersion(assistantVersion)}>Charger sa version</button>
+            <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => setAssistantVersion(null)}>Garder la mienne</button>
+            <span className={styles.hint}>Charger sa version remplace tes modifications non enregistrées.</span>
+          </div>
+        </div>
+      )}
       {serverIssues.length > 0 && <div className={`${styles.notice} ${styles.error}`}><ul className={styles.issues}>{serverIssues.map((issue) => <li key={issue.path + issue.message}><code>{issue.path}</code> — {issue.message}</li>)}</ul></div>}
 
       <div className={styles.previewWrap}>
@@ -304,6 +384,20 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
           <div style={{ marginTop: 6 }}><PowerCardView card={def} /></div>
         </aside>
       </div>
+
+      {assistantOpen && onAssistant && (
+        <AssistantDrawer
+          context={{ kind: "power_card", id: def.id, label: def.name }}
+          working={dirty || isNew ? card : null}
+          onChanged={(changes) => void assistantChanged(changes)}
+          onOpenDraft={(draft) => {
+            if (draft.kind === "power_card" && draft.id === def.id) void assistantChanged([draft]);
+            else if (!dirty || window.confirm("Quitter cette carte sans enregistrer tes modifications ?")) onOpenDraft?.(draft);
+          }}
+          onOpenSection={onOpenSection}
+          onClose={() => onAssistant(false)}
+        />
+      )}
     </div>
   );
 }

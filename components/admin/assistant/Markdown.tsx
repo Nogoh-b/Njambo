@@ -1,20 +1,20 @@
 "use client";
 
 /* Rendu Markdown minimal et sûr des réponses de l'assistant : paragraphes,
-   titres, listes, blocs de code, `code`, **gras**, _italique_. Aucun HTML
+   titres, listes, blocs de code, `code`, **gras**, _italique_ ou *italique*. Aucun HTML
    injecté : tout passe par des éléments React. */
 
 import { Fragment, type ReactNode } from "react";
 
-/* L'italique `_…_` n'est reconnu qu'en dehors d'un mot : `list_animation_models` reste intact. */
-const INLINE = /(`[^`]+`|\*\*[^*]+\*\*|(?<![\p{L}\p{N}_])_[^_\s][^_]*_(?![\p{L}\p{N}_]))/gu;
+/* L'italique `_…_` ou `*…*` n'est reconnu qu'en dehors d'un mot : `list_animation_models` et 2*3*4 restent intacts. */
+const INLINE = /(`[^`]+`|\*\*[^*]+\*\*|(?<![\p{L}\p{N}_])_[^_\s][^_]*_(?![\p{L}\p{N}_])|(?<![\p{L}\p{N}*])\*[^*\s][^*]*\*(?![\p{L}\p{N}*]))/gu;
 
 function inline(text: string, key: string): ReactNode[] {
   return text.split(INLINE).filter(Boolean).map((part, index) => {
     const k = `${key}-${index}`;
     if (part.startsWith("`") && part.endsWith("`") && part.length > 2) return <code key={k} style={{ background: "#0c0906", border: "1px solid var(--line)", borderRadius: 5, padding: "0 4px", fontSize: "0.92em" }}>{part.slice(1, -1)}</code>;
-    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) return <strong key={k}>{part.slice(2, -2)}</strong>;
-    if (part.startsWith("_") && part.endsWith("_") && part.length > 2) return <em key={k}>{part.slice(1, -1)}</em>;
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4) return <strong key={k}>{inline(part.slice(2, -2), k)}</strong>;
+    if (((part.startsWith("_") && part.endsWith("_")) || (part.startsWith("*") && part.endsWith("*"))) && part.length > 2) return <em key={k}>{part.slice(1, -1)}</em>;
     return <Fragment key={k}>{part}</Fragment>;
   });
 }

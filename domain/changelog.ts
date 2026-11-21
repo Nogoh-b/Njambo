@@ -44,9 +44,10 @@ export const CHANGELOG_ENTRIES: readonly ChangelogEntry[] = [
     status: "new",
     summary: "Un assistant conversationnel qui explique, interroge, crée et met à jour les modèles d'animation et les cartes de pouvoir, et décrit leurs effets en jeu.",
     highlights: [
-      "Choix de l'IA (DeepSeek, Claude, OpenAI, Gemini ou service compatible OpenAI), du modèle, de la réflexion et de la température ; clés côté serveur uniquement.",
-      "L'assistant lit la bibliothèque, les moments, les cartes et la référence tirée du code ; il écrit seulement des brouillons.",
-      "Publier ou attribuer un moment : il le propose, l'admin confirme d'un clic. Historique des conversations par admin.",
+      "Choix de l'IA (DeepSeek, Claude, OpenAI, Gemini, GLM, MiMo, Meta, FreeLLM ou service compatible OpenAI), du modèle, de la réflexion et de la température ; clés côté serveur uniquement.",
+      "Panneau ✦ dans les pages Animations et Cartes de pouvoir : l'assistant sait quel modèle ou quelle carte est ouvert, propose des questions toutes prêtes, lit tes modifications non enregistrées et recharge la page quand il écrit un brouillon.",
+      "L'assistant lit la bibliothèque, les moments, les cartes, où un modèle sert en jeu et la référence tirée du code ; il écrit seulement des brouillons.",
+      "Publier ou attribuer un moment : il le propose, l'admin confirme d'un clic. Historique des conversations par admin, avec leur page d'origine.",
     ],
     adminSection: "assistant",
   },

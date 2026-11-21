@@ -7,13 +7,20 @@
      (sinon erreur 400) ;
    - Gemini : les signatures de réflexion arrivent sur les appels d'outils
      (`extra_content`) et doivent revenir telles quelles ;
-   - OpenAI : `reasoning_effort` (none à xhigh), température seulement à none.
+   - OpenAI : `reasoning_effort` (none à xhigh), température seulement à none ;
+   - GLM (Z.ai) et MiMo (Xiaomi) : réflexion activée ou coupée par
+     `thinking: {type}` (GLM 5 : toujours active, profondeur par
+     `reasoning_effort` low / high / max) ; leur raisonnement est renvoyé
+     d'un tour à l'autre ; MiMo refuse la température réflexion active.
    Le message de l'assistant est renvoyé tel que reçu au même fournisseur,
    limité aux champs que l'API accepte en entrée. */
 
-import { AiProviderError, type AiMessage, type AiProviderId, type AiToolCall, type ProviderAdapter, type ProviderRequest, type ProviderTurn, type ThinkingLevel } from "./types";
+import { AiProviderError, userContent, type AiMessage, type AiProviderId, type AiToolCall, type ProviderAdapter, type ProviderRequest, type ProviderTurn, type ThinkingLevel } from "./types";
 
-export type CompatFlavor = "deepseek" | "openai" | "gemini" | "generic";
+export type CompatFlavor = "deepseek" | "openai" | "gemini" | "glm" | "mimo" | "generic";
+
+/** Fournisseurs dont la réflexion se règle par `thinking: {type}` et qui renvoient `reasoning_content`. */
+const THINKING_TYPE_FLAVORS: ReadonlySet<CompatFlavor> = new Set(["glm", "mimo"]);
 
 interface CompatConfig {
   id: AiProviderId;
@@ -34,13 +41,21 @@ export function thinkingParams(flavor: CompatFlavor, level: ThinkingLevel): Json
     return { thinking: { type: "enabled" }, reasoning_effort: effort };
   }
   if (level === "default") return {};
+  if (flavor === "glm") {
+    // GLM 5 : réflexion toujours active, profondeur par reasoning_effort (low / high / max).
+    if (level === "off") return { thinking: { type: "disabled" } };
+    if (level === "on") return { thinking: { type: "enabled" } };
+    return { thinking: { type: "enabled" }, reasoning_effort: level === "low" ? "low" : level === "xhigh" || level === "max" ? "max" : "high" };
+  }
+  if (THINKING_TYPE_FLAVORS.has(flavor)) return { thinking: { type: level === "off" ? "disabled" : "enabled" } };
+  if (level === "on") return { reasoning_effort: "medium" };
   if (flavor === "openai") return { reasoning_effort: level === "off" ? "none" : level === "max" ? "xhigh" : level };
   return { reasoning_effort: level === "off" ? "none" : level === "xhigh" || level === "max" ? "high" : level };
 }
 
-/** La température a-t-elle un effet ? (DeepSeek, OpenAI : seulement réflexion coupée.) */
+/** La température a-t-elle un effet ? (DeepSeek, OpenAI, MiMo : seulement réflexion coupée.) */
 export function temperatureApplies(flavor: CompatFlavor, level: ThinkingLevel): boolean {
-  if (flavor === "deepseek" || flavor === "openai") return level === "off";
+  if (flavor === "deepseek" || flavor === "openai" || flavor === "mimo") return level === "off";
   return true;
 }
 
@@ -48,7 +63,9 @@ export function temperatureApplies(flavor: CompatFlavor, level: ThinkingLevel): 
 function replayable(flavor: CompatFlavor, message: Json): Json {
   const out: Json = { role: "assistant", content: typeof message.content === "string" || Array.isArray(message.content) ? message.content : "" };
   if (Array.isArray(message.tool_calls) && message.tool_calls.length) out.tool_calls = message.tool_calls;
-  if (flavor === "deepseek") out.reasoning_content = typeof message.reasoning_content === "string" ? message.reasoning_content : "";
+  // DeepSeek et MiMo exigent le raisonnement sur chaque message de l'assistant (réflexion active) ; GLM l'accepte.
+  if (flavor === "deepseek" || flavor === "mimo") out.reasoning_content = typeof message.reasoning_content === "string" ? message.reasoning_content : "";
+  if (flavor === "glm" && typeof message.reasoning_content === "string" && message.reasoning_content) out.reasoning_content = message.reasoning_content;
   if (flavor === "gemini" && message.extra_content) out.extra_content = message.extra_content;
   return out;
 }
@@ -57,7 +74,7 @@ export function toCompatMessages(flavor: CompatFlavor, provider: AiProviderId, s
   const out: Json[] = [{ role: "system", content: system }];
   for (const message of messages) {
     if (message.role === "user") {
-      out.push({ role: "user", content: message.text });
+      out.push({ role: "user", content: userContent(message) });
     } else if (message.role === "assistant") {
       if (message.provider === provider && message.raw && typeof message.raw === "object") {
         out.push(replayable(flavor, message.raw as Json));
@@ -68,7 +85,7 @@ export function toCompatMessages(flavor: CompatFlavor, provider: AiProviderId, s
       if (message.toolCalls.length) {
         converted.tool_calls = message.toolCalls.map((call) => ({ id: call.id, type: "function", function: { name: call.name, arguments: JSON.stringify(call.input) } }));
       }
-      if (flavor === "deepseek") converted.reasoning_content = "";
+      if (flavor === "deepseek" || flavor === "mimo") converted.reasoning_content = "";
       out.push(converted);
     } else {
       for (const result of message.results) out.push({ role: "tool", tool_call_id: result.id, content: result.content });

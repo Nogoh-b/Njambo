@@ -16,6 +16,7 @@ const TOOL_LABELS: Record<string, string> = {
   validate_animation_model: "Validation d'un modèle",
   save_animation_model_draft: "Brouillon de modèle",
   propose_publish_animation_model: "Proposition de publication",
+  find_animation_usage: "Usages en jeu",
   get_game_moments: "Moments du jeu",
   propose_game_moments: "Proposition de moments",
   list_power_cards: "Catalogue des cartes",
@@ -51,9 +52,11 @@ function ProposalCard({ proposal, busy, onResolve }: { proposal: AiProposal; bus
   );
 }
 
-function ToolResultLine({ name, input, result, busy, onResolve, onOpenSection }: {
+type DraftRef = NonNullable<AiToolResult["draft"]>;
+
+function ToolResultLine({ name, input, result, busy, onResolve, onOpenSection, onOpenDraft }: {
   name: string; input: Record<string, unknown>; result?: AiToolResult; busy: boolean;
-  onResolve(proposalId: string, outcome: "confirmed" | "dismissed"): void; onOpenSection(section: ChangelogAdminSection): void;
+  onResolve(proposalId: string, outcome: "confirmed" | "dismissed"): void; onOpenSection?(section: ChangelogAdminSection): void; onOpenDraft?(draft: DraftRef): void;
 }) {
   const label = TOOL_LABELS[name] ?? name;
   return (
@@ -67,7 +70,12 @@ function ToolResultLine({ name, input, result, busy, onResolve, onOpenSection }:
           {result && <pre style={DETAIL_STYLE}>{pretty(result.content)}</pre>}
         </div>
       </details>
-      {result?.draft && (
+      {result?.draft && onOpenDraft && (
+        <button type="button" className={`${styles.btn} ${styles.small}`} style={{ marginTop: 4 }} onClick={() => onOpenDraft(result.draft!)}>
+          Voir {result.draft.kind === "motif" ? "le modèle" : "la carte"} · {result.draft.id}
+        </button>
+      )}
+      {result?.draft && !onOpenDraft && onOpenSection && (
         <button type="button" className={`${styles.btn} ${styles.small}`} style={{ marginTop: 4 }} onClick={() => onOpenSection(result.draft!.kind === "motif" ? "animations" : "powers")}>
           Ouvrir {result.draft.kind === "motif" ? "l'atelier (Animations)" : "les cartes de pouvoir"} · {result.draft.id}
         </button>
@@ -77,12 +85,14 @@ function ToolResultLine({ name, input, result, busy, onResolve, onOpenSection }:
   );
 }
 
-export function AssistantMessages({ messages, providerLabels, busy, onResolve, onOpenSection }: {
+export function AssistantMessages({ messages, providerLabels, busy, onResolve, onOpenSection, onOpenDraft }: {
   messages: AiViewMessage[];
   providerLabels: Record<string, string>;
   busy: boolean;
   onResolve(proposalId: string, outcome: "confirmed" | "dismissed"): void;
-  onOpenSection(section: ChangelogAdminSection): void;
+  onOpenSection?(section: ChangelogAdminSection): void;
+  /** Ouvre le brouillon écrit dans la page (panneau) ; à défaut, la section concernée. */
+  onOpenDraft?(draft: DraftRef): void;
 }) {
   const results = new Map<string, AiToolResult>();
   for (const message of messages) if (message.role === "tool") for (const result of message.results) results.set(result.id, result);
@@ -93,7 +103,10 @@ export function AssistantMessages({ messages, providerLabels, busy, onResolve, o
         if (message.role === "user") {
           if (message.note) return <div key={index} className={styles.hint} style={{ textAlign: "center", fontStyle: "italic" }}>{message.text.replace(/^\[Action de l'admin\]\s*/, "")}</div>;
           return (
-            <div key={index} style={{ justifySelf: "end", maxWidth: "85%", background: "#2a1d12", border: "1px solid #f2bb4555", borderRadius: "14px 14px 4px 14px", padding: "8px 12px", whiteSpace: "pre-wrap" }}>{message.text}</div>
+            <div key={index} style={{ justifySelf: "end", maxWidth: "85%", background: "#2a1d12", border: "1px solid #f2bb4555", borderRadius: "14px 14px 4px 14px", padding: "8px 12px", whiteSpace: "pre-wrap" }}>
+              {message.text}
+              {message.attachment && <div className={styles.hint} style={{ fontSize: 11, marginTop: 4 }} title={message.attachment}>📎 avec tes modifications non enregistrées</div>}
+            </div>
           );
         }
         return (
@@ -109,7 +122,7 @@ export function AssistantMessages({ messages, providerLabels, busy, onResolve, o
             )}
             {message.text && <Markdown text={message.text} />}
             {message.toolCalls.map((call) => (
-              <ToolResultLine key={call.id} name={call.name} input={call.input} result={results.get(call.id)} busy={busy} onResolve={onResolve} onOpenSection={onOpenSection} />
+              <ToolResultLine key={call.id} name={call.name} input={call.input} result={results.get(call.id)} busy={busy} onResolve={onResolve} onOpenSection={onOpenSection} onOpenDraft={onOpenDraft} />
             ))}
           </div>
         );

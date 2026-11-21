@@ -8,7 +8,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { GAME_CONFIG } from "../../../config/gameConfig";
 import { GAME_MOMENTS, GAME_MOMENT_KEYS, MOMENT_STYLE_FALLBACK, MOMENT_STYLE_OWNER } from "../../../engine/anim/moments";
-import type { AiModule } from "./types";
+import type { AiContext, AiModule } from "./types";
 
 export const REFERENCE_TOPICS = {
   jeu: "Règles de Njambo et déroulement d'une partie (tours, plis, dépôts, pot, pouvoirs).",
@@ -106,11 +106,33 @@ const MODULE_FOCUS: Record<AiModule, string> = {
   all: "Cette conversation couvre les animations et les cartes de pouvoir.",
 };
 
-export function systemPrompt(module: AiModule): string {
+/** Page d'où l'admin écrit : « ce modèle », « cette carte » désignent l'élément ouvert. */
+function contextFocus(context: AiContext | undefined): string[] {
+  if (!context) return [];
+  const named = context.label ? ` (« ${context.label} »)` : "";
+  const attachment = "Si un message est suivi d'une copie de travail jointe, c'est la version que l'admin a à l'écran, pas encore enregistrée : pars d'elle, et ne l'écrase pas sans le dire.";
+  switch (context.kind) {
+    case "animation_model": return [
+      `L'admin t'écrit depuis la page du modèle d'animation \`${context.id}\`${named} dans l'atelier. « Ce modèle », « l'animation », « ça » désignent \`${context.id}\` : lis-le (get_animation_model) avant d'en parler, et cherche où il sert en jeu (find_animation_usage) dès qu'une modification peut toucher les joueurs.`,
+      attachment,
+      "Si tu enregistres le brouillon de ce modèle, dis-le : la page le recharge pour que l'admin le voie et le rejoue.",
+    ];
+    case "power_card": return [
+      `L'admin t'écrit depuis la page de la carte de pouvoir \`${context.id}\`${named}. « Cette carte », « ça » désignent \`${context.id}\` : lis-la (get_power_card) avant d'en parler.`,
+      attachment,
+      "Si tu enregistres le brouillon de cette carte, dis-le : la page le recharge pour que l'admin le voie et l'essaie dans le bac à sable.",
+    ];
+    case "animation_library": return ["L'admin t'écrit depuis la bibliothèque de l'atelier d'animations (la liste des modèles)."];
+    case "power_catalog": return ["L'admin t'écrit depuis le catalogue des cartes de pouvoir (la liste des cartes)."];
+  }
+}
+
+export function systemPrompt(module: AiModule, context?: AiContext): string {
   return [
     "Tu es l'assistant de la console admin de Njambo, un jeu de cartes camerounais en ligne (2 à 4 joueurs, mises en Nkap, cartes de pouvoir).",
     "Tu aides l'admin à comprendre, interroger, créer et mettre à jour les modèles d'animation et les cartes de pouvoir, et à prévoir leurs effets et leurs interactions en jeu.",
     MODULE_FOCUS[module],
+    ...contextFocus(context),
     "",
     "Règles de travail :",
     "- Réponds en français, clairement et sans jargon inutile ; cite les identifiants entre accents graves (`play_classic`).",

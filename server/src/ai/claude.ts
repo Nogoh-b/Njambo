@@ -12,7 +12,7 @@
      qui l'acceptent. */
 
 import Anthropic from "@anthropic-ai/sdk";
-import { AiProviderError, type AiMessage, type AiToolCall, type ProviderAdapter, type ProviderRequest, type ProviderTurn, type ThinkingLevel } from "./types";
+import { AiProviderError, userContent, type AiMessage, type AiToolCall, type ProviderAdapter, type ProviderRequest, type ProviderTurn, type ThinkingLevel } from "./types";
 
 type BlockParam = Anthropic.Beta.BetaContentBlockParam;
 type MessageParam = Anthropic.Beta.BetaMessageParam;
@@ -27,6 +27,7 @@ const DROP_BEFORE_FALLBACK = new Set(["thinking", "redacted_thinking", "tool_use
 export function claudeEffort(level: ThinkingLevel): Effort | null {
   if (level === "default") return null;
   if (level === "off") return "low";
+  if (level === "on") return "high";
   return level;
 }
 
@@ -42,7 +43,7 @@ export function toClaudeMessages(messages: AiMessage[]): MessageParam[] {
   const out: MessageParam[] = [];
   for (const message of messages) {
     if (message.role === "user") {
-      out.push({ role: "user", content: message.text });
+      out.push({ role: "user", content: userContent(message) });
     } else if (message.role === "assistant") {
       const replay = message.provider === "claude" ? claudeReplayContent(message.raw) : null;
       if (replay && replay.length) {

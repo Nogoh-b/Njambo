@@ -6,7 +6,7 @@
    ⚠️ Écrit dans la base visée : utiliser une base JETABLE. */
 const path = require("path");
 process.env.AI_SIMULATION = "1";
-for (const key of ["DEEPSEEK_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "AI_COMPAT_BASE_URL"]) delete process.env[key];
+for (const key of ["DEEPSEEK_API_KEY", "ANTHROPIC_API_KEY", "OPENAI_API_KEY", "GEMINI_API_KEY", "GOOGLE_API_KEY", "GLM_API_KEY", "MIMO_API_KEY", "META_API_KEY", "FREELLM_API_KEY", "FREELLM_BASE_URL", "AI_COMPAT_BASE_URL"]) delete process.env[key];
 const dist = path.join(__dirname, "..", "dist");
 const { createPgFirestore } = require(path.join(dist, "server/src/firestoreCompat/pg.js"));
 const core = require(path.join(dist, "functions/src/core.js"));
@@ -36,7 +36,7 @@ async function drive(view) {
   assert(await refused(() => ai.aiAssistantConfigHandler(as("joueur", {})), "ADMIN_REQUIRED"), "configuration réservée aux admins");
   const config = await ai.aiAssistantConfigHandler(as("adm", {}, true));
   const ids = config.providers.map((p) => p.id).join(",");
-  assert(ids === "deepseek,claude,openai,gemini,compat,simulation", `6 fournisseurs proposés (${ids})`);
+  assert(ids === "deepseek,claude,openai,gemini,glm,mimo,meta,freellm,compat,simulation", `10 fournisseurs proposés (${ids})`);
   const deepseek = config.providers.find((p) => p.id === "deepseek");
   assert(!deepseek.enabled && /DEEPSEEK_API_KEY/.test(deepseek.reason) && deepseek.models.includes("deepseek-v4-pro"), "DeepSeek désactivé sans clé, avec sa liste de repli");
   assert(config.providers.find((p) => p.id === "simulation").enabled && config.providers.find((p) => p.id === "claude").capabilities.temperature === "never", "simulation active ; Claude sans température");
@@ -107,6 +107,23 @@ async function drive(view) {
   assert(momentsProposal.ok && momentsProposal.proposal.kind === "set_moments", "attribution valide proposée");
   await tools.executeProposal(momentsProposal.proposal, ctx);
   assert(registry.momentMap().play === "play_classic", "confirmée : moment attribué");
+
+  // Conversation ouverte depuis la page d'un modèle : contexte gardé, copie de travail jointe pour le modèle
+  view = await drive(await ai.aiAssistantSendHandler(as("adm", { context: { kind: "animation_model", id: "play_classic", label: "Jouer une carte" }, working: { id: "play_classic", durationMs: 420 }, text: "Explique ce modèle", settings: SIM }, true)));
+  assert(view.context && view.context.id === "play_classic" && view.module === "all" && !view.pending, "page d'origine gardée (module animations + cartes), réponse complète");
+  const stored = (await core.db.doc(`ai_conversations/${view.id}`).get()).data();
+  assert(stored.messages[0].text === "Explique ce modèle" && /PAS ENCORE ENREGISTRÉES/.test(stored.messages[0].attachment) && /"durationMs":420/.test(stored.messages[0].attachment), "copie de travail jointe au message, texte de l'admin inchangé");
+  assert((await ai.aiAssistantConversationsHandler(as("adm", {}, true))).conversations.some((item) => item.context && item.context.id === "play_classic"), "historique : page d'origine visible");
+  assert(await refused(() => ai.aiAssistantSendHandler(as("adm", { context: { kind: "power_card" }, text: "x", settings: SIM }, true)), "INVALID_CONTEXT"), "carte sans identifiant refusée");
+  assert(await refused(() => ai.aiAssistantSendHandler(as("adm", { module: "animations", working: { a: 1 }, text: "x", settings: SIM }, true)), "INVALID_WORKING_COPY"), "copie de travail sans élément ouvert refusée");
+
+  // Usages d'un modèle : moments du jeu et chorégraphies des cartes (brouillon compris)
+  await core.db.doc("power_cards/essai_usage").set({ draft: { def: { name: "Essai d'usage" }, script: { steps: [{ choreo: { tracks: [{ kind: "motif", motifId: "play_classic", id: "t1" }] } }] } } });
+  const usage = await call("find_animation_usage", { id: "play_classic" }, "powers");
+  const found = JSON.parse(usage.content);
+  assert(usage.ok && found.moments.some((item) => item.moment === "play") && found.cards.some((item) => item.id === "essai_usage" && item.version === "brouillon" && item.tracks[0] === "script.steps.0.choreo.tracks.0"), "usages : moment « carte jouée » et piste de la carte en brouillon");
+  assert(!(await call("find_animation_usage", { id: "inexistant" })).ok, "usages d'un modèle inconnu : erreur lisible");
+  await core.db.doc("power_cards/essai_usage").delete();
 
   // Suppression
   await ai.aiAssistantDeleteHandler(as("adm", { conversationId: readOnly.id }, true));

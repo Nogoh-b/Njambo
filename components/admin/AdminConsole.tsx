@@ -103,8 +103,8 @@ function ConsoleBody() {
         {section === "notifications" && <NotificationsAdmin events={events} />}
         {section === "seasons" && <SeasonsAdmin />}
         {section === "cosmetics" && <CosmeticsAdmin />}
-        {section === "powers" && <PowerCardsAdmin />}
-        {section === "animations" && <AnimationsAdmin />}
+        {section === "powers" && <PowerCardsAdmin onOpenSection={setSection} />}
+        {section === "animations" && <AnimationsAdmin onOpenSection={setSection} />}
         {section === "assistant" && <AssistantAdmin onOpenSection={setSection} />}
         {section === "players" && <PlayersAdmin />}
         {section === "audit" && <AuditLog />}

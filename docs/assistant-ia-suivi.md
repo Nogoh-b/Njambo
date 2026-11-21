@@ -12,7 +12,8 @@
 | A1 | Fournisseurs : DeepSeek, Claude, OpenAI, Gemini, compatible OpenAI, simulation | ✅ Terminé |
 | A2 | Outils : lecture, validation, brouillons, propositions (animations, cartes de pouvoir) | ✅ Terminé |
 | A3 | Section « Assistant IA » de la console (conversations, réglages, propositions) | ✅ Terminé |
-| A4 | Clés des fournisseurs et essai réel | ⬜ À faire (clés à fournir) |
+| A4 | Clés des fournisseurs et essai réel | 🟡 4 IA fonctionnent ; Gemini et Meta bloqués par leur facturation |
+| A4b | Assistant dans les pages Animations et Cartes de pouvoir (panneau sur l'élément ouvert) | ✅ Terminé |
 | A5 | Autres modules de la console (événements, cosmétiques, joueurs…) | ⬜ Plus tard |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
@@ -118,13 +119,87 @@ Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
       `setPlayerPresence` lève une promesse non rattrapée (« 1 Issue » de
       Next en dev).
 
-## A4 — Clés et essai réel ⬜
+## A4 — Clés et essai réel 🟡
 
-- [ ] Ajouter les clés dans `server/.env` (DeepSeek, Anthropic, OpenAI,
-      Gemini…), redémarrer le serveur.
-- [ ] Essai réel avec chaque fournisseur : question, brouillon, proposition.
+- [x] Clés ajoutées dans `server/.env` (ignoré par Git) : DeepSeek, Gemini
+      (et `GOOGLE_API_KEY` en secours), GLM, MiMo, Meta, FreeLLM. Pas de clé
+      Anthropic ni OpenAI pour l'instant.
+- [x] Quatre fournisseurs ajoutés (au format compatible OpenAI) :
+  - **GLM (Z.ai)** : `api.z.ai/api/paas/v4`. GLM 5 réfléchit toujours
+    (« coupée » est refusée) ; la profondeur passe par `reasoning_effort`
+    (faible / élevée / maximale) ;
+  - **MiMo (Xiaomi)** : `api.xiaomimimo.com/v1`. Réflexion par
+    `thinking: {type}` ; comme DeepSeek, le raisonnement est renvoyé sur
+    chaque message (exigé réflexion active) ; température seulement
+    réflexion coupée ;
+  - **Meta** (Meta Model API, Muse Spark) et **FreeLLM** (service BiSoft) :
+    compatibles génériques.
+- [x] Choix du modèle par défaut corrigé : le modèle de reconnaissance vocale
+      de MiMo (`mimo-v2.5-asr`) est écarté ; les plus récents sont choisis
+      (`glm-5.3`, `mimo-v2.6-pro`, `muse-spark-1.3`).
+- [x] Essais réels, échange en deux tours avec outil (appel, puis réponse
+      avec le résultat, raisonnement renvoyé) :
+
+  | IA | Résultat |
+  | --- | --- |
+  | DeepSeek (`deepseek-v4-pro`, réflexion élevée) | ✅ |
+  | GLM (`glm-5.3`) | ✅ |
+  | MiMo (`mimo-v2.6-pro` et `-flash`) | ✅ |
+  | FreeLLM (`auto`, 320 modèles) | ✅ |
+  | Gemini | ⛔ 402 : crédits prépayés épuisés (projet AI Studio, les deux clés) |
+  | Meta | ⛔ 402 : vérification de facturation de l'équipe Meta |
+
+- [x] Essai de bout en bout par l'admin dans la console avec DeepSeek :
+      lecture des références et des moments, réponses détaillées, changement
+      de modèle (`deepseek-v4-pro` → `deepseek-flash`) en cours de
+      conversation sans erreur.
+- [ ] Régler la facturation de Gemini (AI Studio) et de Meta, puis réessayer.
 - [ ] Production : `proxy_read_timeout 300s` sur le bloc `location /` de
-      Nginx (voir `docs/deploiement.md`).
+      Nginx (voir `docs/deploiement.md`), et les clés dans le `server/.env`
+      du VPS.
+
+## A4b — Assistant dans les pages ✅
+
+Demande de l'admin : l'assistant doit être évident, intégré aux pages liste
+et détail d'une animation ou d'une carte, avec leur contexte.
+
+- [x] Panneau « ✦ Assistant IA » à droite des pages Animations et Cartes de
+      pouvoir (`components/admin/assistant/AssistantDrawer.tsx`) :
+  - **Animations** : bouton dans l'en-tête et « ✦ Demander à l'assistant »
+    sur le modèle ouvert ; le panneau suit le modèle choisi dans la
+    bibliothèque ;
+  - **Cartes de pouvoir** : bouton dans l'en-tête (tout le catalogue), bouton
+    ✦ sur chaque carte de la liste, et « ✦ Demander à l'assistant » dans
+    l'éditeur ;
+  - ouvert ou fermé, il le reste d'une page à l'autre ; il laisse sa place à
+    la page sur grand écran (cartes dès 1280 px, atelier dès 1650 px), sinon
+    il passe par-dessus.
+- [x] Contexte : la conversation garde sa page d'origine (`context` :
+      modèle, carte, bibliothèque, catalogue). Le prompt système dit à l'IA
+      que « ce modèle » / « cette carte » désigne l'élément ouvert. Le
+      panneau reprend la dernière conversation sur cet élément.
+- [x] Questions toutes prêtes par page (explique-le, où sert-il en jeu,
+      vérifie-le, une variante ; pour une carte : interactions, équilibrage…),
+      envoyées d'un clic.
+- [x] Modifications non enregistrées : jointes au message comme « copie de
+      travail » (lue par l'IA, affichée 📎 dans le fil, 40 000 caractères au
+      plus), jamais enregistrées ailleurs.
+- [x] Quand l'assistant écrit le brouillon de l'élément ouvert (ou qu'une
+      publication est confirmée), la page le recharge ; si l'admin a des
+      modifications en cours, un bandeau propose « Charger sa version » ou
+      « Garder la mienne ». « Voir le modèle / la carte » ouvre un brouillon
+      créé par l'assistant en gardant la conversation.
+- [x] Nouvel outil `find_animation_usage` : moments du jeu et pistes de
+      chorégraphie des cartes (publiées et brouillons) qui reprennent un
+      modèle.
+- [x] « ⤢ » ouvre la conversation du panneau dans la section « Assistant IA »,
+      dont l'historique affiche la page d'origine.
+- [x] Rendu : italique `*…*` et code dans le gras.
+- [x] Vérifié dans le navigateur : DeepSeek sur `draw` (« Où sert-il en
+      jeu ? » → lecture + usages) et sur `vent_nord` (« Explique-la ») ;
+      simulation pour le brouillon (bibliothèque rechargée, bandeau avec
+      modifications en cours, « Charger sa version »), carte de la liste →
+      éditeur sur la même conversation, « ⤢ ».
 
 ## Vérifications
 
@@ -135,12 +210,13 @@ Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
       adaptative, pas de température, cache, repli serveur), règle des tours
       repliés, refus sans outil exécuté, registre (clés, modèles, modèle par
       défaut), scénario de simulation.
-- [x] Intégration Postgres `smoke-ai-assistant.cjs` : **40/40**, dans un
+- [x] Intégration Postgres `smoke-ai-assistant.cjs` : **47/47**, dans un
       schéma temporaire supprimé ensuite (accès admin, conversation en
       lecture, brouillon + proposition + confirmation, historique par admin,
-      relance après erreur, chaque outil, cartes et moments).
-- [x] `tsc` front et serveur, `eslint`, suite complète : 241 tests passés,
-      11 ignorés (règles Firestore).
+      relance après erreur, chaque outil, cartes et moments ; depuis A4b :
+      page d'origine, copie de travail, usages d'un modèle).
+- [x] `tsc` front et serveur, `eslint` des fichiers touchés, suite
+      complète : 250 tests passés, 11 ignorés (règles Firestore).
 - [x] Le backend de `npm run dev` connaît les commandes (« authentification
       requise » sans compte).
 
@@ -150,6 +226,8 @@ Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
 | Date | Étape | Avancée |
 | --- | --- | --- |
+| 2026-11-21 | A4b | **Assistant dans les pages.** Panneau ✦ sur les pages Animations et Cartes de pouvoir (liste, carte, modèle ou carte en cours d'édition), contexte gardé par conversation, questions toutes prêtes, modifications non enregistrées jointes, rechargement après un brouillon de l'assistant, outil `find_animation_usage`. Vérifié avec DeepSeek et la simulation. 250 tests, intégration 47/47. |
+| 2026-11-21 | A4 | Clés ajoutées ; GLM, MiMo, Meta et FreeLLM branchés. Essais réels en deux tours avec outil : DeepSeek, GLM, MiMo et FreeLLM fonctionnent ; Gemini et Meta refusés pour facturation (402). Essai de bout en bout par l'admin avec DeepSeek réussi. 245 tests, intégration 40/40. |
 | 2026-11-21 | A3 | **A3 terminé.** Écran vérifié avec le compte admin et la simulation : lecture, brouillon, proposition écartée, nettoyage. Corrigés : identifiants mangés par l'italique, colonnes qui ne se repliaient pas, détail d'outil tronqué, libellés. 244 tests au vert. |
 | 2026-11-21 | A1–A3 | Assistant IA codé : 5 fournisseurs + simulation, outils sur les animations et les cartes de pouvoir (lecture, validation, brouillons, propositions), section « Assistant IA » de la console, historique par admin. 18 tests unitaires, intégration Postgres 40/40, 241 tests au vert. Reste : vérification visuelle (compte admin), clés des fournisseurs, délai Nginx en production. |
 | 2026-11-21 | — | Décisions : DeepSeek + Claude, OpenAI, Gemini, compatible OpenAI ; brouillons seulement avec validation de l'admin ; historique en base par admin. |

@@ -12,8 +12,11 @@ describe("rendu Markdown de l'assistant", () => {
   });
 
   it("reconnaît l'italique, le gras et le code", () => {
-    const out = html("un _mot_ en italique, du **gras** et `play_classic`");
+    const out = html("un _mot_ en italique, dans *ta* main, du **gras** et `play_classic`");
     expect(out).toContain("<em>mot</em>");
+    expect(out).toContain("dans <em>ta</em> main");
+    expect(html("2*3*4 et **gras**")).toContain("2*3*4 et <strong>gras</strong>");
+    expect(html("**`swap.incoming`** : topOfDeck")).toMatch(/<strong><code[^>]*>swap\.incoming<\/code><\/strong>/);
     expect(out).toContain("<strong>gras</strong>");
     expect(out).toMatch(/<code[^>]*>play_classic<\/code>/);
   });

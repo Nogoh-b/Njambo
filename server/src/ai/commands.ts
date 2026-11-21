@@ -11,9 +11,10 @@ import { randomUUID } from "node:crypto";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { asObject, db, requireAdmin, requiredString } from "../../../functions/src/core";
 import { CAPABILITIES, adapterFor, modelsFor, providerConfigs } from "./providers";
+import { CONTEXT_MODULE, readContext, workingAttachment } from "./context";
 import { systemPrompt } from "./reference";
 import { executeProposal, executeTool, toolSpecs } from "./tools";
-import { AI_MODULES, AI_PROVIDERS, AiProviderError, type AiMessage, type AiModule, type AiProviderId, type AiSettings, type AiUsage, type ThinkingLevel } from "./types";
+import { AI_MODULES, AI_PROVIDERS, AiProviderError, type AiContext, type AiMessage, type AiModule, type AiProviderId, type AiSettings, type AiUsage, type ThinkingLevel } from "./types";
 
 const COLLECTION = "ai_conversations";
 /** Étapes d'outils au plus par message de l'admin (garde-fou de coût). */
@@ -27,6 +28,8 @@ export interface Conversation {
   uid: string;
   title: string;
   module: AiModule;
+  /** Page de la console d'où la conversation est partie (absent : section Assistant IA). */
+  context?: AiContext;
   settings: AiSettings;
   messages: AiMessage[];
   /** Étapes d'outils depuis le dernier message de l'admin. */
@@ -68,7 +71,7 @@ const lastRole = (conversation: Conversation) => conversation.messages[conversat
 export function clientView(conversation: Conversation) {
   const last = lastRole(conversation);
   return {
-    id: conversation.id, title: conversation.title, module: conversation.module, settings: conversation.settings,
+    id: conversation.id, title: conversation.title, module: conversation.module, context: conversation.context ?? null, settings: conversation.settings,
     messages: conversation.messages.map(clientMessage), rounds: conversation.rounds, usage: conversation.usage,
     createdAt: conversation.createdAt, updatedAt: conversation.updatedAt,
     /** L'assistant attend la suite (résultats d'outils à lire). */
@@ -104,7 +107,7 @@ export async function runStep(conversation: Conversation, adminUid: string): Pro
   let turn;
   try {
     turn = await adapterFor(settings.provider).complete({
-      model: settings.model, system: systemPrompt(conversation.module), tools: toolSpecs(conversation.module), messages: conversation.messages, settings,
+      model: settings.model, system: systemPrompt(conversation.module, conversation.context), tools: toolSpecs(conversation.module), messages: conversation.messages, settings,
     });
   } catch (error) {
     if (error instanceof AiProviderError) throw new HttpsError("unavailable", "AI_PROVIDER_ERROR", { provider: error.provider, status: error.status, message: error.message });
@@ -148,7 +151,7 @@ export async function aiAssistantConversationsHandler(request: CallableRequest<u
   return {
     conversations: snap.docs.map((doc) => {
       const data = doc.data() ?? {};
-      return { id: doc.id, title: String(data.title ?? "Conversation"), module: data.module ?? "all", updatedAt: Number(data.updatedAt ?? 0), provider: data.settings?.provider ?? null, model: data.settings?.model ?? null, count: Array.isArray(data.messages) ? data.messages.length : 0 };
+      return { id: doc.id, title: String(data.title ?? "Conversation"), module: data.module ?? "all", context: data.context ?? null, updatedAt: Number(data.updatedAt ?? 0), provider: data.settings?.provider ?? null, model: data.settings?.model ?? null, count: Array.isArray(data.messages) ? data.messages.length : 0 };
     }),
   };
 }
@@ -169,11 +172,16 @@ export async function aiAssistantSendHandler(request: CallableRequest<unknown>) 
     conversation = await load(uid, data.conversationId);
     if (conversation.messages.length >= MAX_MESSAGES) throw new HttpsError("failed-precondition", "CONVERSATION_TOO_LONG");
   } else {
-    const chosen = AI_MODULES.includes(data.module as AiModule) ? data.module as AiModule : "all";
-    conversation = { id: randomUUID(), uid, title: text.replace(/\s+/g, " ").slice(0, 70), module: chosen, settings, messages: [], rounds: 0, usage: { inputTokens: 0, outputTokens: 0 }, version: 0, createdAt: now, updatedAt: now };
+    const context = readContext(data.context);
+    const chosen = context ? CONTEXT_MODULE[context.kind] : AI_MODULES.includes(data.module as AiModule) ? data.module as AiModule : "all";
+    conversation = {
+      id: randomUUID(), uid, title: text.replace(/\s+/g, " ").slice(0, 70), module: chosen, ...(context ? { context } : {}), settings,
+      messages: [], rounds: 0, usage: { inputTokens: 0, outputTokens: 0 }, version: 0, createdAt: now, updatedAt: now,
+    };
   }
+  const attachment = workingAttachment(conversation.context, data.working);
   conversation.settings = settings;
-  conversation.messages.push({ role: "user", text, at: now });
+  conversation.messages.push({ role: "user", text, at: now, ...(attachment ? { attachment } : {}) });
   conversation.rounds = 0;
   conversation.updatedAt = now;
   // Le message de l'admin est gardé même si le fournisseur échoue ensuite (on peut relancer).

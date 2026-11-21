@@ -168,6 +168,18 @@
 
 .empty { padding: 26px; text-align: center; color: var(--faint); }
 
+/* Panneau de l'assistant IA (pages Animations et Cartes de pouvoir) : par-dessus
+   la page, qui lui laisse sa place quand l'écran est assez large. */
+.assistantDrawer {
+  position: fixed; top: 0; right: 0; bottom: 0; z-index: 40;
+  width: min(420px, 100vw); box-sizing: border-box;
+  display: flex; flex-direction: column; gap: 10px; padding: 14px;
+  background: var(--panel); border-left: 1px solid var(--line); box-shadow: -14px 0 32px #000a;
+}
+@media (min-width: 1650px) { .withAssistant { padding-right: 420px; } }
+/* Pages qui se replient (grilles, éditeur de carte) : place laissée dès 1280 px. */
+@media (min-width: 1280px) { .withAssistantFluid { padding-right: 420px; } }
+
 @media (max-width: 860px) {
   .shell { grid-template-columns: 1fr; }
   .sidebar { position: static; height: auto; flex-direction: row; overflow-x: auto; padding: 10px; border-right: 0; border-bottom: 1px solid var(--line); }
