@@ -318,7 +318,7 @@ mkdir -p logs
 # les supprimerait (commit qui les retire du suivi) ou les écraserait (retour à
 # un ancien commit qui les suivait, avec des valeurs de dev) : on les sauvegarde
 # ici et on les remet après chaque reset.
-LOCAL_SECRETS=(server/.env server/service-account.json)
+LOCAL_SECRETS=(server/.env server/service-account.json server/*adminsdk*.json)
 SECRETS_BACKUP="$(mktemp -d)"
 trap 'rm -rf "$SECRETS_BACKUP"' EXIT
 for file in "${LOCAL_SECRETS[@]}"; do
@@ -416,10 +416,10 @@ Restauration et copie hors du VPS : `docs/serveur-a-faire.md` § 10.
 
 - [ ] Secrets **retirés du dépôt** (`server/.env`, `server/*service-account*.json`,
       `.env.local`) et clés Firebase / mot de passe Postgres **renouvelés**.
-      Fait le 2026-11-21 : `server/.env`, `server/service-account.json`
-      (conservés par `deploy-back.sh`) et `.env.local` ne sont plus suivis par
-      Git. Reste le renouvellement, car les anciennes valeurs restent dans
-      l'historique Git.
+      Fait le 2026-11-21 : `server/.env`, `server/service-account.json`,
+      `server/njambo-firebase-adminsdk-*.json` (conservés par
+      `deploy-back.sh`) et `.env.local` ne sont plus suivis par Git. Reste le
+      renouvellement, car les anciennes valeurs restent dans l'historique Git.
 - [ ] `NEXT_PUBLIC_BACKEND_URL` de prod configurée sur Vercel.
 - [ ] Rate limiting ajouté devant l'API (voir `docs/vps-migration.md`, points ouverts).
 - [ ] Sauvegarde Postgres planifiée (`pg_dump` en cron).

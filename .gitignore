@@ -43,6 +43,7 @@ yarn-error.log*
 # Secrets du backend : chaque machine garde les siens (modèle : server/.env.example)
 /server/.env
 /server/*service-account*.json
+/server/*adminsdk*.json
 
 # logs d'exécution du serveur (PM2, reprise)
 /logs/

@@ -358,17 +358,16 @@ pm2 restart njambo-server
 
 ## 11. Point de vigilance : fichiers secrets et historique git
 
-Depuis le 2026-11-21, `server/.env`, `server/service-account.json` et
-`.env.local` **ne sont plus suivis** par git (`.gitignore`, modèles
-`server/.env.example`, `.env.example`, `.env.local.example`).
-`scripts/deploy-back.sh` garde `server/.env` et `server/service-account.json`
-du VPS à chaque `git reset --hard`.
+Depuis le 2026-11-21, `server/.env`, `server/service-account.json`,
+`server/njambo-firebase-adminsdk-*.json` et `.env.local` **ne sont plus
+suivis** par git (`.gitignore`, modèles `server/.env.example`,
+`.env.example`, `.env.local.example`). `scripts/deploy-back.sh` garde les
+secrets du VPS (`server/.env` et les clés JSON) à chaque `git reset --hard`.
 
 Ce qui reste à faire :
 
 | Fichier | Contenu | État |
 | --- | --- | --- |
-| `server/njambo-firebase-adminsdk-*.json` | clé privée Firebase | **encore suivi** : à retirer du suivi comme les autres |
 | clés Firebase (les deux JSON) | accès admin complet au projet Firebase | **à renouveler** : elles restent dans l'historique git (et sur GitHub) |
 | mot de passe Postgres | dans l'ancien `server/.env` | **à changer** : il reste dans l'historique git |
 

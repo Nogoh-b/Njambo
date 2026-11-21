@@ -56,7 +56,7 @@ mkdir -p logs
 # les supprimerait (commit qui les retire du suivi) ou les écraserait (retour à
 # un ancien commit qui les suivait, avec des valeurs de dev) : on les sauvegarde
 # ici et on les remet après chaque reset.
-LOCAL_SECRETS=(server/.env server/service-account.json)
+LOCAL_SECRETS=(server/.env server/service-account.json server/*adminsdk*.json)
 SECRETS_BACKUP="$(mktemp -d)"
 trap 'rm -rf "$SECRETS_BACKUP"' EXIT
 for file in "${LOCAL_SECRETS[@]}"; do
