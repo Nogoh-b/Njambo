@@ -726,6 +726,9 @@ export function TableScreen({
   /* Secondes par tour : celles du match (minuteur de table d'événement) si le
      serveur les fournit, sinon la configuration globale. */
   const turnSeconds = gameState.turnStartSeconds ?? cfg.turnSeconds;
+  /** Rythme de la donne de cette partie (règles copiées au départ, réglables dans l'admin). */
+  const dealPerCardMs = gameState.dealTiming?.perCardMs ?? A.dealPerCard;
+  const dealFlightMs = gameState.dealTiming?.flightMs ?? A.dealFlight;
   const turnSecondsRef = useRef(turnSeconds);
   turnSecondsRef.current = turnSeconds;
 
@@ -1046,8 +1049,15 @@ export function TableScreen({
   /* Moment « Distribution » : les sprites partent de la pioche au rythme du jeu ; les vraies cartes
      restent cachées jusqu'à l'arrivée de leur sprite (l'animation intégrée de la main est coupée). */
   const motifRevision = useMotifCatalogRevision();
-  const dealMotif = useMemo(() => (motionEnabled && phase === "dealing" ? getMomentMotif("deal") : null), [motionEnabled, phase, motifRevision]); // eslint-disable-line react-hooks/exhaustive-deps
-  const dealV2 = useMemo(() => (motionEnabled && phase === "dealing" ? getMomentAnimV2("deal") : null), [motionEnabled, phase, motifRevision]); // eslint-disable-line react-hooks/exhaustive-deps
+  // Modèles de la donne au rythme de CETTE partie (le serveur attend la même durée).
+  const dealMotif = useMemo(() => {
+    const motif = motionEnabled && phase === "dealing" ? getMomentMotif("deal") : null;
+    return motif && { ...motif, staggerMs: dealPerCardMs, durationMs: dealFlightMs };
+  }, [motionEnabled, phase, motifRevision, dealPerCardMs, dealFlightMs]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dealV2 = useMemo(() => {
+    const model = motionEnabled && phase === "dealing" ? getMomentAnimV2("deal") : null;
+    return model && { ...model, motion: { ...model.motion, durationMs: dealFlightMs } };
+  }, [motionEnabled, phase, motifRevision, dealFlightMs]); // eslint-disable-line react-hooks/exhaustive-deps
   const dealPlayedRef = useRef<string | null>(null);
   const [dealRetry, setDealRetry] = useState(0);
   useLayoutEffect(() => {
@@ -1069,7 +1079,7 @@ export function TableScreen({
       // V2 : une carte toutes les `dealPerCard` ms, dans l'ordre de la donne, vers sa place (déjà dans la main, cachée).
       for (let round = 0; round < perPlayer; round++) {
         for (let ui = 0; ui < count; ui++) {
-          const startMs = (round * count + ui) * A.dealPerCard;
+          const startMs = (round * count + ui) * dealPerCardMs;
           zoneRegistry.hand(ui)?.hideCardsFor?.([round], startMs + dealV2.motion.durationMs + 30);
           const move: AnimV2Move = { card: ui === 0 ? hands[ui][round] : null, from: { zone: "deck", index: 0 }, to: { zone: "hand", ui, index: round, count: perPlayer } };
           setTimeout(() => { if (!pausedRef.current) void runMomentV2Ref.current(dealV2, [move], { actorUi: ui, reflow: false }); }, startMs);
@@ -2186,6 +2196,8 @@ export function TableScreen({
               seatAngle={a.angle}
               playerCount={n}
               dealing={motionEnabled && phase === "dealing" && !dealMotif && !dealV2}
+              dealPerCardMs={dealPerCardMs}
+              dealFlightMs={dealFlightMs}
               legal={p.isYou ? yourLegal : null}
               onCardClick={handleCardClick}
               motionOn={motionEnabled}
@@ -2236,7 +2248,7 @@ export function TableScreen({
             turnSeconds={turnSeconds}
             size={p.isYou ? 44 : portrait ? 44 : 50}
             compactHorizontal={p.isYou}
-            unlimitedTime={isLocalSync && DEV.unlimitedTime}
+            unlimitedTime={(isLocalSync && DEV.unlimitedTime) || gameState.unlimitedTurns === true}
             opponentPowers={opponentPowers}
             className={avatarClassName}
             style={avatarStyle}

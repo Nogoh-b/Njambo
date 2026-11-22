@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const path = require("node:path");
 const dist = path.join(__dirname, "../dist");
 const core = require(path.join(dist, "functions/src/core.js"));
-const { DEFAULT_GAMEPLAY_CONFIG } = require(path.join(dist, "domain/gameplayConfig.js"));
+const { DEFAULT_GAMEPLAY_CONFIG, UNLIMITED_DEADLINE_AT } = require(path.join(dist, "domain/gameplayConfig.js"));
 const { DEFAULT_EVENTS, DEFAULT_ECONOMY } = require(path.join(dist, "domain/index.js"));
 const data = new Map();
 let serial = 0;
@@ -61,10 +61,12 @@ async function main() {
   delete process.env.POWERS_DEV_BYPASS;
   const config = clone(DEFAULT_GAMEPLAY_CONFIG);
   config.maxEquippedPowers = 2; config.turnSeconds = 31;
+  config.dealPerCardMs = 150; config.dealFlightMs = 700;
   config.matchesByMode.bot = { 2: 3, 3: 5, 4: 7 };
   config.matchesByMode.online[2] = config.matchesByMode.friends[2] = 3;
   await assert.rejects(() => saveGameplayConfigHandler(request("user", { config })), /ADMIN_REQUIRED/);
   await assert.rejects(() => saveGameplayConfigHandler(request("admin", { config: { ...config, maxEquippedPowers: 9 } }, true)), /INVALID_GAMEPLAY_CONFIG/);
+  await assert.rejects(() => saveGameplayConfigHandler(request("admin", { config: { ...config, dealFlightMs: 5000 } }, true)), /INVALID_GAMEPLAY_CONFIG/);
   await saveGameplayConfigHandler(request("admin", { config }, true));
   assert.equal(data.get("runtime_config/gameplay").turnSeconds, 31);
   seedPlayer("equip");
@@ -89,6 +91,9 @@ async function main() {
     const id = started.matchId;
     assert.equal(started.match.series.total, 3, `${mode}: trois manches`);
     assert.equal(started.match.rules.turnSeconds, mode === "event" ? 9 : 31);
+    // Rythme de la donne copié dans les règles ; le minuteur du 1er tour l'attend (2 joueurs × 5 cartes × 150 + 700).
+    assert.equal(started.match.rules.dealPerCardMs, 150, `${mode}: délai entre deux cartes copié`);
+    assert.equal(started.match.rules.dealFlightMs, 700, `${mode}: vol copié`);
     assert.equal(started.equippedPowers.length, 2, "ancien équipement tronqué à la limite");
     const paid = clone(data.get(`economies/${uid}`));
     // L'inventaire ne peut pas ajouter un pouvoir à une partie déjà commencée.
@@ -149,6 +154,39 @@ async function main() {
   assert.deepEqual(disabled.equippedPowers, []);
   await assert.rejects(() => usePowerCardHandler(request("no_powers", { matchId: disabled.matchId, cardId: "feu_camp" })), /POWER_NOT_EQUIPPED/);
   console.log("ok - désactivation des pouvoirs pour les prochaines parties");
+
+  // Temps illimité contre l'IA : aucune échéance, le worker d'auto-play ne joue jamais ; les autres modes gardent leur minuteur.
+  config.unlimitedTurnsBot = true;
+  await saveGameplayConfigHandler(request("admin", { config }, true));
+  seedPlayer("no_clock");
+  const unlimited = await startMatchHandler(request("no_clock", { mode: "bot", stake: 100, botCount: 1 }));
+  const uMatch = data.get(`matches/${unlimited.matchId}`);
+  assert.equal(uMatch.rules.unlimitedTurns, true, "règle copiée dans la partie IA");
+  assert.equal(uMatch.actionDeadlineAt, UNLIMITED_DEADLINE_AT, "aucune échéance au 1er tour");
+  const uTurn = uMatch.turnId;
+  await autoPlayExpiredMatchesImpl();
+  assert.equal(data.get(`matches/${unlimited.matchId}`).turnId, uTurn, "le worker ne joue pas à la place du joueur");
+  // Un coup du joueur, la réponse du bot : le tour suivant reste sans échéance.
+  const uIds = uMatch.participants.map((participant) => participant.uid);
+  Object.assign(uMatch, { turnIndex: 0, leaderIndex: 0, trickNumber: 0, trickPlays: [] });
+  data.get(`matches/${unlimited.matchId}/private/${uIds[0]}`).hand = [card(9), card(8), card(7), card(6), card(5)];
+  await submitGameActionHandler(request("no_clock", { matchId: unlimited.matchId, turnId: uTurn, cardId: card(9).id }));
+  const uNext = data.get(`matches/${unlimited.matchId}`);
+  assert.equal(uNext.status, "playing");
+  assert.notEqual(uNext.turnId, uTurn, "le coup a été joué");
+  assert.equal(uNext.actionDeadlineAt, UNLIMITED_DEADLINE_AT, "tour suivant sans échéance");
+  for (const mode of ["friends", "online"]) {
+    const host = `clock_${mode}_a`, guest = `clock_${mode}_b`; seedPlayer(host); seedPlayer(guest);
+    const roomId = `room_clock_${mode}`;
+    data.set(`rooms/${roomId}`, { hostId: host, status: "playing", stake: 100, players: [{ uid: host, name: host, emoji: "a", ready: true }, { uid: guest, name: guest, emoji: "b", ready: true }], playerUids: [host, guest] });
+    data.set(`room_consents/${roomId}_${guest}`, { roomId, uid: guest, ready: true });
+    const timed = await startMatchHandler(request(host, { mode, stake: mode === "friends" ? 0 : 100, roomId }));
+    assert.equal(timed.match.rules.unlimitedTurns, false, `${mode} : minuteur gardé`);
+    assert.ok(data.get(`matches/${timed.matchId}`).actionDeadlineAt < UNLIMITED_DEADLINE_AT, `${mode} : échéance réelle`);
+  }
+  config.unlimitedTurnsBot = false;
+  await saveGameplayConfigHandler(request("admin", { config }, true));
+  console.log("ok - temps illimité contre l'IA seulement (aucune échéance, aucun coup automatique)");
   seedPlayer("quit_race");
   data.set("event_runs/quit_race", { uid: "quit_race", eventId: DEFAULT_EVENTS[0].eventId, versionSnapshot: clone(DEFAULT_EVENTS[0]), status: "active", stageIndex: 0, losses: 0, ticketStatus: "consumed" });
   const racing = await startMatchHandler(request("quit_race", { mode: "event", stake: 0, eventRunId: "quit_race" }));

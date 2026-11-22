@@ -199,7 +199,7 @@ export const Avatar = memo(function Avatar({
 
       {active && !compactHorizontal && (
         <div
-          title={unlimitedTime ? "Timer illimité (mode test)" : `Temps restant : ${seconds}s`}
+          title={unlimitedTime ? "Temps illimité" : `Temps restant : ${seconds}s`}
           style={{
             position: "absolute",
             bottom: -7,
@@ -264,7 +264,7 @@ export const Avatar = memo(function Avatar({
             {p.cosmetics?.title && <span className="nj-avatar-title" title={p.cosmetics.title.name}>{p.cosmetics.title.name}</span>}
             {active && (
               <span
-                title={unlimitedTime ? "Timer illimité (mode test)" : `Temps restant : ${seconds}s`}
+                title={unlimitedTime ? "Temps illimité" : `Temps restant : ${seconds}s`}
                 style={{
                   padding: "1px 6px",
                   borderRadius: 999,

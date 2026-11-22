@@ -26,6 +26,9 @@ interface FanProps {
   seatAngle?: number;
   playerCount: number;
   dealing: boolean;
+  /** Rythme de la donne de la partie (défaut : celui du jeu). */
+  dealPerCardMs?: number;
+  dealFlightMs?: number;
   legal: number[] | null;
   onCardClick: (cardIdx: number) => void;
   /** Vrai si les animations sont activées (drag + hover). */
@@ -74,6 +77,8 @@ export const Fan = memo(function Fan({
   seatAngle = 0,
   playerCount,
   dealing,
+  dealPerCardMs = GAME_CONFIG.anim.dealPerCard,
+  dealFlightMs = GAME_CONFIG.anim.dealFlight,
   legal,
   onCardClick,
   motionOn = true,
@@ -256,7 +261,8 @@ export const Fan = memo(function Fan({
             dim={(faceUp && ((selection != null && !selectable) || (selection == null && legal != null && !playable))) || (dimKeep != null && !dimKeep.has(card.id))}
             glow={!!playable}
             onClick={handleTap}
-            dealDelay={dealing ? (ci * playerCount + seatIdx) * GAME_CONFIG.anim.dealPerCard : null}
+            dealDelay={dealing ? (ci * playerCount + seatIdx) * dealPerCardMs : null}
+            dealDuration={dealFlightMs}
             dealOrigin={dealing ? (dealOrigins?.[ci] ?? null) : null}
             style={{
               // Carte partie (modèle d'animation) : elle ne prend plus de place, l'éventail se resserre.

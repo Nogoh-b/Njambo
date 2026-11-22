@@ -13,6 +13,7 @@ import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { asObject, db, requireUid, requiredString, runIdempotent, stableId } from "./core";
 import type { DocumentData, DocumentReference, Transaction } from "./firestoreTypes";
 import { GAME_CONFIG } from "../../config/gameConfig";
+import { UNLIMITED_DEADLINE_AT } from "../../domain/gameplayConfig";
 import { getPowerModule } from "../../config/powers";
 import { ensurePowerCatalogFresh } from "./powerCatalog";
 import { canActivatePower } from "../../engine/power/canActivate";
@@ -302,7 +303,8 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     const update: DocumentData = clean({
       potNkap: pot,
       handCounts: Object.fromEntries(participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0])),
-      actionDeadlineAt: Number(match.actionDeadlineAt) + POWER_ANIMATION_BUDGET_MS + deadlineDelta,
+      // Un tour sans limite (table contre l'IA réglée ainsi) le reste.
+      actionDeadlineAt: Number(match.actionDeadlineAt) >= UNLIMITED_DEADLINE_AT ? UNLIMITED_DEADLINE_AT : Number(match.actionDeadlineAt) + POWER_ANIMATION_BUDGET_MS + deadlineDelta,
       recentPowerActivations: [redactActivationForBroadcast(activation)],
       updatedAt: now,
     });

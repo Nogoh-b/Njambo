@@ -645,8 +645,8 @@ export class LocalGameSync implements GameSyncActions {
   private startTimer() {
     this.stopTimer();
     if (this.destroyed || this.phase !== "turns") return;
-    // Dev : temps illimité → on n'arme pas le décompte (aucun timeout).
-    if (DEV.unlimitedTime) {
+    // Temps illimité (réglage admin des tables contre l'IA, ou option de dev) → pas de décompte, aucun coup automatique.
+    if (DEV.unlimitedTime || this.opts.cfg.unlimitedTurnsBot) {
       this.timerListeners.forEach((cb) => cb(this.seconds));
       return;
     }
@@ -770,6 +770,8 @@ export class LocalGameSync implements GameSyncActions {
   private emitState() {
     const state: GameState = {
       turnStartSeconds: this.opts.cfg.turnSeconds,
+      dealTiming: { perCardMs: this.opts.cfg.anim.dealPerCard, flightMs: this.opts.cfg.anim.dealFlight },
+      unlimitedTurns: DEV.unlimitedTime || this.opts.cfg.unlimitedTurnsBot,
       series: {
         round: this.seriesRound, total: this.seriesTotal,
         scores: this.players.map((_, index) => this.seriesWinners.filter((winner) => winner === index).length),

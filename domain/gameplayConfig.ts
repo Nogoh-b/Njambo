@@ -6,12 +6,30 @@ export type MatchCounts = Record<PlayerCount, number>;
 export interface GameplayConfig {
   turnSeconds: number;
   maxEquippedPowers: number;
+  /** Rythme de la donne : délai entre deux cartes distribuées (ms). Copié dans les règles de chaque partie à son départ. */
+  dealPerCardMs: number;
+  /** Rythme de la donne : durée du vol d'une carte (ms). */
+  dealFlightMs: number;
+  /** Tables contre l'IA : pas de limite de temps par tour (aucun coup joué automatiquement). Amis, Online et événements gardent leur minuteur. */
+  unlimitedTurnsBot: boolean;
   matchesByMode: Record<GameplayMode, MatchCounts>;
 }
+
+/** Échéance d'un tour sans limite : jamais atteinte (date maximale représentable). */
+export const UNLIMITED_DEADLINE_AT = 8_640_000_000_000_000;
+
+/** Bornes du rythme de la donne (réglable dans l'admin, Règles des parties). */
+export const DEAL_TIMING_LIMITS = {
+  perCardMs: { min: 40, max: 400 },
+  flightMs: { min: 200, max: 1500 },
+} as const;
 
 export const DEFAULT_GAMEPLAY_CONFIG: GameplayConfig = {
   turnSeconds: 15,
   maxEquippedPowers: 3,
+  dealPerCardMs: 110,
+  dealFlightMs: 520,
+  unlimitedTurnsBot: false,
   matchesByMode: {
     bot: { 2: 1, 3: 1, 4: 1 },
     friends: { 2: 1, 3: 1, 4: 1 },
@@ -34,6 +52,10 @@ export function normalizeGameplayConfig(raw: unknown): GameplayConfig {
   return {
     turnSeconds: validInt(source.turnSeconds, 5, 120) ? source.turnSeconds : 15,
     maxEquippedPowers: validInt(source.maxEquippedPowers, 0, 8) ? source.maxEquippedPowers : 3,
+    // Réglages enregistrés avant l'ajout du rythme de la donne : valeurs par défaut.
+    dealPerCardMs: validInt(source.dealPerCardMs, DEAL_TIMING_LIMITS.perCardMs.min, DEAL_TIMING_LIMITS.perCardMs.max) ? source.dealPerCardMs : DEFAULT_GAMEPLAY_CONFIG.dealPerCardMs,
+    dealFlightMs: validInt(source.dealFlightMs, DEAL_TIMING_LIMITS.flightMs.min, DEAL_TIMING_LIMITS.flightMs.max) ? source.dealFlightMs : DEFAULT_GAMEPLAY_CONFIG.dealFlightMs,
+    unlimitedTurnsBot: source.unlimitedTurnsBot === true,
     matchesByMode,
   };
 }
@@ -42,7 +64,25 @@ export function validateGameplayConfig(raw: unknown): boolean {
   const source = object(raw);
   const modes = object(source.matchesByMode);
   return validInt(source.turnSeconds, 5, 120) && validInt(source.maxEquippedPowers, 0, 8)
+    && validInt(source.dealPerCardMs, DEAL_TIMING_LIMITS.perCardMs.min, DEAL_TIMING_LIMITS.perCardMs.max)
+    && validInt(source.dealFlightMs, DEAL_TIMING_LIMITS.flightMs.min, DEAL_TIMING_LIMITS.flightMs.max)
+    && (source.unlimitedTurnsBot === undefined || typeof source.unlimitedTurnsBot === "boolean")
     && GAMEPLAY_MODES.every((mode) => PLAYER_COUNTS.every((count) => validInt(object(modes[mode])[count], 1, 20)));
+}
+
+/** Rythme de la donne d'une partie : celui copié dans ses règles au départ, sinon la valeur donnée. */
+export interface DealTiming { perCardMs: number; flightMs: number }
+export function dealTimingOf(rules: { dealPerCardMs?: unknown; dealFlightMs?: unknown } | null | undefined, fallback: DealTiming): DealTiming {
+  const perCard = Number(rules?.dealPerCardMs), flight = Number(rules?.dealFlightMs);
+  return {
+    perCardMs: Number.isFinite(perCard) && perCard > 0 ? perCard : fallback.perCardMs,
+    flightMs: Number.isFinite(flight) && flight > 0 ? flight : fallback.flightMs,
+  };
+}
+
+/** Durée totale de la donne (toutes les cartes parties et posées). */
+export function dealDurationMs(timing: DealTiming, playerCount: number, cardsPerPlayer: number): number {
+  return playerCount * cardsPerPlayer * timing.perCardMs + timing.flightMs;
 }
 
 export function matchCountFor(config: GameplayConfig, mode: GameplayMode, players: number): number {

@@ -29,8 +29,9 @@ export const GAME_CONFIG: GameConfig = {
   anim: {
     navigation: 220,
     roundIntro: 750,
-    dealPerCard: 110, // décalage entre deux cartes distribuées (le serveur attend la même durée de donne)
-    dealFlight: 520, // vol d'une carte à la donne
+    // Rythme de la donne par défaut ; réglable dans l'admin (Règles des parties), copié dans les règles de chaque partie.
+    dealPerCard: DEFAULT_GAMEPLAY_CONFIG.dealPerCardMs,
+    dealFlight: DEFAULT_GAMEPLAY_CONFIG.dealFlightMs,
     dropFlight: 340,
     trickPause: 780,
     moment: 950,

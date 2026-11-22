@@ -92,6 +92,8 @@ export interface PlayCardProps {
   glow?: boolean;
   onClick?: () => void;
   dealDelay?: number | null;
+  /** Durée du vol de la donne (ms) ; défaut : celle du jeu. */
+  dealDuration?: number;
   /** Vecteur local (pioche → emplacement carte) mesuré pour la donne. */
   dealOrigin?: DealOrigin | null;
 }
@@ -106,13 +108,14 @@ export const PlayCard = memo(function PlayCard({
   glow,
   onClick,
   dealDelay,
+  dealDuration = GAME_CONFIG.anim.dealFlight,
   dealOrigin,
 }: PlayCardProps) {
   const h = w * 1.45;
   const anim: CSSProperties =
     dealDelay != null
       ? {
-          animation: `dealFly ${GAME_CONFIG.anim.dealFlight}ms ${dealDelay}ms cubic-bezier(.2,.86,.26,1) both`,
+          animation: `dealFly ${dealDuration}ms ${dealDelay}ms cubic-bezier(.2,.86,.26,1) both`,
           willChange: "transform, opacity",
           ...(dealOrigin
             ? {

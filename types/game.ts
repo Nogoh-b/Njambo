@@ -571,6 +571,10 @@ export interface TakeoverRequestDoc {
 /** État synchronisé du jeu (consommé par TableScreen) */
 export interface GameState {
   turnStartSeconds?: number;
+  /** Rythme de la donne de cette partie (copié dans ses règles au départ) ; absent = celui de la config. */
+  dealTiming?: { perCardMs: number; flightMs: number };
+  /** Pas de limite de temps par tour dans cette partie (table contre l'IA réglée ainsi au départ). */
+  unlimitedTurns?: boolean;
   series?: { round: number; total: number; scores: number[]; lastWinnerName?: string };
   phase: Phase;
   trickNo: number;
@@ -627,6 +631,11 @@ export interface SyncStatus {
 
 export interface GameConfig {
   maxEquippedPowers: number;
+  /** Rythme de la donne réglé dans l'admin (repris dans `anim.dealPerCard` / `anim.dealFlight`). */
+  dealPerCardMs: number;
+  dealFlightMs: number;
+  /** Tables contre l'IA sans limite de temps par tour (admin, Règles des parties). */
+  unlimitedTurnsBot: boolean;
   matchesByMode: import("../domain/gameplayConfig").GameplayConfig["matchesByMode"];
   ranks: { min: number; max: number };
   suits: Suit[];

@@ -7,6 +7,7 @@ import { generateSecureId } from "@/lib/cryptoUtils";
 import { db } from "@/lib/firebase";
 import { backendCallable } from "@/lib/backendCallable";
 import { GAME_CONFIG } from "@/config/gameConfig";
+import { dealDurationMs, dealTimingOf, type DealTiming } from "@/domain/gameplayConfig";
 import { loadAssets, imageAsset, prefetchAssets } from "@/lib/assets/AssetLoader";
 import { tableManifest } from "@/lib/assets/manifests";
 import { legalCards } from "@/engine/rules";
@@ -36,7 +37,7 @@ interface ServerMatch {
   actionDeadlineAt: number;
   potNkap: number;
   /** Règles de la table (événement : minuteur par table, etc.). */
-  rules?: { turnSeconds?: number; maxEquippedPowers?: number };
+  rules?: { turnSeconds?: number; maxEquippedPowers?: number; dealPerCardMs?: number; dealFlightMs?: number; unlimitedTurns?: boolean };
   result: null | {
     winnerUid: string; winnerName: string; winnerIsBot: boolean; type: "lastTrick"; crownGain?: number;
     /** Règlement par joueur calculé au serveur (cf. matchCommands, settle). */
@@ -685,8 +686,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
     if (!fresh) return;
     this.dealtMatchIds.add(dealKey);
     this.pendingOpeningReplay = allowOpeningReplay && actionCount > 0;
-    const { dealPerCard, dealFlight } = GAME_CONFIG.anim;
-    const dealTime = match.participants.length * GAME_CONFIG.cardsPerPlayer * dealPerCard + dealFlight + 200;
+    // Rythme de la donne de CETTE partie (copié dans ses règles par le serveur) : même durée que le budget serveur.
+    const dealTime = dealDurationMs(this.dealTiming(match), match.participants.length, GAME_CONFIG.cardsPerPlayer) + 200;
     this.dealing = true;
     if (this.dealTimer) clearTimeout(this.dealTimer);
     this.dealTimer = setTimeout(() => {
@@ -745,6 +746,11 @@ export class AuthoritativeGameSync implements GameSyncActions {
     return Boolean((this.targetMatch ?? this.match)?.participants.find((participant) => participant.uid === uid)?.bot);
   }
 
+  /** Rythme de la donne de CE match (règles copiées au départ), sinon celui du jeu. */
+  private dealTiming(match: ServerMatch | null | undefined): DealTiming {
+    return dealTimingOf(match?.rules, { perCardMs: GAME_CONFIG.anim.dealPerCard, flightMs: GAME_CONFIG.anim.dealFlight });
+  }
+
   /** Secondes par tour de CE match (minuteur de table d'événement), sinon la valeur globale. */
   private turnBudget(match: ServerMatch | null | undefined): number {
     const seconds = Number(match?.rules?.turnSeconds);
@@ -790,6 +796,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
       banner: "",
       players: this.players(),
       turnStartSeconds: this.turnBudget(match),
+      dealTiming: this.dealTiming(match),
+      unlimitedTurns: match.rules?.unlimitedTurns === true,
       ...(match.series ? { series: {
         round: match.series.round, total: match.series.total,
         scores: this.localOrder().map((index) => match.series!.winners.filter((uid) => uid === match.participants[index].uid).length),

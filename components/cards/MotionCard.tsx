@@ -21,6 +21,7 @@ interface MotionCardProps {
   glow?: boolean;
   onClick?: () => void;
   dealDelay?: number | null;
+  dealDuration?: number;
   dealOrigin?: DealOrigin | null;
   /* Comportement Framer Motion (drag, layout, whileHover, transition, style…) */
   anim?: MotionProps;
@@ -29,7 +30,7 @@ interface MotionCardProps {
 }
 
 export const MotionCard = forwardRef<HTMLDivElement, MotionCardProps>(function MotionCard(
-  { card, hidden, w, rot, lift, dim, glow, onClick, dealDelay, dealOrigin, anim, className, style },
+  { card, hidden, w, rot, lift, dim, glow, onClick, dealDelay, dealDuration, dealOrigin, anim, className, style },
   ref,
 ) {
   const playCard = (
@@ -43,6 +44,7 @@ export const MotionCard = forwardRef<HTMLDivElement, MotionCardProps>(function M
       glow={glow}
       onClick={onClick}
       dealDelay={dealDelay}
+      dealDuration={dealDuration}
       dealOrigin={dealOrigin}
     />
   );

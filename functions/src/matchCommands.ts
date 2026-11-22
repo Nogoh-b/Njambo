@@ -1,5 +1,5 @@
 import { randomInt } from "node:crypto";
-import { matchCountFor, normalizeGameplayConfig, seriesWinner } from "../../domain/gameplayConfig";
+import { UNLIMITED_DEADLINE_AT, dealDurationMs, dealTimingOf, matchCountFor, normalizeGameplayConfig, seriesWinner } from "../../domain/gameplayConfig";
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import { crownWinGain, displayCosmetics, isPerfectRun, normalizeSeason, readPlayerCosmetics, seasonPointsFor, normalizeEventVersion, resolveEventProgress, scoreEventRun, shouldReplaceEntry, splitCrownLoss, spendEnergy, stageMatchRules, type EnergyState, type EventLeaderboardEntry, type PlayerCosmetics, type Reward, type ServerBotDifficulty, type StageMatchRules } from "../../domain";
 import { applyReward, asObject, boundedNumber, db, economyFrom, integer, ledger, requireUid, requiredString, runIdempotent, stableId } from "./core";
@@ -26,6 +26,11 @@ export interface MatchTableRules {
   maxEquippedPowers: number;
   powersDisabled: boolean;
   turnSeconds: number;
+  /** Rythme de la donne copié de runtime_config/gameplay au départ (absent : parties plus anciennes, valeurs du jeu). */
+  dealPerCardMs?: number;
+  dealFlightMs?: number;
+  /** Table contre l'IA sans limite de temps par tour (runtime_config/gameplay.unlimitedTurnsBot au départ). */
+  unlimitedTurns?: boolean;
   botDifficulty: ServerBotDifficulty;
   modifiers: string[];
   boss: { name: string; botLevel: number; avatarUrl: string | null } | null;
@@ -33,6 +38,12 @@ export interface MatchTableRules {
 
 function matchTurnSeconds(match: { rules?: MatchTableRules | null }) {
   return Number(match.rules?.turnSeconds ?? GAME_CONFIG.turnSeconds) || GAME_CONFIG.turnSeconds;
+}
+
+/** Échéance d'un tour de jeu : jamais atteinte dans une table contre l'IA sans limite de temps
+ *  (le worker d'auto-play ne joue alors jamais à la place du joueur ; les bots sont enchaînés sans échéance). */
+function turnDeadline(rules: Pick<MatchTableRules, "unlimitedTurns"> | null | undefined, deadline: number): number {
+  return rules?.unlimitedTurns ? UNLIMITED_DEADLINE_AT : deadline;
 }
 
 /** Mouvement de compte d'un joueur sur la manche qui vient de se terminer.
@@ -126,9 +137,10 @@ function matchCost(mode: MatchMode) {
 const PLAY_ANIM_MS = GAME_CONFIG.anim.replayBotThinkMax + GAME_CONFIG.anim.dropFlight + GAME_CONFIG.anim.landSettle + GAME_CONFIG.anim.botAfterPlay;
 const TRICK_PAUSE_MS = GAME_CONFIG.anim.trickPause;
 const SERVER_DELIVERY_MARGIN_MS = 2_000;
-/** Miroir de la fenêtre "dealing" client (AuthoritativeGameSync.beginDealingWindow). */
-function dealBudgetMs(playerCount: number) {
-  return playerCount * GAME_CONFIG.cardsPerPlayer * GAME_CONFIG.anim.dealPerCard + GAME_CONFIG.anim.dealFlight + 350;
+/** Miroir de la fenêtre "dealing" client (AuthoritativeGameSync.beginDealingWindow), au rythme de la donne de la partie. */
+function dealBudgetMs(playerCount: number, rules?: Pick<MatchTableRules, "dealPerCardMs" | "dealFlightMs"> | null) {
+  const timing = dealTimingOf(rules, { perCardMs: GAME_CONFIG.anim.dealPerCard, flightMs: GAME_CONFIG.anim.dealFlight });
+  return dealDurationMs(timing, playerCount, GAME_CONFIG.cardsPerPlayer) + 350;
 }
 
 /** Fin de match de salle (settlement, abandon) : la salle redevient
@@ -398,6 +410,8 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
     ]));
     const turnSeconds = tableRules?.turnSeconds ?? gameplay.turnSeconds;
     const matchCount = tableRules?.matchCount ?? matchCountFor(gameplay, mode === "event" ? "bot" : mode, participants.length);
+    // Temps illimité : tables contre l'IA seulement (les événements gardent leur minuteur).
+    const unlimitedTurns = mode === "bot" && gameplay.unlimitedTurnsBot;
 
     const deck = secureDeck();
     const hands = new Map<string, ServerCard[]>();
@@ -411,9 +425,10 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
       stakeNkap: stake, energyCost, potNkap: mode === "bot" ? stake * participants.length : stake * realParticipants.length,
       leaderIndex: 0, turnIndex: 0, trickNumber: 0, trickPlays: [], deposits: {},
       handCounts: Object.fromEntries(participants.map((participant) => [participant.uid, 5])),
-      turnId, turnStartedAt: now, actionDeadlineAt: now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(participants.length) + turnSeconds * 1_000,
+      turnId, turnStartedAt: now, actionDeadlineAt: turnDeadline({ unlimitedTurns }, now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(participants.length, gameplay) + turnSeconds * 1_000),
       rules: {
         powersDisabled, turnSeconds, matchCount, maxEquippedPowers: gameplay.maxEquippedPowers,
+        dealPerCardMs: gameplay.dealPerCardMs, dealFlightMs: gameplay.dealFlightMs, unlimitedTurns,
         botDifficulty: tableRules?.botDifficulty ?? (data.difficulty === "easy" || data.difficulty === "hard" ? data.difficulty : "normal"),
         modifiers: tableRules?.modifiers ?? [],
         boss: tableRules?.boss ? { name: tableRules.boss.name, botLevel: tableRules.boss.botLevel, avatarUrl: tableRules.boss.avatarUrl ?? null } : null,
@@ -926,7 +941,10 @@ export async function performGameAction(
     const update = {
       turnIndex, leaderIndex, trickNumber, trickPlays, deposits, handCounts, potNkap: pot, series,
       eliminatedUids: [...eliminated],
-      turnId: nextTurnId, turnStartedAt: now, actionDeadlineAt: now + SERVER_DELIVERY_MARGIN_MS + animBudget + nextTurnSeconds * 1_000,
+      // Entre deux manches, l'échéance reste réelle : elle lance la manche suivante.
+      turnId: nextTurnId, turnStartedAt: now, actionDeadlineAt: finished || roundFinished
+        ? now + SERVER_DELIVERY_MARGIN_MS + animBudget + nextTurnSeconds * 1_000
+        : turnDeadline(match.rules, now + SERVER_DELIVERY_MARGIN_MS + animBudget + nextTurnSeconds * 1_000),
       status: finished ? "settled" : roundFinished ? "between_rounds" : "playing", result,
       recentActions: actions.map((action, index) => ({ ...action, playId: stableId(opts.actionSeed, String(index)).slice(0, 32) })),
       ...(missedTurns ? { missedTurns } : {}),
@@ -972,7 +990,7 @@ export async function advanceMatchRound(transaction: Transaction, now: number, m
     handCounts: Object.fromEntries(match.participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0])),
     turnId: stableId(matchId, "round", String(series.round + 1)).slice(0, 24),
     turnStartedAt: now,
-    actionDeadlineAt: now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(active.length) + matchTurnSeconds(match) * 1000,
+    actionDeadlineAt: turnDeadline(match.rules, now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(active.length, match.rules) + matchTurnSeconds(match) * 1000),
     recentActions: [], recentPowerActivations: [], result: null, updatedAt: now,
   };
   transaction.update(db.doc(`matches/${matchId}`), update);
@@ -1131,7 +1149,7 @@ export async function abandonMatchHandler(request: CallableRequest<unknown>) {
       leaderIndex: Number(match.leaderIndex) === quitterSeat ? nextTurnSeat : Number(match.leaderIndex),
       turnId: nextTurnId,
       turnStartedAt: currentTurnEliminated ? now : match.turnStartedAt,
-      actionDeadlineAt: currentTurnEliminated ? now + matchTurnSeconds(match) * 1_000 : match.actionDeadlineAt,
+      actionDeadlineAt: currentTurnEliminated ? turnDeadline(match.rules, now + matchTurnSeconds(match) * 1_000) : match.actionDeadlineAt,
       forfeitedBy: [...((match.forfeitedBy as string[] | undefined) ?? []), uid],
       forfeitedAt: now,
       updatedAt: now,

@@ -203,7 +203,12 @@ function writeHistory(
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const { config: gameplay } = useGameplayConfig();
-  const cfg = useMemo(() => ({ ...GAME_CONFIG, ...gameplay }), [gameplay]);
+  // Le rythme de la donne réglé dans l'admin remplace celui du jeu (mode local et parties sans règles copiées).
+  const cfg = useMemo(() => ({
+    ...GAME_CONFIG,
+    ...gameplay,
+    anim: { ...GAME_CONFIG.anim, dealPerCard: gameplay.dealPerCardMs, dealFlight: gameplay.dealFlightMs },
+  }), [gameplay]);
 
   // Hydratation initiale synchrone (aucun flash du MenuScreen après F5 / reload WebView)
   const initialRef = useRef<ReturnType<typeof resolveInitialNavigation> | null>(null);
