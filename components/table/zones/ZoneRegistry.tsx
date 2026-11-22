@@ -73,8 +73,9 @@ export interface DepositHandle {
   ): () => void;
   /** Modèles d'animation : cache des cartes du dépôt pendant durationMs (leur sprite les remplace). Facultatif. */
   hideCardsFor?(cardIdxs: number[], durationMs: number): void;
-  /** Animation V2 : pose de la carte `cardIdx` (au-delà de la dernière : carte à venir, au centre). Facultatif. */
-  poseOf?(cardIdx: number, count?: number): ZonePose | null;
+  /** Pose de la carte `cardIdx`. Au-delà de la dernière : carte à venir, à sa place exacte si `cardId` est donné
+   *  (jeté calculé depuis la carte), sinon au centre, à plat. Facultatif. */
+  poseOf?(cardIdx: number, count?: number, cardId?: string): ZonePose | null;
 }
 
 export interface DeckHandle {

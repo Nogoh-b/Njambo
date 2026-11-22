@@ -6,6 +6,7 @@ import { NjamboIcon } from "@/components/ui/Art";
 import { useRegisterZone, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
 import { elementCenter, elementScale } from "@/components/table/zones/zonePose";
 import { pilePose } from "@/engine/anim/v2/pose";
+import { depositToss, tossOf } from "@/engine/depositToss";
 import type { DepositedCard } from "@/types/game";
 
 /* ═══════════════ DepositZone — Emplacement gravé sur le feutre ═══════════════
@@ -61,12 +62,16 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
       setHiddenIds((current) => new Set([...current, ...ids]));
       hideTimers.current.push(setTimeout(() => setHiddenIds((current) => new Set([...current].filter((id) => !ids.includes(id)))), durationMs));
     },
-    // Animation V2 : les cartes sont centrées, puis décalées et tournées par leur « jeté ».
-    poseOf: (cardIdx: number) => {
+    // Les cartes sont centrées, puis décalées et tournées par leur « jeté » (engine/depositToss).
+    // Une carte pas encore posée dont on connaît l'identifiant vise déjà sa place exacte.
+    poseOf: (cardIdx: number, _count?: number, cardId?: string) => {
       const root = rootRef.current;
       if (!root) return null;
       const scale = elementScale(root);
-      return pilePose({ center: elementCenter(root), cardWidth: w * scale, scale }, cardIdx, depositRef.current[cardIdx]);
+      // Avec un identifiant : la carte où qu'elle soit dans la pile (ou à venir) ; sinon par sa place.
+      const placed = cardId ? depositRef.current.find((card) => card.id === cardId) : depositRef.current[cardIdx];
+      const toss = placed ? tossOf(placed) : cardId ? depositToss(cardId) : null;
+      return pilePose({ center: elementCenter(root), cardWidth: w * scale, scale }, cardIdx, toss);
     },
     beginSelection: (filter: DepositSelection["filter"], onPick: DepositSelection["onPick"]) => {
       const sel: DepositSelection = { filter, onPick };
@@ -130,7 +135,8 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
       {deposit.map((c, i) => {
         const top = i === deposit.length - 1;
         const selectable = selection ? selection.filter(c, i) : false;
-        const dropRot = c.dropRot || 0;
+        const toss = tossOf(c);
+        const dropRot = toss.dropRot;
         const showCrown = top && isDominant;
         const cardRadius = Math.max(8, w * 0.14);
         return (
@@ -144,7 +150,7 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
             onClick={selectable ? () => selection?.onPick(i) : undefined}
             style={{
               position: "absolute",
-              transform: `translate3d(${c.dx || 0}px, ${c.dy || 0}px, 0) rotate(${dropRot}deg)`,
+              transform: `translate3d(${toss.dx}px, ${toss.dy}px, 0) rotate(${dropRot}deg)`,
               cursor: selectable ? "pointer" : undefined,
               opacity: hiddenIds.has(c.id) ? 0 : selection && !selectable ? 0.5 : 1,
               pointerEvents: selection ? "auto" : undefined,

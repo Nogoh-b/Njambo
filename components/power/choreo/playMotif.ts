@@ -34,6 +34,8 @@ const ZONE_SCALE: Record<MotifAnchor["zone"], number> = { hand: 1, deposit: 0.8,
 const SINKS: ReadonlySet<MotifAnchor["zone"]> = new Set(["deck", "pot", "avatar", "timer", "offscreen"]);
 const CARD_RATIO = 1.45;
 const LIFT_RATIO = 0.22;
+/** Part de fin de vol pendant laquelle une carte qui se pose redescend (soulèvement → 0). */
+const LIFT_SETTLE = 0.25;
 const SPREAD_LEAD_MS = 340;
 /** Espace central : sous la pioche et le pot (qui occupent le centre de la table). */
 const CENTER_Y = 0.54;
@@ -59,6 +61,8 @@ interface Flight {
   departed: boolean;
   landed: boolean;
   released: boolean;
+  /** Pose finale dessinée (le sprite sera retiré à l'image suivante). */
+  finalShown: boolean;
   spriteId: string;
 }
 
@@ -87,8 +91,9 @@ function uiFor(ctx: ChoreoContext, anchor: MotifAnchor, k: number): number | nul
   return isMultiAnchor(anchor) ? list[k % list.length] : list[0];
 }
 
-/** Emplacement d'une carte sur un repère (centre, taille, rotation, face). */
-function slotOf(ctx: ChoreoContext, anchor: MotifAnchor, ui: number | null, cardIdx: number | undefined): ResolvedSlot {
+/** Emplacement d'une carte sur un repère (centre, taille, rotation, face).
+ *  `cardId` : sur un dépôt, la place exacte de cette carte (son jeté), posée ou à venir. */
+function slotOf(ctx: ChoreoContext, anchor: MotifAnchor, ui: number | null, cardIdx: number | undefined, cardId?: string): ResolvedSlot {
   const view = viewportOf(ctx);
   const point = (x: number, y: number, face: 0 | 180 | null = 0): ResolvedSlot => ({ x, y, rotate: 0, scale: ZONE_SCALE[anchor.zone], face: face ?? 0, cardWidth: null });
   const fromRect = (rect: DOMRect | null | undefined, cardSized: boolean, face: 0 | 180): ResolvedSlot => rect
@@ -107,6 +112,8 @@ function slotOf(ctx: ChoreoContext, anchor: MotifAnchor, ui: number | null, card
     }
     case "deposit": {
       const deposit = ui == null ? null : ctx.registry.deposit(ui);
+      const exact = cardId ? deposit?.poseOf?.(cardIdx ?? 0, undefined, cardId) : null;
+      if (exact) return { x: exact.x, y: exact.y, rotate: exact.rotate, scale: ZONE_SCALE.deposit, face: 0, cardWidth: exact.width };
       return fromRect(deposit?.getTopCardRect() ?? deposit?.getRect(), true, 0);
     }
     case "avatar":
@@ -312,7 +319,7 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
         k, cardId, card, fromUi: fromUis[k], toUi: toUis[k], fromIdx: fromIdx[k], toIdx: toIdx[k],
         startMs: schedule[k].startMs, endMs: schedule[k].endMs,
         root: nodes.root, flipper: nodes.flipper, faces: Array.from(nodes.flipper.children) as HTMLElement[],
-        frozenFrom: null, lastTo: null, history: [], emittedSparks: 0, departed: false, landed: false, released: false, spriteId,
+        frozenFrom: null, lastTo: null, history: [], emittedSparks: 0, departed: false, landed: false, released: false, finalShown: false, spriteId,
       });
     });
   }));
@@ -342,9 +349,11 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
     // 1. Lectures (positions des zones), 2. écritures : une seule mise en page par image.
     const frames = flights.map((flight) => {
       const local = elapsed - flight.startMs;
-      if (local >= 0 && !flight.frozenFrom) flight.frozenFrom = slotOf(ctx, motif.from, flight.fromUi, flight.fromIdx);
-      const from = flight.frozenFrom ?? slotOf(ctx, motif.from, flight.fromUi, flight.fromIdx);
-      const to = inPlace ? from : local <= motif.durationMs || !flight.lastTo ? slotOf(ctx, motif.to, flight.toUi, flight.toIdx) : flight.lastTo;
+      // Vraies cartes : sur un dépôt, elles partent de / visent leur place exacte (jeté compris).
+      const realId = run.cards ? flight.cardId : undefined;
+      if (local >= 0 && !flight.frozenFrom) flight.frozenFrom = slotOf(ctx, motif.from, flight.fromUi, flight.fromIdx, realId);
+      const from = flight.frozenFrom ?? slotOf(ctx, motif.from, flight.fromUi, flight.fromIdx, realId);
+      const to = inPlace ? from : local <= motif.durationMs || !flight.lastTo ? slotOf(ctx, motif.to, flight.toUi, flight.toIdx, realId) : flight.lastTo;
       flight.lastTo = to;
       const fromSlot = { ...from, scale: from.cardWidth ? from.cardWidth / width : from.scale };
       const toSlot = { ...to, scale: to.cardWidth ? to.cardWidth / width : to.scale, face: motif.to.zone === "offscreen" ? from.face : to.face };
@@ -369,9 +378,14 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
       }
       const settledAt = motif.durationMs + (motif.squash && !inPlace ? SQUASH_MS : 0);
       if (run.release === "landing" && !flight.released && local >= settledAt) {
-        flight.released = true;
-        ctx.layer.removeCard(flight.spriteId);
-        continue;
+        // La pose finale est d'abord dessinée (image ci-dessous), la carte volante n'est retirée qu'à l'image
+        // suivante : sinon la dernière image visible reste « juste avant l'arrivée » (quelques px d'écart).
+        if (flight.finalShown) {
+          flight.released = true;
+          ctx.layer.removeCard(flight.spriteId);
+          continue;
+        }
+        flight.finalShown = true;
       }
       if (flight.released) continue;
       let blur = 0;
@@ -381,7 +395,11 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
       }
       if (frame.phase === "flying") flight.history.push({ x: frame.x, y: frame.y });
       if (flight.history.length > 12) flight.history.shift();
-      applyFrame(flight, frame, width, sink, blur, color);
+      // Une vraie carte qui se pose dans une main ou sur un dépôt : son soulèvement retombe à zéro dans le dernier
+      // quart du vol, sinon elle « saute » de quelques pixels quand la vraie carte apparaît (« vol actuel » : 12 px).
+      const settles = run.mode === "move" && !inPlace && (motif.to.zone === "hand" || motif.to.zone === "deposit");
+      const landed = settles ? { ...frame, lift: frame.lift * clamp((motif.durationMs - local) / (motif.durationMs * LIFT_SETTLE), 0, 1) } : frame;
+      applyFrame(flight, landed, width, sink, blur, color);
 
       // Traînée lumineuse : reflets qui suivent la carte avec un léger retard.
       if (afterimages) {

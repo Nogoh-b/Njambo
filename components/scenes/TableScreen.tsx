@@ -1427,7 +1427,15 @@ export function TableScreen({
       gxeSfxRef.current.play(CARD_SOUND); // migré vers GXE (lib/gxeSfx.ts)
       const handZone = zoneRegistry.hand(playerIdx);
       const from = handZone?.getCardRect(cardIdx) ?? handZone?.getRect() ?? null;
-      const to = zoneRegistry.deposit(playerIdx)?.getRect() ?? null;
+      // Place exacte de la carte sur le dépôt : son jeté est calculé depuis la carte (engine/depositToss),
+      // le vol s'y pose sans à-coup quand la vraie carte apparaît.
+      const depositZone = zoneRegistry.deposit(playerIdx);
+      const depositCount = playersRef.current[playerIdx]?.deposit.length ?? 0;
+      const landing = depositZone?.poseOf?.(depositCount, undefined, card.id) ?? null;
+      const depositRect = depositZone?.getRect() ?? null;
+      const to = landing && depositRect
+        ? new DOMRect(landing.x - depositRect.width / 2, landing.y - depositRect.height / 2, depositRect.width, depositRect.height)
+        : depositRect;
 
       if (from && to) {
         // Moment « Carte jouée » : modèle de l'atelier si l'admin en a attribué un (vol borné à 0,9 s),
@@ -1441,13 +1449,12 @@ export function TableScreen({
         animatingRef.current = true;
         timerStore.set(turnSecondsRef.current);
         animationEndsAtRef.current = Date.now() + flightMs;
-        const dropRot = Math.random() * 14 - 7;
+        const dropRot = landing?.rotate ?? 0;
         const flightKey = `${card.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         handZone?.setHiddenCard(cardIdx);
         if (playV2) {
-          const depositCount = playersRef.current[playerIdx]?.deposit.length ?? 0;
           void runMomentV2Ref.current({ ...playV2, motion: { ...playV2.motion, durationMs: flightMs } }, [
-            { card, from: { zone: "hand", ui: playerIdx, index: cardIdx }, to: { zone: "deposit", ui: playerIdx, index: depositCount } },
+            { card, from: { zone: "hand", ui: playerIdx, index: cardIdx }, to: { zone: "deposit", ui: playerIdx, index: depositCount, cardId: card.id } },
           ], { actorUi: playerIdx });
         } else if (playMotifMoment) {
           void runMomentRef.current({ ...playMotifMoment, durationMs: flightMs }, {

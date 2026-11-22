@@ -4,6 +4,7 @@
    Le TableScreen ne fait que le rendu + appelle playCard(). */
 
 import { buildDeck, shuffle } from "@/engine/deck";
+import { depositToss } from "@/engine/depositToss";
 import {
   checkInstantWin,
   lastCardDoubles,
@@ -434,11 +435,8 @@ export class LocalGameSync implements GameSyncActions {
     cardIdx = restrictedIdx;
 
     const card = this.players[playerIdx].hand[cardIdx];
-    const drop = {
-      dropRot: Math.random() * 18 - 9,
-      dx: Math.random() * 12 - 6,
-      dy: Math.random() * 8 - 4,
-    };
+    // Jeté calculé depuis la carte : le vol de la table vise exactement cette place.
+    const drop = depositToss(card.id);
 
     // Émettre l'événement playCard pour l'animation
     this.playCardListeners.forEach((cb) => cb({ playerIdx, cardIdx, card }));

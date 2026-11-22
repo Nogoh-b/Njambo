@@ -24,8 +24,9 @@ export function elementCenter(el: HTMLElement): { x: number; y: number } {
   return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
 }
 
-/** Pose de la carte `index` dans une zone, quand elle en compte `count` (par défaut : maintenant). */
-export function zonePoseOf(registry: ZoneRegistry, ref: ZoneRef, index: number, count?: number): ZonePose | null {
+/** Pose de la carte `index` dans une zone, quand elle en compte `count` (par défaut : maintenant).
+ *  `cardId` : carte qui arrive sur un dépôt, pour viser sa place exacte (son jeté). */
+export function zonePoseOf(registry: ZoneRegistry, ref: ZoneRef, index: number, count?: number, cardId?: string): ZonePose | null {
   const ui = ref.ui;
   switch (ref.zone) {
     case "hand": {
@@ -39,7 +40,7 @@ export function zonePoseOf(registry: ZoneRegistry, ref: ZoneRef, index: number, 
     case "deposit": {
       const deposit = ui == null ? null : registry.deposit(ui);
       if (!deposit) return null;
-      const pose = deposit.poseOf?.(index, count);
+      const pose = deposit.poseOf?.(index, count, cardId);
       if (pose) return pose;
       const rect = deposit.getTopCardRect() ?? deposit.getRect();
       return rect ? rectPose(rect, { index }) : null;

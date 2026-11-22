@@ -23,8 +23,9 @@ export interface AnimV2Move {
   /** Carte montrée face visible (null = de dos, carte décorative). */
   card: Card | null;
   from: ZoneRef & { index: number };
-  /** `count` : nombre de cartes de la zone d'arrivée APRÈS le mouvement (main : sa nouvelle disposition). */
-  to: ZoneRef & { index: number; count?: number };
+  /** `count` : nombre de cartes de la zone d'arrivée APRÈS le mouvement (main : sa nouvelle disposition).
+   *  `cardId` : carte posée sur un dépôt, pour viser sa place exacte (son jeté). */
+  to: ZoneRef & { index: number; count?: number; cardId?: string };
 }
 
 export interface AnimV2Run {
@@ -119,7 +120,7 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
 
   // Poses au décollage (avant toute réorganisation) ; un mouvement sans zone est ignoré.
   const planned = run.moves
-    .map((move, k) => ({ move, k, from: zonePoseOf(registry, move.from, move.from.index), to: zonePoseOf(registry, move.to, move.to.index, move.to.count) }))
+    .map((move, k) => ({ move, k, from: zonePoseOf(registry, move.from, move.from.index), to: zonePoseOf(registry, move.to, move.to.index, move.to.count, move.to.cardId) }))
     .filter((item): item is { move: AnimV2Move; k: number; from: ZonePose; to: ZonePose } => !!item.from && !!item.to);
   if (planned.length === 0) return;
 
@@ -163,7 +164,7 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
     const elapsed = now - start;
     // 1. Lectures (poses des zones), 2. écritures : une seule mise en page par image.
     const frames = flights.map((flight) => {
-      if (elapsed < model.motion.durationMs) flight.to = zonePoseOf(registry, flight.move.to, flight.move.to.index, flight.move.to.count) ?? flight.to;
+      if (elapsed < model.motion.durationMs) flight.to = zonePoseOf(registry, flight.move.to, flight.move.to.index, flight.move.to.count, flight.move.to.cardId) ?? flight.to;
       return { flight, frame: sampleAnimV2(model, flight.from, flight.to, elapsed) };
     });
 
@@ -181,14 +182,16 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
 
     for (const { flight, frame } of frames) {
       if (flight.released) continue;
+      // Release à l'atterrissage : la pose finale est dessinée une image, puis la carte volante est retirée
+      // (sinon la dernière image visible reste juste avant l'arrivée).
+      if (flight.landed && run.release === "landing") {
+        flight.released = true;
+        ctx.layer.removeCard(flight.spriteId);
+        continue;
+      }
       if (frame.phase === "landed" && !flight.landed) {
         flight.landed = true;
         run.onLanded?.(flight.k);
-        if (run.release === "landing") {
-          flight.released = true;
-          ctx.layer.removeCard(flight.spriteId);
-          continue;
-        }
       }
       applyFrame(flight, frame, width, frame.phase === "landed" && swallows(flight.move, flight.to));
     }
