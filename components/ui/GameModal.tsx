@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useId, useSyncExternalStore, type ReactNode } from "react";
+import { useEffect, useId, useRef, useSyncExternalStore, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useMotionProfile } from "@/lib/motion";
+import { registerModalBackHandler } from "@/lib/navigation";
 import styles from "./GameModal.module.css";
 
 export type GameModalTone = "gold" | "teal" | "pink" | "palm";
@@ -63,11 +64,17 @@ export function GameModal({
 }: GameModalProps) {
   const titleId = `game-modal-${useId().replaceAll(":", "")}`;
   const motionProfile = useMotionProfile();
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   useEffect(() => {
     if (!open) return;
     pushModal(titleId);
-    return () => popModal(titleId);
+    const unregisterBack = registerModalBackHandler(titleId, () => onCloseRef.current());
+    return () => {
+      unregisterBack();
+      popModal(titleId);
+    };
   }, [open, titleId]);
 
   const stackIndex = useSyncExternalStore(

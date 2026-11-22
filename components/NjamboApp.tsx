@@ -1,9 +1,9 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
-import { MOTION_DURATION_MS, MotionProfileProvider, reducedSceneVariants, sceneVariants, useMotionProfile } from "@/lib/motion";
+import { MotionProfileProvider, reducedSceneVariants, sceneVariants, useMotionProfile } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
 import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepLink";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
@@ -15,8 +15,15 @@ import { markPerformance } from "@/lib/performanceMetrics";
 import { schedulePostSplashPreload } from "@/lib/idlePreload";
 import { EconomyProvider, useInventory } from "@/contexts/EconomyContext";
 import { LoadingGate } from "@/components/ui/LoadingGate";
+import { MatchLoadingScreen } from "@/components/ui/MatchLoadingScreen";
 import { prefetchAssets } from "@/lib/assets/AssetLoader";
 import { sceneManifest, tableManifest, TABLE_APPROACH_SCENES } from "@/lib/assets/manifests";
+import {
+  clearActiveGameSession,
+  loadActiveGameSession,
+  saveActiveGameSession,
+  updateActiveGameMatchId,
+} from "@/lib/navigation";
 import { devEquippedPowers } from "@/config/devConfig";
 import { LobbyProvider, useLobby } from "@/contexts/LobbyContext";
 import { AuthProvider, useAuth } from "@/hooks/useAuth";
@@ -67,20 +74,38 @@ const EventDetailScreen = dynamic(() => import("@/components/scenes/EventDetailS
 const EventMatchmakingOverlay = dynamic(() => import("@/components/scenes/EventMatchmakingOverlay").then((module) => module.EventMatchmakingOverlay), { loading });
 const WalletScreen = dynamic(() => import("@/components/scenes/WalletScreen").then((module) => module.WalletScreen), { loading });
 
-const SCENE_TRANSITION_MS = MOTION_DURATION_MS.navigation;
-
 /* ═══════════════ SceneRouter ═══════════════
-   Orchestrateur de scènes : gère la navigation
-   et les états partagés entre scènes (table → result).
-   TableScreen reste monté pendant la session pour préserver l'état.
-   ResultScreen s'affiche en overlay plein écran quand un résultat est prêt. */
+   Orchestrateur de scènes : gère la navigation réelle (pile + hash + Capacitor),
+   l'écran de chargement au lancement d'une partie et les états partagés
+   entre scènes (table → result). */
 
 function SceneRouter() {
-  const { scene, navigateTo, registerBackInterceptor, endTransition, profile, setProfile, cfg, eventDetailId, setEventDetailId } = useGame();
+  const {
+    scene,
+    navigateTo,
+    goBack,
+    registerBackInterceptor,
+    endTransition,
+    profile,
+    setProfile,
+    cfg,
+    eventDetailId,
+    setEventDetailId,
+    restoredRoomId,
+    clearRestoredRoomId,
+    exitToast,
+  } = useGame();
   const { animationsOn } = useSettings();
   const motionProfile = useMotionProfile();
-  const { currentRoom, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, leaveRoom } = useLobby();
-  const { user } = useAuth();
+  const {
+    currentRoom,
+    resumeActiveRoom,
+    restoreWaitingRoom,
+    activeRoomHint,
+    refreshActiveRoomHint,
+    leaveRoom,
+  } = useLobby();
+  const { user, loading: authLoading } = useAuth();
   // Dos de carte équipé (phase 5) appliqué à toutes les cartes face cachée.
   const myCosmetics = useMyCosmetics(true);
   const inventory = useInventory();
@@ -91,7 +116,7 @@ function SceneRouter() {
   usePowerCatalogLoader();
   usePowerCatalogRevision();
 
-  /* État partagé entre TableScreen et ResultScreen */
+  /* État partagé entre MatchLoadingScreen, TableScreen et ResultScreen */
   const [gameResult, setGameResult] = useState<Result | null>(null);
   const [gameMise, setGameMise] = useState(cfg.stakes[1]);
   const [gameBotCount, setGameBotCount] = useState(2);
@@ -102,34 +127,63 @@ function SceneRouter() {
   const [eventId, setEventId] = useState<string | null>(null);
   /** True tant qu'un événement PvP cherche des adversaires (overlay de file). */
   const [eventMatchmaking, setEventMatchmaking] = useState(false);
-  /** Infos de l'étape courante pour l'overlay de file. */
+  /** Infos de l'étape courante pour l'overlay de file et l'écran de chargement. */
   const [eventStageLabel, setEventStageLabel] = useState<string>("");
   const [eventRequiredPlayers, setEventRequiredPlayers] = useState<number>(4);
-  /* True quand une session de jeu est active (table montée) */
+  /** True quand une session de jeu est lancée. */
   const [gameActive, setGameActive] = useState(false);
-  /* Ref vers nextRound / back de TableScreen & ResultScreen */
+  /** True tant que l'écran de chargement de partie précharge assets/images/modules. */
+  const [matchLoading, setMatchLoading] = useState(false);
+  /** True si on reprend automatiquement une partie après actualisation. */
+  const [resumingMatch, setResumingMatch] = useState(false);
+  /** matchId serveur à reconnecter après actualisation sans relancer startMatch. */
+  const [reconnectMatchId, setReconnectMatchId] = useState<string | null>(null);
+  /** Identifiant monotone de lancement pour réinitialiser proprement la table. */
+  const [launchNonce, setLaunchNonce] = useState(0);
+
+  /* Refs d'interception du bouton Retour */
   const nextRoundRef = useRef<(() => void) | null>(null);
+  const loadingBackRef = useRef<(() => "stay" | "handled") | null>(null);
   const tableBackRef = useRef<(() => "stay" | "handled") | null>(null);
   const resultBackRef = useRef<(() => boolean) | null>(null);
-  const tableEntryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lobbyBackRef = useRef<(() => "stay" | "handled") | null>(null);
+  const tableRestoreAttemptedRef = useRef(false);
+  const lobbyRestoreAttemptedRef = useRef<string | null>(null);
 
   /* Dérivés du lobby (partagés via LobbyContext) */
-  const tableKey = gameMode + "-" + gameBotCount + "-" + gameMise + "-" + gameDifficulty + "-" + (currentRoom && (gameMode === "online" || gameMode === "friends") ? currentRoom.id : "") + "-" + (eventRunId ?? "");
   const isRoomMode = gameMode === "online" || gameMode === "friends";
   const roomId = currentRoom?.id ?? null;
-  const roomPlayers = currentRoom?.players ?? [];
+  const roomPlayers = useMemo(() => currentRoom?.players ?? [], [currentRoom?.players]);
   const roomHostId = currentRoom?.hostId ?? "";
+  const tableKey = `${launchNonce}-${gameMode}-${gameBotCount}-${gameMise}-${gameDifficulty}-${isRoomMode && roomId ? roomId : ""}-${eventRunId ?? ""}-${reconnectMatchId ?? ""}`;
+
+  const displayPlayerCount = isRoomMode
+    ? Math.max(2, roomPlayers.length || currentRoom?.maxPlayers || 2)
+    : gameMode === "event"
+      ? Math.max(2, eventRequiredPlayers || 4)
+      : gameBotCount + 1;
 
   useEffect(() => {
     markPerformance(`navigation:${scene}`);
   }, [scene]);
 
+  /* Garder l'identifiant de salle synchronisé dans l'URL hash (#/lobby?room=...)
+     pour pouvoir restaurer la salle d'attente après actualisation. */
+  useEffect(() => {
+    if (scene === "lobby" && currentRoom?.id && restoredRoomId !== currentRoom.id) {
+      navigateTo("lobby", { replace: true, roomId: currentRoom.id });
+    }
+  }, [scene, currentRoom?.id, restoredRoomId, navigateTo]);
+
   /* Chargeur d'assets — table : pouvoirs équipés (visuels + sons), dos de
      carte équipé, tapis ; cosmétiques connus des participants. */
-  const myEquippedPowers = (user && !user.isAnonymous
-    ? devEquippedPowers((inventory.equippedCards ?? []) as PowerCardId[])
-    : (profile?.equippedPowers ?? [])) as PowerCardId[];
-  const buildTableManifest = () => tableManifest({ myPowers: myEquippedPowers, participants: [myCosmetics] });
+  const myEquippedPowers = useMemo(
+    () =>
+      (user && !user.isAnonymous
+        ? devEquippedPowers((inventory.equippedCards ?? []) as PowerCardId[])
+        : (profile?.equippedPowers ?? [])) as PowerCardId[],
+    [inventory.equippedCards, profile?.equippedPowers, user],
+  );
 
   /* Préchargement d'approche : dès qu'on s'approche de la table (choix du
      mode, lobby, détail d'événement), on charge ses assets au repos. */
@@ -153,7 +207,7 @@ function SceneRouter() {
     const open = (id: string | null) => {
       if (!id) return;
       setEventDetailId(id);
-      navigateTo("event_detail");
+      navigateTo("event_detail", { eventDetailId: id });
     };
     open(consumeEventDeepLink());
     const onWorkerMessage = (message: MessageEvent) => open(eventIdFromWorkerMessage(message.data));
@@ -181,66 +235,242 @@ function SceneRouter() {
     }
   }, [scene]);
 
-  useEffect(() => () => {
-    if (tableEntryTimerRef.current) clearTimeout(tableEntryTimerRef.current);
-  }, []);
+  /* Protection contre actualisation / fermeture accidentelle de l'onglet en pleine partie. */
+  useEffect(() => {
+    if (!gameActive || gameResult) return;
+    const onBeforeUnload = (event: BeforeUnloadEvent) => {
+      event.preventDefault();
+      event.returnValue = "";
+    };
+    window.addEventListener("beforeunload", onBeforeUnload);
+    return () => window.removeEventListener("beforeunload", onBeforeUnload);
+  }, [gameActive, gameResult]);
 
-  const enterTable = useCallback(() => {
-    if (tableEntryTimerRef.current) clearTimeout(tableEntryTimerRef.current);
-    navigateTo("table");
-    tableEntryTimerRef.current = setTimeout(() => {
-      tableEntryTimerRef.current = null;
-      setGameActive(true);
-    }, motionProfile.enabled ? SCENE_TRANSITION_MS : motionProfile.reduced ? 120 : 0);
-  }, [motionProfile.enabled, motionProfile.reduced, navigateTo]);
+  const enterTable = useCallback((options?: { replace?: boolean; resuming?: boolean; reconnectId?: string | null }) => {
+    tableRestoreAttemptedRef.current = true;
+    setResumingMatch(Boolean(options?.resuming));
+    setReconnectMatchId(options?.reconnectId ?? null);
+    setLaunchNonce((n) => n + 1);
+    setGameResult(null);
+    setMatchLoading(true);
+    setGameActive(true);
+    navigateTo("table", { replace: options?.replace });
+  }, [navigateTo]);
 
   /* --- Bot setup --- */
-  const handleBotStart = useCallback((botCount: number, mise: number, difficulty: BotDifficulty = "normal") => {
+  const handleBotStart = useCallback((
+    botCount: number,
+    mise: number,
+    difficulty: BotDifficulty = "normal",
+    options?: { replace?: boolean; resuming?: boolean; reconnectId?: string | null },
+  ) => {
     setGameMode("bot");
     setGameBotCount(botCount);
     setGameDifficulty(difficulty);
     setGameMise(mise);
-    setGameResult(null);
-    enterTable();
+    setEventRunId(null);
+    setEventId(null);
+    setEventMatchmaking(false);
+    saveActiveGameSession({
+      mode: "bot",
+      mise,
+      botCount,
+      difficulty,
+      matchId: options?.reconnectId ?? null,
+    });
+    enterTable(options);
   }, [enterTable]);
 
   /* --- Game starts from lobby --- */
-  const startOnlineGame = useCallback((room: RoomDoc | null | undefined) => {
+  const startOnlineGame = useCallback((
+    room: RoomDoc | null | undefined,
+    options?: { replace?: boolean; resuming?: boolean; reconnectId?: string | null },
+  ) => {
     if (!room) return;
-    setGameMode(room.roomType === "friends" ? "friends" : "online");
+    const mode: GameMode = room.roomType === "friends" ? "friends" : "online";
+    setGameMode(mode);
     setGameMise(room.stake);
-    setGameResult(null);
-    enterTable();
+    setEventRunId(null);
+    setEventId(null);
+    setEventMatchmaking(false);
+    saveActiveGameSession({
+      mode,
+      mise: room.stake,
+      botCount: Math.max(1, (room.players?.length ?? room.maxPlayers) - 1),
+      difficulty: "normal",
+      roomId: room.id,
+      matchId: options?.reconnectId ?? null,
+    });
+    enterTable(options);
   }, [enterTable]);
 
   const handleGameStart = useCallback(() => {
     startOnlineGame(currentRoom);
   }, [currentRoom, startOnlineGame]);
 
-  const handleEventStart = useCallback((runId: string, mode: "pve" | "pvp" = "pve", evtId: string = "", stage0?: { title: string; playerCount: number }) => {
+  const handleEventStart = useCallback((
+    runId: string,
+    mode: "pve" | "pvp" = "pve",
+    evtId: string = "",
+    stage0?: { title: string; playerCount: number },
+    options?: { replace?: boolean; resuming?: boolean; reconnectId?: string | null },
+  ) => {
+    const stageTitle = stage0?.title ?? "";
+    const requiredPlayers = stage0?.playerCount ?? 4;
     setGameMode("event");
     setEventRunId(runId);
     setEventId(evtId || null);
     setGameMise(0);
     setGameBotCount(3);
-    setGameResult(null);
-    setEventStageLabel(stage0?.title ?? "");
-    setEventRequiredPlayers(stage0?.playerCount ?? 4);
-    // PvP : on intercale l'écran de file d'attente tant que le serveur n'a
-    // pas formé le groupe (currentMatchId absent du run). PvE : table directe.
+    setEventStageLabel(stageTitle);
+    setEventRequiredPlayers(requiredPlayers);
     setEventMatchmaking(mode === "pvp");
-    enterTable();
+    saveActiveGameSession({
+      mode: "event",
+      mise: 0,
+      botCount: 3,
+      difficulty: "normal",
+      eventRunId: runId,
+      eventId: evtId || null,
+      eventMatchmaking: mode === "pvp",
+      eventStageLabel: stageTitle,
+      eventRequiredPlayers: requiredPlayers,
+      matchId: options?.reconnectId ?? null,
+    });
+    enterTable(options);
   }, [enterTable]);
 
   const handleResumeGame = useCallback(async () => {
     const room = currentRoom?.status === "playing" ? currentRoom : await resumeActiveRoom();
     if (!room) {
-      // La salle a disparu entre-temps : on résorbe l'affordance Reprendre.
       refreshActiveRoomHint();
       return;
     }
-    startOnlineGame(room);
+    startOnlineGame(room, { resuming: true });
   }, [currentRoom, resumeActiveRoom, refreshActiveRoomHint, startOnlineGame]);
+
+  /* Restauration automatique de la salle d'attente après actualisation (#/lobby?room=...). */
+  useEffect(() => {
+    if (scene !== "lobby" || currentRoom) return;
+    if (authLoading) return;
+    if (!restoredRoomId) {
+      navigateTo("online_setup", { replace: true });
+      return;
+    }
+    if (lobbyRestoreAttemptedRef.current === restoredRoomId) return;
+    lobbyRestoreAttemptedRef.current = restoredRoomId;
+
+    if (!user) {
+      clearRestoredRoomId();
+      navigateTo("online_setup", { replace: true });
+      return;
+    }
+    let cancelled = false;
+    void restoreWaitingRoom(restoredRoomId).then((room) => {
+      if (cancelled) return;
+      if (!room) {
+        clearRestoredRoomId();
+        navigateTo("online_setup", { replace: true });
+      } else if (room.status === "playing") {
+        startOnlineGame(room, { replace: true, resuming: true });
+      }
+    });
+    return () => { cancelled = true; };
+  }, [
+    authLoading,
+    clearRestoredRoomId,
+    currentRoom,
+    navigateTo,
+    restoreWaitingRoom,
+    restoredRoomId,
+    scene,
+    startOnlineGame,
+    user,
+  ]);
+
+  /* Restauration automatique d'une partie active après actualisation sur #/table. */
+  useEffect(() => {
+    if (scene !== "table" || gameActive) return;
+    if (authLoading) return;
+    if (tableRestoreAttemptedRef.current) return;
+    tableRestoreAttemptedRef.current = true;
+
+    const saved = loadActiveGameSession();
+    if (!saved) {
+      navigateTo("menu", { replace: true, resetStack: true });
+      return;
+    }
+
+    if (saved.mode === "online" || saved.mode === "friends") {
+      if (!user) {
+        clearActiveGameSession();
+        navigateTo("menu", { replace: true, resetStack: true });
+        return;
+      }
+      let cancelled = false;
+      void resumeActiveRoom().then((room) => {
+        if (cancelled) return;
+        if (room) {
+          startOnlineGame(room, { replace: true, resuming: true, reconnectId: saved.matchId ?? null });
+        } else {
+          clearActiveGameSession();
+          navigateTo("menu", { replace: true, resetStack: true });
+        }
+      });
+      return () => { cancelled = true; };
+    }
+
+    if (saved.mode === "event" && saved.eventRunId) {
+      if (!user) {
+        clearActiveGameSession();
+        navigateTo("events", { replace: true });
+        return;
+      }
+      if (saved.eventId) setEventDetailId(saved.eventId);
+      handleEventStart(
+        saved.eventRunId,
+        saved.eventMatchmaking ? "pvp" : "pve",
+        saved.eventId ?? "",
+        { title: saved.eventStageLabel ?? "", playerCount: saved.eventRequiredPlayers ?? 4 },
+        { replace: true, resuming: true, reconnectId: saved.matchId ?? null },
+      );
+      return;
+    }
+
+    if (saved.mode === "bot") {
+      const isGuest = !user || user.isAnonymous;
+      if (isGuest) {
+        handleBotStart(saved.botCount, saved.mise, saved.difficulty, { replace: true, resuming: true });
+        return;
+      }
+      if (saved.matchId) {
+        handleBotStart(saved.botCount, saved.mise, saved.difficulty, {
+          replace: true,
+          resuming: true,
+          reconnectId: saved.matchId,
+        });
+        return;
+      }
+      // Partie bot serveur actualisée avant création du matchId : revenir au setup sans double-débit.
+      clearActiveGameSession();
+      navigateTo("bot_setup", { replace: true });
+      return;
+    }
+
+    clearActiveGameSession();
+    navigateTo("menu", { replace: true, resetStack: true });
+  }, [
+    authLoading,
+    gameActive,
+    handleBotStart,
+    handleEventStart,
+    navigateTo,
+    resumeActiveRoom,
+    scene,
+    setEventDetailId,
+    startOnlineGame,
+    user,
+  ]);
 
   /* Type de la partie reprenable (pilote la chip Reprendre du menu). */
   const resumeRoomType = currentRoom?.status === "playing"
@@ -256,62 +486,85 @@ function SceneRouter() {
   const handleResult = useCallback((result: Result) => {
     markPerformance("result");
     setGameResult(result);
-    // Aucun solde ni résultat n'est calculé ou persisté par le client.
-    // La Function a déjà réglé un compte; l'invité reste en entraînement local.
-  }, []);
+    if (gameMode === "bot") updateActiveGameMatchId(null);
+  }, [gameMode]);
 
   const handleNextRound = useCallback(() => {
     nextRoundRef.current?.();
   }, []);
 
   const handleMenu = useCallback(() => {
+    clearActiveGameSession();
+    tableRestoreAttemptedRef.current = false;
     setGameResult(null);
+    setMatchLoading(false);
     setGameActive(false);
+    setResumingMatch(false);
+    setReconnectMatchId(null);
     setEventMatchmaking(false);
     nextRoundRef.current = null;
-    // Quitter la table = quitter la salle. Sans ça, currentRoom résiduel
-    // contaminait la partie suivante (roomId injecté dans une table bot) et
-    // ré-armait l'affordance « Reprendre ».
     if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
-    // Partie d'événement (finie ou abandonnée) : retour au parcours, qui
-    // anime les conséquences (vie perdue, table validée, élimination…).
-    // eventDetailId est conservé depuis l'entrée sur la table.
     if (gameMode === "event" && eventDetailId) {
-      navigateTo("event_detail", { replace: true });
+      navigateTo("event_detail", { replace: true, eventDetailId });
       return;
     }
-    navigateTo("menu", { replace: true });
+    navigateTo("menu", { replace: true, resetStack: true });
   }, [navigateTo, currentRoom, leaveRoom, refreshActiveRoomHint, gameMode, eventDetailId]);
 
-  /* Interception propre du bouton Retour navigateur (Chrome/Safari/Android) :
+  const handleLobbyBack = useCallback(() => {
+    clearRestoredRoomId();
+    lobbyRestoreAttemptedRef.current = null;
+    const fallback = currentRoom?.roomType === "friends" ? "friends_invite" : "online_setup";
+    goBack(fallback);
+  }, [clearRestoredRoomId, currentRoom?.roomType, goBack]);
+
+  const handleMatchIdChange = useCallback((id: string | null) => {
+    updateActiveGameMatchId(id);
+  }, []);
+
+  const handleReconnectFailed = useCallback(() => {
+    clearActiveGameSession();
+    tableRestoreAttemptedRef.current = false;
+    setMatchLoading(false);
+    setGameActive(false);
+    setResumingMatch(false);
+    setReconnectMatchId(null);
+    if (gameMode === "event" && eventDetailId) {
+      navigateTo("event_detail", { replace: true, eventDetailId });
+      return;
+    }
+    navigateTo(gameMode === "bot" ? "bot_setup" : "menu", { replace: true });
+  }, [eventDetailId, gameMode, navigateTo]);
+
+  /* Interception propre du bouton Retour (navigateur / matériel Android Capacitor / in-app) :
      - Sur ResultScreen / Revanche : revient au résultat puis quitte proprement.
-     - Sur TableScreen en cours : ferme une modale ou ouvre « Quitter la partie ? »
-       au lieu d'abandonner brutalement la page.
-     - Sur LobbyScreen : quitte proprement la salle Firestore avant de reculer. */
+     - Pendant MatchLoadingScreen : demande confirmation avant d'annuler le lancement.
+     - Sur TableScreen en cours : ferme une modale ou ouvre « Quitter la partie ? ».
+     - Sur LobbyScreen : demande confirmation si d'autres joueurs attendent, puis quitte la salle. */
   useEffect(() => {
     registerBackInterceptor(() => {
       if (gameResult) {
         const stayedOnResult = resultBackRef.current?.() ?? false;
         return stayedOnResult ? "stay" : "handled";
       }
+      if (gameActive && matchLoading) {
+        return loadingBackRef.current?.() ?? "stay";
+      }
       if (gameActive || scene === "table") {
         if (eventMatchmaking) return "stay";
         return tableBackRef.current?.() ?? "stay";
       }
       if (scene === "lobby") {
-        if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
-        return false;
+        return lobbyBackRef.current?.() ?? false;
       }
       return false;
     });
     return () => registerBackInterceptor(null);
   }, [
-    currentRoom,
     eventMatchmaking,
     gameActive,
     gameResult,
-    leaveRoom,
-    refreshActiveRoomHint,
+    matchLoading,
     registerBackInterceptor,
     scene,
   ]);
@@ -351,8 +604,17 @@ function SceneRouter() {
       case "bot_setup": return <BotSetupScreen onStart={handleBotStart} />;
       case "online_setup": return <OnlineSetupScreen onBotStart={handleBotStart} />;
       case "friends_invite": return <FriendsSetupScreen onBotStart={handleBotStart} />;
-      case "lobby": return roomId ? <LobbyScreen onGameStart={handleGameStart} onBack={handleMenu} /> : null;
-      default: return null; // "table" : géré par le bloc gameActive ci-dessous
+      case "lobby":
+        return roomId ? (
+          <LobbyScreen
+            onGameStart={handleGameStart}
+            onBack={handleLobbyBack}
+            onBackRequestRef={lobbyBackRef}
+          />
+        ) : (
+          <div className="nj-shell" aria-busy="true" aria-label="Reconnexion à la salle d'attente" />
+        );
+      default: return null; // "table" : géré par MatchLoadingScreen + TableScreen ci-dessous
     }
   };
 
@@ -383,69 +645,113 @@ function SceneRouter() {
           <div style={{ minHeight: "100vh" }}>{renderScene()}</div>
         )}
 
-      {/* TableScreen — monté pendant toute la session de jeu. Les props de
-          salle ne sont transmises QU'AUX modes salle : une table bot ne doit
-          jamais hériter d'une salle résiduelle du lobby. */}
-      {gameActive && (
-        <LoadingGate
-          key={tableKey}
-          name="table"
-          title="Préparation de la table"
-          maxWaitMs={isRoomMode || eventMatchmaking ? 3000 : 6000}
-          manifest={buildTableManifest}
-        >
-        <TableScreen
-          key={tableKey}
-          gameMode={gameMode}
-          initialBotCount={gameBotCount}
-          initialMise={gameMise}
-          initialDifficulty={gameDifficulty}
-          roomId={isRoomMode ? roomId ?? undefined : undefined}
-          roomPlayers={isRoomMode && roomPlayers.length > 0 ? roomPlayers as RoomPlayer[] : undefined}
-          roomHostId={isRoomMode ? roomHostId || undefined : undefined}
-          eventRunId={eventRunId ?? undefined}
-          onResult={handleResult}
-          onRoundRestart={() => {
-            setGameResult(null);
-          }}
-          onMenu={handleMenu}
-          onNextRoundRef={nextRoundRef}
-          onBackRequestRef={tableBackRef}
-          paused={Boolean(gameResult)}
-        />
-        </LoadingGate>
-      )}
+        {/* Écran de chargement cérémoniel au lancement d'une partie : précharge
+            et décode toutes les ressources (tapis, cartes, icônes, pouvoirs,
+            sons et chunks JS) avant de révéler la table sans latence. */}
+        <AnimatePresence>
+          {gameActive && matchLoading && (
+            <MatchLoadingScreen
+              key={`loader-${tableKey}`}
+              gameMode={gameMode}
+              mise={gameMise}
+              playerCount={displayPlayerCount}
+              difficulty={gameDifficulty}
+              stageLabel={eventStageLabel}
+              equippedPowers={myEquippedPowers}
+              participants={[myCosmetics]}
+              resuming={resumingMatch}
+              maxWaitMs={isRoomMode || eventMatchmaking ? 3500 : 6000}
+              onReady={() => setMatchLoading(false)}
+              onCancel={gameMode === "bot" ? handleMenu : undefined}
+              onBackRequestRef={loadingBackRef}
+            />
+          )}
+        </AnimatePresence>
 
-      {/* Écran de file d'attente — au-dessus de la table tant qu'un événement
-          PvP n'a pas de groupe (currentMatchId absent du run). Le TableScreen
-          du dessous tourne déjà et pousse le startMatch ; cet overlay observe
-          le run et disparaît dès que le serveur forme le match. */}
-      {gameActive && eventMatchmaking && eventRunId && eventId && (
-        <EventMatchmakingOverlay
-          key={`mm-${eventRunId}`}
-          runId={eventRunId}
-          eventId={eventId}
-          stageTitle={eventStageLabel}
-          requiredPlayers={eventRequiredPlayers}
-          onMatchStart={() => setEventMatchmaking(false)}
-          onAbort={() => setEventMatchmaking(false)}
-        />
-      )}
+        {/* TableScreen — monté une fois les ressources prêtes et conservé pendant
+            toute la session de jeu. Les props de salle ne sont transmises QU'AUX
+            modes salle : une table bot n'hérite jamais d'une salle résiduelle. */}
+        {gameActive && !matchLoading && (
+          <TableScreen
+            key={tableKey}
+            gameMode={gameMode}
+            initialBotCount={gameBotCount}
+            initialMise={gameMise}
+            initialDifficulty={gameDifficulty}
+            roomId={isRoomMode ? roomId ?? undefined : undefined}
+            roomPlayers={isRoomMode && roomPlayers.length > 0 ? roomPlayers as RoomPlayer[] : undefined}
+            roomHostId={isRoomMode ? roomHostId || undefined : undefined}
+            eventRunId={eventRunId ?? undefined}
+            reconnectMatchId={reconnectMatchId ?? undefined}
+            onMatchIdChange={handleMatchIdChange}
+            onReconnectFailed={handleReconnectFailed}
+            onResult={handleResult}
+            onRoundRestart={() => {
+              setGameResult(null);
+            }}
+            onMenu={handleMenu}
+            onNextRoundRef={nextRoundRef}
+            onBackRequestRef={tableBackRef}
+            paused={Boolean(gameResult)}
+          />
+        )}
 
-      {/* ResultScreen — overlay plein écran par-dessus la table */}
-      {gameResult && (
-        <ResultScreen
-          result={gameResult}
-          gameMode={gameMode}
-          mise={gameMise}
-          onNext={handleNextRound}
-          onMenu={handleMenu}
-          canNext={gameMode !== "event" && !!profile && profile.balance >= gameMise}
-          nextRequiresConsensus={gameMode === "online" || gameMode === "friends"}
-          onBackRequestRef={resultBackRef}
-        />
-      )}
-      <PerformanceHud />
+        {/* Écran de file d'attente — au-dessus de la table tant qu'un événement
+            PvP n'a pas de groupe (currentMatchId absent du run). */}
+        {gameActive && !matchLoading && eventMatchmaking && eventRunId && eventId && (
+          <EventMatchmakingOverlay
+            key={`mm-${eventRunId}`}
+            runId={eventRunId}
+            eventId={eventId}
+            stageTitle={eventStageLabel}
+            requiredPlayers={eventRequiredPlayers}
+            onMatchStart={() => setEventMatchmaking(false)}
+            onAbort={() => setEventMatchmaking(false)}
+          />
+        )}
+
+        {/* ResultScreen — overlay plein écran par-dessus la table */}
+        {gameResult && (
+          <ResultScreen
+            result={gameResult}
+            gameMode={gameMode}
+            mise={gameMise}
+            onNext={handleNextRound}
+            onMenu={handleMenu}
+            canNext={gameMode !== "event" && !!profile && profile.balance >= gameMise}
+            nextRequiresConsensus={gameMode === "online" || gameMode === "friends"}
+            onBackRequestRef={resultBackRef}
+          />
+        )}
+
+        {/* Toast discret mobile Capacitor (double-retour pour quitter à la racine) */}
+        {exitToast && (
+          <div
+            role="status"
+            aria-live="polite"
+            style={{
+              position: "fixed",
+              left: "50%",
+              bottom: "max(24px, env(safe-area-inset-bottom))",
+              transform: "translateX(-50%)",
+              zIndex: 500,
+              padding: "10px 18px",
+              borderRadius: 999,
+              border: "1px solid rgba(255, 212, 92, 0.52)",
+              background: "rgba(17, 13, 10, 0.94)",
+              color: "#fff8ea",
+              fontSize: "0.84rem",
+              fontWeight: 700,
+              boxShadow: "0 12px 30px rgba(0, 0, 0, 0.55)",
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+            }}
+          >
+            {exitToast}
+          </div>
+        )}
+
+        <PerformanceHud />
       </div>
     </MotionConfig>
   );

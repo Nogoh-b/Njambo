@@ -99,7 +99,7 @@ export function BottomNav({ active }: BottomNavProps) {
             className={`${styles.item}${isActive ? ` ${styles.active}` : ""}`}
             aria-current={isActive ? "page" : undefined}
             aria-label={label}
-            onClick={() => navigateTo(item.scene)}
+            onClick={() => navigateTo(item.scene, item.scene === "menu" ? { resetStack: true } : undefined)}
           >
             <span className={styles.iconShell} aria-hidden="true">
               <NjamboIcon name={item.icon} tone={item.tone} size={24} />

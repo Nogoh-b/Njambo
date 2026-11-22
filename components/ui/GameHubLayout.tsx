@@ -76,8 +76,9 @@ export function GameHubLayout({
   backLabel = "Salon",
 }: GameHubLayoutProps) {
   const titleId = `game-hub-${useId().replaceAll(":", "")}`;
-  const { navigateTo } = useGame();
+  const { goBack, backLabelFor } = useGame();
   const emblem = TONE_ICON[tone];
+  const resolvedBackLabel = onBack ? backLabel : backLabelFor("menu");
 
   return (
     <GameShell
@@ -93,11 +94,11 @@ export function GameHubLayout({
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={onBack ?? (() => navigateTo("menu"))}
-            aria-label={`Retour à ${backLabel}`}
+            onClick={onBack ?? (() => goBack("menu"))}
+            aria-label={`Retour à ${resolvedBackLabel}`}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>{backLabel}</span>
+            <span className={styles.backLabel}>{resolvedBackLabel}</span>
           </button>
 
           <span className={styles.headerMedallion} aria-hidden="true">

@@ -12,7 +12,7 @@ import type { OnlinePlayerProfile } from "@/types/game";
 import styles from "./LeaderboardScreen.module.css";
 
 export function LeaderboardScreen() {
-  const { navigateTo } = useGame();
+  const { navigateTo, goBack, backLabelFor } = useGame();
   const { user } = useAuth();
   const [players, setPlayers] = useState<OnlinePlayerProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -44,11 +44,11 @@ export function LeaderboardScreen() {
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={() => navigateTo("menu")}
-            aria-label="Retour au salon"
+            onClick={() => goBack("menu")}
+            aria-label={`Retour à ${backLabelFor("menu")}`}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>Salon</span>
+            <span className={styles.backLabel}>{backLabelFor("menu")}</span>
           </button>
           <div className={styles.hudCopy}>
             <span className={styles.hudKicker}>Les forts du quartier</span>

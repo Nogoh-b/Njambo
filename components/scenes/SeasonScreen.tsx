@@ -15,7 +15,7 @@ import { eventCountdown } from "@/lib/eventCountdown";
 import styles from "./SeasonScreen.module.css";
 
 export function SeasonScreen() {
-  const { navigateTo } = useGame();
+  const { goBack, backLabelFor } = useGame();
   const { command, refresh } = useEconomy();
   const { seasons, error, reload, signedIn } = useSeasons();
   const [selected, setSelected] = useState(0);
@@ -58,8 +58,8 @@ export function SeasonScreen() {
 
   const header = (
     <header className={styles.hud}>
-      <button data-nj-skin="none" type="button" className="nj-sr-back" onClick={() => navigateTo("events")}>
-        <span className="nj-sr-back-arrow" aria-hidden="true">←</span><span>Événements</span>
+      <button data-nj-skin="none" type="button" className="nj-sr-back" onClick={() => goBack("events")}>
+        <span className="nj-sr-back-arrow" aria-hidden="true">←</span><span>{backLabelFor("events")}</span>
       </button>
       <div className={styles.hudCenter}><span className={styles.kicker}>PASSE DE SAISON</span><h1>{view?.season.title ?? "Saison"}</h1></div>
       <span />

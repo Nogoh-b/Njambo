@@ -105,7 +105,7 @@ function eventDates(event: EventVersion) {
 }
 
 export function EventsScreen() {
-  const { navigateTo, setEventDetailId } = useGame();
+  const { navigateTo, goBack, backLabelFor, setEventDetailId } = useGame();
   const { user } = useAuth();
   const { inventory } = useEconomy();
   const { events, error: contentError } = useLiveOpsContent();
@@ -188,13 +188,13 @@ export function EventsScreen() {
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={() => navigateTo("menu")}
-            aria-label="Retour au salon"
+            onClick={() => goBack("menu")}
+            aria-label={`Retour à ${backLabelFor("menu")}`}
             whileHover={motionProfile.enabled ? { y: -1, scale: 1.03 } : undefined}
             whileTap={motionProfile.enabled ? { scale: 0.94 } : undefined}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>Salon</span>
+            <span className={styles.backLabel}>{backLabelFor("menu")}</span>
           </motion.button>
 
           <div className={styles.hudCopy}>

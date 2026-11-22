@@ -41,7 +41,7 @@ const ZERO_STATS: PlayerStats = { played: 0, won: 0, bestWin: 0 };
 export function ProfileScreen() {
   const [collectionOpen, setCollectionOpen] = useState(false);
   const myCosmetics = useMyCosmetics();
-  const { profile, setProfile, navigateTo, setCollectionTab, cfg } = useGame();
+  const { profile, setProfile, navigateTo, goBack, backLabelFor, setCollectionTab, cfg } = useGame();
   const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const { user, updateUserProfile, updateAgeBand, logout } = useAuth();
   const { economy, rank, inventory } = useEconomy();
@@ -140,11 +140,11 @@ export function ProfileScreen() {
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={() => navigateTo("menu")}
-            aria-label="Retour au salon"
+            onClick={() => goBack("menu")}
+            aria-label={`Retour à ${backLabelFor("menu")}`}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>Salon</span>
+            <span className={styles.backLabel}>{backLabelFor("menu")}</span>
           </button>
           <div className={styles.hudCopy}>
             <span className={styles.hudKicker}>Carte de joueur</span>

@@ -9,11 +9,11 @@ import { displayFont } from "@/components/ui/Shell";
 import { t } from "@/lib/i18n";
 
 export function LiveOpsLayout({ title, subtitle, active, children }: { title: string; subtitle?: string; active?: BottomNavKey; children: ReactNode }) {
-  const { navigateTo } = useGame();
+  const { goBack } = useGame();
   return (
     <BottomNavScene active={active} className="nj-liveops-page" contentClassName="nj-liveops-scroll">
       <header className="nj-liveops-header">
-        <button data-nj-skin="dark" type="button" className="nj-liveops-back" onClick={() => navigateTo("menu")} aria-label={t("common.back")}>
+        <button data-nj-skin="dark" type="button" className="nj-liveops-back" onClick={() => goBack("menu")} aria-label={t("common.back")}>
           <NjamboIcon name="home" tone="gold" size={20} />
         </button>
         <div>

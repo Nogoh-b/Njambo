@@ -14,7 +14,7 @@ import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { NotificationEntry } from "@/types/game";
 
 export function NotificationsScreen() {
-  const { navigateTo, setSocialTarget, setEventDetailId } = useGame();
+  const { navigateTo, goBack, backLabelFor, setSocialTarget, setEventDetailId } = useGame();
   const { user } = useAuth();
   const motion = useMotionProfile();
   const { joinRoomById } = useLobby();
@@ -65,7 +65,7 @@ export function NotificationsScreen() {
   return (
     <BottomNavScene active="notifications" narrow>
         <div className="nj-phone">
-          <ScreenHeader title="Notifications" kicker="Activité" icon="notification" tone="pink" onBack={() => navigateTo("menu")} backLabel="Salon" />
+          <ScreenHeader title="Notifications" kicker="Activité" icon="notification" tone="pink" onBack={() => goBack("menu")} backLabel={backLabelFor("menu")} />
           <Surface scrollable>
             <div className="nj-stack" style={{ gap: 10 }}>
               {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement...</div>}

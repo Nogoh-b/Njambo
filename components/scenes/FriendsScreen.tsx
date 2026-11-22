@@ -67,7 +67,7 @@ function winRateOf(stats?: { played: number; won: number }): number | null {
 }
 
 export function FriendsScreen() {
-  const { navigateTo, setSocialTarget, cfg } = useGame();
+  const { navigateTo, goBack, backLabelFor, setSocialTarget, cfg } = useGame();
   const { currentRoom, createRoom } = useLobby();
   const { user } = useAuth();
   const motionProfile = useMotionProfile();
@@ -294,11 +294,11 @@ export function FriendsScreen() {
           data-nj-skin="none"
           type="button"
           className={styles.backBtn}
-          onClick={() => navigateTo("menu")}
-          aria-label="Retour au salon principal"
+          onClick={() => goBack("menu")}
+          aria-label={`Retour à ${backLabelFor("menu")}`}
         >
           <span className={styles.backArrow} aria-hidden="true">←</span>
-          <span>Salon</span>
+          <span>{backLabelFor("menu")}</span>
         </button>
 
         <div className={styles.hudCenter}>

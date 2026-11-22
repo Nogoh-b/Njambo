@@ -14,7 +14,7 @@ import { SocialActions } from "@/components/social/SocialActions";
 import type { PublicPlayerProfile } from "@/types/game";
 
 export function PlayersScreen() {
-  const { navigateTo } = useGame();
+  const { goBack, backLabelFor } = useGame();
   const { user } = useAuth();
   const motion = useMotionProfile();
   const [search, setSearch] = useState("");
@@ -33,7 +33,7 @@ export function PlayersScreen() {
   return (
     <BottomNavScene active="players" narrow>
         <div className="nj-phone">
-          <ScreenHeader title="Joueurs" kicker="Découverte" icon="search" tone="teal" onBack={() => navigateTo("menu")} backLabel="Salon" />
+          <ScreenHeader title="Joueurs" kicker="Découverte" icon="search" tone="teal" onBack={() => goBack("menu")} backLabel={backLabelFor("menu")} />
           <Surface scrollable>
             <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12 }}>
               <span className="nj-title-icon" style={{ width: 42, height: 42, borderRadius: 14 }}>

@@ -63,6 +63,12 @@ interface Options {
   botCount: number;
   difficulty?: string;
   onResult: (result: Result) => void;
+  /** Reconnexion directe à un match existant après actualisation (sans relancer startMatch). */
+  reconnectMatchId?: string;
+  /** Notifié dès que le matchId serveur est connu ou réinitialisé. */
+  onMatchId?: (matchId: string | null) => void;
+  /** Appelé si la reconnexion à un match restauré échoue ou est déjà terminée. */
+  onReconnectFailed?: () => void;
 }
 
 type PlayListener = (play: { playerIdx: number; cardIdx: number; card: Card; playId?: string }) => void;
@@ -134,8 +140,11 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private syncListeners = new Set<(status: SyncStatus) => void>();
   private powerListeners = new Set<(activation: PowerCardActivation) => void>();
 
+  private initialReconnectMatchId: string | null = null;
+
   constructor(private opts: Options) {
     this.currentHostId = opts.hostId;
+    this.initialReconnectMatchId = opts.reconnectMatchId ?? null;
   }
 
   start = () => { void this.startRound(); };
@@ -143,6 +152,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
     // Le listener de salle (roomUnsub) SURVIT au changement de manche : c'est
     // lui qui apprendra l'activeMatchId de la revanche.
     this.consumedMatchId = this.matchId;
+    this.initialReconnectMatchId = null;
+    this.opts.onMatchId?.(null);
     this.stopMatchSnapshots(); this.stopDealing(); this.stopReplay();
     this.matchId = null; this.match = null; this.hand = [];
     this.advancingRound = 0; this.pendingRoundMatch = null; this.roundHands.clear();
@@ -188,6 +199,15 @@ export class AuthoritativeGameSync implements GameSyncActions {
 
   private async startRound() {
     this.status("connecting", "Le serveur prépare la table…");
+    if (this.initialReconnectMatchId && !this.consumedMatchId) {
+      const targetMatchId = this.initialReconnectMatchId;
+      this.initialReconnectMatchId = null;
+      if ((this.opts.mode === "online" || this.opts.mode === "friends") && this.opts.roomId) {
+        this.subscribeRoom();
+      }
+      await this.reconnect(targetMatchId, true);
+      return;
+    }
     const roomMode = this.opts.mode === "online" || this.opts.mode === "friends";
     if (roomMode && this.opts.roomId) {
       if (this.currentHostId !== this.opts.uid) {
@@ -282,10 +302,16 @@ export class AuthoritativeGameSync implements GameSyncActions {
     }
   }
 
-  private async reconnect(matchId: string) {
+  private async reconnect(matchId: string, isResumeAfterReload = false) {
     try {
       const call = backendCallable<Record<string, unknown>, ServerState>("reconnectMatch");
       const response = await call({ idempotencyKey: `reconnect_${generateSecureId(24)}`, matchId });
+      if (this.destroyed) return;
+      if (isResumeAfterReload && ["settled", "forfeit", "cancelled"].includes(response.data.match.status)) {
+        this.opts.onMatchId?.(null);
+        this.opts.onReconnectFailed?.();
+        return;
+      }
       await this.prepareAssets(response.data);
       // Reprise en cours de partie : état appliqué directement, AUCUN replay
       // des vols du dernier batch (le passage par le seed d'ingestMatch
@@ -300,7 +326,14 @@ export class AuthoritativeGameSync implements GameSyncActions {
       this.beginDealingWindow(response.data.match, true);
       this.applyServerState(response.data);
       this.subscribe(matchId);
-    } catch (cause) { this.status("error", cause instanceof Error ? cause.message : "Reconnexion refusée"); }
+    } catch (cause) {
+      if (isResumeAfterReload) {
+        this.opts.onMatchId?.(null);
+        this.opts.onReconnectFailed?.();
+        return;
+      }
+      this.status("error", cause instanceof Error ? cause.message : "Reconnexion refusée");
+    }
   }
 
   private subscribe(matchId: string) {
@@ -308,6 +341,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     // reste vivante (c'est elle qui annonce les manches suivantes).
     this.stopMatchSnapshots();
     this.matchId = matchId;
+    this.opts.onMatchId?.(matchId);
     this.matchUnsub = onSnapshot(doc(db, "matches", matchId), (snapshot) => {
       if (!snapshot.exists()) return;
       this.ingestMatch(snapshot.data() as ServerMatch);

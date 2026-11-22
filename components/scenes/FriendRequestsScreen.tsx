@@ -14,7 +14,7 @@ import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { FriendRequest } from "@/types/game";
 
 export function FriendRequestsScreen() {
-  const { navigateTo } = useGame();
+  const { goBack, backLabelFor } = useGame();
   const { user } = useAuth();
   const motion = useMotionProfile();
   const [requests, setRequests] = useState<FriendRequest[]>([]);
@@ -37,7 +37,7 @@ export function FriendRequestsScreen() {
   return (
     <BottomNavScene active="friends" narrow>
         <div className="nj-phone">
-          <ScreenHeader title="Demandes" kicker="Amitie" icon="friends" tone="pink" onBack={() => navigateTo("friends")} backLabel="Amis" />
+          <ScreenHeader title="Demandes" kicker="Amitie" icon="friends" tone="pink" onBack={() => goBack("friends")} backLabel={backLabelFor("friends")} />
           <Surface scrollable>
             <div className="nj-stack" style={{ gap: 10 }}>
               {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement...</div>}

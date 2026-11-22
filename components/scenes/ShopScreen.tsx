@@ -103,7 +103,7 @@ const GRID_ODDS = [
 ];
 
 export function ShopScreen() {
-  const { navigateTo, setCollectionTab } = useGame();
+  const { navigateTo, goBack, backLabelFor, setCollectionTab } = useGame();
   const { user } = useAuth();
   const { economy, inventory, loading: economyLoading, command, pendingBoosterOpening } = useEconomy();
   const { offers: publishedOffers, boosters, error: contentError } = useLiveOpsContent();
@@ -404,11 +404,11 @@ export function ShopScreen() {
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={() => navigateTo("menu")}
-            aria-label="Retour au salon"
+            onClick={() => goBack("menu")}
+            aria-label={`Retour à ${backLabelFor("menu")}`}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>Salon</span>
+            <span className={styles.backLabel}>{backLabelFor("menu")}</span>
           </button>
           <div className={styles.hudCopy}>
             <span className={styles.hudKicker}>{t("shop.kicker")}</span>

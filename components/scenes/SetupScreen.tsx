@@ -15,7 +15,7 @@ interface SetupScreenProps {
 }
 
 export function SetupScreen({ onStart }: SetupScreenProps) {
-  const { profile, navigateTo, cfg } = useGame();
+  const { profile, goBack, backLabelFor, cfg } = useGame();
   const [botCount, setBotCount] = useState(2);
   const [mise, setMise] = useState(cfg.stakes[1]);
 
@@ -50,8 +50,8 @@ export function SetupScreen({ onStart }: SetupScreenProps) {
         </div>
 
         <div style={{ display: "flex", gap: 12, marginTop: 30 }}>
-          <Btn variant="ghost" onClick={() => navigateTo("menu")}>
-            ← Menu
+          <Btn variant="ghost" onClick={() => goBack("menu")}>
+            ← {backLabelFor("menu")}
           </Btn>
           <Btn variant="pink" onClick={handleStart} disabled={profile.balance < mise}>
             À la table →

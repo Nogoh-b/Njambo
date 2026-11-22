@@ -14,7 +14,7 @@ import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { ChatMessage } from "@/types/game";
 
 export function ChatScreen() {
-  const { navigateTo, socialTarget, setSocialTarget } = useGame();
+  const { goBack, backLabelFor, socialTarget, setSocialTarget } = useGame();
   const { user } = useAuth();
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [text, setText] = useState("");
@@ -57,7 +57,7 @@ export function ChatScreen() {
   return (
     <BottomNavScene active="social" narrow>
         <div className="nj-phone">
-          <ScreenHeader title={peer.name} kicker="Message prive" icon="message" tone="teal" onBack={() => navigateTo("messages")} backLabel="Messages" />
+          <ScreenHeader title={peer.name} kicker="Message prive" icon="message" tone="teal" onBack={() => goBack("messages")} backLabel={backLabelFor("messages")} />
           <Surface style={{ flex: "1 1 auto", minHeight: 0, display: "flex", flexDirection: "column", gap: 10, overflow: "hidden" }}>
             {/* La présence du correspondant n'est pas connue depuis le chat :
                 pas de pastille plutôt qu'une pastille toujours verte. */}

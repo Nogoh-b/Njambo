@@ -73,7 +73,7 @@ export function EventDetailScreen({
     stage0?: { title: string; playerCount: number },
   ) => void;
 }) {
-  const { navigateTo, eventDetailId, eventReturn, setEventReturn, cfg } = useGame();
+  const { navigateTo, goBack, backLabelFor, eventDetailId, eventReturn, setEventReturn, cfg } = useGame();
   const gxeSfx = useSfx();
   const { user } = useAuth();
   const { economy, inventory, loading: economyLoading, command, refresh: refreshEconomy } = useEconomy();
@@ -326,10 +326,10 @@ export function EventDetailScreen({
               data-nj-skin="none"
               type="button"
               className={styles.backBtn}
-              onClick={() => navigateTo("events")}
+              onClick={() => goBack("events")}
             >
               <span aria-hidden="true">←</span>
-              <span>Événements</span>
+              <span>{backLabelFor("events")}</span>
             </button>
             <div className={styles.hudCopy}>
               <span className={styles.hudKicker}>Le Ter</span>
@@ -490,13 +490,13 @@ export function EventDetailScreen({
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={() => navigateTo("events")}
-            aria-label="Retour aux événements"
+            onClick={() => goBack("events")}
+            aria-label={`Retour à ${backLabelFor("events")}`}
             whileHover={motionProfile.enabled ? { y: -1, scale: 1.03 } : undefined}
             whileTap={motionProfile.enabled ? { scale: 0.94 } : undefined}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>Événements</span>
+            <span className={styles.backLabel}>{backLabelFor("events")}</span>
           </motion.button>
 
           <div className={styles.hudCopy}>

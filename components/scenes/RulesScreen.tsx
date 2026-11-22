@@ -23,7 +23,7 @@ interface RuleStep {
 }
 
 export function RulesScreen() {
-  const { navigateTo, cfg } = useGame();
+  const { navigateTo, goBack, backLabelFor, cfg } = useGame();
   const [stepIndex, setStepIndex] = useState(0);
   const deckSize = (cfg.ranks.max - cfg.ranks.min + 1) * cfg.suits.length;
 
@@ -195,8 +195,8 @@ export function RulesScreen() {
           kicker="Guide du Njambo"
           icon="cards"
           tone="gold"
-          onBack={() => navigateTo("menu")}
-          backLabel="Salon"
+          onBack={() => goBack("menu")}
+          backLabel={backLabelFor("menu")}
         />
 
         {/* Sélecteur rapide des 5 cartes de règles */}

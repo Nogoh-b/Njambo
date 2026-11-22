@@ -107,6 +107,9 @@ interface TableScreenProps {
   roomPlayers?: RoomPlayer[];
   roomHostId?: string;
   eventRunId?: string;
+  reconnectMatchId?: string;
+  onMatchIdChange?: (matchId: string | null) => void;
+  onReconnectFailed?: () => void;
   onNextRoundRef: { current: (() => void) | null };
   onBackRequestRef?: { current: (() => "stay" | "handled") | null };
   paused?: boolean;
@@ -455,6 +458,9 @@ export function TableScreen({
   roomPlayers,
   roomHostId,
   eventRunId,
+  reconnectMatchId,
+  onMatchIdChange,
+  onReconnectFailed,
   onNextRoundRef,
   onBackRequestRef,
   paused = false,
@@ -677,9 +683,9 @@ export function TableScreen({
     [isYourTurn, ledSuit, yourHand],
   );
 
-  /* Quitter : confirmation quand une partie est EN COURS ; sinon retour direct.
+  /* Quitter : confirmation dès qu'on est dans une partie active (hors écran résultat).
      En ligne, la confirmation serveur précède toujours le retour au menu. */
-  const matchInProgress = phase === "turns" || phase === "dealing" || phase === "trickEnd" || (gameMode === "event" && phase === "idle");
+  const matchInProgress = !paused && phase !== "result";
   const handleMenuTap = () => {
     if (matchInProgress) setConfirmQuit(true);
     else onMenu();
@@ -1355,6 +1361,9 @@ export function TableScreen({
         botCount: initialBotCount,
         difficulty: initialDifficulty,
         onResult,
+        reconnectMatchId,
+        onMatchId: onMatchIdChange,
+        onReconnectFailed,
       });
     } else {
       setBanner("Un compte permanent est requis.");
@@ -1680,10 +1689,9 @@ export function TableScreen({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [gameMode, roomId, roomSessionReady, sessionAuthKey]);
 
-  /* ----- Bouton Retour navigateur exposé au router ----- */
+  /* ----- Bouton Retour (navigateur / matériel Android / Échap) exposé au router ----- */
   useEffect(() => {
-    if (!onBackRequestRef) return;
-    onBackRequestRef.current = () => {
+    const handleBack = (): "stay" | "handled" => {
       if (confirmQuit) { setConfirmQuit(false); return "stay"; }
       if (showQuickHelp) { setShowQuickHelp(false); return "stay"; }
       if (previewPowerCard) { setPreviewPowerCard(null); return "stay"; }
@@ -1694,12 +1702,23 @@ export function TableScreen({
       onMenu();
       return "handled";
     };
-    return () => { onBackRequestRef.current = null; };
+    if (onBackRequestRef) onBackRequestRef.current = handleBack;
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || paused) return;
+      event.preventDefault();
+      handleBack();
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.removeEventListener("keydown", onKeyDown);
+      if (onBackRequestRef) onBackRequestRef.current = null;
+    };
   }, [
     confirmQuit,
     matchInProgress,
     onBackRequestRef,
     onMenu,
+    paused,
     previewPowerCard,
     reactionsOpen,
     showQuickHelp,

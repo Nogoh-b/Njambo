@@ -70,7 +70,7 @@ const FILTERS: Array<{ id: BinderFilter; label: string }> = [
 const ROMAN_SLOTS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"] as const;
 
 export function PowerCollectionScreen() {
-  const { navigateTo, profile, setProfile, cfg, collectionTab, setCollectionTab } = useGame();
+  const { navigateTo, goBack, backLabelFor, profile, setProfile, cfg, collectionTab, setCollectionTab } = useGame();
   const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const { user } = useAuth();
   const { inventory: serverInventory, command, pendingBoosterOpening } = useEconomy();
@@ -513,11 +513,11 @@ export function PowerCollectionScreen() {
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={() => navigateTo("menu")}
-            aria-label="Retour au salon"
+            onClick={() => goBack("menu")}
+            aria-label={`Retour à ${backLabelFor("menu")}`}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>Salon</span>
+            <span className={styles.backLabel}>{backLabelFor("menu")}</span>
           </button>
           <div className={styles.hudCopy}>
             <span className={styles.hudKicker}>

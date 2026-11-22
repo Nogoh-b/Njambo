@@ -15,7 +15,7 @@ import { SocialActions } from "@/components/social/SocialActions";
 import type { PublicPlayerProfile } from "@/types/game";
 
 export function PublicProfileScreen() {
-  const { navigateTo, socialTarget } = useGame();
+  const { goBack, backLabelFor, socialTarget } = useGame();
   const [player, setPlayer] = useState<PublicPlayerProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -36,7 +36,7 @@ export function PublicProfileScreen() {
   return (
     <BottomNavScene narrow>
         <div className="nj-phone">
-          <ScreenHeader title="Profil joueur" kicker="Public" icon="profile" tone="gold" onBack={() => navigateTo("players")} backLabel="Joueurs" />
+          <ScreenHeader title="Profil joueur" kicker="Public" icon="profile" tone="gold" onBack={() => goBack("players")} backLabel={backLabelFor("players")} />
           <Surface scrollable style={{ textAlign: "center" }}>
             {loading && <div className="nj-subtle" style={{ padding: 20 }}>Chargement...</div>}
             {!loading && !player && <div className="nj-subtle" style={{ padding: 20 }}>Joueur introuvable.</div>}

@@ -7,6 +7,8 @@ import { useAuth } from "@/hooks/useAuth";
 import { useMotionProfile } from "@/lib/motion";
 import { NKAP } from "@/data/mock";
 import { AvatarIllustration, NjamboIcon } from "@/components/ui/Art";
+import { Btn } from "@/components/ui/Btn";
+import { GameModal } from "@/components/ui/GameModal";
 import { GameShell } from "@/components/ui/GameShell";
 import { SocialActions } from "@/components/social/SocialActions";
 import styles from "./LobbyScreen.module.css";
@@ -16,13 +18,15 @@ const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
 interface LobbyScreenProps {
   onGameStart: () => void;
   onBack: () => void;
+  onBackRequestRef?: { current: (() => "stay" | "handled") | null };
 }
 
-export function LobbyScreen({ onGameStart, onBack }: LobbyScreenProps) {
+export function LobbyScreen({ onGameStart, onBack, onBackRequestRef }: LobbyScreenProps) {
   const { user } = useAuth();
   const motionProfile = useMotionProfile();
   const { currentRoom, roomError, leaveRoom, setReady, startGame, clearError } = useLobby();
   const [copied, setCopied] = useState(false);
+  const [confirmLeave, setConfirmLeave] = useState(false);
 
   useEffect(() => {
     if (currentRoom?.status === "playing") {
@@ -40,10 +44,37 @@ export function LobbyScreen({ onGameStart, onBack }: LobbyScreenProps) {
   }, [currentRoom]);
 
   const handleLeave = useCallback(async () => {
+    setConfirmLeave(false);
     await leaveRoom();
     clearError();
     onBack();
   }, [leaveRoom, clearError, onBack]);
+
+  const handleRequestLeave = useCallback(() => {
+    const othersPresent = (currentRoom?.players.length ?? 0) > 1;
+    if (othersPresent) {
+      setConfirmLeave(true);
+    } else {
+      void handleLeave();
+    }
+  }, [currentRoom?.players.length, handleLeave]);
+
+  useEffect(() => {
+    if (!onBackRequestRef) return;
+    onBackRequestRef.current = () => {
+      if (confirmLeave) {
+        setConfirmLeave(false);
+        return "stay";
+      }
+      if ((currentRoom?.players.length ?? 0) > 1) {
+        setConfirmLeave(true);
+        return "stay";
+      }
+      void handleLeave();
+      return "handled";
+    };
+    return () => { onBackRequestRef.current = null; };
+  }, [confirmLeave, currentRoom?.players.length, handleLeave, onBackRequestRef]);
 
   const handleToggleReady = useCallback(async () => {
     const myReady = currentRoom?.players.find((player) => player.uid === user?.uid)?.ready;
@@ -85,7 +116,7 @@ export function LobbyScreen({ onGameStart, onBack }: LobbyScreenProps) {
           data-nj-skin="none"
           type="button"
           className={styles.backBtn}
-          onClick={() => { void handleLeave(); }}
+          onClick={handleRequestLeave}
           aria-label="Quitter la salle"
         >
           <span aria-hidden="true">←</span>
@@ -248,6 +279,31 @@ export function LobbyScreen({ onGameStart, onBack }: LobbyScreenProps) {
           </button>
         )}
       </footer>
+
+      <GameModal
+        open={confirmLeave}
+        onClose={() => setConfirmLeave(false)}
+        title="Quitter la salle ?"
+        kicker="Salle d'attente"
+        tone="pink"
+        size="sm"
+        footer={(
+          <div style={{ display: "flex", gap: 10, width: "100%" }}>
+            <Btn tone="teal" fill="soft" size="md" onClick={() => setConfirmLeave(false)} style={{ flex: 1 }}>
+              Rester
+            </Btn>
+            <Btn tone="red" fill="solid" size="md" onClick={() => { void handleLeave(); }} style={{ flex: 1 }}>
+              Quitter
+            </Btn>
+          </div>
+        )}
+      >
+        <p style={{ margin: 0, lineHeight: 1.45 }}>
+          {isHost
+            ? "D'autres joueurs t'attendent dans cette salle. Es-tu sûr de vouloir la quitter ?"
+            : "Tu vas libérer ta place dans la salle d'attente."}
+        </p>
+      </GameModal>
     </GameShell>
   );
 }

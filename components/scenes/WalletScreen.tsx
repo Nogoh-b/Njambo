@@ -71,7 +71,7 @@ function dayLabel(date: Date) {
 }
 
 export function WalletScreen() {
-  const { navigateTo } = useGame();
+  const { navigateTo, goBack, backLabelFor } = useGame();
   const { user } = useAuth();
   const { economy, rank, error } = useEconomy();
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
@@ -134,11 +134,11 @@ export function WalletScreen() {
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={() => navigateTo("menu")}
-            aria-label="Retour au salon"
+            onClick={() => goBack("menu")}
+            aria-label={`Retour à ${backLabelFor("menu")}`}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>Salon</span>
+            <span className={styles.backLabel}>{backLabelFor("menu")}</span>
           </button>
           <div className={styles.hudCopy}>
             <span className={styles.hudKicker}>{t("wallet.kicker")}</span>

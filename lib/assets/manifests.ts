@@ -53,32 +53,95 @@ type CosmeticsLike = { avatarFrame?: { imageUrl?: string }; badge?: { imageUrl?:
 export interface TableManifestInput {
   /** Cartes de pouvoir équipées par le joueur local (celles des adversaires restent secrètes). */
   myPowers?: PowerCardId[];
-  /** Cosmétiques connus des participants (cadres, badges). */
+  /** Cosmétiques connus des participants (cadres, badges, dos de carte). */
   participants?: CosmeticsLike[];
+  /** Avatars distants connus (ex. boss d'événement ou joueurs de salle). */
+  avatars?: Array<string | null | undefined>;
 }
 
+export interface TableAssetGroups {
+  /** Tapis, fond de table, dos de cartes et icônes HUD indispensables. */
+  decorAndCards: AssetRef[];
+  /** Visuels et sons des cartes pouvoir équipées + cosmétiques des joueurs. */
+  powersAndAudio: AssetRef[];
+  /** Catalogue complet des pouvoirs & cadres chargés en arrière-plan. */
+  background: AssetRef[];
+}
+
+const TABLE_UI_CRITICAL = [
+  "/assets/njambo/books/card-back-128.webp",
+  "/assets/njambo/ui/brand/njambo-mark-128.webp",
+  "/assets/njambo/economy/nkap-64.webp",
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/ui/icons/cards-64.webp",
+  "/assets/njambo/ui/icons/crown-64.webp",
+  "/assets/njambo/ui/icons/trophy-64.webp",
+  "/assets/njambo/ui/icons/coin-64.webp",
+  "/assets/njambo/ui/icons/check-64.webp",
+  "/assets/njambo/ui/icons/sparkle-64.webp",
+  "/assets/njambo/ui/icons/home-64.webp",
+] as const;
+
+const TABLE_UI_BACKGROUND = [
+  "/assets/njambo/ui/icons/hourglass-64.webp",
+  "/assets/njambo/ui/buttons/gold-frame.webp",
+  "/assets/njambo/ui/buttons/teal-frame.webp",
+  "/assets/njambo/ui/buttons/pink-frame.webp",
+  "/assets/njambo/ui/buttons/dark-frame.webp",
+] as const;
+
 /**
- * Table : tapis + fond + dos de carte (équipé ou classique) + pouvoirs du
- * joueur (visuels ET sons) en indispensable ; cosmétiques des participants et
- * tout le catalogue de pouvoirs (ce que les adversaires peuvent jouer) ensuite.
+ * Découpe les assets de la table par catégorie pour l'écran de chargement de
+ * partie (suivi visuel par étape : Décors & Cartes, Pouvoirs & Sons, etc.).
  */
-export function tableManifest(input: TableManifestInput = {}): AssetManifest {
-  if (typeof window === "undefined") return EMPTY;
-  const critical: Array<AssetRef | null> = [
+export function tableAssetGroups(input: TableManifestInput = {}): TableAssetGroups {
+  if (typeof window === "undefined") {
+    return { decorAndCards: [], powersAndAudio: [], background: [] };
+  }
+  const decorRaw: Array<AssetRef | null> = [
     imageAsset(cssVarUrl("--nj-table-image")),
     imageAsset(cssVarUrl("--nj-solar-app-bg")),
     imageAsset(cssVarUrl("--nj-card-back") ?? "/assets/njambo/card-back.webp"),
+    ...TABLE_UI_CRITICAL.map((url) => imageAsset(url)),
   ];
+  const powersRaw: Array<AssetRef | null> = [];
   for (const cardId of input.myPowers ?? []) {
     const assets = powerCardAssets(cardId);
-    critical.push(...assets.images, ...assets.sounds);
+    powersRaw.push(...assets.images, ...assets.sounds);
   }
-  const background: Array<AssetRef | null> = [];
   for (const cosmetics of input.participants ?? []) {
-    critical.push(imageAsset(cosmetics?.avatarFrame?.imageUrl), imageAsset(cosmetics?.badge?.imageUrl), imageAsset(cosmetics?.cardBack?.imageUrl));
+    powersRaw.push(
+      imageAsset(cosmetics?.avatarFrame?.imageUrl),
+      imageAsset(cosmetics?.badge?.imageUrl),
+      imageAsset(cosmetics?.cardBack?.imageUrl),
+    );
   }
-  background.push(...catalogPowerAssets());
-  return { critical: critical.filter(Boolean) as AssetRef[], background: background.filter(Boolean) as AssetRef[] };
+  for (const avatarUrl of input.avatars ?? []) {
+    powersRaw.push(imageAsset(avatarUrl));
+  }
+  const backgroundRaw: Array<AssetRef | null> = [
+    ...TABLE_UI_BACKGROUND.map((url) => imageAsset(url)),
+    ...catalogPowerAssets(),
+  ];
+  return {
+    decorAndCards: decorRaw.filter(Boolean) as AssetRef[],
+    powersAndAudio: powersRaw.filter(Boolean) as AssetRef[],
+    background: backgroundRaw.filter(Boolean) as AssetRef[],
+  };
+}
+
+/**
+ * Table : tapis + fond + dos de carte (équipé ou classique) + icônes HUD +
+ * pouvoirs du joueur (visuels ET sons) en indispensable ; cosmétiques des
+ * participants et tout le catalogue de pouvoirs ensuite.
+ */
+export function tableManifest(input: TableManifestInput = {}): AssetManifest {
+  if (typeof window === "undefined") return EMPTY;
+  const groups = tableAssetGroups(input);
+  return {
+    critical: [...groups.decorAndCards, ...groups.powersAndAudio],
+    background: groups.background,
+  };
 }
 
 const SHOP_STATIC = [

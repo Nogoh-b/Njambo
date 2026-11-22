@@ -4,6 +4,7 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useRef, use
 import {
   collection,
   doc,
+  getDoc,
   getDocs,
   onSnapshot,
   query,
@@ -38,6 +39,7 @@ interface LobbyContextValue {
   setReady: (ready: boolean) => Promise<void>;
   startGame: () => Promise<void>;
   resumeActiveRoom: () => Promise<RoomDoc | null>;
+  restoreWaitingRoom: (roomId: string) => Promise<RoomDoc | null>;
   activeRoomHint: ActiveRoomHint | null;
   refreshActiveRoomHint: () => void;
 
@@ -312,6 +314,27 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
     }
   }, [user, listenRoom, findMyPlayingRoom]);
 
+  /* ── Restaurer une salle d'attente après actualisation (#/lobby?room=...) ── */
+  const restoreWaitingRoom = useCallback(async (roomId: string): Promise<RoomDoc | null> => {
+    if (!user || !roomId) return null;
+    try {
+      const snap = await getDoc(doc(db, "rooms", roomId));
+      if (!snap.exists()) return null;
+      const room = roomFromDoc(snap);
+      const isMember =
+        (Array.isArray(room.playerUids) && room.playerUids.includes(user.uid)) ||
+        (Array.isArray(room.players) && room.players.some((p) => p.uid === user.uid));
+      if (!isMember) return null;
+      if (room.status !== "waiting" && room.status !== "playing") return null;
+      setCurrentRoom(room);
+      if (room.status === "waiting") listenRoom(room.id);
+      return room;
+    } catch (err) {
+      console.error("[LobbyContext] restoreWaitingRoom error:", err);
+      return null;
+    }
+  }, [user, listenRoom]);
+
   /* ── Quitter la salle ── */
   const leaveRoom = useCallback(async () => {
     if (!user || !currentRoom) return;
@@ -353,9 +376,9 @@ export function LobbyProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo<LobbyContextValue>(() => ({
     currentRoom, roomError, clearError, createRoom, joinRoomByCode, joinRoomById,
-    leaveRoom, setReady, startGame, resumeActiveRoom, activeRoomHint,
+    leaveRoom, setReady, startGame, resumeActiveRoom, restoreWaitingRoom, activeRoomHint,
     refreshActiveRoomHint, publicRooms, searchRooms, findAvailableRoom,
-  }), [currentRoom, roomError, clearError, createRoom, joinRoomByCode, joinRoomById, leaveRoom, setReady, startGame, resumeActiveRoom, activeRoomHint, refreshActiveRoomHint, publicRooms, searchRooms, findAvailableRoom]);
+  }), [currentRoom, roomError, clearError, createRoom, joinRoomByCode, joinRoomById, leaveRoom, setReady, startGame, resumeActiveRoom, restoreWaitingRoom, activeRoomHint, refreshActiveRoomHint, publicRooms, searchRooms, findAvailableRoom]);
 
   return (
     <LobbyContext.Provider

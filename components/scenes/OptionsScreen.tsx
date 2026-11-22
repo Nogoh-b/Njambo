@@ -23,7 +23,7 @@ const QUALITY_OPTIONS: Array<{ id: MotionQualityPreference; label: string }> = [
 ];
 
 export function OptionsScreen() {
-  const { navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn } = useGame();
+  const { navigateTo, goBack, backLabelFor, musicOn, setMusicOn, sfxOn, setSfxOn } = useGame();
   const { animationsOn, setAnimationsOn, motionQuality, setMotionQuality } = useSettings();
   const [language, setLanguage] = useState("Français");
 
@@ -31,9 +31,9 @@ export function OptionsScreen() {
     <GameShell dock={false} scroll={false} contentClassName={styles.optionsShell}>
       {/* ═══ TOP HUD ═══ */}
       <header className={styles.hud}>
-        <button data-nj-skin="none" type="button" className="nj-sr-back" onClick={() => navigateTo("menu")}>
+        <button data-nj-skin="none" type="button" className="nj-sr-back" onClick={() => goBack("menu")}>
           <span className="nj-sr-back-arrow" aria-hidden="true">←</span>
-          <span>Salon</span>
+          <span>{backLabelFor("menu")}</span>
         </button>
 
         <div className={styles.hudCenter}>

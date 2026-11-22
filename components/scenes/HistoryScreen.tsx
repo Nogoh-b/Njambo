@@ -26,7 +26,7 @@ function modeToneClass(mode: MatchHistoryEntry["mode"]): string {
 }
 
 export function HistoryScreen() {
-  const { navigateTo } = useGame();
+  const { navigateTo, goBack, backLabelFor } = useGame();
   const { user } = useAuth();
   const motion = useMotionProfile();
   const [matches, setMatches] = useState<MatchHistoryEntry[]>([]);
@@ -59,9 +59,9 @@ export function HistoryScreen() {
     <GameShell dock={false} scroll={false} contentClassName={styles.historyShell}>
       {/* ═══ TOP HUD ═══ */}
       <header className={styles.hud}>
-        <button data-nj-skin="none" type="button" className="nj-sr-back" onClick={() => navigateTo("menu")}>
+        <button data-nj-skin="none" type="button" className="nj-sr-back" onClick={() => goBack("menu")}>
           <span className="nj-sr-back-arrow" aria-hidden="true">←</span>
-          <span>Salon</span>
+          <span>{backLabelFor("menu")}</span>
         </button>
 
         <div className={styles.hudCenter}>

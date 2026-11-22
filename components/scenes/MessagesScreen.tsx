@@ -14,7 +14,7 @@ import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import type { ConversationEntry } from "@/types/game";
 
 export function MessagesScreen() {
-  const { navigateTo, setSocialTarget } = useGame();
+  const { navigateTo, goBack, backLabelFor, setSocialTarget } = useGame();
   const { user } = useAuth();
   const motion = useMotionProfile();
   const [conversations, setConversations] = useState<ConversationEntry[]>([]);
@@ -36,7 +36,7 @@ export function MessagesScreen() {
   return (
     <BottomNavScene active="messages" narrow>
         <div className="nj-phone">
-          <ScreenHeader title="Messages" kicker="Discussions" icon="message" tone="teal" onBack={() => navigateTo("menu")} backLabel="Salon" />
+          <ScreenHeader title="Messages" kicker="Discussions" icon="message" tone="teal" onBack={() => goBack("menu")} backLabel={backLabelFor("menu")} />
           <Surface scrollable>
             <div className="nj-stack" style={{ gap: 10 }}>
               {loading && <div className="nj-subtle" style={{ textAlign: "center", padding: 18 }}>Chargement...</div>}

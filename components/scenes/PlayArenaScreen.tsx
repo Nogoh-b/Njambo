@@ -130,7 +130,7 @@ function seatPositionsForCount(opponents: number): SeatSlotPos[] {
 }
 
 export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaScreenProps) {
-  const { navigateTo, cfg, profile } = useGame();
+  const { navigateTo, goBack, backLabelFor, cfg, profile } = useGame();
   const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const { user } = useAuth();
   const { economy, inventory: serverInventory } = useEconomy();
@@ -367,11 +367,11 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
             data-nj-skin="none"
             type="button"
             className={styles.backBtn}
-            onClick={() => navigateTo("menu")}
-            aria-label="Retour au salon"
+            onClick={() => goBack("menu")}
+            aria-label={`Retour à ${backLabelFor("menu")}`}
           >
             <span aria-hidden="true">←</span>
-            <span className={styles.backLabel}>Salon</span>
+            <span className={styles.backLabel}>{backLabelFor("menu")}</span>
           </button>
 
           <div className={styles.hudCopy}>
