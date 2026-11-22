@@ -60,7 +60,7 @@
 <filter id="textile" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
   <feTurbulence type="fractalNoise" baseFrequency=".9 .12" numOctaves="2" seed="3" result="t"/>
   <feColorMatrix in="t" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .9 0 0 0 0" result="ta"/>
-  <feDiffuseLighting in="ta" surfaceScale="2.2" diffuseConstant="1" result="d"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting>
+  <feDiffuseLighting in="ta" surfaceScale="1.4" diffuseConstant="1" result="d"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting>
   <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1.25" result="o"/>
   <feComposite in="o" in2="SourceAlpha" operator="in"/></filter>
     <radialGradient id="velvet" cx="50%" cy="50%" r="75%"><stop offset="0" stop-color="#8aa2ff"/><stop offset=".3" stop-color="#4f6ff2"/><stop offset=".7" stop-color="#2c45b8"/><stop offset="1" stop-color="#1a1760"/></radialGradient>

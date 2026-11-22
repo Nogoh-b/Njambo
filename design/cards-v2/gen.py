@@ -132,7 +132,7 @@ def strip(x, y, w, h, unit=1.0):
 TEXTILE = '''<filter id="textile" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
   <feTurbulence type="fractalNoise" baseFrequency=".9 .12" numOctaves="2" seed="3" result="t"/>
   <feColorMatrix in="t" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  .9 0 0 0 0" result="ta"/>
-  <feDiffuseLighting in="ta" surfaceScale="2.2" diffuseConstant="1" result="d"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting>
+  <feDiffuseLighting in="ta" surfaceScale="1.4" diffuseConstant="1" result="d"><feDistantLight azimuth="235" elevation="55"/></feDiffuseLighting>
   <feComposite in="SourceGraphic" in2="d" operator="arithmetic" k1="1.25" result="o"/>
   <feComposite in="o" in2="SourceAlpha" operator="in"/></filter>'''
 
@@ -380,7 +380,239 @@ def feu():
     b += power_frame(W)
     return svg(W, W, defs, b)
 
+# ═════════════════════ BRIQUES COMMUNES AUX CARTES DE POUVOIR ═════════════════════
+TONES = {
+    "gold":   ("#fff7d6", "#ffc94a", "#e0782a", "#6e2248", "#fff3c2"),
+    "teal":   ("#e8fff8", "#3ddcc8", "#0b8f86", "#0a3450", "#c8fff4"),
+    "pink":   ("#ffe8ef", "#ff6f9a", "#c22a5e", "#3a0c3a", "#ffd0de"),
+    "cobalt": ("#e4ebff", "#6f8aff", "#2c45b8", "#120e48", "#d8e0ff"),
+}
+
+WOOD = '''<filter id="woodV" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+  <feTurbulence type="fractalNoise" baseFrequency=".28 .008" numOctaves="3" seed="12"/>
+  <feColorMatrix type="matrix" values=".55 0 0 0 .38  .35 0 0 0 .18  .18 0 0 0 .07  0 0 0 0 1"/>
+  <feComposite in2="SourceAlpha" operator="in"/></filter>
+<linearGradient id="cylH" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2a0e06"/><stop offset=".22" stop-color="#b07850"/><stop offset=".38" stop-color="#ffffff"/><stop offset=".6" stop-color="#c89070"/><stop offset="1" stop-color="#1a0804"/></linearGradient>'''
+
+def bg_textile(tone, cy=.42):
+    c0, c1, c2, c3, line = TONES[tone]
+    defs = TEXTILE + f'''
+    <radialGradient id="bgT" cx="50%" cy="{cy*100:.0f}%" r="78%"><stop offset="0" stop-color="{c0}"/><stop offset=".25" stop-color="{c1}"/><stop offset=".62" stop-color="{c2}"/><stop offset="1" stop-color="{c3}"/></radialGradient>
+    <pattern id="ndopT" width="80" height="80" patternUnits="userSpaceOnUse">
+      <path d="M40 6 L74 40 L40 74 L6 40Z" fill="none" stroke="{line}" stroke-opacity=".45" stroke-width="4"/>
+      <path d="M40 22 L58 40 L40 58 L22 40Z" fill="{line}" fill-opacity=".18"/>
+      <path d="M40 34 L46 40 L40 46 L34 40Z" fill="#ffe08a" fill-opacity=".6"/></pattern>
+    <radialGradient id="vigT" cx="50%" cy="50%" r="72%"><stop offset=".55" stop-color="{c3}" stop-opacity="0"/><stop offset="1" stop-color="{c3}" stop-opacity=".6"/></radialGradient>'''
+    body = ('<rect width="720" height="720" fill="url(#bgT)" filter="url(#textile)"/>'
+            '<rect width="720" height="720" fill="url(#ndopT)" filter="url(#textile)" opacity=".75"/>'
+            + god_rays(360, 720*cy, 34, 760, hash(tone) % 97, op=.38)
+            + bokeh(720, 720, 22, len(tone), [c0, "#ffe08a", line], 5, 18, .45)
+            + '<rect width="720" height="720" fill="url(#vigT)"/>')
+    return defs, body
+
+def bg_sky(top, mid, low, horizon=470, stars=40, seed=3):
+    defs = f'<linearGradient id="skyG" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="{top}"/><stop offset=".55" stop-color="{mid}"/><stop offset="1" stop-color="{low}"/></linearGradient>'
+    rnd = random.Random(seed)
+    st = "".join(f'<circle cx="{rnd.uniform(40,680):.0f}" cy="{rnd.uniform(40,horizon-160):.0f}" r="{rnd.uniform(.6,2):.1f}" fill="#fff" opacity="{rnd.uniform(.3,1):.2f}"/>' for _ in range(stars))
+    return defs, f'<rect width="720" height="720" fill="url(#skyG)"/>{st}'
+
+def floor_shadow(cx, cy, rx, ry, op=.5):
+    return f'<ellipse cx="{cx}" cy="{cy}" rx="{rx}" ry="{ry}" fill="#2a0a10" opacity="{op}" filter="url(#blur20)"/>'
+
+def sound_waves(cx, cy, n, r0, step, col, sw=6, a0=-150, a1=-30):
+    s = ""
+    for i in range(n):
+        r = r0 + i*step
+        x0, y0 = cx + r*math.cos(math.radians(a0)), cy + r*math.sin(math.radians(a0))
+        x1, y1 = cx + r*math.cos(math.radians(a1)), cy + r*math.sin(math.radians(a1))
+        s += f'<path d="M{x0:.1f} {y0:.1f} A{r} {r} 0 0 1 {x1:.1f} {y1:.1f}" fill="none" stroke="{col}" stroke-width="{sw-i:.1f}" stroke-linecap="round" opacity="{1-i*.18:.2f}"/>'
+    return f'<g filter="url(#glint)">{s}</g>'
+
+def bead_band(cx, y, rx, ry, n, cols, r=7):
+    """Rangée de perles sur un cylindre (seulement la face avant)."""
+    s = ""
+    for i in range(n):
+        a = math.pi * (i + .5) / n
+        x = cx - rx*math.cos(a); yy = y + ry*math.sin(a)
+        k = 0.55 + 0.45*math.sin(a)
+        s += f'<circle cx="{x:.1f}" cy="{yy:.1f}" r="{r*k:.1f}" fill="url(#{cols[i % len(cols)]})" filter="url(#gem)"/>'
+    return s
+
+# ───────────────────────── TAMBOUR D'APPEL ─────────────────────────
+def tambour():
+    d, bg = bg_textile("gold", .36)
+    defs = d + WOOD + '''
+    <radialGradient id="skin" cx="45%" cy="40%" r="70%"><stop offset="0" stop-color="#fff4dc"/><stop offset=".6" stop-color="#ecd0a0"/><stop offset="1" stop-color="#b88a58"/></radialGradient>
+    <filter id="hide" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="4" seed="4"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 .45  0 0 0 0 .3  0 0 0 0 .15  0 0 0 1.2 -.5"/><feComposite in2="SourceAlpha" operator="in"/></filter>'''
+    b = bg + floor_shadow(370, 640, 200, 34, .6)
+    body = "M208 196 C206 300 286 382 300 440 C306 500 262 560 246 616 Q360 640 474 616 C458 560 414 500 420 440 C434 382 514 300 512 196Z"
+    b += f'<path d="{body}" fill="#000" filter="url(#woodV)"/>'
+    b += f'<path d="{body}" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+    b += f'<path d="{body}" fill="url(#cylH)" opacity=".22" style="mix-blend-mode:screen"/>'
+    # frise sculptée sur le pied
+    tri = "".join(f'<path d="M{x} 520 l12 -22 l12 22Z"/>' for x in range(282, 430, 26))
+    b += f'<g fill="#2a0e06" opacity=".55">{tri}</g><path d="M276 528 Q360 540 444 528 M280 494 Q360 506 440 494" stroke="#2a0e06" stroke-width="3" fill="none" opacity=".6"/>'
+    # anneau inférieur + laçage
+    b += '<ellipse cx="360" cy="412" rx="84" ry="18" fill="none" stroke="#e8d2a0" stroke-width="9"/>'
+    lace = ""
+    cols = ["#10b7a6", "#d83c68"]
+    for i in range(14):
+        a = math.pi*(i+.5)/14
+        xt = 360 - 150*math.cos(a); yt = 222 + 28*math.sin(a)
+        xb = 360 - 82*math.cos(a + math.pi/28); yb = 412 + 18*math.sin(a)
+        xb2 = 360 - 82*math.cos(a - math.pi/28)
+        op = .45 + .55*math.sin(a)
+        lace += f'<path d="M{xt:.1f} {yt:.1f} L{xb:.1f} {yb:.1f} M{xt:.1f} {yt:.1f} L{xb2:.1f} {yb:.1f}" stroke="{cols[i%2]}" stroke-width="4.5" opacity="{op:.2f}"/>'
+    b += f'<g stroke-linecap="round" filter="url(#dropS)">{lace}</g>'
+    b += '<ellipse cx="360" cy="412" rx="84" ry="18" fill="none" stroke="#fff6dc" stroke-width="3" stroke-dasharray="6 5" opacity=".8"/>'
+    # peau + cercle de corde
+    b += '<ellipse cx="360" cy="200" rx="154" ry="44" fill="url(#skin)"/><ellipse cx="360" cy="200" rx="154" ry="44" filter="url(#hide)" opacity=".55"/>'
+    b += '<ellipse cx="360" cy="200" rx="154" ry="44" fill="none" stroke="#8a5a2a" stroke-width="12"/>'
+    b += '<ellipse cx="360" cy="200" rx="154" ry="44" fill="none" stroke="#f0dcae" stroke-width="7" stroke-dasharray="9 5"/>'
+    b += '<ellipse cx="360" cy="226" rx="152" ry="30" fill="none" stroke="#e8d2a0" stroke-width="8" stroke-dasharray="10 4" opacity=".9"/>'
+    b += '<ellipse cx="330" cy="188" rx="60" ry="14" fill="#fff" opacity=".35" filter="url(#soft)"/>'
+    b += sound_waves(360, 196, 4, 120, 46, "#fff3c2", 8)
+    b += glint(250, 186, .7) + glint(470, 210, .5) + glint(360, 60, .8)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── BÉNÉDICTION DU CHEF ─────────────────────────
+def benediction():
+    d, bg = bg_textile("gold", .3)
+    defs = d + WOOD + '''
+    <pattern id="beadsP" width="22" height="20" patternUnits="userSpaceOnUse">
+      <rect width="22" height="20" fill="#1a0e3a"/>
+      <circle cx="5.5" cy="5" r="4.4" fill="#d83c68"/><circle cx="16.5" cy="5" r="4.4" fill="#f2bb45"/>
+      <circle cx="0" cy="15" r="4.4" fill="#2a8cf0"/><circle cx="11" cy="15" r="4.4" fill="#fff4dc"/><circle cx="22" cy="15" r="4.4" fill="#2a8cf0"/>
+      <circle cx="4" cy="3.5" r="1.4" fill="#fff" opacity=".8"/><circle cx="15" cy="3.5" r="1.4" fill="#fff" opacity=".8"/><circle cx="9.5" cy="13.5" r="1.4" fill="#fff" opacity=".8"/></pattern>
+    <radialGradient id="blessing" cx="50%" cy="0%" r="100%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".5" stop-color="#ffe28a" stop-opacity=".45"/><stop offset="1" stop-color="#ffe28a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="featherCore" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#7a0e2e"/><stop offset="1" stop-color="#c82a52"/></radialGradient>'''
+    b = bg
+    b += '<path d="M250 0 L470 0 L560 520 L160 520Z" fill="url(#blessing)" opacity=".85" filter="url(#blur8)" style="mix-blend-mode:screen"/>'
+    b += floor_shadow(370, 650, 250, 36, .6)
+    b += '<g transform="translate(360 540) scale(1.25) translate(-360 -530)">'
+    # tabouret royal perlé
+    base = "M248 470 L248 600 Q360 634 472 600 L472 470Z"
+    b += f'<path d="{base}" fill="url(#beadsP)"/>'
+    b += '<g fill="#120820">' + "".join(f'<path d="M{x} 500 l22 36 l-22 36 l-22 -36Z"/>' for x in (300, 360, 420)) + '</g>'
+    b += f'<path d="{base}" fill="url(#cylH)" opacity=".85" style="mix-blend-mode:multiply"/>'
+    b += '<ellipse cx="360" cy="604" rx="118" ry="24" fill="#000" filter="url(#woodV)"/><ellipse cx="360" cy="604" rx="118" ry="24" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+    seat = "M200 440 Q200 476 360 482 Q520 476 520 440 L520 424 Q360 446 200 424Z"
+    b += f'<path d="{seat}" fill="#000" filter="url(#woodV)"/><path d="{seat}" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+    b += '<ellipse cx="360" cy="424" rx="160" ry="34" fill="#000" filter="url(#woodV)"/>'
+    b += '<ellipse cx="360" cy="424" rx="160" ry="34" fill="#ffdca0" opacity=".35" style="mix-blend-mode:screen"/>'
+    b += '<ellipse cx="360" cy="424" rx="132" ry="24" fill="none" stroke="#2a0e06" stroke-width="3" opacity=".5"/>'
+    b += bead_band(360, 452, 160, 28, 26, ["gemPink", "pearl", "gemTeal", "pearl"], 7)
+    b += "</g>"
+    # chapeau juju (plumes) en lévitation
+    rnd = random.Random(21); fe = ""
+    for i in range(900):
+        a = rnd.uniform(0, 2*math.pi); L = rnd.uniform(90, 168)*(0.9 if math.sin(a) > 0 else 1)
+        x0, y0 = 360 + 30*math.cos(a), 230 + 24*math.sin(a)
+        x1, y1 = 360 + L*math.cos(a), 230 + L*.8*math.sin(a)
+        bend = rnd.uniform(-14, 14)
+        col = rnd.choice(["#d83c68", "#e8466e", "#ff7aa0", "#c22a5e", "#ffb0c8", "#fff0f4", "#a8183e"])
+        fe += f'<path d="M{x0:.0f} {y0:.0f} Q{(x0+x1)/2+bend:.0f} {(y0+y1)/2-bend:.0f} {x1:.0f} {y1:.0f}" stroke="{col}" stroke-width="{rnd.uniform(2,5):.1f}" opacity="{rnd.uniform(.6,1):.2f}"/>'
+    b += f'<circle cx="360" cy="230" r="190" fill="#fff3c2" opacity=".55" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    b += f'<g fill="none" stroke-linecap="round" filter="url(#dropS)">{fe}</g>'
+    b += '<circle cx="360" cy="230" r="42" fill="url(#featherCore)" filter="url(#gem)"/>'
+    b += gem(360, 230, 18, "Teal")
+    b += glint(360, 112, 1.1) + glint(240, 170, .6) + glint(490, 200, .5) + glint(470, 420, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── PLUIE D'ÉTOILES ─────────────────────────
+def pluie():
+    d, sky = bg_sky("#2a2070", "#b8467a", "#ffbf5a", 560, 70, 31)
+    defs = d + '''
+    <radialGradient id="calab" cx="38%" cy="30%" r="80%"><stop offset="0" stop-color="#ffd08a"/><stop offset=".5" stop-color="#d08a3a"/><stop offset="1" stop-color="#5a2a10"/></radialGradient>
+    <radialGradient id="inside" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".5" stop-color="#ffd25a"/><stop offset="1" stop-color="#b8701a"/></radialGradient>
+    <radialGradient id="coin" cx="40%" cy="35%" r="70%">''' + GOLD_STOPS + '''</radialGradient>
+    <radialGradient id="horizonGlow" cx="50%" cy="100%" r="80%"><stop offset="0" stop-color="#fff2c0"/><stop offset="1" stop-color="#fff2c0" stop-opacity="0"/></radialGradient>'''
+    b = sky + '<rect y="300" width="720" height="420" fill="url(#horizonGlow)" opacity=".7"/>'
+    b += '<path d="M0 520 C120 490 240 505 360 495 S600 480 720 500 V720 H0Z" fill="#5a2050" opacity=".9" filter="url(#soft)"/>'
+    # étoiles filantes
+    rnd = random.Random(8); tails = ""; heads = ""
+    for i in range(11):
+        x = rnd.uniform(120, 620); y = rnd.uniform(70, 360); L = rnd.uniform(90, 200)
+        ang = math.radians(rnd.uniform(58, 72)); dx, dy = -L*math.cos(ang)*.55, -L*math.sin(ang)
+        gid = f"tail{i}"
+        defs += f'<linearGradient id="{gid}" gradientUnits="userSpaceOnUse" x1="{x:.0f}" y1="{y:.0f}" x2="{x+dx:.0f}" y2="{y+dy:.0f}"><stop offset="0" stop-color="#fff8dc"/><stop offset=".3" stop-color="#ffd25a" stop-opacity=".7"/><stop offset="1" stop-color="#ff8a3a" stop-opacity="0"/></linearGradient>'
+        w = rnd.uniform(3, 7)
+        tails += f'<path d="M{x:.0f} {y:.0f} L{x+dx:.0f} {y+dy:.0f}" stroke="url(#{gid})" stroke-width="{w:.1f}" stroke-linecap="round"/>'
+        heads += glint(round(x), round(y), w/9)
+    b += f'<g filter="url(#glowS2)">{tails}</g>{heads}'
+    defs += '<filter id="glowS2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+    # calebasse
+    b += floor_shadow(370, 640, 230, 30, .6)
+    b += '<path d="M150 470 C150 600 250 650 360 650 C470 650 570 600 570 470Z" fill="url(#calab)" filter="url(#porcelain)"/>'
+    eng = "".join(f'<path d="M{x} 500 l14 26 l14 -26" />' for x in range(196, 520, 28))
+    b += f'<g fill="none" stroke="#3a1606" stroke-width="3" opacity=".55">{eng}<path d="M168 498 Q360 530 552 498 M178 540 Q360 572 542 540"/></g>'
+    b += '<ellipse cx="360" cy="470" rx="210" ry="46" fill="#7a4418"/><ellipse cx="360" cy="472" rx="196" ry="38" fill="url(#inside)"/>'
+    # pièces et cauris débordants
+    coins = ""
+    rnd = random.Random(4)
+    for i in range(26):
+        x = rnd.uniform(200, 520); y = 470 - rnd.uniform(0, 40)*math.cos((x-360)/170)
+        coins += f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="22" ry="9" fill="url(#coin)" transform="rotate({rnd.uniform(-20,20):.0f} {x:.0f} {y:.0f})" filter="url(#metal)"/>'
+    b += coins
+    for (x, y, r) in ((300, 444, -60), (420, 440, 50), (360, 430, 10)):
+        b += f'<g transform="translate({x} {y}) rotate({r}) scale(.28)">{cowrie(100, 140)}</g>'
+    b += '<ellipse cx="360" cy="420" rx="160" ry="90" fill="#fff3c2" opacity=".55" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    b += glint(360, 410, 1.2) + glint(250, 450, .5) + glint(470, 445, .6)
+    b += bokeh(720, 720, 16, 22, ["#fff3c2", "#ffd25a"], 4, 12, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── TOTEM DES ANCÊTRES ─────────────────────────
+def totem():
+    d, bg = bg_textile("gold", .4)
+    defs = d + WOOD + '''
+    <radialGradient id="aegis" cx="50%" cy="50%" r="50%"><stop offset=".7" stop-color="#ffe9a0" stop-opacity="0"/><stop offset=".9" stop-color="#fff3c2" stop-opacity=".55"/><stop offset="1" stop-color="#fff3c2" stop-opacity="0"/></radialGradient>
+    <linearGradient id="kaolin" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#d8c8b0" stop-opacity="0"/><stop offset=".5" stop-color="#fff8ea" stop-opacity=".85"/><stop offset="1" stop-color="#d8c8b0" stop-opacity="0"/></linearGradient>'''
+    b = bg
+    b += '<circle cx="360" cy="370" r="300" fill="url(#aegis)"/>'
+    b += '<circle cx="360" cy="370" r="262" fill="none" stroke="#fff3c2" stroke-width="3" stroke-dasharray="2 12" stroke-linecap="round" opacity=".8"/>'
+    b += floor_shadow(370, 650, 150, 26, .6)
+    def face(cy, w, h):
+        f = f'<path d="M{360-w} {cy-h*.55} C{360-w} {cy-h} {360+w} {cy-h} {360+w} {cy-h*.55} C{360+w*1.02} {cy+h*.25} {360+w*.6} {cy+h*.9} 360 {cy+h} C{360-w*.6} {cy+h*.9} {360-w*1.02} {cy+h*.25} {360-w} {cy-h*.55}Z"'
+        out = f + ' fill="#000" filter="url(#woodV)"/>' + f + ' fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+        out += f'<path d="M{360-w*.8} {cy-h*.45} Q{360-w*.4} {cy-h*.62} 360 {cy-h*.45} Q{360+w*.4} {cy-h*.62} {360+w*.8} {cy-h*.45}" stroke="#2a0e06" stroke-width="6" fill="none" opacity=".7"/>'
+        for sx in (-1, 1):
+            ex = 360 + sx*w*.42
+            out += f'<path d="M{ex-w*.26:.0f} {cy-h*.22:.0f} Q{ex:.0f} {cy-h*.38:.0f} {ex+w*.26:.0f} {cy-h*.22:.0f} Q{ex:.0f} {cy-h*.1:.0f} {ex-w*.26:.0f} {cy-h*.22:.0f}Z" fill="#1a0804"/>'
+            out += f'<path d="M{ex-w*.18:.0f} {cy-h*.23:.0f} Q{ex:.0f} {cy-h*.3:.0f} {ex+w*.18:.0f} {cy-h*.23:.0f}" stroke="#fff3c2" stroke-width="2.5" fill="none" opacity=".9"/>'
+        out += f'<path d="M352 {cy-h*.35} L342 {cy+h*.25} Q360 {cy+h*.34} 378 {cy+h*.25} L368 {cy-h*.35}Z" fill="#c89060" opacity=".55"/>'
+        out += f'<path d="M340 {cy+h*.25} Q360 {cy+h*.36} 380 {cy+h*.25}" stroke="#2a0e06" stroke-width="4" fill="none"/>'
+        out += f'<ellipse cx="360" cy="{cy+h*.56}" rx="{w*.3}" ry="{h*.09}" fill="#2a0e06"/><path d="M{360-w*.28} {cy+h*.55} Q360 {cy+h*.5} {360+w*.28} {cy+h*.55}" stroke="#d83c68" stroke-width="4" fill="none"/>'
+        for sx in (-1, 1):
+            out += f'<path d="M{360+sx*w*.75} {cy-h*.05} l{sx*-12} 10 l{sx*12} 10 l{sx*-12} 10 l{sx*12} 10" stroke="#fff3c2" stroke-width="4" fill="none" opacity=".85"/>'
+        out += f'<rect x="{360-w}" y="{cy-h}" width="{2*w}" height="{2*h}" fill="url(#kaolin)" opacity=".25" style="mix-blend-mode:screen"/>'
+        return out
+    # fût + socle
+    col = "M300 180 L420 180 L430 610 L290 610Z"
+    b += f'<path d="{col}" fill="#000" filter="url(#woodV)"/><path d="{col}" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+    b += '<path d="M250 600 L470 600 L486 640 L234 640Z" fill="#000" filter="url(#woodV)"/><path d="M250 600 L470 600 L486 640 L234 640Z" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+    # coiffe en crête
+    crest = "M300 150 C300 70 330 40 360 30 C390 40 420 70 420 150Z"
+    b += f'<path d="{crest}" fill="#000" filter="url(#woodV)"/><path d="{crest}" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+    b += '<path d="M318 140 L360 60 L402 140" stroke="#2a0e06" stroke-width="5" fill="none" opacity=".6"/>'
+    b += face(220, 86, 92) + face(450, 78, 84)
+    b += bead_band(360, 322, 70, 16, 14, ["gemTeal", "pearl", "gemPink", "pearl"], 8)
+    b += bead_band(360, 548, 74, 16, 14, ["gemPink", "pearl", "gemBlue", "pearl"], 8)
+    b += gem(360, 40, 12, "Teal")
+    b += '<rect x="280" y="20" width="160" height="620" fill="#ffd28a" opacity=".18" style="mix-blend-mode:screen"/>'
+    b += glint(260, 140, .7) + glint(470, 330, .5) + glint(360, 28, .8)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+CARDS = {"card-back": card_back, "cauris_chanceux": cauris, "feu_camp": feu,
+         "tambour_appel": tambour, "benediction_chef": benediction, "pluie_etoiles": pluie, "totem_ancetres": totem}
+
 if __name__ == "__main__":
-    for name, fn in (("card-back", card_back), ("cauris_chanceux", cauris), ("feu_camp", feu)):
-        open(f"{name}.svg", "w").write(fn())
-    print("ok")
+    import sys
+    names = sys.argv[1:] or list(CARDS)
+    for n in names:
+        open(f"{n}.svg", "w").write(CARDS[n]())
+    print("ok", " ".join(names))
