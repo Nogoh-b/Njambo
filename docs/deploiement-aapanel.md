@@ -31,26 +31,38 @@ process se disputeraient le port 8081 et les tâches planifiées tourneraient en
 
 ## Mettre à jour
 
-Pousser d'abord le code sur `master`, puis sur le VPS (en root) :
+Pousser d'abord le code sur `master`, puis lancer **`scripts/deploy-aapanel.sh`**, soit
+depuis aaPanel (Git Manager, ci-dessous), soit en root sur le VPS :
 
 ```bash
-cd /www/wwwroot/njambo
-git pull --ff-only
-npm ci                       # dépendances racine (front + types partagés du back)
-npm run install:server       # dépendances functions/ + server/
-npm run build:server
-npm run build                # front : relire .env.production si une NEXT_PUBLIC_* a changé
-chown -R www:www /www/wwwroot/njambo
+bash /www/wwwroot/njambo/scripts/deploy-aapanel.sh          # ou : … deploy-aapanel.sh autre-branche
 ```
 
-Puis aaPanel → Site web → Projet Node.js → **Redémarrer** `njambo_server`, puis `njambo_web`
-(back d'abord si l'API a changé). Contrôle :
+Le script :
+1. remet le dossier exactement sur `origin/master` (`git reset --hard` : les `.env`, non suivis,
+   restent ; l'installation automatique d'aaPanel supprime les `package-lock.json`, ils reviennent) ;
+2. installe les dépendances et compile le back ;
+3. compile le front dans `.next-build`, pendant que le site en ligne continue de tourner ;
+4. redémarre `njambo_server` (attend `/healthz`), bascule `.next-build` → `.next` et redémarre
+   `njambo_web`.
+
+Si une étape échoue, il s'arrête **avant** de redémarrer : l'ancienne version reste en ligne.
+
+Après une modification de `server/.env` : aaPanel → **Redémarrer** `njambo_server` seulement.
+Après une modification de `.env.production` : relancer le script (les `NEXT_PUBLIC_*` sont figées au build).
+
+### Depuis aaPanel (Git Manager)
+
+Le dépôt est déjà cloné dans `/www/wwwroot/njambo` : dans aaPanel → Site web → Projet Node.js →
+`njambo_web` → **Git Manager** → **Importer** (dépôt existant, branche `master`). Puis onglet
+**Scénario**, script :
 
 ```bash
-curl https://njambo-server.bisoft-solutions.com/healthz    # {"ok":true}
+bash /www/wwwroot/njambo/scripts/deploy-aapanel.sh master
 ```
 
-Après une modification de `server/.env` : redémarrer seulement `njambo_server`.
+Le bouton de déploiement du Git Manager (ou son webhook GitHub) lance alors tout le déploiement,
+back compris. Ne pas brancher le Git Manager aussi sur `njambo_server` : un seul script suffit.
 
 ## Reste à faire
 
