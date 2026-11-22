@@ -1076,10 +1076,158 @@ def sceau():
     b += power_frame()
     return svg(720, 720, defs, b)
 
+
+def swap_arc(x0, y0, x1, y1, bend, col="#fff3c2", w=8):
+    mx, my = (x0+x1)/2, (y0+y1)/2
+    nx, ny = -(y1-y0), (x1-x0); L = math.hypot(nx, ny); nx, ny = nx/L*bend, ny/L*bend
+    cx, cy = mx+nx, my+ny
+    ang = math.atan2(y1-cy, x1-cx)
+    head = (f'<path d="M{x1:.0f} {y1:.0f} L{x1-26*math.cos(ang-.45):.0f} {y1-26*math.sin(ang-.45):.0f} '
+            f'L{x1-26*math.cos(ang+.45):.0f} {y1-26*math.sin(ang+.45):.0f}Z" fill="{col}"/>')
+    return (f'<g filter="url(#glint)"><path d="M{x0:.0f} {y0:.0f} Q{cx:.0f} {cy:.0f} {x1:.0f} {y1:.0f}" stroke="{col}" stroke-width="{w}" '
+            f'stroke-linecap="round" fill="none" stroke-dasharray="1 0"/>{head}</g>')
+
+# ───────────────────────── MARCHÉ DE NUIT ─────────────────────────
+def marche():
+    d, sky = bg_sky("#1a1a6a", "#3a4ad8", "#8a7ae8", 420, 50, 9)
+    defs = d + WOOD + """
+    <pattern id="awning" width="80" height="10" patternUnits="userSpaceOnUse"><rect width="20" height="10" fill="#d83c68"/><rect x="20" width="20" height="10" fill="#fff0d0"/><rect x="40" width="20" height="10" fill="#10b7a6"/><rect x="60" width="20" height="10" fill="#f2bb45"/></pattern>
+    <radialGradient id="lamp" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#fffbe6"/><stop offset=".3" stop-color="#ffd25a"/><stop offset="1" stop-color="#ff8a2a" stop-opacity="0"/></radialGradient>
+    <radialGradient id="mango" cx="38%" cy="32%" r="70%"><stop offset="0" stop-color="#fff0a0"/><stop offset=".5" stop-color="#ffa62a"/><stop offset="1" stop-color="#c2401a"/></radialGradient>
+    <radialGradient id="lime" cx="38%" cy="32%" r="70%"><stop offset="0" stop-color="#e8ffb0"/><stop offset=".5" stop-color="#7ad040"/><stop offset="1" stop-color="#2a7a1a"/></radialGradient>
+    <linearGradient id="basket" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f0c880"/><stop offset="1" stop-color="#8a5420"/></linearGradient>
+    <pattern id="weave" width="14" height="10" patternUnits="userSpaceOnUse"><path d="M0 5 Q3.5 0 7 5 T14 5" stroke="#6a3a12" stroke-width="1.6" fill="none" opacity=".6"/></pattern>
+    <linearGradient id="table" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffd0a0"/><stop offset="1" stop-color="#6a3016"/></linearGradient>"""
+    b = sky
+    # étals lointains
+    for (x, w, h, c) in ((30, 150, 120, "#2a2a8a"), (520, 170, 130, "#2a2a8a"), (190, 120, 90, "#33339a"), (420, 120, 95, "#33339a")):
+        b += f'<path d="M{x} {470-h} L{x+w/2} {440-h-30} L{x+w} {470-h} L{x+w} 480 L{x} 480Z" fill="{c}" opacity=".85" filter="url(#soft)"/>'
+        b += f'<circle cx="{x+w/2}" cy="{470-h+30}" r="10" fill="#ffd25a" filter="url(#glint)"/><circle cx="{x+w/2}" cy="{470-h+30}" r="50" fill="url(#lamp)" opacity=".7"/>'
+    b += bokeh(720, 520, 30, 17, ["#ffd25a", "#ff8a3a", "#fff3c2", "#ff6f9a"], 6, 20, .7)
+    b += '<rect y="470" width="720" height="250" fill="#24206a"/>'
+    # guirlande de lanternes
+    pts = [(40 + i*64, 120 + 34*math.sin(i/10*math.pi*1.0)) for i in range(11)]
+    b += '<path d="M' + " L".join(f"{x:.0f} {y:.0f}" for x, y in pts) + '" stroke="#1a0a20" stroke-width="2.5" fill="none"/>'
+    for i, (x, y) in enumerate(pts):
+        col = ["#ffd25a", "#ff6f9a", "#3ddcc8"][i % 3]
+        b += f'<circle cx="{x:.0f}" cy="{y+20:.0f}" r="60" fill="url(#lamp)" opacity=".55" style="mix-blend-mode:screen"/>'
+        b += f'<ellipse cx="{x:.0f}" cy="{y+20:.0f}" rx="14" ry="18" fill="{col}" filter="url(#gem)"/><ellipse cx="{x:.0f}" cy="{y+20:.0f}" rx="7" ry="10" fill="#fffbe6" filter="url(#glint)"/>'
+        b += f'<rect x="{x-6:.0f}" y="{y:.0f}" width="12" height="5" fill="#3a2a1a"/>'
+    # étal principal
+    for x in (150, 570):
+        b += f'<path d="M{x} 250 L{x+14} 250 L{x+14} 640 L{x} 640Z" fill="#000" filter="url(#woodV)"/>'
+    aw = "M110 210 L610 210 L630 280 L90 280Z"
+    b += f'<path d="{aw}" fill="url(#awning)" filter="url(#textile)"/>'
+    b += '<path d="M90 280 ' + " ".join(f"Q{100+k*54+27} 312 {100+k*54+54 - 10} 280" for k in range(10)) + ' Z" fill="url(#awning)"/>'
+    b += f'<path d="{aw}" fill="url(#cylH)" opacity=".35" style="mix-blend-mode:multiply" transform="rotate(90 360 245) scale(1 1)" opacity="0"/>'
+    b += '<path d="M110 210 L610 210 L630 280 L90 280Z" fill="#000" opacity=".15"/>'
+    # comptoir
+    b += '<path d="M120 500 L600 500 L620 540 L100 540Z" fill="url(#table)" filter="url(#porcelain)"/><rect x="100" y="540" width="520" height="90" fill="#000" filter="url(#woodV)"/>'
+    b += '<rect x="100" y="540" width="520" height="90" fill="#ff9a3a" opacity=".18" style="mix-blend-mode:screen"/>'
+    # paniers de fruits
+    def basket(cx, cy, fruit):
+        out = f'<path d="M{cx-70} {cy} Q{cx-60} {cy+56} {cx} {cy+58} Q{cx+60} {cy+56} {cx+70} {cy}Z" fill="url(#basket)" filter="url(#porcelain)"/>'
+        out += f'<path d="M{cx-70} {cy} Q{cx-60} {cy+56} {cx} {cy+58} Q{cx+60} {cy+56} {cx+70} {cy}Z" fill="url(#weave)"/>'
+        rnd = random.Random(cx)
+        for k in range(9):
+            fx = cx + rnd.uniform(-52, 52); fy = cy - rnd.uniform(4, 34)*(1-abs(fx-cx)/80)
+            out += f'<circle cx="{fx:.0f}" cy="{fy:.0f}" r="{rnd.uniform(15,19):.0f}" fill="url(#{fruit})" filter="url(#gem)"/>'
+        out += f'<ellipse cx="{cx}" cy="{cy}" rx="70" ry="10" fill="none" stroke="#6a3a12" stroke-width="5"/>'
+        return out
+    b += basket(210, 470, "mango") + basket(510, 470, "lime")
+    # lampe à huile + cartes posées
+    b += '<circle cx="360" cy="440" r="90" fill="url(#lamp)" opacity=".9" style="mix-blend-mode:screen"/>'
+    b += mini_card(330, 462, 70, -14) + mini_card(392, 456, 76, 12, True)
+    b += glint(392, 410, .8) + glint(600, 330, .5) + glint(120, 160, .5)
+    b += power_frame()
+    return svg(720, 720, defs + TEXTILE, b)
+
+# ───────────────────────── PACTE DES MAINS ─────────────────────────
+def pacte():
+    d, bg = bg_textile("cobalt", .45)
+    defs = d
+    b = bg
+    b += '<circle cx="360" cy="380" r="240" fill="#e4ebff" opacity=".4" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    # orbite des cartes échangées
+    b += '<ellipse cx="360" cy="380" rx="250" ry="120" fill="none" stroke="#fff3c2" stroke-width="3" stroke-dasharray="2 12" stroke-linecap="round" opacity=".8" transform="rotate(-12 360 380)"/>'
+    b += swap_arc(150, 300, 560, 300, -110, "#fff3c2", 7) + swap_arc(570, 470, 160, 470, -110, "#ffb0c8", 7)
+    b += mini_card(140, 360, 96, -22) + mini_card(580, 360, 96, 20) + mini_card(360, 560, 90, 4, True) + mini_card(360, 175, 84, -6)
+    # deux bracelets entrelacés (le pacte)
+    b += floor_shadow(370, 470, 180, 30, .45)
+    defs += '<clipPath id="ringA"><rect x="0" y="0" width="360" height="720"/></clipPath><clipPath id="ringB"><rect x="360" y="0" width="360" height="720"/></clipPath>'
+    left = '<ellipse cx="300" cy="380" rx="110" ry="110" fill="none" stroke="url(#gold)" stroke-width="30" filter="url(#metal)"/>'
+    right = '<ellipse cx="420" cy="380" rx="110" ry="110" fill="none" stroke="url(#gold)" stroke-width="30" filter="url(#metal)"/>'
+    b += f'<g filter="url(#drop)">{right}{left}<g clip-path="url(#ringB)"><g clip-path="url(#upperHalf)">{right}</g></g></g>'
+    defs += '<clipPath id="upperHalf"><rect x="0" y="0" width="720" height="380"/></clipPath>'
+    for cx in (300, 420):
+        for i, x, y, a in ring_pos(cx, 380, 110, 8, 22.5 if cx == 300 else 0):
+            b += f'<circle cx="{x:.0f}" cy="{y:.0f}" r="5" fill="url(#gem{"Teal" if cx==300 else "Pink"})" filter="url(#gem)"/>'
+    b += glint(360, 300, 1.1) + glint(470, 460, .6) + glint(240, 470, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── PAGNE CHANGEANT ─────────────────────────
+def pagne():
+    d, bg = bg_textile("cobalt", .4)
+    defs = d + """
+    <pattern id="wax" width="70" height="70" patternUnits="userSpaceOnUse">
+      <rect width="70" height="70" fill="#f2bb45"/>
+      <circle cx="35" cy="35" r="22" fill="#1c1741"/><circle cx="35" cy="35" r="15" fill="#d83c68"/><circle cx="35" cy="35" r="7" fill="#fff0d0"/>
+      <path d="M0 0 L14 0 L0 14Z M70 0 L56 0 L70 14Z M0 70 L14 70 L0 56Z M70 70 L56 70 L70 56Z" fill="#10b7a6"/>
+      <circle cx="35" cy="2" r="4" fill="#1c1741"/><circle cx="35" cy="68" r="4" fill="#1c1741"/><circle cx="2" cy="35" r="4" fill="#1c1741"/><circle cx="68" cy="35" r="4" fill="#1c1741"/></pattern>
+    <linearGradient id="hueShift" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#4a6af0"/><stop offset=".35" stop-color="#ffc94a"/><stop offset=".65" stop-color="#ff6f9a"/><stop offset="1" stop-color="#3ddcc8"/></linearGradient>
+    <filter id="drape" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".004 .012" numOctaves="2" seed="8" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="26" xChannelSelector="R" yChannelSelector="G"/></filter>"""
+    b = bg
+    # tissu drapé en vagues
+    folds = "".join(f'<stop offset="{i/16:.3f}" stop-color="{"#ffffff" if i%2 else "#1a1040"}" stop-opacity="{.35 if i%2 else .55}"/>' for i in range(17))
+    defs += f'<linearGradient id="folds" x1="0" y1="0" x2="1" y2=".25">{folds}</linearGradient>'
+    top = "M40 200 C140 140 220 260 330 190 S520 150 680 220"
+    cloth = top + " L700 520 C580 600 480 470 360 560 S140 600 20 540Z"
+    b += f'<g filter="url(#drape)"><g filter="url(#drop)">'
+    b += f'<path d="{cloth}" fill="url(#wax)" filter="url(#textile)"/>'
+    b += f'<path d="{cloth}" fill="url(#hueShift)" style="mix-blend-mode:color" opacity=".75"/>'
+    b += f'<path d="{cloth}" fill="url(#folds)" style="mix-blend-mode:soft-light"/>'
+    b += f'<path d="{cloth}" fill="url(#folds)" opacity=".5"/>'
+    b += f'<path d="{top}" stroke="#fff6dc" stroke-width="6" fill="none" opacity=".8"/>'
+    b += '</g></g>'
+    # symboles de couleur qui changent
+    suits = ""
+    for (x, y, ch, col, sz) in ((130, 120, "♠", "#e4ebff", 60), (590, 110, "♥", "#ff8ab0", 64), (600, 620, "♦", "#ffd25a", 58), (120, 630, "♣", "#7affec", 58)):
+        suits += f'<text x="{x}" y="{y}" font-size="{sz}" text-anchor="middle" dominant-baseline="middle" fill="{col}" filter="url(#glint)">{ch}</text>'
+    b += suits
+    b += swap_arc(170, 115, 550, 105, -60, "#fff3c2", 5) + swap_arc(560, 640, 170, 640, -50, "#fff3c2", 5)
+    b += glint(330, 200, .9) + glint(520, 420, .6) + glint(200, 480, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── TROC CIBLÉ ─────────────────────────
+def troc():
+    d, bg = bg_textile("cobalt", .42)
+    defs = d
+    b = bg
+    b += '<circle cx="470" cy="420" r="230" fill="#e4ebff" opacity=".35" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    # pioche (pile de dos de cartes)
+    b += floor_shadow(480, 610, 150, 24, .5)
+    for k in range(9, 0, -1):
+        b += mini_card(480 + k*1.5, 470 + k*6, 150, 6)
+    # cible sur la carte du dessus
+    for r, w, op in ((86, 5, .9), (60, 4, .8), (34, 4, .9)):
+        b += f'<circle cx="480" cy="470" r="{r}" fill="none" stroke="#ff6f9a" stroke-width="{w}" opacity="{op}" filter="url(#glint)"/>'
+    b += '<g stroke="#ff6f9a" stroke-width="4" filter="url(#glint)"><path d="M480 370 V410 M480 530 V570 M380 470 H420 M540 470 H580"/></g>'
+    # carte de la main qui part / carte de la pioche qui arrive
+    b += mini_card(190, 290, 150, -18, True)
+    b += mini_card(330, 150, 120, 14)
+    b += swap_arc(250, 380, 420, 440, 50, "#fff3c2", 8) + swap_arc(440, 330, 260, 190, 40, "#ffb0c8", 8)
+    b += glint(190, 200, .8) + glint(560, 360, .6) + glint(120, 520, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
 CARDS = {"card-back": card_back, "cauris_chanceux": cauris, "feu_camp": feu,
          "tambour_appel": tambour, "benediction_chef": benediction, "pluie_etoiles": pluie, "totem_ancetres": totem,
          "bouclier_village": bouclier, "eclair_mfoundi": eclair, "filet_pecheur": filet, "main_griot": griot, "sable_temps": sable, "vent_nord": vent,
-         "coupe_circuit": coupe, "cri_chef": cri, "masque_bluffeur": masque, "oeil_sorcier": oeil, "sceau_entrave": sceau}
+         "coupe_circuit": coupe, "cri_chef": cri, "masque_bluffeur": masque, "oeil_sorcier": oeil, "sceau_entrave": sceau,
+         "marche_nuit": marche, "pacte_mains": pacte, "pagne_changeant": pagne, "troc_cible": troc}
 
 if __name__ == "__main__":
     import sys
