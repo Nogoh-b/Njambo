@@ -20,7 +20,7 @@
 | V2-2 | Modèle V2, validation, lecteur | ✅ Terminé |
 | V2-3 | Bascule V1 / V2 sur les moments du jeu | ✅ Terminé |
 | V2-4 | Atelier V2 dans la console admin, publication versionnée | ✅ Terminé |
-| V2-5 | Piste V2 dans les chorégraphies des cartes de pouvoir | ⬜ À faire |
+| V2-5 | Cartes de pouvoir en V2, version simplifiée : un modèle V2 par carte | ✅ Terminé |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -387,17 +387,71 @@ d'intégration serveur ; interface vérifiée sans écrire en base).
 - « Fermer » la fenêtre de l'atelier V2 abandonne sans confirmation les
   modifications non enregistrées (comme l'atelier V1).
 
-## V2-5 — Cartes de pouvoir ⬜
+## V2-5 — Cartes de pouvoir, version simplifiée ✅
 
-- [ ] Piste `{ kind: "motifV2", id, cards, from, to }` dans
-      `engine/power/choreography.ts`, à côté de la piste V1
-- [ ] Validation commune client / serveur, durée comptée dans les 8 s
-- [ ] Éditeur de chorégraphie : bouton « + Modèle V2 »
-- [ ] Cas d'usage : Vent du Nord, Troc Ciblé, Marché de Nuit (main ↔
-      pioche), Pacte des Mains (main ↔ main adverse)
+**Décision (2026-11-22)** : au lieu d'une piste V2 dans la ligne de temps
+des chorégraphies, **un seul choix par carte**. Le modèle V2 choisi anime
+tous les vols de cartes (cues `flyCards`) des étapes **sans chorégraphie** ;
+une étape chorégraphiée garde sa mise en scène. La piste dans la ligne de
+temps reste possible plus tard.
 
-**Critère de fin** : une carte de pouvoir utilise un modèle V2 et l'échange
-s'anime avec la réorganisation de la main.
+- [x] Fiche de la carte : `PowerCardDef.animV2` (identifiant du modèle,
+      facultatif). Validation partagée : format seulement — le client peut
+      recevoir la carte avant le catalogue des modèles V2, et un modèle
+      inconnu donne les vols habituels au lieu d'écarter la carte. Le
+      serveur vérifie l'existence à la publication (« Modèle V2 inconnu ou
+      non publié »), après un rechargement forcé du catalogue des modèles
+- [x] Jeu (`PowerFxOrchestrator`) : un cue `flyCards` d'une carte animée
+      en V2 passe par `playAnimV2` (calque des chorégraphies) :
+  - [x] mêmes règles que les vols V1 : carte de départ cachée jusqu'au
+        commit, état réel retardé pendant les vols `move`, commit après le
+        dernier vol ;
+  - [x] identité montrée seulement comme en V1 (ma main, pouvoir que j'ai
+        lancé, cue non caché) ; sinon de dos ;
+  - [x] place d'arrivée dans une main : disposition d'après les
+        mouvements (cartes parties, puis arrivées), suivie d'un cue à
+        l'autre de la même activation ;
+  - [x] modèle inconnu de ce client : vols habituels.
+- [x] Admin, fiche d'une carte, onglet Animation : bloc « Animation V2 »
+      (`AnimV2Choice.tsx`) : vols habituels ou un modèle V2, étapes
+      concernées, étapes qui gardent leur chorégraphie, aperçu sur la
+      table de démonstration. Seulement deux lignes ajoutées dans
+      `PowerCardsAdmin.tsx` (qui avait déjà des modifications en cours)
+- [x] Bac à sable de la carte : les vols passent en V2 comme en jeu, les
+      autres cues gardent leur mise en scène, dans l'ordre du script
+      (`demoV2MovesForCue`, `ChoreoDemoStage.playAnimV2Moves`)
+- [x] Tests : validation du champ (`tests/power-card-validation.test.ts`) ;
+      test d'intégration serveur : carte refusée avec un modèle V2 non
+      publié, publiée avec un modèle publié (même archivé) — suite
+      d'intégration entière au vert
+- [x] Vérifications : `tsc` du front, du serveur et des fonctions sans
+      erreur, `eslint` propre, suite complète au vert (313 tests passés,
+      11 ignorés)
+- [x] **Bac à sable** (console, compte admin reconnecté, rien enregistré) :
+      Vent du Nord avec « Fluide » → le bloc indique « règle le mouvement
+      de l'étape 1 » ; à l'activation, **2 vols V2** : main → pioche
+      (retournement 0° → 180°), puis pioche → main (180° → 0°), ondes
+      d'arrivée présentes.
+- [x] **Vraie partie** (accord donné, 2026-11-22) : Vent du Nord publiée
+      avec « Fluide » (révision 2), partie Contre l'IA à 4 joueurs,
+      animations du jeu activées le temps de l'essai puis remises. À
+      l'activation, après la présentation de la carte : **2 vols V2** —
+      main → pioche, posée à 1 px du centre de la pioche, retournée
+      (0° → 180°) ; puis pioche → main, face visible ; la main garde ses 5
+      cartes et reprend sa forme. Ensuite republiée **sans modèle V2**
+      (révision 3) : la carte est revenue à ses vols habituels.
+
+**Critère de fin** ✅ : une carte de pouvoir utilise un modèle V2 et
+l'échange s'anime avec la réorganisation de la main (bac à sable et vraie
+partie).
+
+**Limites connues** :
+- Échange sur place (Vent du Nord : main → pioche puis pioche → main) :
+  pendant le vol, l'éventail resserre la carte partie et ouvre une place
+  en bout de main ; la nouvelle carte vise sa place finale, qui peut être
+  au milieu. Au commit, la main prend sa forme définitive.
+- Comme pour les animations V1, le modèle lu est celui du catalogue courant
+  du client (pas figé au début de la partie).
 
 ---
 
@@ -422,3 +476,6 @@ s'anime avec la réorganisation de la main.
 | 2026-11-21 | V2-2 | Modèle `AnimV2` (normalisation, validation, calendrier), vol pur `sampleAnimV2`, lecteur `playAnimV2`, 3 modèles par défaut, section V2 du banc d'essai. Écart de 3,6 px à l'arrivée trouvé au banc (la pulsation agrandissait la main) : effets refaits sans toucher aux zones. 12 vols à 0 px ; 13 tests, suite au vert. |
 | 2026-11-21 | V2-3 | Références `v2:<id>` dans l'attribution des moments (ancien format intact), validation client et serveur, `getMomentAnimV2`, branches V2 de « Carte jouée » et « Distribution » dans `TableScreen`. 15 tests, intégration serveur 21/21. Vraie partie : distribution en 20 vols au rythme du jeu, cartes jouées à 0,1 px du dépôt. |
 | 2026-11-21 | V2-4 | Atelier V2 : commandes serveur (brouillon, publication versionnée, archivage), modèles V2 dans le catalogue public, éditeur (import du prototype), onglet « ◇ Animation V2 » de la console, choix origine / V1 / V2 dans « Moments du jeu », publication protégée. 9 tests, intégration serveur 36/36 ; interface vérifiée au banc et dans la console sans écrire en base. |
+| 2026-11-22 | V2-5 | Version simplifiée choisie : un modèle V2 par carte (`def.animV2`). Vols `flyCards` en V2 dans le jeu et le bac à sable, choix dans l'onglet Animation de la carte, existence vérifiée à la publication. Tests et intégration serveur au vert ; essai visuel en attente (navigateur intégré sans droits admin). |
+| 2026-11-22 | V2-5 | Bac à sable vérifié (admin reconnecté, rien enregistré) : Vent du Nord en « Fluide » fait ses 2 vols en V2 avec les bons retournements. Vraie partie en attente : elle demande de publier la carte en base de dev. |
+| 2026-11-22 | V2-5 | Vraie partie (accord donné) : Vent du Nord publiée en « Fluide » (rév. 2), 2 vols V2 vérifiés en partie, puis republiée sans modèle V2 (rév. 3). Animations du navigateur remises comme avant. Étape terminée : V2-1 à V2-5 faites. |
