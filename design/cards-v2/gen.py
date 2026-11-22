@@ -607,8 +607,276 @@ def totem():
     b += power_frame()
     return svg(720, 720, defs, b)
 
+
+GLASS = """<linearGradient id="glassH" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity=".55"/><stop offset=".15" stop-color="#ffffff" stop-opacity=".08"/><stop offset=".75" stop-color="#ffffff" stop-opacity=".04"/><stop offset=".9" stop-color="#ffffff" stop-opacity=".35"/><stop offset="1" stop-color="#ffffff" stop-opacity=".1"/></linearGradient>"""
+
+CLOUDS = """<filter id="clouds" x="0" y="0" width="100%" height="100%" color-interpolation-filters="sRGB">
+  <feTurbulence type="fractalNoise" baseFrequency=".005 .012" numOctaves="4" seed="SEED" result="t"/>
+  <feColorMatrix in="t" type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 2.8 -1.15" result="a"/>
+  <feGaussianBlur in="a" stdDeviation="4" result="ab"/>
+  <feOffset in="ab" dx="0" dy="14" result="sh"/>
+  <feColorMatrix in="sh" type="matrix" values="0 0 0 0 SR  0 0 0 0 SG  0 0 0 0 SB  0 0 0 .7 0" result="shade"/>
+  <feComposite in="ab" in2="shade" operator="over"/></filter>"""
+
+def clouds(seed, shade="#7ac8d0"):
+    r, g, bb = (int(shade[i:i+2], 16)/255 for i in (1, 3, 5))
+    return CLOUDS.replace("SEED", str(seed)).replace("SR", f"{r:.2f}").replace("SG", f"{g:.2f}").replace("SB", f"{bb:.2f}")
+
+def leaf(x, y, s, rot, col="#5cc86a"):
+    return (f'<g transform="translate({x} {y}) rotate({rot}) scale({s})"><path d="M0 -40 C24 -22 24 22 0 40 C-24 22 -24 -22 0 -40Z" fill="{col}" filter="url(#gem)"/>'
+            '<path d="M0 -38 L0 38 M0 -14 L10 -22 M0 2 L-12 -6 M0 16 L11 8" stroke="#1e6a30" stroke-width="2" opacity=".7"/></g>')
+
+def mini_card(x, y, w, rot, face=False):
+    h = w*1.4
+    inner = (f'<rect x="{-w/2}" y="{-h/2}" width="{w}" height="{h}" rx="{w*.1:.0f}" fill="#fff8e8" stroke="#c8a060" stroke-width="2"/>'
+             f'<text x="{-w*.3:.0f}" y="{-h*.22:.0f}" font-family="Georgia,serif" font-weight="900" font-size="{w*.32:.0f}" fill="#c22a5e">7</text>'
+             f'<text x="0" y="{h*.12:.0f}" text-anchor="middle" font-size="{w*.5:.0f}" fill="#c22a5e">♥</text>') if face else (
+             f'<rect x="{-w/2}" y="{-h/2}" width="{w}" height="{h}" rx="{w*.1:.0f}" fill="url(#gold)"/>'
+             f'<rect x="{-w/2+w*.08:.1f}" y="{-h/2+w*.08:.1f}" width="{w*.84:.1f}" height="{h-w*.16:.1f}" rx="{w*.06:.0f}" fill="#3154d4"/>'
+             f'<path d="M0 {-h*.28:.0f} L{w*.26:.0f} 0 L0 {h*.28:.0f} L{-w*.26:.0f} 0Z" fill="none" stroke="#ffe08a" stroke-width="2"/>'
+             f'<ellipse rx="{w*.1:.1f}" ry="{w*.15:.1f}" fill="#fff0d0"/>')
+    return f'<g transform="translate({x} {y}) rotate({rot})" filter="url(#dropS)">{inner}</g>'
+
+# ───────────────────────── BOUCLIER DU VILLAGE ─────────────────────────
+def bouclier():
+    d, bg = bg_textile("teal", .42)
+    defs = d + WOOD + """
+    <radialGradient id="hideG" cx="40%" cy="32%" r="75%"><stop offset="0" stop-color="#fff2d6"/><stop offset=".55" stop-color="#e2c08a"/><stop offset="1" stop-color="#9a6a3a"/></radialGradient>
+    <filter id="hide2" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".035" numOctaves="4" seed="9"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 .4  0 0 0 0 .25  0 0 0 0 .1  0 0 0 1.3 -.55"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+    <radialGradient id="dome" cx="50%" cy="50%" r="50%"><stop offset=".75" stop-color="#9ffff0" stop-opacity="0"/><stop offset=".95" stop-color="#c8fff6" stop-opacity=".55"/><stop offset="1" stop-color="#ffffff" stop-opacity=".9"/></radialGradient>
+    <linearGradient id="spearShaft" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#3a1a08"/><stop offset=".4" stop-color="#c8904a"/><stop offset="1" stop-color="#3a1a08"/></linearGradient>
+    <linearGradient id="steel" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#5a6a78"/><stop offset=".45" stop-color="#f4fbff"/><stop offset=".55" stop-color="#b8c8d4"/><stop offset="1" stop-color="#3a4652"/></linearGradient>"""
+    b = bg
+    # lances croisées
+    for rot in (-32, 32):
+        b += (f'<g transform="rotate({rot} 360 370)" filter="url(#dropS)"><rect x="352" y="40" width="16" height="640" rx="8" fill="url(#spearShaft)"/>'
+              '<path d="M360 -10 C384 40 384 90 368 120 L352 120 C336 90 336 40 360 -10Z" fill="url(#steel)" filter="url(#metal)"/>'
+              '<rect x="348" y="118" width="24" height="18" rx="4" fill="url(#gold)" filter="url(#metal)"/></g>')
+    b += floor_shadow(370, 650, 170, 26, .45)
+    # bouclier ovale en cuir peint
+    b += '<ellipse cx="360" cy="370" rx="176" ry="262" fill="#000" filter="url(#woodV)"/>'
+    b += '<ellipse cx="360" cy="370" rx="164" ry="250" fill="url(#hideG)" filter="url(#porcelain)"/>'
+    b += '<ellipse cx="360" cy="370" rx="164" ry="250" filter="url(#hide2)" opacity=".5"/>'
+    pat = ""
+    for k, y in enumerate(range(150, 600, 60)):
+        w = 150*math.sqrt(max(0, 1-((y-370)/250)**2))
+        col = "#0e8f84" if k % 2 else "#b8284e"
+        pat += f'<path d="M{360-w*.9:.0f} {y} L{360-w*.45:.0f} {y+26} L360 {y} L{360+w*.45:.0f} {y+26} L{360+w*.9:.0f} {y}" stroke="{col}" stroke-width="9" fill="none" stroke-linejoin="round"/>'
+    b += f'<g opacity=".85" clip-path="url(#shieldClip)">{pat}</g>'
+    defs += '<clipPath id="shieldClip"><ellipse cx="360" cy="370" rx="160" ry="246"/></clipPath>'
+    b += '<path d="M360 128 L360 612" stroke="#3a1a08" stroke-width="14" opacity=".75"/>'
+    b += '<ellipse cx="360" cy="370" rx="168" ry="254" fill="none" stroke="#e8cf9a" stroke-width="7" stroke-dasharray="11 5"/>'
+    b += f'<g filter="url(#drop)"><circle cx="360" cy="370" r="46" fill="url(#gold)" filter="url(#metal)"/></g>' + gem(360, 370, 18, "Teal", False)
+    # dôme protecteur
+    b += '<ellipse cx="360" cy="370" rx="290" ry="300" fill="url(#dome)"/>'
+    hexes = ""
+    for row in range(-6, 7):
+        for col in range(-6, 7):
+            x = 360 + col*52 + (26 if row % 2 else 0); y = 370 + row*45
+            if ((x-360)/280)**2 + ((y-370)/290)**2 < 1 and ((x-360)/180)**2 + ((y-370)/265)**2 > 1:
+                hexes += f'<path d="M{x} {y-28} l24 14 v28 l-24 14 l-24 -14 v-28Z"/>'
+    b += f'<g fill="none" stroke="#dffffa" stroke-width="2" opacity=".35" filter="url(#glowS2)">{hexes}</g>'
+    defs += '<filter id="glowS2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+    b += glint(250, 210, .8) + glint(560, 160, .6) + glint(470, 560, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── ÉCLAIR DU MFOUNDI ─────────────────────────
+def eclair():
+    d, sky = bg_sky("#1a5a9a", "#3ac8c8", "#c8fff0", 430, 30, 5)
+    defs = d + clouds(17, "#5aa8c0") + """
+    <linearGradient id="river" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#e6fffa"/><stop offset=".5" stop-color="#5ee6d4"/><stop offset="1" stop-color="#0a7a80"/></linearGradient>
+    <filter id="ripple" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".004 .08" numOctaves="2" seed="3" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="18" xChannelSelector="R" yChannelSelector="G"/></filter>
+    <filter id="bolt" x="-50%" y="-20%" width="200%" height="140%"><feGaussianBlur stdDeviation="14" result="b1"/><feGaussianBlur in="SourceGraphic" stdDeviation="4" result="b2"/>
+      <feMerge><feMergeNode in="b1"/><feMergeNode in="b1"/><feMergeNode in="b2"/><feMergeNode in="SourceGraphic"/></feMerge></filter>"""
+    b = sky
+    b += '<rect width="720" height="360" filter="url(#clouds)" opacity=".85"/>'
+    b += '<ellipse cx="380" cy="150" rx="260" ry="120" fill="#e6fffa" opacity=".45" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    # collines de Yaoundé + lumières
+    b += '<path d="M0 420 C80 380 150 400 220 370 S360 340 430 372 S580 350 720 390 V720 H0Z" fill="#13707a"/>'
+    rnd = random.Random(4)
+    b += "".join(f'<circle cx="{rnd.uniform(20,700):.0f}" cy="{rnd.uniform(400,470):.0f}" r="{rnd.uniform(1.2,2.6):.1f}" fill="{rnd.choice(["#ffe08a","#fff3c2","#ffb060"])}" filter="url(#glowS)"/>' for _ in range(40))
+    defs += '<filter id="glowS" x="-200%" y="-200%" width="500%" height="500%"><feGaussianBlur stdDeviation="2" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+    b += '<path d="M0 470 C100 455 200 470 300 458 S520 450 720 470 V720 H0Z" fill="#168a84"/>'
+    # rivière sinueuse
+    riv = "M330 470 C380 500 300 530 330 560 C370 600 520 610 480 660 C460 690 380 700 360 720 L560 720 C600 690 640 650 580 610 C520 570 400 560 420 530 C440 505 380 490 380 470Z"
+    b += f'<path d="{riv}" fill="url(#river)" filter="url(#ripple)"/>'
+    b += f'<path d="{riv}" fill="#ffffff" opacity=".25" filter="url(#blur8)" style="mix-blend-mode:screen"/>'
+    b += '<path d="M0 560 C100 540 200 600 300 620 L300 720 H0Z M720 560 C650 580 620 640 600 720 H720Z" fill="#0e6a6a" opacity=".85"/>'
+    # éclair ramifié
+    rnd = random.Random(12)
+    def bolt_path(x, y, tx, ty, n, jit):
+        pts = [(x, y)]
+        for i in range(1, n):
+            t = i/n
+            pts.append((x+(tx-x)*t + rnd.uniform(-jit, jit), y+(ty-y)*t + rnd.uniform(-jit*.3, jit*.3)))
+        pts.append((tx, ty))
+        return pts
+    main = bolt_path(380, 60, 400, 520, 14, 34)
+    bl = '<path d="M' + " L".join(f"{p[0]:.0f} {p[1]:.0f}" for p in main) + '" stroke-width="7"/>'
+    for k in (3, 6, 9):
+        x, y = main[k]; br = bolt_path(x, y, x + rnd.choice([-1, 1])*rnd.uniform(90, 160), y + rnd.uniform(80, 150), 6, 18)
+        bl += '<path d="M' + " L".join(f"{p[0]:.0f} {p[1]:.0f}" for p in br) + '" stroke-width="3.5"/>'
+    b += f'<g fill="none" stroke="#ffffff" stroke-linejoin="round" stroke-linecap="round" filter="url(#bolt)">{bl}</g>'
+    b += '<ellipse cx="400" cy="520" rx="120" ry="30" fill="#e6fffa" opacity=".7" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    b += '<path d="M400 520 L404 690" stroke="#ffffff" stroke-width="10" opacity=".35" filter="url(#blur8)" style="mix-blend-mode:screen"/>'
+    b += glint(380, 62, 1.0)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── FILET DU PÊCHEUR ─────────────────────────
+def filet():
+    defs = """
+    <linearGradient id="sea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#d8fff6"/><stop offset=".3" stop-color="#3ed8c4"/><stop offset=".75" stop-color="#0a8a8a"/><stop offset="1" stop-color="#064a5a"/></linearGradient>
+    <filter id="caustics" x="0" y="0" width="100%" height="100%"><feTurbulence type="turbulence" baseFrequency=".02 .03" numOctaves="2" seed="6"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  -3 0 0 0 .9"/></filter>
+    <filter id="netWarp" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency=".012" numOctaves="2" seed="5" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="22" xChannelSelector="R" yChannelSelector="G"/></filter>
+    <linearGradient id="fishSilver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#1a6a8a"/><stop offset=".35" stop-color="#7ae0e8"/><stop offset=".55" stop-color="#f4ffff"/><stop offset="1" stop-color="#c8d8e0"/></linearGradient>
+    <linearGradient id="fishGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8501a"/><stop offset=".4" stop-color="#ffb04a"/><stop offset=".6" stop-color="#fff0c8"/><stop offset="1" stop-color="#e8c890"/></linearGradient>
+    <pattern id="scales" width="12" height="10" patternUnits="userSpaceOnUse"><path d="M0 10 A6 6 0 0 1 12 10" fill="none" stroke="#08384a" stroke-opacity=".3" stroke-width="1.2"/></pattern>
+    <radialGradient id="float" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ffd0a0"/><stop offset=".6" stop-color="#e2602a"/><stop offset="1" stop-color="#7a2a10"/></radialGradient>"""
+    b = '<rect width="720" height="720" fill="url(#sea)"/>'
+    b += '<rect width="720" height="720" filter="url(#caustics)" opacity=".35" style="mix-blend-mode:screen"/>'
+    b += god_rays(360, -120, 22, 900, 14, "#f0fffc", .55)
+    rnd = random.Random(3)
+    b += "".join(f'<circle cx="{rnd.uniform(60,660):.0f}" cy="{rnd.uniform(80,640):.0f}" r="{rnd.uniform(2,7):.1f}" fill="none" stroke="#e8fffa" stroke-width="1.5" opacity="{rnd.uniform(.4,.9):.2f}"/>' for _ in range(30))
+    # poissons dans le filet
+    def fish(x, y, s, rot, grad):
+        return (f'<g transform="translate({x} {y}) rotate({rot}) scale({s})" filter="url(#dropS)">'
+                '<path d="M-90 0 C-60 -42 30 -46 70 -8 L110 -38 C104 -10 104 10 110 38 L70 8 C30 46 -60 42 -90 0Z" fill="url(#' + grad + ')" filter="url(#porcelain)"/>'
+                '<path d="M-60 -2 C-30 -30 30 -30 66 -6 L66 6 C30 30 -30 30 -60 2Z" fill="url(#scales)"/>'
+                '<path d="M-20 -34 C0 -60 30 -56 40 -30" fill="' + ('#ff8a3a' if grad == 'fishGold' else '#4ac8d8') + '" opacity=".8"/>'
+                '<circle cx="-64" cy="-6" r="7" fill="#fff"/><circle cx="-65" cy="-6" r="4" fill="#08202a"/><circle cx="-66" cy="-8" r="1.5" fill="#fff"/>'
+                '<path d="M-40 -18 C-46 -6 -46 6 -40 18" stroke="#08384a" stroke-width="2" fill="none" opacity=".5"/></g>')
+    b += fish(300, 400, .95, -12, "fishSilver") + fish(450, 470, .8, 18, "fishGold") + fish(330, 540, .7, 5, "fishSilver") + fish(470, 330, .6, -25, "fishGold")
+    # filet (maillage déformé)
+    net = ""
+    for i in range(-12, 30):
+        x = i*38
+        net += f'<path d="M{x} 120 L{x+420} 700"/><path d="M{x} 120 L{x-420} 700"/>'
+    b += f'<g clip-path="url(#netClip)"><g fill="none" stroke="#fff6dc" stroke-width="2.6" opacity=".85" filter="url(#netWarp)">{net}</g></g>'
+    defs += '<clipPath id="netClip"><path d="M110 150 Q360 110 610 150 C660 330 620 560 520 650 Q360 700 200 650 C100 560 60 330 110 150Z"/></clipPath>'
+    b += '<path d="M110 150 Q360 110 610 150" stroke="#c8a060" stroke-width="10" fill="none" filter="url(#dropS)"/>'
+    for i in range(7):
+        t = i/6; x = 110 + 500*t; y = 150 - 40*math.sin(math.pi*t)*.95
+        b += f'<ellipse cx="{x:.0f}" cy="{y:.0f}" rx="18" ry="13" fill="url(#float)" filter="url(#gem)"/>'
+    b += glint(250, 120, .7) + glint(560, 260, .5) + glint(320, 380, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── MAIN DU GRIOT (kora) ─────────────────────────
+def griot():
+    d, bg = bg_textile("teal", .4)
+    defs = d + WOOD + """
+    <radialGradient id="gourd" cx="38%" cy="32%" r="78%"><stop offset="0" stop-color="#ffe0a8"/><stop offset=".5" stop-color="#d0883a"/><stop offset="1" stop-color="#5a2a0e"/></radialGradient>
+    <radialGradient id="leather" cx="45%" cy="40%" r="70%"><stop offset="0" stop-color="#f8e2b8"/><stop offset=".7" stop-color="#d0a468"/><stop offset="1" stop-color="#8a5a2a"/></radialGradient>"""
+    b = bg + floor_shadow(370, 650, 200, 30, .5)
+    # manche
+    neck = "M346 30 L374 30 L380 470 L340 470Z"
+    b += f'<path d="{neck}" fill="#000" filter="url(#woodV)"/><path d="{neck}" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+    for y in range(70, 300, 46):
+        b += f'<rect x="336" y="{y}" width="48" height="9" rx="4" fill="#e8d2a0" filter="url(#dropS)"/>'
+    # calebasse + peau
+    b += '<circle cx="360" cy="500" r="170" fill="url(#gourd)" filter="url(#porcelain)"/>'
+    b += '<ellipse cx="360" cy="470" rx="150" ry="120" fill="url(#leather)" filter="url(#porcelain)"/>'
+    for i in range(22):
+        a = math.radians(i*360/22)
+        b += f'<circle cx="{360+142*math.cos(a):.0f}" cy="{470+112*math.sin(a):.0f}" r="5" fill="url(#gold)" filter="url(#metal)"/>'
+    b += '<circle cx="300" cy="500" r="20" fill="#3a1606" opacity=".7"/>'
+    # chevalet + cordes
+    b += '<path d="M344 300 L376 300 L370 470 L350 470Z" fill="#f0dcae" filter="url(#porcelain)"/>'
+    strings = ""
+    for i in range(11):
+        y = 310 + i*14
+        strings += f'<path d="M{356 if i%2 else 364} {y} L{344 + (i%2)*32} 52"/>'
+    b += f'<g stroke="#fffaf0" stroke-width="2.4" opacity=".95" filter="url(#glowS3)">{strings}</g>'
+    defs += '<filter id="glowS3" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.5" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+    # notes de musique dorées
+    notes = ""
+    for (x, y, sc, r) in ((200, 200, 1.1, -12), (520, 170, .9, 10), (560, 330, .7, -6), (170, 380, .7, 14), (480, 90, .6, 4)):
+        notes += (f'<g transform="translate({x} {y}) rotate({r}) scale({sc})"><ellipse cx="0" cy="30" rx="14" ry="10" transform="rotate(-20 0 30)"/>'
+                  '<rect x="11" y="-30" width="5" height="60"/><path d="M16 -30 Q40 -20 34 6 Q30 -10 16 -12Z"/></g>')
+    b += f'<g fill="url(#gold)" filter="url(#metal)">{notes}</g>'
+    b += sound_waves(360, 240, 3, 150, 40, "#e8fff8", 5, -160, -20)
+    b += glint(360, 40, .9) + glint(250, 430, .5) + glint(470, 530, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── SABLE DU TEMPS ─────────────────────────
+def sable():
+    d, bg = bg_textile("teal", .45)
+    defs = d + WOOD + GLASS + """
+    <linearGradient id="sand" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#ffe9a0"/><stop offset=".6" stop-color="#e8b040"/><stop offset="1" stop-color="#b87a1a"/></linearGradient>
+    <filter id="sandTex" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".9" numOctaves="1" seed="2"/>
+      <feColorMatrix type="matrix" values="0 0 0 0 .6  0 0 0 0 .4  0 0 0 0 .1  0 0 0 1.5 -.7"/><feComposite in2="SourceAlpha" operator="in"/></filter>
+    <radialGradient id="frost" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#e8fffc" stop-opacity=".0"/><stop offset=".7" stop-color="#c8fff6" stop-opacity=".35"/><stop offset="1" stop-color="#ffffff" stop-opacity=".0"/></radialGradient>"""
+    b = bg + floor_shadow(370, 652, 190, 28, .55)
+    b += '<circle cx="360" cy="370" r="260" fill="url(#frost)"/>'
+    # verre
+    glass = "M246 120 C246 250 340 320 352 370 C340 420 246 490 246 620 L474 620 C474 490 380 420 368 370 C380 320 474 250 474 120Z"
+    b += f'<path d="{glass}" fill="#c8fff6" opacity=".18"/>'
+    # sable haut (peu) + filet + tas bas (beaucoup)
+    b += '<path d="M300 280 C320 320 350 350 356 368 L364 368 C370 350 400 320 420 280 Q360 296 300 280Z" fill="url(#sand)"/>'
+    b += '<rect x="357" y="368" width="6" height="200" fill="url(#sand)" opacity=".95"/>'
+    b += '<path d="M252 612 C262 540 330 520 360 500 C390 520 458 540 468 612Z" fill="url(#sand)"/><path d="M252 612 C262 540 330 520 360 500 C390 520 458 540 468 612Z" filter="url(#sandTex)" opacity=".6"/>'
+    b += f'<path d="{glass}" fill="url(#glassH)"/>'
+    b += f'<path d="{glass}" fill="none" stroke="#e8fffa" stroke-width="4" opacity=".85"/>'
+    b += '<path d="M266 150 C266 240 320 300 336 340" stroke="#fff" stroke-width="8" stroke-linecap="round" fill="none" opacity=".55" filter="url(#soft)"/>'
+    b += '<path d="M266 600 C266 520 310 450 334 410" stroke="#fff" stroke-width="6" stroke-linecap="round" fill="none" opacity=".4" filter="url(#soft)"/>'
+    # cristaux de givre
+    def crystal(x, y, s):
+        arms = "".join(f'<g transform="rotate({a})"><path d="M0 0 L0 -30 M0 -14 L-8 -22 M0 -14 L8 -22 M0 -24 L-5 -30 M0 -24 L5 -30"/></g>' for a in range(0, 360, 60))
+        return f'<g transform="translate({x} {y}) scale({s})" stroke="#f4fffd" stroke-width="2.5" stroke-linecap="round" fill="none" filter="url(#glint)">{arms}</g>'
+    b += crystal(300, 200, 1) + crystal(430, 470, .8) + crystal(290, 560, .6) + crystal(560, 200, .9) + crystal(150, 420, .8) + crystal(590, 520, .6) + crystal(420, 170, .5)
+    # montants et plateaux en bois
+    for x in (226, 482):
+        post = f"M{x} 112 L{x+12} 112 L{x+12} 628 L{x} 628Z"
+        b += f'<path d="{post}" fill="#000" filter="url(#woodV)"/><path d="{post}" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+        for y in (220, 370, 520):
+            b += f'<ellipse cx="{x+6}" cy="{y}" rx="12" ry="8" fill="url(#gold)" filter="url(#metal)"/>'
+    for (y, h) in ((86, 34), (620, 34)):
+        plate = f"M200 {y} L520 {y} L520 {y+h} L200 {y+h}Z"
+        b += f'<g filter="url(#dropS)"><path d="{plate}" fill="#000" filter="url(#woodV)"/></g><path d="{plate}" fill="url(#cylH)" style="mix-blend-mode:multiply"/>'
+        b += f'<rect x="200" y="{y+h/2-4}" width="320" height="8" fill="url(#gold)" filter="url(#metal)"/>'
+    b += gem(360, 103, 11, "Teal", False) + gem(360, 637, 11, "Teal", False)
+    b += glint(282, 160, .8) + glint(455, 590, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── VENT DU NORD ─────────────────────────
+def vent():
+    d, sky = bg_sky("#3ab8d8", "#8ae8e0", "#f0fff8", 720, 0, 2)
+    defs = d + clouds(44, "#8ac8d8") + """
+    <linearGradient id="wind" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#ffffff" stop-opacity="0"/><stop offset=".5" stop-color="#ffffff" stop-opacity=".9"/><stop offset="1" stop-color="#ffffff" stop-opacity="0"/></linearGradient>"""
+    b = sky + '<rect width="720" height="720" filter="url(#clouds)" opacity=".9"/>'
+    b += '<path d="M0 600 C120 560 260 590 360 570 S600 550 720 580 V720 H0Z" fill="#2a9a8a" opacity=".6" filter="url(#soft)"/>'
+    # rubans de vent en spirale
+    rib = ""
+    for k in range(7):
+        r0 = 40 + k*34; pts = []
+        for i in range(60):
+            t = i/59; a = math.radians(-200 + t*400 + k*25)
+            r = r0 + t*120
+            pts.append(f"{360 + r*math.cos(a):.0f} {360 + r*.72*math.sin(a):.0f}")
+        rib += f'<path d="M{" L".join(pts)}" stroke="url(#wind)" stroke-width="{18-k*2:.0f}" opacity="{1-k*.06:.2f}"/>'
+    b += f'<g fill="none" stroke-linecap="round" filter="url(#soft)">{rib}</g>'
+    b += f'<g fill="none" stroke-linecap="round" opacity=".9">{rib}</g>'.replace('stroke="url(#wind)"', 'stroke="url(#windC)"')
+    defs += '<linearGradient id="windC" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#2ab8b0" stop-opacity="0"/><stop offset=".5" stop-color="#e8fffc"/><stop offset="1" stop-color="#2ab8b0" stop-opacity="0"/></linearGradient>'
+    b += '<circle cx="360" cy="360" r="70" fill="#ffffff" opacity=".6" filter="url(#blur20)"/>'
+    # feuilles et cartes emportées
+    for (x, y, s, r, c) in ((170, 220, .8, 40, "#5cc86a"), (540, 180, .7, -30, "#7ad860"), (590, 470, .6, 70, "#e8b040"), (140, 500, .7, -50, "#5cc86a"), (450, 600, .5, 20, "#7ad860"), (300, 130, .5, 80, "#e8b040")):
+        b += leaf(x, y, s, r, c)
+    b += mini_card(250, 380, 96, -28) + mini_card(470, 300, 110, 22, True) + mini_card(400, 470, 84, 64)
+    b += glint(470, 230, .7) + glint(200, 300, .5) + glint(560, 400, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
 CARDS = {"card-back": card_back, "cauris_chanceux": cauris, "feu_camp": feu,
-         "tambour_appel": tambour, "benediction_chef": benediction, "pluie_etoiles": pluie, "totem_ancetres": totem}
+         "tambour_appel": tambour, "benediction_chef": benediction, "pluie_etoiles": pluie, "totem_ancetres": totem,
+         "bouclier_village": bouclier, "eclair_mfoundi": eclair, "filet_pecheur": filet, "main_griot": griot, "sable_temps": sable, "vent_nord": vent}
 
 if __name__ == "__main__":
     import sys
