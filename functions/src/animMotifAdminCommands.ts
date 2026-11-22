@@ -13,8 +13,9 @@ import { DEFAULT_MOTIFS, DEFAULT_MOTIFS_BY_ID } from "../../engine/anim/defaults
 import { normalizeMotif, validateMotif, type AnimMotif } from "../../engine/anim/motif";
 import { getMotif, momentMap, setMotifCatalog } from "../../engine/anim/registry";
 import { momentIssuesForMotif, validateMoments, type MomentMap } from "../../engine/anim/moments";
+import { setAnimV2Catalog } from "../../engine/anim/v2/registry";
 import { asObject, db, requireAdmin, requiredString, runIdempotent } from "./core";
-import { ensureMotifCatalogFresh } from "./animCatalog";
+import { ensureMotifCatalogFresh, publishedAnimsV2 } from "./animCatalog";
 
 const MOTIF_ID = /^[a-z0-9_]{3,48}$/;
 
@@ -34,13 +35,16 @@ export async function rebuildAnimCatalog(updatedBy: string) {
   const archivedIds = rows.filter((row) => row.archived === true && row.motif?.id).map((row) => String(row.motif.id)).sort();
   const momentsSnap = await db.doc("anim_moments/current").get();
   const moments = (momentsSnap.exists ? momentsSnap.get("moments") ?? {} : {}) as MomentMap;
+  // Modèles V2 publiés : dans le même document (une seule lecture pour les clients).
+  const { animsV2, archivedV2Ids } = await publishedAnimsV2();
   const ref = db.doc("anim_catalog/current");
   const revision = await db.runTransaction(async (transaction) => {
     const current = await transaction.get(ref);
     const next = Number(current.get("revision") ?? 0) + 1;
-    transaction.set(ref, { published: true, revision: next, motifs, archivedIds, moments, count: motifs.length, updatedAt: Date.now(), updatedBy }, { merge: false });
+    transaction.set(ref, { published: true, revision: next, motifs, archivedIds, moments, animsV2, archivedV2Ids, count: motifs.length, updatedAt: Date.now(), updatedBy }, { merge: false });
     return next;
   });
+  setAnimV2Catalog(animsV2, archivedV2Ids);
   setMotifCatalog(motifs, revision, archivedIds, moments);
   return { revision, count: motifs.length, skipped: rows.length - motifs.length };
 }

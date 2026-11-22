@@ -12,6 +12,8 @@
 import { GAME_CONFIG } from "../../config/gameConfig";
 import { motifTotalMs, sameAnchor, type AnimMotif, type MotifAnchor, type MotifIssue } from "./motif";
 import { applyAnimStyle, type AnimStyle } from "./style";
+import type { AnimV2 } from "./v2/model";
+import { getAnimV2 } from "./v2/registry";
 
 export interface GameMomentDef {
   label: string;
@@ -61,8 +63,29 @@ export const GAME_MOMENTS = {
 
 export type GameMoment = keyof typeof GAME_MOMENTS;
 export const GAME_MOMENT_KEYS = Object.keys(GAME_MOMENTS) as GameMoment[];
-/** Modèle attribué à chaque moment (absent = animation actuelle du jeu). */
+/** Modèle attribué à chaque moment (absent = animation actuelle du jeu) : identifiant d'un modèle V1,
+ *  ou `v2:<identifiant>` pour un modèle V2. L'ancien format (identifiant seul) reste donc lu tel quel. */
 export type MomentMap = Partial<Record<GameMoment, string>>;
+
+/* ─────────────── Animation V2 ─────────────── */
+
+const V2_PREFIX = "v2:";
+export const isV2Ref = (ref: string | undefined): ref is string => typeof ref === "string" && ref.startsWith(V2_PREFIX);
+export const v2Ref = (id: string) => `${V2_PREFIX}${id}`;
+export const v2IdOf = (ref: string) => ref.slice(V2_PREFIX.length);
+
+/** Moments qu'un modèle V2 peut animer : de vrais déplacements d'une zone à une autre.
+ *  « Pli gagné » et « Fin de pli » sont sur place, « Pouvoir lancé » n'a pas d'arrivée : ils restent en V1. */
+export const ANIM_V2_MOMENTS: readonly GameMoment[] = ["play", "deal"];
+
+/** Modèle V2 d'un moment, rythme du jeu appliqué (distribution : vol `dealFlight`, le serveur l'attend). */
+export function momentAnimV2(moment: GameMoment, model: AnimV2): AnimV2 {
+  if (GAME_MOMENTS[moment].timing !== "game") return model;
+  return { ...model, motion: { ...model.motion, durationMs: GAME_CONFIG.anim.dealFlight } };
+}
+
+/** Durée qui compte pour un moment animé en V2 (vol d'une carte). */
+export const momentDurationV2 = (moment: GameMoment, model: AnimV2) => momentAnimV2(moment, model).motion.durationMs;
 
 /** Nombre de cartes qu'un moment anime au plus (table pleine). */
 const momentFlights = (moment: GameMoment, motif: AnimMotif) => (moment === "trickCollect" ? 4 : moment === "play" || moment === "trickWin" ? 1 : motif.count);
@@ -97,25 +120,31 @@ export function momentMotif(moment: GameMoment, motif: AnimMotif): AnimMotif {
   return { ...motif, staggerMs: GAME_CONFIG.anim.dealPerCard, durationMs: GAME_CONFIG.anim.dealFlight };
 }
 
-/** Paramètre d'URL de « Essayer dans une partie » : `?apercuMoments=play:play,deal:deal` (vide = animation actuelle partout). */
+/** Paramètre d'URL de « Essayer dans une partie » : `?apercuMoments=play:play,deal:v2:v2_fluide` (vide = animation actuelle partout). */
 export const MOMENT_PREVIEW_PARAM = "apercuMoments";
 
 export function encodeMomentPreview(map: MomentMap): string {
   return GAME_MOMENT_KEYS.filter((moment) => map[moment]).map((moment) => `${moment}:${map[moment]}`).join(",");
 }
 
+const MODEL_ID = /^[a-z0-9_]{3,48}$/;
+
 /** Lecture tolérante : les moments inconnus et les identifiants mal formés sont ignorés. */
 export function parseMomentPreview(text: string): MomentMap {
   const map: MomentMap = {};
   for (const pair of text.split(",")) {
-    const [moment, id] = pair.split(":");
-    if (moment in GAME_MOMENTS && /^[a-z0-9_]{3,48}$/.test(id ?? "")) map[moment as GameMoment] = id;
+    const cut = pair.indexOf(":");
+    if (cut < 0) continue;
+    // Ce qui suit l'identifiant (« :x ») est ignoré, comme avant la V2.
+    const moment = pair.slice(0, cut), rest = pair.slice(cut + 1);
+    const id = (isV2Ref(rest) ? v2IdOf(rest) : rest).split(":")[0];
+    if (moment in GAME_MOMENTS && MODEL_ID.test(id)) map[moment as GameMoment] = isV2Ref(rest) ? v2Ref(id) : id;
   }
   return map;
 }
 
 /** Erreurs d'une attribution des moments (chemins `moments.<moment>`). */
-export function validateMoments(value: unknown, lookup: (id: string) => AnimMotif | null): MotifIssue[] {
+export function validateMoments(value: unknown, lookup: (id: string) => AnimMotif | null, lookupV2: (id: string) => AnimV2 | null = getAnimV2): MotifIssue[] {
   const issues: MotifIssue[] = [];
   if (!value || typeof value !== "object" || Array.isArray(value)) return [{ path: "moments", message: "Attribution des moments invalide." }];
   const map = value as Record<string, unknown>;
@@ -124,6 +153,14 @@ export function validateMoments(value: unknown, lookup: (id: string) => AnimMoti
     if (!(key in GAME_MOMENTS)) { issues.push({ path, message: "Moment inconnu." }); continue; }
     const moment = key as GameMoment;
     if (typeof motifId !== "string") { issues.push({ path, message: "Identifiant de modèle attendu." }); continue; }
+    if (isV2Ref(motifId)) {
+      if (!ANIM_V2_MOMENTS.includes(moment)) { issues.push({ path, message: "Ce moment n'est pas un déplacement d'une zone à une autre : il ne peut pas être animé en V2." }); continue; }
+      const model = lookupV2(v2IdOf(motifId));
+      if (!model) { issues.push({ path, message: "Modèle V2 inconnu ou non publié." }); continue; }
+      const def: GameMomentDef = GAME_MOMENTS[moment];
+      if (def.maxMs && momentDurationV2(moment, model) > def.maxMs) issues.push({ path, message: `Trop long pour ce moment : ${def.maxMs} ms au plus (vol d'une carte).` });
+      continue;
+    }
     const motif = lookup(motifId);
     if (!motif) { issues.push({ path, message: "Modèle inconnu ou non publié." }); continue; }
     if (!motifFitsMoment(moment, motif)) { issues.push({ path, message: "Ce modèle ne part pas (ou n'arrive pas) là où ce moment l'impose." }); continue; }
@@ -139,6 +176,19 @@ export function validateMoments(value: unknown, lookup: (id: string) => AnimMoti
     issues.push({ path: "moments.trickCollect", message: `« Pli gagné » puis « Fin de pli » doivent tenir ensemble dans la pause de fin de pli (${GAME_CONFIG.anim.trickPause} ms).` });
   }
   return issues;
+}
+
+/** Erreurs qu'une nouvelle version d'un modèle V2 causerait aux moments qui l'utilisent (vol trop long) :
+ *  sa publication doit alors être refusée. */
+export function momentIssuesForAnimV2(map: MomentMap, model: AnimV2, lookupV2: (id: string) => AnimV2 | null = getAnimV2): MotifIssue[] {
+  const ref = v2Ref(model.id);
+  const used = GAME_MOMENT_KEYS.filter((moment) => map[moment] === ref);
+  if (used.length === 0) return [];
+  const touched = new Set(used.map((moment) => `moments.${moment}`));
+  const only = Object.fromEntries(used.map((moment) => [moment, ref]));
+  return validateMoments(only, () => null, (id) => (id === model.id ? model : lookupV2(id)))
+    .filter((issue) => touched.has(issue.path))
+    .map((issue) => ({ ...issue, message: `Moment « ${GAME_MOMENTS[issue.path.split(".")[1] as GameMoment].label} » : ${issue.message}` }));
 }
 
 /** Erreurs qu'une nouvelle version d'un modèle causerait aux moments qui l'utilisent

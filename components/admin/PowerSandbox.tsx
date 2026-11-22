@@ -8,10 +8,11 @@
 
 import { useMemo, useRef, useState } from "react";
 import { PlayCard } from "@/components/cards/PlayCard";
-import { ChoreoDemoStage, type ChoreoDemoHandle } from "@/components/power/choreo/ChoreoDemoStage";
+import { ChoreoDemoStage, demoV2MovesForCue, type ChoreoDemoHandle } from "@/components/power/choreo/ChoreoDemoStage";
+import { getAnimV2 } from "@/engine/anim/v2/registry";
 import { choreographyFromCues, type Choreography } from "@/engine/power/choreography";
 import { createSandboxTable, runSandboxActivation, SANDBOX_NAMES, type SandboxOutcome } from "@/engine/power/sandbox";
-import type { PowerModule, PowerScript } from "@/engine/power/types";
+import type { AnimCue, PowerModule, PowerScript } from "@/engine/power/types";
 import { playPowerSound } from "@/lib/powerSounds";
 import type { Card } from "@/types/game";
 import styles from "./AdminConsole.module.css";
@@ -78,9 +79,31 @@ export function PowerSandbox({ card, hasIssues }: { card: EditedCard; hasIssues:
   const animate = async (result: SandboxOutcome | null) => {
     if (card.def.sound?.ref) playPowerSound(card.def.sound.ref, card.def.sound.volume ?? 1);
     const cards = resolvedCards(result);
-    for (const choreo of stepChoreographies(card.script)) {
-      await stageRef.current?.play(choreo, cards);
+    // Animation V2 de la carte : ses vols de cartes passent par le lecteur V2, comme en jeu (étapes sans chorégraphie).
+    const animV2 = card.def.animV2 ? getAnimV2(card.def.animV2) : null;
+    if (!animV2) {
+      for (const choreo of stepChoreographies(card.script)) await stageRef.current?.play(choreo, cards);
+      return;
     }
+    const pending = new Map<number, number>();
+    for (const step of card.script.steps) {
+      if (step.choreo) { if (step.choreo.tracks.length) await stageRef.current?.play(step.choreo, cards); continue; }
+      // Dans l'ordre du script : les autres cues gardent leur mise en scène, les vols passent en V2.
+      let others: AnimCue[] = [];
+      const flushOthers = async () => {
+        if (others.length) await stageRef.current?.play(choreographyFromCues(others as never), cards);
+        others = [];
+      };
+      for (const cue of step.anim ?? []) {
+        if (cue.cue !== "flyCards") { others.push(cue); continue; }
+        await flushOthers();
+        const ref = typeof cue.cards === "string" ? cue.cards : "";
+        await stageRef.current?.playAnimV2Moves(animV2, demoV2MovesForCue(cue, cards[ref] ?? [], pending), false);
+      }
+      await flushOthers();
+    }
+    await new Promise((resolve) => setTimeout(resolve, 700));
+    await stageRef.current?.playAnimV2Moves(animV2, [], true);
   };
 
   const activate = () => {

@@ -119,6 +119,8 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
     case "anim_motifs":
     case "anim_motif_versions":
     case "anim_moments":
+    case "anim_v2_models":
+    case "anim_v2_versions":
     case "sealed_packs":
     case "admin_audit":
       return auth.admin ? { kind: "allow" } : { kind: "deny" };

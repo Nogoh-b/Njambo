@@ -10,6 +10,8 @@ import { MOMENT_PREVIEW_PARAM, parseMomentPreview } from "@/engine/anim/moments"
 import { validateMotif, type AnimMotif } from "@/engine/anim/motif";
 import { motifCatalogRevision, motifRegistryVersion, setMomentPreview, setMotifCatalog, setStylePreview, subscribeMotifCatalog } from "@/engine/anim/registry";
 import { STYLE_PREVIEW_PARAM, parseAnimStyle } from "@/engine/anim/style";
+import { validateAnimV2, type AnimV2 } from "@/engine/anim/v2/model";
+import { setAnimV2Catalog } from "@/engine/anim/v2/registry";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "@/lib/firestoreClient";
 
@@ -21,6 +23,10 @@ export function useMotifCatalogLoader() {
     const motifs = ((snapshot.get("motifs") ?? []) as AnimMotif[]).filter((motif) => validateMotif(motif).length === 0);
     const archivedIds = snapshot.get("archivedIds");
     const moments = snapshot.get("moments");
+    // Modèles V2 d'abord : setMotifCatalog écarte les moments dont le modèle V2 est inconnu.
+    const animsV2 = ((snapshot.get("animsV2") ?? []) as AnimV2[]).filter((model) => validateAnimV2(model).length === 0);
+    const archivedV2Ids = snapshot.get("archivedV2Ids");
+    setAnimV2Catalog(animsV2, Array.isArray(archivedV2Ids) ? archivedV2Ids.map(String) : []);
     setMotifCatalog(motifs, revision, Array.isArray(archivedIds) ? archivedIds.map(String) : [], moments && typeof moments === "object" ? moments : {});
   }, () => { /* hors ligne : on garde les modèles courants */ }), []);
 }

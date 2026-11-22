@@ -6,7 +6,10 @@
    visuelle en attendant l'atelier complet (phase G3). */
 
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import { ChoreoDemoStage, type ChoreoDemoHandle } from "@/components/power/choreo/ChoreoDemoStage";
+import { ChoreoDemoStage, DEMO_V2_ROUTES, type ChoreoDemoHandle, type DemoV2Route } from "@/components/power/choreo/ChoreoDemoStage";
+import { DEFAULT_ANIMS_V2 } from "@/engine/anim/v2/defaults";
+import { normalizeAnimV2, type AnimV2 } from "@/engine/anim/v2/model";
+import { AnimV2Editor } from "./anim/AnimV2Editor";
 import { MOTIF_GROUPS, normalizeMotif, validateMotif, type AnimMotif, type MotifGroup } from "@/engine/anim/motif";
 import { Transport } from "./AnimationsAdmin";
 import { createMotifClock } from "./anim/clock";
@@ -30,14 +33,15 @@ const SAMPLE_CHOREO: Choreography = { tracks: [
 ] };
 
 export function MotifBench() {
-  const [mode, setMode] = useState<"bench" | "studio" | "moments" | "style">("bench");
+  const [mode, setMode] = useState<"bench" | "studio" | "moments" | "style" | "v2">("bench");
   if (mode === "studio") return <LocalStudio onBack={() => setMode("bench")} />;
   if (mode === "moments") return <LocalMoments onBack={() => setMode("bench")} />;
   if (mode === "style") return <LocalStyle onBack={() => setMode("bench")} />;
-  return <Bench onStudio={() => setMode("studio")} onMoments={() => setMode("moments")} onStyle={() => setMode("style")} />;
+  if (mode === "v2") return <LocalV2 onBack={() => setMode("bench")} />;
+  return <Bench onStudio={() => setMode("studio")} onMoments={() => setMode("moments")} onStyle={() => setMode("style")} onV2={() => setMode("v2")} />;
 }
 
-function Bench({ onStudio, onMoments, onStyle }: { onStudio(): void; onMoments(): void; onStyle(): void }) {
+function Bench({ onStudio, onMoments, onStyle, onV2 }: { onStudio(): void; onMoments(): void; onStyle(): void; onV2(): void }) {
   const stage = useRef<ChoreoDemoHandle>(null);
   const [playing, setPlaying] = useState<string | null>(null);
   const motifs = listMotifs();
@@ -49,6 +53,10 @@ function Bench({ onStudio, onMoments, onStyle }: { onStudio(): void; onMoments()
   const playOne = (motif: AnimMotif) => run(motif.id, () => stage.current?.playMotif(motif) ?? Promise.resolve());
   const playAll = () => run("tout", async () => {
     for (const motif of motifs) await stage.current?.playMotif(motif);
+  });
+  const routes = Object.entries(DEMO_V2_ROUTES) as Array<[DemoV2Route, string]>;
+  const playAllV2 = () => run("tout V2", async () => {
+    for (const model of DEFAULT_ANIMS_V2) for (const [route] of routes) await stage.current?.playAnimV2(model, route);
   });
 
   return (
@@ -80,6 +88,28 @@ function Bench({ onStudio, onMoments, onStyle }: { onStudio(): void; onMoments()
             </div>
           );
         })}
+        <div data-testid="v2-section" style={{ marginTop: 22, paddingTop: 14, borderTop: "1px solid #3a2b1b" }}>
+          <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 6, flexWrap: "wrap" }}>
+            <h2 style={{ margin: 0, font: "800 15px var(--font-bricolage, system-ui)" }}>Animation V2 · zones intelligentes</h2>
+            <button type="button" data-testid="v2-play-all" disabled={!!playing} onClick={() => void playAllV2()} style={buttonStyle(false)}>▶ Tout jouer (V2)</button>
+            <button type="button" data-testid="open-v2-studio" onClick={onV2} style={buttonStyle(false)}>◇ Atelier V2 (aperçu local)</button>
+          </div>
+          <p style={{ margin: "0 0 10px", color: "#a99b8b", fontSize: 13 }}>Les zones donnent la pose de départ et d&apos;arrivée ; le modèle ne règle que le mouvement. Un même modèle joue tous les trajets.</p>
+          {DEFAULT_ANIMS_V2.map((model) => (
+            <div key={model.id} style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap", marginBottom: 8 }}>
+              <span title={model.description} style={{ minWidth: 86, font: "800 11px var(--font-bricolage, system-ui)", letterSpacing: ".09em", textTransform: "uppercase", color: "#d7a957" }}>{model.name}</span>
+              {routes.map(([route, label]) => {
+                const key = `${model.id}-${route}`;
+                return (
+                  <button key={route} type="button" data-testid={`v2-${key}`} disabled={!!playing} onClick={() => void run(key, () => stage.current?.playAnimV2(model, route) ?? Promise.resolve())}
+                    style={{ ...buttonStyle(false), borderColor: playing === key ? "#f2bb45" : "#45352a" }}>
+                    {label}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
         <p data-testid="bench-status" style={{ color: "#a99b8b", minHeight: 20 }}>{playing ? `Lecture : ${playing}` : "Prêt."}</p>
       </section>
       <ChoreoDemoStage ref={stage} choreo={null} width={300} />
@@ -142,6 +172,24 @@ function LocalMoments({ onBack }: { onBack(): void }) {
         <h1 style={{ margin: 0, font: "800 20px var(--font-bricolage, system-ui)" }}>Moments du jeu</h1>
       </div>
       <GameMomentsPanel saved={{}} />
+    </main>
+  );
+}
+
+/* Atelier V2 en local : même éditeur que la console (section Animations, ◇ Animation V2), sans enregistrement. */
+function LocalV2({ onBack }: { onBack(): void }) {
+  const [model, setModel] = useState<AnimV2>(() => normalizeAnimV2(DEFAULT_ANIMS_V2[0]));
+  return (
+    <main style={{ ...SHELL_VARS, minHeight: "100vh", background: "#0a0808", color: "#fff6df", fontFamily: "var(--font-manrope, system-ui)", padding: 16 }}>
+      <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 12, flexWrap: "wrap" }}>
+        <button type="button" onClick={onBack} style={buttonStyle(false)}>← Banc d&apos;essai</button>
+        <h1 style={{ margin: 0, font: "800 20px var(--font-bricolage, system-ui)" }}>Atelier V2</h1>
+        <select data-testid="v2-studio-model" value={DEFAULT_ANIMS_V2.some((item) => item.id === model.id) ? model.id : ""} onChange={(event) => { const next = DEFAULT_ANIMS_V2.find((item) => item.id === event.target.value); if (next) setModel(normalizeAnimV2(next)); }} style={{ padding: "7px 10px", borderRadius: 9, background: "#0c0906", color: "#fff6df", border: "1px solid #3a2b1b" }}>
+          {DEFAULT_ANIMS_V2.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
+        </select>
+      </div>
+      <AnimV2Editor model={model} isNew={false} onChange={setModel} />
+      <p className={styles.hint}>Aperçu local : rien n&apos;est enregistré. La publication se fait dans la console admin, section Animations, ◇ Animation V2.</p>
     </main>
   );
 }

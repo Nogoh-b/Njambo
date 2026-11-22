@@ -5,6 +5,8 @@ import { GAME_CONFIG } from "@/config/gameConfig";
 import { MotionCard } from "@/components/cards/MotionCard";
 import type { DealOrigin } from "@/components/cards/PlayCard";
 import { useRegisterZone, type HandHighlightStyle, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
+import { elementCenter, elementScale } from "@/components/table/zones/zonePose";
+import { fanPose, fanRestLift } from "@/engine/anim/v2/pose";
 import type { PanInfo } from "motion/react";
 import type { Card } from "@/types/game";
 
@@ -168,6 +170,18 @@ export const Fan = memo(function Fan({
       const ids = idsOf(cardIdxs);
       setTempHidden((current) => new Set([...current, ...ids]));
       later(durationMs, () => setTempHidden((current) => new Set([...current].filter((id) => !ids.includes(id)))));
+    },
+    // Animation V2 : même calcul que le rendu ci-dessous (écart de w/2, rotation de 8° par carte, soulèvement).
+    poseOf: (cardIdx: number, count?: number) => {
+      const root = rootRef.current;
+      if (!root) return null;
+      const n = count ?? cardsRef.current.length;
+      const scale = elementScale(root, seatAngle);
+      // Disposition actuelle : une carte jouable est soulevée ; ailleurs, soulèvement au repos.
+      const current = n === cardsRef.current.length;
+      const lift = (index: number, total: number) =>
+        (current && faceUp && legal?.includes(index) ? -w * 0.24 : fanRestLift(index, total)) * scale;
+      return fanPose({ center: elementCenter(root), axis: seatAngle, cardWidth: w * scale, step: (w / 2) * scale, rotStep: 8, face: faceUp ? 0 : 180, lift }, cardIdx, n);
     },
   });
 

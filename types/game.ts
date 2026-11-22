@@ -179,6 +179,9 @@ export interface PowerCardDef {
   disabled?: boolean;
   /** Son d'activation : « preset:<nom> » (synthèse) ou URL d'un son uploadé ; volume 0-1. Absent = son par défaut. */
   sound?: { ref: string; volume?: number };
+  /** Animation V2 (zones intelligentes) : identifiant du modèle qui anime les vols de cartes de la carte
+   *  (cues « flyCards » des étapes sans chorégraphie). Absent ou inconnu = vols habituels. */
+  animV2?: string;
   /** Traductions futures (non éditées pour l'instant). */
   translations?: Partial<Record<"en" | "dua", Partial<Pick<PowerCardDef, "name" | "description" | "activationTitle" | "activationText">>>>;
 }

@@ -186,6 +186,11 @@ export const adminApi = {
   publishAnimMotif: (motifId: string) => call<{ motifId: string; revision: number; catalogRevision: number }>("publishAnimMotif", { motifId }),
   discardAnimMotifDraft: (motifId: string) => call<{ motifId: string }>("discardAnimMotifDraft", { motifId }),
   setAnimMotifArchived: (motifId: string, archived: boolean) => call<{ motifId: string; archived: boolean }>("setAnimMotifArchived", { motifId, archived }),
+  animsV2: () => call<{ models: AdminAnimV2Row[]; moments: import("@/engine/anim/moments").MomentMap }>("listAdminAnimsV2"),
+  saveAnimV2Draft: (model: import("@/engine/anim/v2/model").AnimV2) => call<{ modelId: string; issues: Array<{ path: string; message: string }> }>("saveAnimV2Draft", { model }),
+  publishAnimV2: (modelId: string) => call<{ modelId: string; revision: number; catalogRevision: number }>("publishAnimV2", { modelId }),
+  discardAnimV2Draft: (modelId: string) => call<{ modelId: string }>("discardAnimV2Draft", { modelId }),
+  setAnimV2Archived: (modelId: string, archived: boolean) => call<{ modelId: string; archived: boolean }>("setAnimV2Archived", { modelId, archived }),
 };
 
 /* ─────────────── Assistant IA ─────────────── */
@@ -253,6 +258,19 @@ export interface AdminMotifRow {
   issues: Array<{ path: string; message: string }>;
 }
 
+/** Modèle d'animation V2 vu par l'admin (atelier V2, étape V2-4). */
+export interface AdminAnimV2Row {
+  id: string;
+  model: import("@/engine/anim/v2/model").AnimV2;
+  published: boolean;
+  revision: number;
+  hasDraft: boolean;
+  isDefault: boolean;
+  archived: boolean;
+  updatedAt: number;
+  issues: Array<{ path: string; message: string }>;
+}
+
 export async function uploadImage(file: File, kind: "event" | "boss" | "cosmetic" | "season" | "power") {
   const user = auth.currentUser;
   if (!user) throw new BackendError("unauthenticated", "AUTH_REQUIRED");
@@ -302,6 +320,10 @@ const ERROR_LABELS: Record<string, string> = {
   ANIM_MOTIF_MOMENT_CONFLICT: "Un moment du jeu utilise ce modèle : cette version ne lui convient plus (départ, arrivée ou durée). Change d'abord l'attribution des moments.",
   GAME_MOMENTS_INVALID: "L'attribution des moments contient des erreurs.",
   INVALID_MOTIFID: "Identifiant du modèle : 3 à 48 caractères a-z, 0-9 ou _.",
+  ANIM_V2_INVALID: "Le modèle V2 contient des erreurs : corrige-les avant de publier.",
+  ANIM_V2_MOMENT_CONFLICT: "Un moment du jeu utilise ce modèle V2 : cette version est trop longue pour lui. Change d'abord l'attribution des moments.",
+  INVALID_ANIM_V2_ID: "Identifiant du modèle V2 : 3 à 48 caractères a-z, 0-9 ou _.",
+  ANIM_V2_NOT_FOUND: "Modèle V2 introuvable.",
   EVENT_ID_TAKEN: "Cet identifiant est déjà utilisé.",
   NOTHING_SCHEDULED: "Aucune publication programmée.",
   ADMIN_REQUIRED: "Droits admin requis.",

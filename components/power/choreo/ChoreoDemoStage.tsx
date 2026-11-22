@@ -9,13 +9,18 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState, type CSSProperties } from "react";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { ZoneRegistry, ZoneRegistryProvider, useRegisterZone, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
+import { elementCenter, elementScale } from "@/components/table/zones/zonePose";
+import { fanPose, pilePose, stackPose } from "@/engine/anim/v2/pose";
 import { sameAnchor, type AnimMotif } from "@/engine/anim/motif";
 import type { Choreography } from "@/engine/power/choreography";
-import type { PlayerRef, PowerFxTone } from "@/engine/power/types";
+import type { AnimCue, PlayerRef, PowerFxTone } from "@/engine/power/types";
 import type { Card } from "@/types/game";
 import { ChoreoLayer, type ChoreoLayerHandle } from "./ChoreoLayer";
 import { moveSourceUi, playChoreography, type ChoreoCards, type ChoreoContext } from "./playChoreography";
 import { playMotif } from "./playMotif";
+import { playAnimV2, type AnimV2Move } from "./playAnimV2";
+import type { AnimV2 } from "@/engine/anim/v2/model";
+import type { PoseZone } from "@/components/table/zones/zonePose";
 import { playPowerSound } from "@/lib/powerSounds";
 
 const card = (id: string, rank: string, value: number, suit: string): Card => ({ id, rank, value, suit, color: suit === "♥" || suit === "♦" ? "#c0392b" : "#1e1e1e" });
@@ -29,6 +34,45 @@ const demoCard = (label: string, index: number): Card => {
   return card(`motif_${index}_${label}`, rank, RANK_VALUES[rank] ?? (Number(rank) || 0), suit);
 };
 const PREVIEW_POOL = ["A♠", "7♦", "Q♣", "5♥", "10♠", "2♦"];
+
+/** Trajets d'essai des modèles V2 : un même modèle les joue tous. */
+export const DEMO_V2_ROUTES = {
+  draw: "Piocher",
+  play: "Jouer",
+  take: "Récupérer",
+  opponent: "Jouer · adversaire",
+} as const;
+export type DemoV2Route = keyof typeof DEMO_V2_ROUTES;
+
+type FlyCardsCue = Extract<AnimCue, { cue: "flyCards" }>;
+const DEMO_UI: Record<PlayerRef, number> = { self: 0, target: 1, each_target: 1, all_opponents: 1, all: 0 };
+
+/** Mouvements V2 d'un cue « flyCards » sur la table de démonstration (bac à sable d'une carte animée en V2).
+ *  `pending` : nombre de cartes de chaque main après les cues déjà joués (les mains de démonstration ne changent pas). */
+export function demoV2MovesForCue(cue: FlyCardsCue, cards: Card[], pending: Map<number, number>): AnimV2Move[] {
+  const uiOf = (zone: FlyCardsCue["from"]) => ("player" in zone && zone.player ? DEMO_UI[zone.player as PlayerRef] : 0);
+  const fromUi = uiOf(cue.from), toUi = uiOf(cue.to);
+  const count = (ui: number) => pending.get(ui) ?? MY_HAND.length;
+  const list = cards.length ? cards : [null];
+  if (cue.from.zone === "hand") pending.set(fromUi, count(fromUi) - list.length);
+  const base = cue.to.zone === "hand" ? count(toUi) : 0;
+  if (cue.to.zone === "hand") pending.set(toUi, count(toUi) + list.length);
+  return list.map((item, k) => ({
+    card: item,
+    from: { zone: cue.from.zone as PoseZone, ui: fromUi, index: cue.from.zone === "hand" ? Math.min(MY_HAND.length - 1, 1 + k) : 0 },
+    to: { zone: cue.to.zone as PoseZone, ui: toUi, index: cue.to.zone === "hand" ? base + k : 0, ...(cue.to.zone === "hand" ? { count: count(toUi) } : {}) },
+  }));
+}
+
+function demoV2Move(route: DemoV2Route): AnimV2Move {
+  const arrival = { zone: "hand" as const, ui: 0, index: MY_HAND.length, count: MY_HAND.length + 1 };
+  switch (route) {
+    case "draw": return { card: card("v2_draw", "7", 7, "♦"), from: { zone: "deck", index: 0 }, to: arrival };
+    case "play": return { card: MY_HAND[2], from: { zone: "hand", ui: 0, index: 2 }, to: { zone: "deposit", ui: 0, index: 0 } };
+    case "take": return { card: card("v2_take", "10", 10, "♠"), from: { zone: "deposit", ui: 0, index: 0 }, to: arrival };
+    case "opponent": return { card: card("v2_opp", "8", 8, "♥"), from: { zone: "hand", ui: 1, index: 2 }, to: { zone: "deposit", ui: 1, index: 0 } };
+  }
+}
 
 const SEATS = [
   { ui: 0, name: "Toi", emoji: "🎴", style: { left: "50%", bottom: "3%", transform: "translateX(-50%)" } },
@@ -99,6 +143,12 @@ function DemoHand({ ui, faceUp, hidden, round }: { ui: number; faceUp: boolean; 
       setTempHidden((current) => new Set([...current, ...indexes]));
       setTimeout(() => setTempHidden((current) => new Set([...current].filter((index) => !indexes.includes(index)))), ms);
     },
+    poseOf: (index: number, count?: number) => {
+      const el = ref.current;
+      if (!el) return null;
+      const scale = elementScale(el);
+      return fanPose({ center: elementCenter(el), axis: 0, cardWidth: width * scale, step: (width - overlap) * scale, rotStep: 6, face: faceUp ? 0 : 180 }, index, count ?? MY_HAND.length);
+    },
   });
   // Fin d'une démonstration : la main reprend sa forme.
   useEffect(() => {
@@ -108,8 +158,9 @@ function DemoHand({ ui, faceUp, hidden, round }: { ui: number; faceUp: boolean; 
     setTempHidden(new Set());
   }, [round]);
   const slots = [...MY_HAND.map((item) => ({ item, spacer: false })), ...Array.from({ length: room.count }, () => ({ item: null, spacer: true }))];
+  // Largeur fixe (main de départ) : l'éventail centré déborde autant des deux côtés, son centre ne bouge pas (poses V2).
   return (
-    <div ref={ref} style={{ display: "flex", justifyContent: "center" }}>
+    <div ref={ref} style={{ display: "flex", justifyContent: "center", width: width + (MY_HAND.length - 1) * (width - overlap) }}>
       {slots.map(({ item, spacer }, index) => {
         const isCollapsed = collapsed.idx.has(index);
         const style: CSSProperties = {
@@ -147,6 +198,12 @@ function DemoDeposit({ ui }: { ui: number }) {
     getTopCardRect: () => ref.current?.getBoundingClientRect() ?? null,
     getCardRect: () => ref.current?.getBoundingClientRect() ?? null,
     beginSelection: () => () => undefined,
+    poseOf: (index: number) => {
+      const el = ref.current;
+      if (!el) return null;
+      const scale = elementScale(el);
+      return pilePose({ center: elementCenter(el), cardWidth: 30 * scale, scale }, index);
+    },
   });
   return <div ref={ref} style={{ width: 30, height: 42, borderRadius: 6, border: "1.5px dashed rgba(242,187,69,.55)", background: "rgba(0,0,0,.2)" }} />;
 }
@@ -155,7 +212,16 @@ function DemoCenter() {
   const deckRef = useRef<HTMLDivElement>(null);
   const potRef = useRef<HTMLDivElement>(null);
   const [label, setLabel] = useState<string | null>(null);
-  useRegisterZone("deck", { getRect: () => deckRef.current?.getBoundingClientRect() ?? null, getElement: () => deckRef.current, pulse: () => undefined });
+  useRegisterZone("deck", {
+    getRect: () => deckRef.current?.getBoundingClientRect() ?? null,
+    getElement: () => deckRef.current,
+    pulse: () => undefined,
+    poseOf: (index: number, count?: number) => {
+      const el = deckRef.current;
+      if (!el) return null;
+      return stackPose({ center: elementCenter(el), rotate: 0, cardWidth: 40 * elementScale(el), depth: { x: 0, y: 0 }, layers: 1 }, index, count ?? index + 1);
+    },
+  });
   useRegisterZone("pot", {
     getRect: () => potRef.current?.getBoundingClientRect() ?? null,
     getElement: () => potRef.current,
@@ -178,6 +244,10 @@ export interface ChoreoDemoHandle {
   play(override?: Choreography | null, cards?: Partial<Record<string, Card[]>>): Promise<void>;
   /** Joue un modèle de l'atelier seul (même brouillon non publié), puis remet la table en place. */
   playMotif(motif: AnimMotif): Promise<void>;
+  /** Joue un modèle V2 sur un trajet d'essai, puis remet la table en place. */
+  playAnimV2(model: AnimV2, route: DemoV2Route): Promise<void>;
+  /** Joue des mouvements V2 précis (sans remettre la table en place entre deux appels : `reset` à la fin). */
+  playAnimV2Moves(model: AnimV2, moves: AnimV2Move[], reset?: boolean): Promise<void>;
 }
 
 export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreography | null; tone?: PowerFxTone; width?: number }>(function ChoreoDemoStage({ choreo, tone = "gold", width = 340 }, ref) {
@@ -275,7 +345,41 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
     }
   }, [contextFor, hide]);
 
-  useImperativeHandle(ref, () => ({ play, playMotif: playMotifAlone }), [play, playMotifAlone]);
+  const playV2 = useCallback(async (model: AnimV2, route: DemoV2Route) => {
+    if (busy.current || !layerRef.current) return;
+    busy.current = true;
+    const layer = layerRef.current;
+    const ctx = contextFor(layer, () => ({ ids: [], snapshots: [], fromIndexes: [], toIndexes: [] }));
+    try {
+      await playAnimV2(ctx, { id: `apercu_${model.id}_${route}`, model, moves: [demoV2Move(route)] });
+      await new Promise((resolve) => setTimeout(resolve, 700));
+    } finally {
+      layer.clear();
+      setHidden({});
+      setRound((value) => value + 1);
+      busy.current = false;
+    }
+  }, [contextFor]);
+
+  const playV2Moves = useCallback(async (model: AnimV2, moves: AnimV2Move[], reset = true) => {
+    if (busy.current || !layerRef.current) return;
+    busy.current = true;
+    const layer = layerRef.current;
+    const ctx = contextFor(layer, () => ({ ids: [], snapshots: [], fromIndexes: [], toIndexes: [] }));
+    try {
+      await playAnimV2(ctx, { id: `apercu_${model.id}_moves`, model, moves });
+      if (reset) await new Promise((resolve) => setTimeout(resolve, 700));
+    } finally {
+      if (reset) {
+        layer.clear();
+        setHidden({});
+        setRound((value) => value + 1);
+      }
+      busy.current = false;
+    }
+  }, [contextFor]);
+
+  useImperativeHandle(ref, () => ({ play, playMotif: playMotifAlone, playAnimV2: playV2, playAnimV2Moves: playV2Moves }), [play, playMotifAlone, playV2, playV2Moves]);
 
   const felt: CSSProperties = { position: "relative", width, height: width * 1.75, borderRadius: 26, overflow: "hidden", background: "radial-gradient(ellipse at 50% 46%, #1f6b4f, #0c2a20 70%)", border: "8px solid #000", boxShadow: "0 20px 50px #0008" };
   return (

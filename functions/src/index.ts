@@ -89,6 +89,13 @@ import {
   setAnimMotifArchivedHandler,
   setGameMomentsHandler,
 } from "./animMotifAdminCommands";
+import {
+  listAdminAnimsV2Handler,
+  saveAnimV2DraftHandler,
+  publishAnimV2Handler,
+  discardAnimV2DraftHandler,
+  setAnimV2ArchivedHandler,
+} from "./animV2AdminCommands";
 import { registerPushTokenHandler } from "./notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "./roomCommands";
 import {
@@ -161,6 +168,11 @@ export const publishAnimMotif = onCall(callable, publishAnimMotifHandler);
 export const discardAnimMotifDraft = onCall(callable, discardAnimMotifDraftHandler);
 export const setAnimMotifArchived = onCall(callable, setAnimMotifArchivedHandler);
 export const setGameMoments = onCall(callable, setGameMomentsHandler);
+export const listAdminAnimsV2 = onCall(callable, listAdminAnimsV2Handler);
+export const saveAnimV2Draft = onCall(callable, saveAnimV2DraftHandler);
+export const publishAnimV2 = onCall(callable, publishAnimV2Handler);
+export const discardAnimV2Draft = onCall(callable, discardAnimV2DraftHandler);
+export const setAnimV2Archived = onCall(callable, setAnimV2ArchivedHandler);
 export const getSeasons = onCall(callable, getSeasonsHandler);
 export const claimSeasonTier = onCall(callable, claimSeasonTierHandler);
 export const listSeasons = onCall(callable, listSeasonsHandler);

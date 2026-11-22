@@ -20,6 +20,7 @@ import { AssistantButton, AssistantDrawer, useAssistantDrawer } from "./assistan
 import type { AssistantChange } from "./assistant/useAssistant";
 import { ImageField } from "./ImageField";
 import { SoundField } from "./SoundField";
+import { AnimV2Choice } from "./anim/AnimV2Choice";
 import { StepsEditor, TargetEditor } from "./PowerScriptEditor";
 import { BOOSTER_TIER_LABELS, CATEGORY_LABELS, RARITY_LABELS, TARGET_MODE_LABELS, TONE_LABELS, blankPowerCard } from "./powerLabels";
 import styles from "./AdminConsole.module.css";
@@ -31,7 +32,7 @@ const TABS: Array<{ key: Tab; label: string; prefixes: string[] }> = [
   { key: "identity", label: "Identité", prefixes: ["def.id", "def.name", "def.description", "def.activationTitle", "def.activationText", "def.category", "def.rarity", "def.icon", "def.tone", "def.art", "def.targetMode", "def.animTags", "def.sound", "script.id"] },
   { key: "target", label: "Cible", prefixes: ["script.target", "script.conditions"] },
   { key: "effect", label: "Effet", prefixes: ["script.steps"] },
-  { key: "animation", label: "Animation", prefixes: [] },
+  { key: "animation", label: "Animation", prefixes: ["def.animV2"] },
   { key: "economy", label: "Économie", prefixes: ["def.costCauris", "def.costNkap", "def.boosterTier"] },
   { key: "sandbox", label: "Bac à sable", prefixes: [] },
 ];
@@ -225,6 +226,7 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
   const issues = useMemo(() => validatePowerCard(card), [card]);
   const dirty = JSON.stringify(card) !== saved;
   const errorFor = useCallback((path: string) => issues.find((issue) => issue.path === path)?.message, [issues]);
+  const issueCount = useCallback((prefix: string) => issues.filter((issue) => issue.path === prefix || issue.path.startsWith(`${prefix}.`)).length, [issues]);
   const tabCount = (key: Tab) => {
     const prefixes = TABS.find((entry) => entry.key === key)?.prefixes ?? [];
     if (key === "sandbox") return 0;
@@ -353,8 +355,9 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
             </section>
           )}
           {tab === "target" && <section className={styles.panel}><TargetEditor script={card.script} onChange={setScript} errorFor={errorFor} /></section>}
-          {tab === "effect" && <section className={styles.panel}><p className={styles.hint} style={{ marginTop: 0 }}>Chaque étape s’exécute dans l’ordre. Les briques modifient réellement la partie (côté serveur).</p><StepsEditor mode="effect" script={card.script} onChange={setScript} errorFor={errorFor} /></section>}
-          {tab === "animation" && <section className={styles.panel}><p className={styles.hint} style={{ marginTop: 0 }}>Mise en scène de chaque étape, rejouée chez tous les joueurs. Pour aller plus loin, ajoute une chorégraphie spatiale à l’étape (repères, trajectoires, effets par élément).</p><StepsEditor mode="animation" script={card.script} onChange={setScript} errorFor={errorFor} tone={def.tone} /></section>}
+          {tab === "effect" && <section className={styles.panel}><p className={styles.hint} style={{ marginTop: 0 }}>Chaque étape s’exécute dans l’ordre. Les briques modifient réellement la partie (côté serveur).</p><StepsEditor mode="effect" script={card.script} onChange={setScript} errorFor={errorFor} issueCount={issueCount} /></section>}
+          {tab === "animation" && <AnimV2Choice card={card} error={errorFor("def.animV2")} onChange={(animV2) => patchDef({ animV2 })} />}
+          {tab === "animation" && <section className={styles.panel}><p className={styles.hint} style={{ marginTop: 0 }}>Mise en scène de chaque étape, rejouée chez tous les joueurs. Pour aller plus loin, ajoute une chorégraphie spatiale à l’étape (repères, trajectoires, effets par élément).</p><StepsEditor mode="animation" script={card.script} onChange={setScript} errorFor={errorFor} issueCount={issueCount} tone={def.tone} /></section>}
           {tab === "economy" && (
             <section className={styles.panel}>
               <div className={styles.grid2}>

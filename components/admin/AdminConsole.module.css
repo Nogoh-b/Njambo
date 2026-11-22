@@ -120,13 +120,29 @@
 .stageCard + .stageCard { margin-top: 10px; }
 .stageCard.dragging { opacity: .5; }
 .stageCard.dropTarget { border-color: var(--gold); }
-.stageHead { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+.stageHead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-bottom: 10px; }
+.stageHeadCollapsed { margin-bottom: 0; }
 .grip { cursor: grab; color: var(--faint); user-select: none; padding: 0 4px; }
-.stageNum { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #f2bb4522; color: var(--gold); font-weight: 900; font-size: 12px; }
+.stageNum { display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #f2bb4522; color: var(--gold); font-weight: 900; font-size: 12px; flex: none; }
 
 .rewardList { display: grid; gap: 6px; }
 .rewardRow { display: flex; flex-wrap: wrap; align-items: end; gap: 8px; padding: 8px; border-radius: 9px; background: #0c0906; border: 1px solid #2a1f14; }
 .rewardRow .field { flex: 1 1 110px; }
+
+.collapsibleItem { display: block; margin-bottom: 8px; }
+.collapsibleItemInvalid { border-color: #ff7b6b88; }
+.collapseHead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.collapseHeadOpen { margin-bottom: 10px; }
+.collapseToggle {
+  display: inline-flex; align-items: center; gap: 8px; min-width: 0;
+  padding: 4px 6px; border: 0; border-radius: 7px;
+  background: transparent; color: var(--ink); font: inherit; text-align: left; cursor: pointer;
+}
+.collapseToggle:hover { background: #ffffff0c; }
+.collapseToggleGrow { flex: 1 1 220px; }
+.chevron { width: 14px; text-align: center; color: var(--gold); font-size: 11px; flex: none; }
+.summaryTitle { font-weight: 800; white-space: nowrap; flex: none; }
+.summaryText { color: var(--muted); font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 .imageField { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 14px; align-items: start; }
 .imagePreview { width: 200px; aspect-ratio: 16 / 10; border-radius: 10px; object-fit: cover; background: #2a1f14; border: 1px solid var(--line); }

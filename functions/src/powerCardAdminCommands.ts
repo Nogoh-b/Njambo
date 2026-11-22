@@ -13,6 +13,7 @@ import { CODE_BOOSTER_TIERS, CODE_POWER_MODULES } from "../../config/powers";
 import { setPowerCatalog } from "../../config/powers/registry";
 import { validatePowerCard } from "../../engine/power/validate";
 import type { PowerModule } from "../../engine/power/types";
+import { getAnimV2 } from "../../engine/anim/v2/registry";
 import { asObject, db, requireAdmin, requiredString, runIdempotent } from "./core";
 import { ensurePowerCatalogFresh } from "./powerCatalog";
 import { ensureMotifCatalogFresh } from "./animCatalog";
@@ -166,7 +167,8 @@ export async function savePowerCardDraftHandler(request: CallableRequest<unknown
 
 export async function publishPowerCardHandler(request: CallableRequest<unknown>) {
   const uid = requireAdmin(request);
-  await ensureMotifCatalogFresh();
+  // Catalogue des modèles (V1 et V2) à jour : la carte peut viser un modèle tout juste publié.
+  await ensureMotifCatalogFresh(true);
   const data = asObject(request.data);
   const cardId = requiredString(data, "cardId", 48);
   const result = await runIdempotent(uid, "publishPowerCard", data.idempotencyKey, async (transaction, now) => {
@@ -181,6 +183,8 @@ export async function publishPowerCardHandler(request: CallableRequest<unknown>)
     STATUS_KEYS.forEach((key) => { delete def[key]; });
     const card = storableCard({ ...draft, def: { ...def, ...status } as unknown as PowerModule["def"], script: { ...draft.script, id: cardId } });
     const issues = validatePowerCard(card);
+    // Modèle V2 : il doit être publié (ou du jeu), sinon les joueurs ne l'auraient pas.
+    if (card.def.animV2 && !getAnimV2(card.def.animV2)) issues.push({ path: "def.animV2", message: "Modèle V2 inconnu ou non publié." });
     if (issues.length > 0) throw new HttpsError("failed-precondition", "POWER_CARD_INVALID", { issues });
     const revision = Number(snap.get("revision") ?? 0) + 1;
     transaction.set(db.doc(`power_card_versions/${cardId}_v${revision}`), { ...card, revision, publishedAt: now, publishedBy: uid }, { merge: false });

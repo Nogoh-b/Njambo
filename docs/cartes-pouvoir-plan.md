@@ -16,6 +16,7 @@
 | E | Chargeur d'assets : manifeste, préchargement, écran de chargement | ✅ Terminé |
 | F | Bac à sable (aperçu jouable), sécurité en partie, tests de bout en bout | ✅ Terminé |
 | G | **Atelier d'animations** : modèles réutilisables édités visuellement, pour les pouvoirs **et** tout le jeu ; suivi dans [`atelier-animations-suivi.md`](atelier-animations-suivi.md) | ✅ Terminé : G1 (modèle), G2 (lecteur), G3 (atelier admin), G4 (moments du jeu) et G5 (styles des joueurs) |
+| V2 | **Animation V2 « zones intelligentes »** : la zone calcule la pose, l'animation ne règle que le mouvement ; coexiste avec la V1, bascule par moment ; suivi dans [`animation-v2-suivi.md`](animation-v2-suivi.md) | ⬜ À faire (plan rédigé) |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 

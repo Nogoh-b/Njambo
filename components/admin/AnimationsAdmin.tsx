@@ -21,6 +21,7 @@ import { createMotifClock, useClockState, type MotifClock } from "./anim/clock";
 import { AssistantButton, AssistantDrawer, useAssistantDrawer } from "./assistant/AssistantDrawer";
 import type { AssistantChange } from "./assistant/useAssistant";
 import { GameMomentsPanel } from "./anim/GameMomentsPanel";
+import { AnimV2Admin } from "./anim/AnimV2Admin";
 import { MotifCanvas } from "./anim/MotifCanvas";
 import { MotifInspector, anchorLabel } from "./anim/MotifInspector";
 import { MotifTimeline } from "./anim/MotifTimeline";
@@ -57,6 +58,7 @@ export function AnimationsAdmin({ onOpenSection }: { onOpenSection?(section: Cha
   const [showArchived, setShowArchived] = useState(false);
   const [moments, setMoments] = useState<MomentMap>({});
   const [momentsOpen, setMomentsOpen] = useState(false);
+  const [v2Open, setV2Open] = useState(false);
   const [assistantOpen, setAssistantOpen] = useAssistantDrawer();
   /** Version écrite par l'assistant pendant que l'admin avait des modifications non enregistrées. */
   const [assistantVersion, setAssistantVersion] = useState<AnimMotif | null>(null);
@@ -192,6 +194,7 @@ export function AnimationsAdmin({ onOpenSection }: { onOpenSection?(section: Cha
         <div className={styles.row}>
           {!assistantOpen && <AssistantButton onClick={() => setAssistantOpen(true)} />}
           <button type="button" className={styles.btn} data-testid="open-moments" onClick={() => setMomentsOpen(true)}>⚑ Moments du jeu</button>
+          <button type="button" className={styles.btn} data-testid="open-v2" title="Modèles V2 « zones intelligentes » : les zones donnent les poses, le modèle règle le mouvement" onClick={() => setV2Open(true)}>◇ Animation V2</button>
           <button type="button" className={styles.btn} onClick={() => setMatrix(true)}>▦ Toutes les transitions</button>
           <button type="button" className={`${styles.btn} ${styles.primary}`} onClick={createNew}>+ Nouveau modèle</button>
         </div>
@@ -304,6 +307,19 @@ export function AnimationsAdmin({ onOpenSection }: { onOpenSection?(section: Cha
           <div className={styles.dialog} style={{ width: "min(1040px, 100%)", maxHeight: "calc(100svh - 40px)", overflow: "auto" }}>
             <h2>Moments du jeu</h2>
             <GameMomentsPanel saved={moments} onSave={saveMoments} onClose={() => setMomentsOpen(false)} />
+          </div>
+        </div>
+      )}
+
+      {v2Open && (
+        <div className={styles.dialogBackdrop} onClick={(event) => { if (event.target === event.currentTarget) setV2Open(false); }}>
+          <div className={styles.dialog} style={{ width: "min(1180px, 100%)", maxHeight: "calc(100svh - 40px)", overflow: "auto" }}>
+            <div className={styles.row}>
+              <h2 style={{ margin: 0, flex: 1 }}>Animation V2 · zones intelligentes</h2>
+              <button type="button" className={styles.btn} onClick={() => setV2Open(false)}>Fermer</button>
+            </div>
+            <p className={styles.hint}>Les zones donnent la pose de départ et d&apos;arrivée ; le modèle ne règle que le mouvement. Un même modèle sert pour tous les trajets. Attribue-le ensuite à « Carte jouée » ou « Distribution » dans ⚑ Moments du jeu.</p>
+            <AnimV2Admin />
           </div>
         </div>
       )}

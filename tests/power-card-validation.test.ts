@@ -18,6 +18,14 @@ describe("validatePowerCard", () => {
     }
   });
 
+  it("animation V2 : identifiant de modèle facultatif, format vérifié (l'existence l'est à la publication)", () => {
+    const card = oeil();
+    expect(paths({ ...card, def: { ...card.def, animV2: "v2_fluide" } })).toEqual([]);
+    expect(paths({ ...card, def: { ...card.def, animV2: "pas encore publié" } })).toEqual(["def.animV2"]);
+    // Un modèle inconnu de ce client n'invalide pas la carte : les vols habituels s'appliquent.
+    expect(paths({ ...card, def: { ...card.def, animV2: "v2_inconnu_ici" } })).toEqual([]);
+  });
+
   it("refuse les valeurs abusives (bornes de sécurité)", () => {
     const card = oeil();
     card.script.steps[0].ops = [

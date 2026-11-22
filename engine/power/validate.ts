@@ -87,6 +87,9 @@ export function validatePowerDef(def: PowerCardDef, issues: PowerValidationIssue
   if (!isInt(def.costNkap, 0, POWER_LIMITS.costNkap)) push("costNkap", "Prix en Nkap : entier positif.");
   if (!Array.isArray(def.animTags) || def.animTags.some((tag) => !has(POWER_ANIM_TAGS, tag))) push("animTags", "Étiquettes d'animation inconnues.");
   if (def.boosterTier !== undefined && !has(POWER_BOOSTER_TIERS, def.boosterTier)) push("boosterTier", "Palier de livre inconnu.");
+  // Format seulement : le client peut recevoir la carte avant le catalogue des modèles V2 (modèle inconnu = vols habituels).
+  // L'existence du modèle est vérifiée à la publication, côté serveur.
+  if (def.animV2 !== undefined && (typeof def.animV2 !== "string" || !ID.test(def.animV2))) push("animV2", "Modèle V2 : identifiant de 3 à 48 caractères a-z, 0-9 ou _.");
   if (def.sound !== undefined) {
     const sound = obj(def.sound);
     if (!isSoundRef(sound.ref)) push("sound.ref", "Son : préréglage connu ou fichier uploadé.");

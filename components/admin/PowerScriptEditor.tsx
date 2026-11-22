@@ -4,8 +4,8 @@
    (effets moteur) et animations. Formulaires générés selon le type de brique ;
    les erreurs viennent de validatePowerCard (chemins `script.steps.N…`). */
 
-import type { ReactNode } from "react";
-import type { AnimCue, CardSelector, ChoiceRequest, PlayerRef, PowerFxTone, PowerOp, PowerScript, PowerStep, ZoneRef } from "@/engine/power/types";
+import { useState, type ReactNode } from "react";
+import type { AnimCue, CardSelector, ChoiceRequest, PlayerRef, PowerFxTone, PowerOp, PowerScript, PowerStep, ResolvedCardsRef, ZoneRef } from "@/engine/power/types";
 import { choreographyFromCues } from "@/engine/power/choreography";
 import { ChoreographyEditor } from "./ChoreographyEditor";
 import { CONDITION_KINDS, CUE_KINDS, FX_PRESETS, OP_KINDS, PLAYER_REFS, POWER_TONES, SELECTOR_KINDS, SHIELD_TAGS, TARGET_COUNTS } from "@/engine/power/validate";
@@ -335,16 +335,232 @@ export function TargetEditor({ script, onChange, errorFor }: { script: PowerScri
   );
 }
 
+const HIGHLIGHT_STYLE_LABELS = { recommend: "Conseillée", swapped: "Échangée", locked: "Verrouillée", boosted: "Renforcée" } as const;
+const TIMER_FX_LABELS = { freeze: "Gel", gain: "Temps gagné", loss: "Temps perdu" } as const;
+const AURA_STYLE_LABELS = { shield: "Bouclier", mask: "Masque", totem: "Totem", lucky: "Chance" } as const;
+
+function formatSec(ms: number | undefined): string {
+  if (!ms) return "";
+  const s = ms / 1000;
+  return `${Number.isInteger(s) ? s : s.toFixed(1).replace(".", ",")} s`;
+}
+
+function formatZone(zone: ZoneRef): string {
+  return zone.zone === "hand" || zone.zone === "deposit"
+    ? `${ZONE_LABELS[zone.zone]} (${PLAYER_LABELS[zone.player]})`
+    : ZONE_LABELS[zone.zone];
+}
+
+function formatSelector(selector: CardSelector): string {
+  switch (selector.kind) {
+    case "bySuit": return `Couleur ${selector.suit === "led" ? "du pli" : selector.suit}`;
+    case "byValue": return `Valeur ${selector.min ?? "…"}–${selector.max ?? "…"}`;
+    case "byId": return `Carte ${selector.cardId || "—"}`;
+    case "chosen": return `Choix « ${selector.choiceId} »`;
+    default: return SELECTOR_LABELS[selector.kind];
+  }
+}
+
+function formatResolvedCards(cards: ResolvedCardsRef): string {
+  if (cards === "resolved:outgoing") return "Cartes qui partent";
+  if (cards === "resolved:incoming") return "Cartes qui arrivent";
+  if (cards === "resolved:highlight") return "Carte mise en valeur";
+  return typeof cards === "string" ? cards : formatSelector(cards);
+}
+
+/** Résumé minimal d'une animation lorsqu'elle est réduite. */
+export function summarizeCue(cue: AnimCue): string {
+  const parts: string[] = [];
+  switch (cue.cue) {
+    case "flyCards":
+      parts.push(`${formatZone(cue.from)} → ${formatZone(cue.to)}`, formatResolvedCards(cue.cards));
+      if (cue.mode === "display") parts.push("visuel");
+      if (cue.hidden) parts.push("face cachée");
+      break;
+    case "revealOverlay":
+      parts.push(`Main de ${PLAYER_LABELS[cue.player]}`);
+      if (cue.durationMs) parts.push(formatSec(cue.durationMs));
+      break;
+    case "highlightHandCard":
+      parts.push(PLAYER_LABELS[cue.player], HIGHLIGHT_STYLE_LABELS[cue.style]);
+      if (cue.durationMs) parts.push(formatSec(cue.durationMs));
+      break;
+    case "timerFx":
+      parts.push(PLAYER_LABELS[cue.player], `${TIMER_FX_LABELS[cue.kind]}${cue.seconds ? ` ${cue.seconds} s` : ""}`);
+      break;
+    case "deckPulse":
+      parts.push("Pioche");
+      break;
+    case "potFlash":
+      parts.push(cue.amountLabel ? `Pot · ${cue.amountLabel}` : "Pot");
+      break;
+    case "avatarAura":
+      parts.push(PLAYER_LABELS[cue.player], AURA_STYLE_LABELS[cue.style]);
+      break;
+    case "toast":
+      parts.push(cue.text ? `« ${cue.text} »` : "Message vide");
+      break;
+  }
+  if (cue.fx?.preset) parts.push(`FX ${FX_PRESET_LABELS[cue.fx.preset]}`);
+  if (cue.afterMs) parts.push(`pause ${formatSec(cue.afterMs)}`);
+  return parts.filter(Boolean).join(" · ");
+}
+
+/** Résumé minimal d'une brique lorsqu'elle est réduite. */
+export function summarizeOp(op: PowerOp): string {
+  const parts: string[] = [];
+  switch (op.op) {
+    case "moveCards":
+      parts.push(`${formatZone(op.from)} → ${formatZone(op.to)}`, `${formatSelector(op.select)}${op.swap ? ` ⇄ ${formatSelector(op.swap.incoming)}` : ""}`);
+      break;
+    case "exchangeCards":
+      parts.push(`${PLAYER_LABELS[op.left]} (${formatSelector(op.leftSelect)}) ⇄ ${PLAYER_LABELS[op.right]} (${formatSelector(op.rightSelect)})`);
+      break;
+    case "highlightCard":
+      parts.push(PLAYER_LABELS[op.player], formatSelector(op.select));
+      if (op.durationMs) parts.push(formatSec(op.durationMs));
+      break;
+    case "revealHand":
+      parts.push(`Main de ${PLAYER_LABELS[op.player]}`);
+      if (op.durationMs) parts.push(formatSec(op.durationMs));
+      break;
+    case "blockNextLegalCard":
+      parts.push(PLAYER_LABELS[op.player], formatSelector(op.select));
+      break;
+    case "restrictNextPlay":
+      parts.push(PLAYER_LABELS[op.player], `${op.mode === "lockSelector" ? "Interdire" : "Imposer"} (${formatSelector(op.select)})`);
+      break;
+    case "timerFreeze":
+      parts.push(PLAYER_LABELS[op.player], formatSec(op.durationMs));
+      break;
+    case "timerDelta":
+      parts.push(PLAYER_LABELS[op.player], `${op.seconds > 0 ? `+${op.seconds}` : op.seconds} s`);
+      break;
+    case "boostNextCard":
+      parts.push(PLAYER_LABELS[op.player]);
+      if (op.valueBonus) parts.push(`+${op.valueBonus}`);
+      if (op.suitOverride === "led") parts.push("couleur du pli");
+      break;
+    case "potBonus":
+      parts.push(`+${op.amount} Nkap`, op.when === "now" ? "tout de suite" : "si pli gagné");
+      break;
+    case "potMultiplier":
+      parts.push(`×${op.factor}`, "si pli gagné");
+      break;
+    case "refundOnLoss":
+      parts.push(PLAYER_LABELS[op.player], `${Math.round(op.ratio * 100)} %`);
+      break;
+    case "preventDoublePenalty":
+      parts.push(PLAYER_LABELS[op.player]);
+      break;
+    case "grantShield":
+      parts.push(PLAYER_LABELS[op.player], op.blocks.map((tag) => SHIELD_LABELS[tag]).join(", ") || "aucun");
+      break;
+  }
+  return parts.filter(Boolean).join(" · ");
+}
+
+const itemKey = (stepIndex: number, index: number) => `${stepIndex}:${index}`;
+
 /** Étapes : mode « effet » (clic + briques) ou « animation » (cues). */
-export function StepsEditor({ script, onChange, errorFor, mode, tone = "gold" }: { script: PowerScript; onChange: (script: PowerScript) => void; errorFor: ErrorFor; mode: "effect" | "animation"; tone?: PowerFxTone }) {
+export function StepsEditor({ script, onChange, errorFor, issueCount, mode, tone = "gold" }: {
+  script: PowerScript; onChange: (script: PowerScript) => void; errorFor: ErrorFor; issueCount?: (prefix: string) => number;
+  mode: "effect" | "animation"; tone?: PowerFxTone;
+}) {
+  const [collapsedSteps, setCollapsedSteps] = useState<Set<number>>(() => new Set());
+  const [expandedItems, setExpandedItems] = useState<Set<string>>(() => new Set());
+
+  const countIssues = (prefix: string) => issueCount ? issueCount(prefix) : (errorFor(prefix) ? 1 : 0);
   const setStep = (index: number, step: PowerStep) => onChange({ ...script, steps: script.steps.map((item, i) => (i === index ? step : item)) });
+
+  const toggleStep = (index: number) => setCollapsedSteps((prev) => {
+    const next = new Set(prev);
+    if (next.has(index)) next.delete(index); else next.add(index);
+    return next;
+  });
+
+  const toggleItem = (stepIndex: number, index: number) => setExpandedItems((prev) => {
+    const key = itemKey(stepIndex, index);
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const setAllItems = (stepIndex: number, count: number, expand: boolean) => setExpandedItems((prev) => {
+    const next = new Set(prev);
+    for (let i = 0; i < count; i += 1) {
+      if (expand) next.add(itemKey(stepIndex, i)); else next.delete(itemKey(stepIndex, i));
+    }
+    return next;
+  });
+
+  const swapItemState = (stepIndex: number, a: number, b: number) => setExpandedItems((prev) => {
+    const keyA = itemKey(stepIndex, a);
+    const keyB = itemKey(stepIndex, b);
+    const hasA = prev.has(keyA);
+    const hasB = prev.has(keyB);
+    if (hasA === hasB) return prev;
+    const next = new Set(prev);
+    if (hasB) next.add(keyA); else next.delete(keyA);
+    if (hasA) next.add(keyB); else next.delete(keyB);
+    return next;
+  });
+
+  const removeItemState = (stepIndex: number, removedIndex: number) => setExpandedItems((prev) => {
+    const next = new Set<string>();
+    prev.forEach((key) => {
+      const [s, i] = key.split(":").map(Number);
+      if (s !== stepIndex) next.add(key);
+      else if (i < removedIndex) next.add(key);
+      else if (i > removedIndex) next.add(itemKey(s, i - 1));
+    });
+    return next;
+  });
+
   const move = (from: number, to: number) => {
     if (to < 0 || to >= script.steps.length) return;
     const steps = [...script.steps];
     const [item] = steps.splice(from, 1);
     steps.splice(to, 0, item);
+    setCollapsedSteps((prev) => {
+      const hasFrom = prev.has(from);
+      const hasTo = prev.has(to);
+      if (hasFrom === hasTo) return prev;
+      const next = new Set(prev);
+      if (hasTo) next.add(from); else next.delete(from);
+      if (hasFrom) next.add(to); else next.delete(to);
+      return next;
+    });
+    setExpandedItems((prev) => {
+      const next = new Set<string>();
+      prev.forEach((key) => {
+        const [s, i] = key.split(":").map(Number);
+        const mapped = s === from ? to : s === to ? from : s;
+        next.add(itemKey(mapped, i));
+      });
+      return next;
+    });
     onChange({ ...script, steps });
   };
+
+  const removeStep = (removedIndex: number) => {
+    setCollapsedSteps((prev) => {
+      const next = new Set<number>();
+      prev.forEach((s) => { if (s < removedIndex) next.add(s); else if (s > removedIndex) next.add(s - 1); });
+      return next;
+    });
+    setExpandedItems((prev) => {
+      const next = new Set<string>();
+      prev.forEach((key) => {
+        const [s, i] = key.split(":").map(Number);
+        if (s < removedIndex) next.add(key);
+        else if (s > removedIndex) next.add(itemKey(s - 1, i));
+      });
+      return next;
+    });
+    onChange({ ...script, steps: script.steps.filter((_, i) => i !== removedIndex) });
+  };
+
   return (
     <div>
       {errorFor("script.steps") && <div className={`${styles.notice} ${styles.error}`}>{errorFor("script.steps")}</div>}
@@ -353,23 +569,59 @@ export function StepsEditor({ script, onChange, errorFor, mode, tone = "gold" }:
         const choiceIds = choiceIdsUpTo(script, index);
         const ops = step.ops ?? [];
         const anim = step.anim ?? [];
+        const stepCollapsed = collapsedSteps.has(index);
+        const stepErrors = countIssues(base);
+        const activeCount = mode === "effect" ? ops.length : anim.length;
+        const expandedCount = Array.from({ length: activeCount }, (_, i) => i).filter((i) => expandedItems.has(itemKey(index, i))).length;
+        const stepExtras = [
+          step.choice ? `clic « ${step.choice.id} »` : "",
+          step.choreo ? `chorégraphie (${step.choreo.tracks.length})` : "",
+        ].filter(Boolean);
+        const collapsedPreview = mode === "effect"
+          ? ops.map((op) => OP_LABELS[op.op].label).join(", ")
+          : anim.map((cue) => CUE_LABELS[cue.cue]).join(", ");
+        const stepSummary = [
+          `${ops.length} brique(s) · ${anim.length} animation(s)`,
+          ...stepExtras,
+          ...(stepCollapsed && collapsedPreview ? [collapsedPreview] : []),
+        ].join(" · ");
+
         return (
-          <div key={index} className={styles.stageCard}>
-            <div className={styles.stageHead}>
-              <span className={styles.stageNum}>{index + 1}</span>
-              <strong>Étape {index + 1}</strong>
-              <span className={styles.hint}>{ops.length} brique(s) · {anim.length} animation(s)</span>
-              <span className={styles.spacer} />
+          <div key={index} className={`${styles.stageCard} ${stepCollapsed && stepErrors > 0 ? styles.collapsibleItemInvalid : ""}`}>
+            <div className={`${styles.stageHead} ${stepCollapsed ? styles.stageHeadCollapsed : ""}`}>
+              <button
+                type="button"
+                className={`${styles.collapseToggle} ${styles.collapseToggleGrow}`}
+                aria-expanded={!stepCollapsed}
+                aria-label={stepCollapsed ? `Déplier l'étape ${index + 1}` : `Réduire l'étape ${index + 1}`}
+                title={stepSummary}
+                onClick={() => toggleStep(index)}
+              >
+                <span className={styles.chevron} aria-hidden="true">{stepCollapsed ? "▸" : "▾"}</span>
+                <span className={styles.stageNum}>{index + 1}</span>
+                <strong className={styles.summaryTitle}>Étape {index + 1}</strong>
+                <span className={styles.summaryText}>{stepSummary}</span>
+                {stepCollapsed && stepErrors > 0 && <span className={styles.badge} title={`${stepErrors} erreur(s)`}>{stepErrors}</span>}
+              </button>
+              {!stepCollapsed && activeCount >= 2 && (
+                <button
+                  type="button"
+                  className={`${styles.btn} ${styles.small}`}
+                  onClick={() => setAllItems(index, activeCount, expandedCount < activeCount)}
+                >
+                  {expandedCount < activeCount ? "Tout déplier" : "Tout réduire"}
+                </button>
+              )}
               {mode === "effect" && (
                 <>
                   <button type="button" className={`${styles.btn} ${styles.small}`} disabled={index === 0} onClick={() => move(index, index - 1)} aria-label="Monter">↑</button>
                   <button type="button" className={`${styles.btn} ${styles.small}`} disabled={index === script.steps.length - 1} onClick={() => move(index, index + 1)} aria-label="Descendre">↓</button>
-                  <button type="button" className={`${styles.btn} ${styles.small} ${styles.danger}`} onClick={() => onChange({ ...script, steps: script.steps.filter((_, i) => i !== index) })}>Supprimer l’étape</button>
+                  <button type="button" className={`${styles.btn} ${styles.small} ${styles.danger}`} onClick={() => removeStep(index)}>Supprimer l’étape</button>
                 </>
               )}
             </div>
 
-            {mode === "effect" ? (
+            {!stepCollapsed && (mode === "effect" ? (
               <>
                 <label className={styles.check}>
                   <input type="checkbox" checked={Boolean(step.choice)} onChange={(e) => setStep(index, { ...step, choice: e.target.checked ? { id: `choix_${index + 1}`, surface: "hand-self", onTimeout: "cancel" } : undefined })} />
@@ -377,40 +629,101 @@ export function StepsEditor({ script, onChange, errorFor, mode, tone = "gold" }:
                 </label>
                 {step.choice && <div style={{ marginTop: 8 }}><ChoiceField value={step.choice} errorFor={errorFor} path={`${base}.choice`} choiceIds={choiceIds} onChange={(choice) => setStep(index, { ...step, choice })} /></div>}
                 <h3>Briques</h3>
-                {ops.map((op, opIndex) => (
-                  <div key={opIndex} className={styles.rewardRow} style={{ display: "block" }}>
-                    <div className={styles.row} style={{ marginBottom: 8 }}>
-                      <select className={styles.inlineSelect} value={op.op} onChange={(e) => setStep(index, { ...step, ops: ops.map((item, i) => (i === opIndex ? defaultOp(e.target.value as PowerOp["op"]) : item)) })}>
-                        {OP_KINDS.map((kind) => <option key={kind} value={kind}>{OP_LABELS[kind].family} · {OP_LABELS[kind].label}</option>)}
-                      </select>
-                      <span className={styles.hint}>{OP_LABELS[op.op]?.help}</span>
-                      <span className={styles.spacer} />
-                      <button type="button" className={`${styles.btn} ${styles.small} ${styles.danger}`} onClick={() => setStep(index, { ...step, ops: ops.filter((_, i) => i !== opIndex) })}>✕</button>
+                {ops.map((op, opIndex) => {
+                  const opPath = `${base}.ops.${opIndex}`;
+                  const isOpen = expandedItems.has(itemKey(index, opIndex));
+                  const opErrors = countIssues(opPath);
+                  const summary = summarizeOp(op);
+                  return (
+                    <div key={opIndex} className={`${styles.rewardRow} ${styles.collapsibleItem} ${opErrors > 0 ? styles.collapsibleItemInvalid : ""}`}>
+                      <div className={`${styles.collapseHead} ${isOpen ? styles.collapseHeadOpen : ""}`}>
+                        {isOpen ? (
+                          <>
+                            <button type="button" className={styles.collapseToggle} aria-expanded="true" aria-label="Réduire la brique" title="Réduire" onClick={() => toggleItem(index, opIndex)}>
+                              <span className={styles.chevron} aria-hidden="true">▾</span>
+                            </button>
+                            <select className={styles.inlineSelect} value={op.op} onChange={(e) => setStep(index, { ...step, ops: ops.map((item, i) => (i === opIndex ? defaultOp(e.target.value as PowerOp["op"]) : item)) })}>
+                              {OP_KINDS.map((kind) => <option key={kind} value={kind}>{OP_LABELS[kind].family} · {OP_LABELS[kind].label}</option>)}
+                            </select>
+                            <span className={styles.hint}>{OP_LABELS[op.op]?.help}</span>
+                            <span className={styles.spacer} />
+                          </>
+                        ) : (
+                          <button type="button" className={`${styles.collapseToggle} ${styles.collapseToggleGrow}`} aria-expanded="false" aria-label={`Déplier ${OP_LABELS[op.op].label}`} title={summary} onClick={() => toggleItem(index, opIndex)}>
+                            <span className={styles.chevron} aria-hidden="true">▸</span>
+                            <span className={styles.summaryTitle}>{OP_LABELS[op.op].label}</span>
+                            {summary && <span className={styles.summaryText}>{summary}</span>}
+                            {opErrors > 0 && <span className={styles.badge} title={`${opErrors} erreur(s)`}>{opErrors}</span>}
+                          </button>
+                        )}
+                        <button type="button" className={`${styles.btn} ${styles.small} ${styles.danger}`} onClick={() => { removeItemState(index, opIndex); setStep(index, { ...step, ops: ops.filter((_, i) => i !== opIndex) }); }} aria-label="Supprimer la brique">✕</button>
+                      </div>
+                      {isOpen && (
+                        <>
+                          {errorFor(opPath) && <span className={styles.fieldError}>{errorFor(opPath)}</span>}
+                          <OpEditor op={op} errorFor={errorFor} path={opPath} choiceIds={choiceIds} onChange={(next) => setStep(index, { ...step, ops: ops.map((item, i) => (i === opIndex ? next : item)) })} />
+                        </>
+                      )}
                     </div>
-                    {errorFor(`${base}.ops.${opIndex}`) && <span className={styles.fieldError}>{errorFor(`${base}.ops.${opIndex}`)}</span>}
-                    <OpEditor op={op} errorFor={errorFor} path={`${base}.ops.${opIndex}`} choiceIds={choiceIds} onChange={(next) => setStep(index, { ...step, ops: ops.map((item, i) => (i === opIndex ? next : item)) })} />
-                  </div>
-                ))}
-                <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => setStep(index, { ...step, ops: [...ops, defaultOp("revealHand")] })}>+ Brique</button>
+                  );
+                })}
+                <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => {
+                  const nextIndex = ops.length;
+                  setStep(index, { ...step, ops: [...ops, defaultOp("revealHand")] });
+                  setExpandedItems((prev) => new Set(prev).add(itemKey(index, nextIndex)));
+                }}>+ Brique</button>
               </>
             ) : (
               <>
                 {anim.length === 0 && <span className={styles.hint}>Aucune animation : l’effet s’applique sans mise en scène.</span>}
-                {anim.map((cue, cueIndex) => (
-                  <div key={cueIndex} className={styles.rewardRow} style={{ display: "block" }}>
-                    <div className={styles.row} style={{ marginBottom: 8 }}>
-                      <select className={styles.inlineSelect} value={cue.cue} onChange={(e) => setStep(index, { ...step, anim: anim.map((item, i) => (i === cueIndex ? defaultCue(e.target.value as AnimCue["cue"]) : item)) })}>
-                        {CUE_KINDS.map((kind) => <option key={kind} value={kind}>{CUE_LABELS[kind]}</option>)}
-                      </select>
-                      <span className={styles.spacer} />
-                      <button type="button" className={`${styles.btn} ${styles.small}`} disabled={cueIndex === 0} onClick={() => { const next = [...anim]; [next[cueIndex - 1], next[cueIndex]] = [next[cueIndex], next[cueIndex - 1]]; setStep(index, { ...step, anim: next }); }} aria-label="Avant">↑</button>
-                      <button type="button" className={`${styles.btn} ${styles.small} ${styles.danger}`} onClick={() => setStep(index, { ...step, anim: anim.filter((_, i) => i !== cueIndex) })}>✕</button>
+                {anim.map((cue, cueIndex) => {
+                  const cuePath = `${base}.anim.${cueIndex}`;
+                  const isOpen = expandedItems.has(itemKey(index, cueIndex));
+                  const cueErrors = countIssues(cuePath);
+                  const summary = summarizeCue(cue);
+                  return (
+                    <div key={cueIndex} className={`${styles.rewardRow} ${styles.collapsibleItem} ${cueErrors > 0 ? styles.collapsibleItemInvalid : ""}`}>
+                      <div className={`${styles.collapseHead} ${isOpen ? styles.collapseHeadOpen : ""}`}>
+                        {isOpen ? (
+                          <>
+                            <button type="button" className={styles.collapseToggle} aria-expanded="true" aria-label="Réduire l'animation" title="Réduire" onClick={() => toggleItem(index, cueIndex)}>
+                              <span className={styles.chevron} aria-hidden="true">▾</span>
+                            </button>
+                            <select className={styles.inlineSelect} value={cue.cue} onChange={(e) => setStep(index, { ...step, anim: anim.map((item, i) => (i === cueIndex ? defaultCue(e.target.value as AnimCue["cue"]) : item)) })}>
+                              {CUE_KINDS.map((kind) => <option key={kind} value={kind}>{CUE_LABELS[kind]}</option>)}
+                            </select>
+                            <span className={styles.spacer} />
+                          </>
+                        ) : (
+                          <button type="button" className={`${styles.collapseToggle} ${styles.collapseToggleGrow}`} aria-expanded="false" aria-label={`Déplier ${CUE_LABELS[cue.cue]}`} title={summary} onClick={() => toggleItem(index, cueIndex)}>
+                            <span className={styles.chevron} aria-hidden="true">▸</span>
+                            <span className={styles.summaryTitle}>{CUE_LABELS[cue.cue]}</span>
+                            {summary && <span className={styles.summaryText}>{summary}</span>}
+                            {cueErrors > 0 && <span className={styles.badge} title={`${cueErrors} erreur(s)`}>{cueErrors}</span>}
+                          </button>
+                        )}
+                        <button type="button" className={`${styles.btn} ${styles.small}`} disabled={cueIndex === 0} onClick={() => {
+                          const next = [...anim];
+                          [next[cueIndex - 1], next[cueIndex]] = [next[cueIndex], next[cueIndex - 1]];
+                          swapItemState(index, cueIndex - 1, cueIndex);
+                          setStep(index, { ...step, anim: next });
+                        }} aria-label="Avant">↑</button>
+                        <button type="button" className={`${styles.btn} ${styles.small} ${styles.danger}`} onClick={() => { removeItemState(index, cueIndex); setStep(index, { ...step, anim: anim.filter((_, i) => i !== cueIndex) }); }} aria-label="Supprimer l'animation">✕</button>
+                      </div>
+                      {isOpen && (
+                        <>
+                          {errorFor(cuePath) && <span className={styles.fieldError}>{errorFor(cuePath)}</span>}
+                          <CueEditor cue={cue} errorFor={errorFor} path={cuePath} choiceIds={choiceIds} onChange={(next) => setStep(index, { ...step, anim: anim.map((item, i) => (i === cueIndex ? next : item)) })} />
+                        </>
+                      )}
                     </div>
-                    {errorFor(`${base}.anim.${cueIndex}`) && <span className={styles.fieldError}>{errorFor(`${base}.anim.${cueIndex}`)}</span>}
-                    <CueEditor cue={cue} errorFor={errorFor} path={`${base}.anim.${cueIndex}`} choiceIds={choiceIds} onChange={(next) => setStep(index, { ...step, anim: anim.map((item, i) => (i === cueIndex ? next : item)) })} />
-                  </div>
-                ))}
-                <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => setStep(index, { ...step, anim: [...anim, defaultCue("toast")] })}>+ Animation</button>
+                  );
+                })}
+                <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => {
+                  const nextIndex = anim.length;
+                  setStep(index, { ...step, anim: [...anim, defaultCue("toast")] });
+                  setExpandedItems((prev) => new Set(prev).add(itemKey(index, nextIndex)));
+                }}>+ Animation</button>
 
                 <h3>Chorégraphie spatiale</h3>
                 {step.choreo ? (
@@ -429,11 +742,15 @@ export function StepsEditor({ script, onChange, errorFor, mode, tone = "gold" }:
                   </div>
                 )}
               </>
-            )}
+            ))}
           </div>
         );
       })}
-      {mode === "effect" && <button type="button" className={styles.btn} style={{ marginTop: 10 }} disabled={script.steps.length >= 6} onClick={() => onChange({ ...script, steps: [...script.steps, { ops: [defaultOp("timerDelta")], anim: [defaultCue("timerFx")] }] })}>+ Étape</button>}
+      {mode === "effect" && <button type="button" className={styles.btn} style={{ marginTop: 10 }} disabled={script.steps.length >= 6} onClick={() => {
+        const nextStepIndex = script.steps.length;
+        onChange({ ...script, steps: [...script.steps, { ops: [defaultOp("timerDelta")], anim: [defaultCue("timerFx")] }] });
+        setExpandedItems((prev) => new Set(prev).add(itemKey(nextStepIndex, 0)));
+      }}>+ Étape</button>}
     </div>
   );
 }

@@ -11,7 +11,14 @@ import { PlayCard } from "@/components/cards/PlayCard";
 import { NjamboIcon } from "@/components/ui/Art";
 import { displayFont } from "@/components/ui/Shell";
 import { NKAP } from "@/data/mock";
+import { rotateVector, stackPose } from "@/engine/anim/v2/pose";
 import { useRegisterZone } from "./ZoneRegistry";
+import { elementCenter, elementScale } from "./zonePose";
+
+/** Inclinaison du paquet, et décalage d'une épaisseur (vers le haut à droite, en px de mise en page). */
+const DECK_TILT = -6;
+const DECK_DEPTH = { x: 2, y: -2 };
+const DECK_LAYERS = 3;
 
 interface DeckZoneProps {
   deckW: number;
@@ -41,6 +48,7 @@ export const DeckZone = memo(function DeckZone({
   const [potFlash, setPotFlash] = useState<{ key: string; label?: string } | null>(null);
   const pulseTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const flashTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const visualDeckW = Math.round(deckW * (portrait ? 0.78 : 0.88));
 
   useRegisterZone("deck", {
     getRect: () => deckRef.current?.getBoundingClientRect() ?? null,
@@ -49,6 +57,14 @@ export const DeckZone = memo(function DeckZone({
       setPulsing(true);
       if (pulseTimer.current) clearTimeout(pulseTimer.current);
       pulseTimer.current = setTimeout(() => setPulsing(false), durationMs);
+    },
+    // Animation V2 : paquet incliné, la dernière carte sur le dessus.
+    poseOf: (cardIdx: number, count?: number) => {
+      const deck = deckRef.current;
+      if (!deck) return null;
+      const scale = elementScale(deck, DECK_TILT);
+      const depth = rotateVector(DECK_DEPTH.x * scale, DECK_DEPTH.y * scale, DECK_TILT);
+      return stackPose({ center: elementCenter(deck), rotate: DECK_TILT, cardWidth: visualDeckW * scale, depth, layers: DECK_LAYERS }, cardIdx, count ?? cardIdx + 1);
     },
   });
 
@@ -61,8 +77,6 @@ export const DeckZone = memo(function DeckZone({
       flashTimer.current = setTimeout(() => setPotFlash(null), 1600);
     },
   });
-
-  const visualDeckW = Math.round(deckW * (portrait ? 0.78 : 0.88));
 
   return (
     <div
@@ -84,7 +98,7 @@ export const DeckZone = memo(function DeckZone({
         ref={deckRef}
         style={{
           position: "relative",
-          transform: "rotate(-6deg)",
+          transform: `rotate(${DECK_TILT}deg)`,
           animation:
             motionEnabled && (dealing || pulsing)
               ? "deckDeal .22s ease-in-out infinite"

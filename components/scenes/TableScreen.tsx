@@ -10,9 +10,11 @@ import { usePowerFxOrchestrator } from "@/components/power/PowerFxOrchestrator";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
 import type { ChoreoCards, ChoreoContext } from "@/components/power/choreo/playChoreography";
 import { playMotif } from "@/components/power/choreo/playMotif";
+import { playAnimV2, type AnimV2Move } from "@/components/power/choreo/playAnimV2";
 import type { AnimMotif } from "@/engine/anim/motif";
 import { momentDurationMs } from "@/engine/anim/moments";
-import { getMomentMotif, getStyledMomentMotif, stylePreviewOf } from "@/engine/anim/registry";
+import { getMomentAnimV2, getMomentMotif, getStyledMomentMotif, stylePreviewOf } from "@/engine/anim/registry";
+import type { AnimV2 } from "@/engine/anim/v2/model";
 import { motifSchedule } from "@/engine/anim/sample";
 import type { AnimStyle } from "@/engine/anim/style";
 import { useMotifCatalogRevision } from "@/hooks/useMotifCatalog";
@@ -590,6 +592,12 @@ export function TableScreen({
   const registryRef = useRef<ZoneRegistry | null>(null);
   if (!registryRef.current) registryRef.current = new ZoneRegistry();
   const zoneRegistry = registryRef.current;
+  // Pont de diagnostic (développement uniquement) : `window.__njZones` pour mesurer les zones et leurs poses (animation V2).
+  useEffect(() => {
+    if (process.env.NODE_ENV === "production") return;
+    (globalThis as Record<string, unknown>).__njZones = zoneRegistry;
+    return () => { if ((globalThis as Record<string, unknown>).__njZones === zoneRegistry) delete (globalThis as Record<string, unknown>).__njZones; };
+  }, [zoneRegistry]);
 
   const tableRootRef = useRef<HTMLDivElement>(null);
   const gsapRef = useRef<Awaited<ReturnType<typeof loadGsap>> | null>(null);
@@ -986,8 +994,14 @@ export function TableScreen({
   }): Promise<void> => {
     const layer = momentLayerRef.current;
     if (!layer) return Promise.resolve();
+    return playMotif(momentContext(layer, opts), { id: `moment_${Date.now().toString(36)}`, motif, cards: opts.cards, mode: opts.mode, release: opts.release });
+  }, [impactShake, liteMotion, zoneRegistry]); // eslint-disable-line react-hooks/exhaustive-deps
+  const runMomentRef = useRef(runMoment);
+  runMomentRef.current = runMoment;
+  /** Contexte de lecture d'un moment (V1 ou V2) sur le calque des moments. */
+  function momentContext(layer: ChoreoLayerHandle, opts: { actorUi: number; winnerUi?: number; cards?: ChoreoCards | null; visible?: (index: number) => boolean; tone?: PowerFxTone }): ChoreoContext {
     const all = Array.from({ length: playersRef.current.length }, (_, index) => index);
-    const ctx: ChoreoContext = {
+    return {
       registry: zoneRegistry,
       layer,
       resolveRefUi: (ref) => (ref === "all" ? all : ref === "all_opponents" ? all.filter((index) => index !== opts.actorUi) : [opts.actorUi]),
@@ -1001,10 +1015,15 @@ export function TableScreen({
       motionEnabled: true,
       lite: liteMotion,
     };
-    return playMotif(ctx, { id: `moment_${Date.now().toString(36)}`, motif, cards: opts.cards, mode: opts.mode, release: opts.release });
-  }, [impactShake, liteMotion, zoneRegistry]);
-  const runMomentRef = useRef(runMoment);
-  runMomentRef.current = runMoment;
+  }
+  /** Moment animé par un modèle V2 (phase V2-3) : les zones donnent les poses, le modèle le mouvement. */
+  const runMomentV2 = (model: AnimV2, moves: AnimV2Move[], opts: { actorUi: number; reflow?: boolean; tone?: PowerFxTone }): Promise<void> => {
+    const layer = momentLayerRef.current;
+    if (!layer) return Promise.resolve();
+    return playAnimV2(momentContext(layer, { actorUi: opts.actorUi, tone: opts.tone }), { id: `moment_v2_${Date.now().toString(36)}`, model, moves, release: "landing", reflow: opts.reflow });
+  };
+  const runMomentV2Ref = useRef(runMomentV2);
+  runMomentV2Ref.current = runMomentV2;
 
   /* Style d'animation de chaque joueur (phase G5) : le mien (essayé, reçu avec la partie, ou équipé),
      celui des autres reçu avec la partie. Il colore ses propres mouvements, sans en changer le rythme. */
@@ -1022,11 +1041,12 @@ export function TableScreen({
      restent cachées jusqu'à l'arrivée de leur sprite (l'animation intégrée de la main est coupée). */
   const motifRevision = useMotifCatalogRevision();
   const dealMotif = useMemo(() => (motionEnabled && phase === "dealing" ? getMomentMotif("deal") : null), [motionEnabled, phase, motifRevision]); // eslint-disable-line react-hooks/exhaustive-deps
+  const dealV2 = useMemo(() => (motionEnabled && phase === "dealing" ? getMomentAnimV2("deal") : null), [motionEnabled, phase, motifRevision]); // eslint-disable-line react-hooks/exhaustive-deps
   const dealPlayedRef = useRef<string | null>(null);
   const [dealRetry, setDealRetry] = useState(0);
   useLayoutEffect(() => {
     if (phase !== "dealing") { dealPlayedRef.current = null; return; }
-    if (!dealMotif) return;
+    if (!dealMotif && !dealV2) return;
     const hands = players.map((player) => player.hand);
     const perPlayer = hands[0]?.length ?? 0;
     if (perPlayer === 0 || hands.some((hand) => hand.length !== perPlayer)) return;
@@ -1039,6 +1059,19 @@ export function TableScreen({
     }
     dealPlayedRef.current = key;
     const count = hands.length;
+    if (dealV2) {
+      // V2 : une carte toutes les `dealPerCard` ms, dans l'ordre de la donne, vers sa place (déjà dans la main, cachée).
+      for (let round = 0; round < perPlayer; round++) {
+        for (let ui = 0; ui < count; ui++) {
+          const startMs = (round * count + ui) * A.dealPerCard;
+          zoneRegistry.hand(ui)?.hideCardsFor?.([round], startMs + dealV2.motion.durationMs + 30);
+          const move: AnimV2Move = { card: ui === 0 ? hands[ui][round] : null, from: { zone: "deck", index: 0 }, to: { zone: "hand", ui, index: round, count: perPlayer } };
+          setTimeout(() => { if (!pausedRef.current) void runMomentV2Ref.current(dealV2, [move], { actorUi: ui, reflow: false }); }, startMs);
+        }
+      }
+      return;
+    }
+    if (!dealMotif) return;
     const ids: string[] = [], snapshots: Card[] = [], toIndexes: number[] = [];
     // Ordre de la donne : une carte à chaque joueur, tour après tour (« chacun » = sièges 0..n-1).
     for (let round = 0; round < perPlayer; round++) {
@@ -1052,7 +1085,7 @@ export function TableScreen({
       actorUi: 0, cards: { ids, snapshots, fromIndexes: [], toIndexes }, mode: "display", release: "landing",
       visible: (index) => index % count === 0,
     });
-  }, [dealMotif, dealRetry, phase, players, zoneRegistry]);
+  }, [dealMotif, dealV2, dealRetry, phase, players, zoneRegistry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ----- Orchestrateur générique des animations de pouvoir ----- */
 
@@ -1390,16 +1423,24 @@ export function TableScreen({
       if (from && to) {
         // Moment « Carte jouée » : modèle de l'atelier si l'admin en a attribué un (vol borné à 0,9 s),
         // aux couleurs du style du joueur (sans modèle attribué, un joueur stylé prend le « vol actuel »).
+        // Un modèle V2 passe avant : il ne prend pas le style du joueur (les styles colorent les modèles V1).
         const playStyle = animStyleOfRef.current(playerIdx);
-        const playMotifMoment = animationsOnRef.current ? getStyledMomentMotif("play", playStyle) : null;
-        const flightMs = playMotifMoment ? Math.min(900, Math.max(200, playMotifMoment.durationMs)) : A.dropFlight;
+        const playV2 = animationsOnRef.current ? getMomentAnimV2("play") : null;
+        const playMotifMoment = animationsOnRef.current && !playV2 ? getStyledMomentMotif("play", playStyle) : null;
+        const modelMs = playV2?.motion.durationMs ?? playMotifMoment?.durationMs;
+        const flightMs = modelMs !== undefined ? Math.min(900, Math.max(200, modelMs)) : A.dropFlight;
         animatingRef.current = true;
         timerStore.set(turnSecondsRef.current);
         animationEndsAtRef.current = Date.now() + flightMs;
         const dropRot = Math.random() * 14 - 7;
         const flightKey = `${card.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         handZone?.setHiddenCard(cardIdx);
-        if (playMotifMoment) {
+        if (playV2) {
+          const depositCount = playersRef.current[playerIdx]?.deposit.length ?? 0;
+          void runMomentV2Ref.current({ ...playV2, motion: { ...playV2.motion, durationMs: flightMs } }, [
+            { card, from: { zone: "hand", ui: playerIdx, index: cardIdx }, to: { zone: "deposit", ui: playerIdx, index: depositCount } },
+          ], { actorUi: playerIdx });
+        } else if (playMotifMoment) {
           void runMomentRef.current({ ...playMotifMoment, durationMs: flightMs }, {
             actorUi: playerIdx,
             cards: { ids: [card.id], snapshots: [card], fromIndexes: [cardIdx], toIndexes: [] },
@@ -1424,7 +1465,7 @@ export function TableScreen({
         }
         const landingTimer = setTimeout(() => {
           animatingRef.current = false;
-          if (!playMotifMoment) setFlights((f) => f.filter((item) => item.key !== flightKey));
+          if (!playMotifMoment && !playV2) setFlights((f) => f.filter((item) => item.key !== flightKey));
           handZone?.setHiddenCard(null);
           if (pausedRef.current) return;
           if (animationsOnRef.current && premiumFxAllowed) {
@@ -2118,7 +2159,7 @@ export function TableScreen({
               seatIdx={i}
               seatAngle={a.angle}
               playerCount={n}
-              dealing={motionEnabled && phase === "dealing" && !dealMotif}
+              dealing={motionEnabled && phase === "dealing" && !dealMotif && !dealV2}
               legal={p.isYou ? yourLegal : null}
               onCardClick={handleCardClick}
               motionOn={motionEnabled}

@@ -8,6 +8,7 @@
    handles — TableScreen ne possède plus les états d'animation des zones. */
 
 import { createContext, useContext, useEffect, useRef, type ReactNode } from "react";
+import type { ZonePose } from "@/engine/anim/v2/pose";
 import type { Card, DepositedCard } from "@/types/game";
 
 export type ZoneKey =
@@ -54,6 +55,10 @@ export interface HandHandle {
   dimCards?(keepIdxs: number[], durationMs: number): void;
   /** Cache des cartes pendant durationMs, puis les réaffiche (animation sur place). */
   hideCardsFor?(cardIdxs: number[], durationMs: number): void;
+  /* ── Animation V2 : facultatif ── */
+  /** Pose de la carte `cardIdx` quand la main en compte `count` (par défaut : le nombre actuel).
+   *  `count` plus grand = disposition après une arrivée ; la pose est celle du prochain état. */
+  poseOf?(cardIdx: number, count?: number): ZonePose | null;
 }
 
 export interface DepositHandle {
@@ -68,6 +73,8 @@ export interface DepositHandle {
   ): () => void;
   /** Modèles d'animation : cache des cartes du dépôt pendant durationMs (leur sprite les remplace). Facultatif. */
   hideCardsFor?(cardIdxs: number[], durationMs: number): void;
+  /** Animation V2 : pose de la carte `cardIdx` (au-delà de la dernière : carte à venir, au centre). Facultatif. */
+  poseOf?(cardIdx: number, count?: number): ZonePose | null;
 }
 
 export interface DeckHandle {
@@ -76,6 +83,8 @@ export interface DeckHandle {
   getRect(): DOMRect | null;
   /** Pulse visuel de la pioche (échange en cours…). */
   pulse(durationMs?: number): void;
+  /** Animation V2 : pose de la carte `cardIdx` sur `count` (la dernière est sur le dessus). Facultatif. */
+  poseOf?(cardIdx: number, count?: number): ZonePose | null;
 }
 
 export interface PotHandle {

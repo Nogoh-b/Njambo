@@ -4,6 +4,8 @@ import { memo, forwardRef, useEffect, useRef, useState } from "react";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { NjamboIcon } from "@/components/ui/Art";
 import { useRegisterZone, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
+import { elementCenter, elementScale } from "@/components/table/zones/zonePose";
+import { pilePose } from "@/engine/anim/v2/pose";
 import type { DepositedCard } from "@/types/game";
 
 /* ═══════════════ DepositZone — Emplacement gravé sur le feutre ═══════════════
@@ -58,6 +60,13 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
       const ids = cardIdxs.map((idx) => depositRef.current[idx]?.id).filter((id): id is string => !!id);
       setHiddenIds((current) => new Set([...current, ...ids]));
       hideTimers.current.push(setTimeout(() => setHiddenIds((current) => new Set([...current].filter((id) => !ids.includes(id)))), durationMs));
+    },
+    // Animation V2 : les cartes sont centrées, puis décalées et tournées par leur « jeté ».
+    poseOf: (cardIdx: number) => {
+      const root = rootRef.current;
+      if (!root) return null;
+      const scale = elementScale(root);
+      return pilePose({ center: elementCenter(root), cardWidth: w * scale, scale }, cardIdx, depositRef.current[cardIdx]);
     },
     beginSelection: (filter: DepositSelection["filter"], onPick: DepositSelection["onPick"]) => {
       const sel: DepositSelection = { filter, onPick };

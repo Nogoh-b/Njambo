@@ -6,8 +6,10 @@
 
 import { DEFAULT_MOTIFS } from "./defaults";
 import { normalizeMotif, type AnimMotif } from "./motif";
-import { GAME_MOMENTS, MOMENT_STYLE_FALLBACK, MOMENT_STYLE_OWNER, momentMotif, motifFitsMoment, styleMomentMotif, validateMoments, type GameMoment, type MomentMap } from "./moments";
+import { ANIM_V2_MOMENTS, GAME_MOMENTS, MOMENT_STYLE_FALLBACK, MOMENT_STYLE_OWNER, isV2Ref, momentAnimV2, momentMotif, motifFitsMoment, styleMomentMotif, v2IdOf, validateMoments, type GameMoment, type MomentMap } from "./moments";
 import type { AnimStyle } from "./style";
+import type { AnimV2 } from "./v2/model";
+import { getAnimV2 } from "./v2/registry";
 
 /** Réglages d'un modèle qu'une chorégraphie peut surcharger (tout sauf l'identité et l'aperçu). */
 export type MotifOverrides = Partial<Omit<AnimMotif, "id" | "name" | "description" | "group" | "preview">>;
@@ -54,8 +56,10 @@ export function setMotifCatalog(motifs: AnimMotif[], nextRevision: number, archi
   archived = new Set(archivedIds);
   // Un moment n'est gardé que si son modèle existe et lui convient (sinon : animation actuelle du jeu).
   moments = Object.fromEntries(Object.entries(momentMap).filter(([moment, id]) => {
-    const motif = typeof id === "string" ? next.get(id) : undefined;
-    return moment in GAME_MOMENTS && motif && motifFitsMoment(moment as GameMoment, motif);
+    if (!(moment in GAME_MOMENTS) || typeof id !== "string") return false;
+    if (isV2Ref(id)) return ANIM_V2_MOMENTS.includes(moment as GameMoment) && !!getAnimV2(v2IdOf(id));
+    const motif = next.get(id);
+    return !!motif && motifFitsMoment(moment as GameMoment, motif);
   })) as MomentMap;
   revision = nextRevision;
   notify();
@@ -82,16 +86,25 @@ export function momentPreviewMap(): MomentMap | null {
   return momentPreview && { ...momentPreview };
 }
 
-/** Modèle à jouer pour un moment (rythme du jeu appliqué), ou null : animation actuelle du jeu. */
+/** Modèle V1 à jouer pour un moment (rythme du jeu appliqué), ou null : animation actuelle du jeu ou modèle V2. */
 export function getMomentMotif(moment: GameMoment): AnimMotif | null {
   const id = (momentPreview ?? moments)[moment];
-  const motif = id ? catalog.get(id) : undefined;
+  const motif = id && !isV2Ref(id) ? catalog.get(id) : undefined;
   return motif ? momentMotif(moment, motif) : null;
 }
 
-/** Modèle d'un moment aux couleurs du style de son propriétaire (G5), ou null : animation actuelle du jeu.
- *  Un moment qui ne porte pas de style ignore `style`. */
+/** Modèle V2 à jouer pour un moment (rythme du jeu appliqué), ou null : animation actuelle du jeu ou modèle V1.
+ *  À tester AVANT les modèles V1 : un moment animé en V2 ne prend pas le « vol actuel » d'un joueur stylé. */
+export function getMomentAnimV2(moment: GameMoment): AnimV2 | null {
+  const ref = (momentPreview ?? moments)[moment];
+  const model = isV2Ref(ref) && ANIM_V2_MOMENTS.includes(moment) ? getAnimV2(v2IdOf(ref)) : null;
+  return model ? momentAnimV2(moment, model) : null;
+}
+
+/** Modèle d'un moment aux couleurs du style de son propriétaire (G5), ou null : animation actuelle du jeu
+ *  (ou modèle V2 : les styles des joueurs ne s'appliquent qu'aux modèles V1). Un moment qui ne porte pas de style ignore `style`. */
 export function getStyledMomentMotif(moment: GameMoment, style?: AnimStyle | null): AnimMotif | null {
+  if (getMomentAnimV2(moment)) return null;
   const assigned = getMomentMotif(moment);
   if (!style || !MOMENT_STYLE_OWNER[moment]) return assigned;
   const fallbackId = MOMENT_STYLE_FALLBACK[moment];

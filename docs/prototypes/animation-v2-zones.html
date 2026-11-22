@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Njambo · Atelier V2 — zones intelligentes</title>
+<style>
+:root{color-scheme:dark;--bg:#07150f;--panel:#10251c;--panel2:#153126;--line:#315143;--gold:#ebc77b;--text:#f6f2e8;--muted:#a9c0b3;--mint:#7dddb4}
+*{box-sizing:border-box}html{font-family:Outfit,Inter,ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif}body{margin:0;color:var(--text);background:radial-gradient(circle at 57% 0,#17402c,#07150f 58%);min-height:100vh}
+header{max-width:1500px;margin:0 auto;padding:23px 24px 14px;display:flex;gap:13px;align-items:center;flex-wrap:wrap}
+.logo{background:linear-gradient(130deg,#ffe4a0,#b27b32);color:#172b1e;font-weight:950;font-size:22px;width:41px;height:41px;border-radius:13px;display:grid;place-items:center}
+h1{font-size:21px;line-height:1.3;letter-spacing:-.035em;margin:0}header p{margin:4px 0 0;font-size:13px;color:var(--muted)}.flag{margin-left:auto;border:1px solid #477455;background:#204430;color:#9ee9c4;padding:7px 11px;border-radius:40px;font-size:11px;font-weight:700}
+main{max-width:1500px;padding:8px 19px 28px;margin:auto;display:grid;grid-template-columns:318px minmax(0,1fr);gap:17px;align-items:start}.panel{background:linear-gradient(145deg,#132c21,#0c2018);border:1px solid var(--line);border-radius:20px;padding:20px;box-shadow:0 16px 45px #0004}.panel h2{font-size:17px;letter-spacing:-.02em;margin:0 0 5px}.sub{font-size:12px;line-height:1.6;color:var(--muted);margin:0 0 16px}.eyebrow{color:var(--gold);font-size:11px;text-transform:uppercase;letter-spacing:.11em;font-weight:850;margin:20px 0 10px}
+.presets{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.preset{background:#19382b;border:1px solid #3e6852;color:#e7f5ed;border-radius:9px;padding:10px 5px;font-size:11px;cursor:pointer}.preset.active{background:#e9c780;color:#17281c;border-color:#e9c780;font-weight:850}.preset:focus-visible,button:focus-visible,select:focus-visible,input:focus-visible{outline:2px solid #f9d890;outline-offset:2px}
+.field{margin:13px 0 0}.field label,.inlineLabel{display:flex;justify-content:space-between;gap:8px;color:#d7e8dc;font-size:12px;font-weight:660;margin-bottom:7px}.field span{color:var(--gold);font-weight:750}select{width:100%;background:#17372a;border:1px solid #456b57;color:#f1f5e9;padding:10px 11px;border-radius:10px;min-height:39px;font-size:12px}input[type=range]{width:100%;accent-color:var(--gold)}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}.divider{height:1px;background:#315143;margin:20px 0 0}.info{border:1px solid #466349;background:#1b3826;border-radius:11px;margin-top:15px;padding:12px;font-size:12px;line-height:1.65;color:#c9ddce}.info strong{color:#fae8ad}.action-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:17px}button{cursor:pointer;border:0;border-radius:10px;padding:12px 10px;font-size:12px;font-weight:800;transition:filter .15s,transform .15s}button:hover{filter:brightness(1.07)}button:active{transform:scale(.985)}button:disabled{opacity:.55;cursor:wait}.mainbtn{background:linear-gradient(145deg,#f9df9b,#e3ae57);color:#17251b}.secondary{color:#e7f7ed;background:#244535;border:1px solid #486b56}.wide{width:100%;margin-top:9px}.note{font-size:11px;line-height:1.6;color:var(--muted);margin:10px 0 0}
+.stage{padding:18px}.stageHead{display:flex;justify-content:space-between;align-items:start;gap:12px;flex-wrap:wrap;margin-bottom:13px}.stageHead p{font-size:12px;color:var(--muted);margin:5px 0 0}.stageHead .tag{color:#bff2d3;background:#1b3c2c;border:1px solid #385943;border-radius:30px;padding:6px 10px;font-size:11px}
+.board{position:relative;width:100%;height:clamp(430px,49vw,605px);min-height:430px;overflow:hidden;border:9px solid #824c2c;outline:2px solid #e7b568;outline-offset:-7px;border-radius:31% / 23%;background:radial-gradient(ellipse at 48% 50%,#239370 0%,#187358 48%,#0b4436 100%);box-shadow:inset 0 0 0 2px #e4b366,inset 0 0 80px #002b1c,0 14px 40px #0006}
+.board:after{content:"";position:absolute;inset:20px;border:1px dashed #d5b87955;border-radius:31% / 23%;pointer-events:none}
+#zoneLayer{position:absolute;inset:0;pointer-events:none;z-index:1}.zoneMarker{position:absolute;display:flex;align-items:center;flex-direction:column;gap:8px;transform:translate(-50%,-50%);transition:filter .25s}.zoneMarker .anchor{width:87px;height:120px;border:1px dashed #bde5cb60;border-radius:11px;background:#001d161b;display:grid;place-items:center;position:relative}.zoneMarker .anchor:after{content:"";width:55px;height:80px;border:1px dashed #d9e7cd55;border-radius:7px}.zoneMarker .name{background:#06221bcf;border:1px solid #ac8f59;color:#f2dd9b;border-radius:30px;padding:5px 12px;font-size:11px;font-weight:750;white-space:nowrap}.zoneMarker.active .anchor{border-color:#f8d583;background:#fae9a61c;box-shadow:0 0 0 8px #f2d78324,0 0 35px #f8d0807b;animation:zonePulse .42s ease-out}.zoneMarker.target .anchor{border-color:#b8edc0;box-shadow:0 0 0 4px #68d0a717}
+@keyframes zonePulse{0%{filter:brightness(1);transform:scale(1)}50%{filter:brightness(1.5);transform:scale(1.07)}100%{transform:scale(1)}}
+#cardsLayer{position:absolute;inset:0;z-index:4;pointer-events:none}.gameCard{position:absolute;top:0;left:0;transform-origin:center center;will-change:transform;pointer-events:none}.gameCard.selectable{pointer-events:auto;cursor:pointer}.gameCard.selectable:hover .cardFace{box-shadow:0 10px 22px #0008,0 0 0 2px #f4df9e}.gameCard.selected .cardFace{box-shadow:0 10px 24px #0008,0 0 0 3px #f4d68e,0 0 20px #f8e29492}.rotor{position:absolute;inset:0;transform-style:preserve-3d;will-change:transform}.cardFace{position:absolute;inset:0;border-radius:8px;border:2px solid #d8b978;backface-visibility:hidden;-webkit-backface-visibility:hidden;overflow:hidden;box-shadow:0 7px 14px #0007}.cardFace.front{background:radial-gradient(circle at center,#fffaf0,#f1e6c9);color:#182e26}.cardFace.front.red{color:#c94055}.cardFace .top{position:absolute;left:6px;top:3px;display:flex;flex-direction:column;font-weight:850;line-height:.9;font-size:16px}.cardFace .top span{font-size:13px;margin-top:4px}.cardFace .middle{position:absolute;inset:0;display:grid;place-items:center;font-size:29px}.cardFace.back{transform:rotateY(180deg);background:repeating-linear-gradient(45deg,#935c33 0 4px,#34231c 4px 8px,#c69356 8px 12px)}.cardFace.back:before{content:'◈';position:absolute;inset:8px;border:2px solid #f7d18c;background:#39231ca6;display:grid;place-items:center;font-size:32px;color:#f4d093;border-radius:4px}
+#cardFlyLayer{position:absolute;inset:0;z-index:9;pointer-events:none}.flightGlow{position:absolute;border-radius:14px;box-shadow:0 0 28px 8px #f5dc8a7c;inset:2px;pointer-events:none;opacity:.4}.flightShadow{position:absolute;inset:2px;border-radius:9px;box-shadow:0 13px 25px #001b14cc;pointer-events:none}.ghost{position:absolute;border:1px dashed #f3e2a38c;border-radius:9px;background:#ffe69f12;pointer-events:none}
+.readout{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px;margin-top:14px}.readout div{border:1px solid #345949;background:#142e23;padding:10px 12px;border-radius:11px}.readout strong{display:block;font-size:12px;margin:0 0 4px}.readout span{font-size:11px;color:var(--muted);line-height:1.4}.readout .accent{color:#eecb82}
+.status{min-height:32px;padding:15px 4px 0;color:#91e7bd;font-size:12px}.description{font-size:12px;line-height:1.75;color:#a9c4b5;margin:2px 2px 0}.lower{display:grid;grid-template-columns:1.1fr .9fr;gap:12px;margin-top:14px}.boxmini{border:1px solid #355b45;border-radius:12px;background:#142c22;padding:12px}.boxmini h3{font-size:12px;margin:0 0 8px;color:#f1dfb2}.boxmini p{font-size:11px;line-height:1.6;color:var(--muted);margin:0}.boxmini code{font-size:11px;color:#bcf5d4;word-wrap:break-word}.boxmini pre{font-size:11px;line-height:1.5;color:#b9efcd;white-space:pre-wrap;overflow:auto;max-height:125px;margin:0}
+@media(max-width:1000px){main{grid-template-columns:1fr}.stage{order:-1}.board{height:480px;min-height:480px}}@media(max-width:600px){header{padding:16px 14px 12px}.flag{margin-left:0}main{padding:5px 10px 25px;gap:11px}.panel{padding:14px}.board{height:370px;min-height:370px;border-radius:25% / 17%}.board:after{inset:13px}.zoneMarker .anchor{height:91px;width:65px}.zoneMarker .anchor:after{width:41px;height:58px}.zoneMarker .name{font-size:10px;padding:4px 8px}.readout{grid-template-columns:1fr 1fr}.readout div:last-child{grid-column:1/-1}.lower{grid-template-columns:1fr}.stage{padding:12px}}
+</style>
+</head>
+<body>
+<header><div class="logo">N</div><div><h1>Njambo · Atelier V2</h1><p>Zones intelligentes — la zone impose la position, l'animation gère le mouvement.</p></div><span class="flag">Une main · une pioche · un dépôt</span></header>
+<main>
+<section class="panel" aria-label="Réglages de l'animation">
+  <h2>Un mouvement, trois étapes</h2><p class="sub">Le jeu fournit la carte et les zones. L'atelier choisit uniquement <b>comment elle se déplace</b>. Les rotations et positions sont calculées par chaque zone.</p>
+  <div class="eyebrow">Essais rapides</div>
+  <div class="presets" role="group" aria-label="Exemples de transferts">
+    <button class="preset active" data-src="deck" data-dst="hand">↘ Piocher</button>
+    <button class="preset" data-src="hand" data-dst="deposit">↗ Jouer</button>
+    <button class="preset" data-src="deposit" data-dst="hand">↙ Récupérer</button>
+  </div>
+  <div class="two">
+    <div class="field"><label for="from">Départ <span>A</span></label><select id="from"><option value="deck">Pioche</option><option value="hand">Main</option><option value="deposit">Dépôt</option></select></div>
+    <div class="field"><label for="to">Arrivée <span>B</span></label><select id="to"><option value="hand">Main</option><option value="deposit">Dépôt</option><option value="deck">Pioche</option></select></div>
+  </div>
+  <div class="info"><strong>Mode automatique activé</strong><div id="zoneDescription">La main calcule l'emplacement et l'angle de la carte, puis réorganise ses cartes.</div></div>
+  <div class="divider"></div>
+  <div class="eyebrow">Animation V2</div>
+  <div class="field"><label for="duration">Durée du vol <span id="durationValue">750 ms</span></label><input id="duration" type="range" min="300" max="1600" step="50" value="750"></div>
+  <div class="field"><label for="curve">Courbure <span id="curveValue">25 %</span></label><input id="curve" type="range" min="-70" max="70" step="5" value="25"></div>
+  <div class="field"><label for="easing">Rythme</label><select id="easing"><option value="smooth">Fluide</option><option value="out">Arrivée douce</option><option value="linear">Linéaire</option></select></div>
+  <div class="two">
+    <div class="field"><label for="fxFrom">Effet de sortie</label><select id="fxFrom"><option value="glow">Lueur</option><option value="pulse">Pulsation</option><option value="none">Aucun</option></select></div>
+    <div class="field"><label for="fxTo">Effet d'entrée</label><select id="fxTo"><option value="pulse">Pulsation</option><option value="glow">Lueur</option><option value="none">Aucun</option></select></div>
+  </div>
+  <div class="field"><label for="reflow">Réorganisation de la main <span id="reflowValue">600 ms</span></label><input id="reflow" type="range" min="150" max="1200" step="50" value="600"></div>
+  <div class="action-row"><button id="preview" class="mainbtn">▶ Prévisualiser</button><button id="reset" class="secondary">↺ Réinitialiser</button></div>
+  <button id="download" class="secondary wide">↓ Exporter l'animation JSON</button>
+  <p class="note">La quantité de cartes, leur valeur et le joueur destinataire sont décidés par Njambo, pas par ce panneau.</p>
+</section>
+<section class="panel stage" aria-label="Table de démonstration">
+  <div class="stageHead"><div><h2>Visualisation sur une seule table</h2><p>Clique sur une carte de la main pour choisir celle qui doit sortir.</p></div><span class="tag">Disposition intelligente · éventail dynamique</span></div>
+  <div class="board" id="board"><div id="zoneLayer"></div><div id="cardsLayer"></div><div id="cardFlyLayer"></div></div>
+  <div class="readout">
+    <div><strong>Pose de départ</strong><span id="poseFrom">Calculée par la zone A</span></div>
+    <div><strong>Pose d'arrivée</strong><span id="poseTo">Calculée par la zone B</span></div>
+    <div><strong>Réorganisation</strong><span class="accent" id="reflowInfo">La main s'adapte automatiquement</span></div>
+  </div>
+  <div id="status" class="status" aria-live="polite">Prêt. Lance « Piocher », « Jouer » ou « Récupérer ».</div>
+  <div class="lower">
+    <div class="boxmini"><h3>Responsabilités</h3><p><b>Njambo :</b> qui déplace quoi et combien de fois. <b>Zone :</b> emplacement, décalage, rotation, échelle et disposition. <b>V2 :</b> trajectoire, durée, retournement visuel et effets.</p></div>
+    <div class="boxmini"><h3>Configuration exportée</h3><pre id="configPreview"></pre></div>
+  </div>
+</section>
+</main>
+<script>
+(()=>{
+'use strict';
+const $=id=>document.getElementById(id),board=$('board'),cardsLayer=$('cardsLayer'),flyLayer=$('cardFlyLayer'),zoneLayer=$('zoneLayer');
+const labels={deck:'PIOCHE',hand:'MAIN',deposit:'DÉPÔT'};
+const CARDVALUES=[['A','♣'],['8','♥'],['J','♠'],['10','♦'],['6','♠'],['Q','♥'],['K','♦'],['5','♣'],['9','♥'],['7','♣'],['4','♦'],['2','♠']];
+const make=(id,i)=>({id,rank:CARDVALUES[i%CARDVALUES.length][0],suit:CARDVALUES[i%CARDVALUES.length][1]});
+const initial=()=>({deck:Array.from({length:8},(_,i)=>make('deck'+i,i+4)),hand:Array.from({length:4},(_,i)=>make('hand'+i,i)),deposit:[make('deposit0',10)]});
+let state=initial(),selected='hand1',running=false,frame=null,cardElements=new Map(),csize={w:68,h:96},zoneMarkers={};
+const position=(zone)=>{const w=board.clientWidth,h=board.clientHeight;switch(zone){case 'deck':return{x:w*.45,y:h*.38};case 'hand':return{x:w*.5,y:h*.855};case 'deposit':return{x:w*.57,y:h*.62}}};
+function cardSize(){let w=Math.max(45,Math.min(73,board.clientWidth*.094));return{w,h:w*1.405}}
+function pose(zone,index,n){const p=position(zone);if(zone==='hand'){
+  const offset=index-(n-1)/2,step=Math.min(csize.w*.72,board.clientWidth*.50/Math.max(n,5));
+  return{x:p.x+offset*step,y:p.y+Math.abs(offset)*Math.min(10,csize.w*.12),rotation:offset*11,scale:1,z:10+index,face:'front'};
+}
+if(zone==='deck')return{x:p.x+Math.min(index,5)*.75,y:p.y-Math.min(index,5)*.75,rotation:-7+Math.min(index,5)*1.1,scale:1,z:2+index,face:'back'};
+return{x:p.x+Math.min(index,4)*1.4,y:p.y-Math.min(index,4)*1.1,rotation:-4+Math.min(index,4)*1.5,scale:1,z:5+index,face:'front'};}
+function allPoses(data){const result={};for(const zone of Object.keys(data)){const arr=data[zone];arr.forEach((card,i)=>{result[card.id]={...pose(zone,i,arr.length),zone};});}return result}
+function transform(p){return`translate(${p.x-csize.w/2}px,${p.y-csize.h/2}px) rotate(${p.rotation}deg) scale(${p.scale})`}
+function markup(card){let red=card.suit==='♥'||card.suit==='♦';return `<div class="rotor"><div class="cardFace front ${red?'red':''}"><div class="top">${card.rank}<span>${card.suit}</span></div><div class="middle">${card.suit}</div></div><div class="cardFace back"></div></div>`}
+function elFor(card){let el=cardElements.get(card.id);if(!el){el=document.createElement('div');el.className='gameCard';el.dataset.id=card.id;el.innerHTML=markup(card);el.addEventListener('click',()=>{if(running||$('from').value!=='hand')return;selected=card.id;render();status('Carte sélectionnée : '+card.rank+card.suit+' — elle quittera la main.')});cardElements.set(card.id,el)}return el}
+function render(){if(running)return;csize=cardSize();const poses=allPoses(state);const living=new Set(Object.keys(poses));for(const [id,el] of cardElements){if(!living.has(id)){el.remove();cardElements.delete(id)}}for(const zone of Object.keys(state)){const arr=state[zone];for(const [i,card] of arr.entries()){
+  const p=poses[card.id],el=elFor(card);if(el.parentElement!==cardsLayer)cardsLayer.appendChild(el);el.style.width=csize.w+'px';el.style.height=csize.h+'px';el.style.zIndex=String(p.z+(zone==='hand'?40:0));el.style.transform=transform(p);el.querySelector('.rotor').style.transform=`rotateY(${p.face==='back'?180:0}deg)`;
+  el.classList.toggle('selectable',zone==='hand'&&$('from').value==='hand');el.classList.toggle('selected',zone==='hand'&&selected===card.id&&$('from').value==='hand');
+}} updateUI()}
+function createZones(){zoneLayer.innerHTML='';for(const zone of ['deck','deposit','hand']){let el=document.createElement('div');el.className='zoneMarker';el.dataset.zone=zone;el.innerHTML=`<div class="name">${labels[zone]}</div><div class="anchor"></div>`;zoneLayer.appendChild(el);zoneMarkers[zone]=el}positionZones()}
+function positionZones(){for(const zone of Object.keys(zoneMarkers)){const p=position(zone);zoneMarkers[zone].style.left=p.x+'px';zoneMarkers[zone].style.top=p.y+'px'}}
+function cfg(){return{schema:'njambo.anim.v2',version:1,pose:'provided-by-zones',motion:{durationMs:+$('duration').value,curve:+$('curve').value/100,easing:$('easing').value},effects:{onLeave:$('fxFrom').value,onEnter:$('fxTo').value},handReflowMs:+$('reflow').value,facePolicy:'game-visibility'}}
+const copyState=s=>Object.fromEntries(Object.entries(s).map(([k,v])=>[k,[...v]]));
+function movingCard(){const zone=$('from').value,arr=state[zone];if(!arr.length)return null;if(zone==='hand')return arr.find(c=>c.id===selected)||arr[Math.floor(arr.length/2)];return arr[arr.length-1]}
+function viewInfo(){const a=$('from').value,b=$('to').value,card=movingCard();if(!card||a===b){$('poseFrom').textContent='—';$('poseTo').textContent='—';return}const oldP=allPoses(state)[card.id],next=copyState(state);next[a]=next[a].filter(c=>c.id!==card.id);next[b].push(card);const newP=allPoses(next)[card.id];const poseLabel=p=>`x ${Math.round(p.x)} · y ${Math.round(p.y)} · ${p.rotation>=0?'+':''}${Math.round(p.rotation)}°`;$('poseFrom').textContent=poseLabel(oldP);$('poseTo').textContent=poseLabel(newP);$('reflowInfo').textContent=a==='hand'?'La main se referme':b==='hand'?'La main s’ouvre':'Aucune modification de la main';}
+function status(value){$('status').textContent=value}
+function updateUI(){
+ const a=$('from').value,b=$('to').value;
+ $('durationValue').textContent=$('duration').value+' ms';
+ $('curveValue').textContent=$('curve').value+' %';
+ $('reflowValue').textContent=$('reflow').value+' ms';
+ for(const n of Object.keys(zoneMarkers))zoneMarkers[n].classList.toggle('target',n===b);
+ const descriptions={hand:'La main impose la position, la rotation et la translation. Les cartes présentes se redisposent pour accueillir ou libérer une carte.',deck:'La pioche empile les cartes. Son angle, son décalage et la face cachée sont gérés par la zone.',deposit:'Le dépôt impose sa pose d’empilement et son angle final.'};
+ $('zoneDescription').textContent=descriptions[b];
+ const curr=cfg();$('configPreview').textContent=JSON.stringify(curr,null,2);
+ document.querySelectorAll('.preset').forEach(el=>el.classList.toggle('active',el.dataset.src===a&&el.dataset.dst===b));
+ const card=movingCard();$('preview').disabled=a===b||!card||running;
+ viewInfo();
+}
+function reactZone(name,effect){if(effect==='none')return;const marker=zoneMarkers[name];if(!marker)return;marker.classList.remove('active');void marker.offsetWidth;marker.classList.add('active');setTimeout(()=>marker.classList.remove('active'),effect==='pulse'?440:650)}
+const clamp=(n,a=0,b=1)=>Math.min(b,Math.max(a,n));
+const ease=(t,k)=>k==='linear'?t:k==='out'?1-(1-t)**3:t*t*(3-2*t);
+const lerp=(a,b,t)=>a+(b-a)*t;
+async function play(){
+ if(running)return;
+ const a=$('from').value,b=$('to').value,card=movingCard();
+ if(a===b){status('Choisis une destination différente du départ.');return}
+ if(!card){status('La zone de départ est vide. Clique sur « Réinitialiser ».');return}
+ const settings=cfg(),oldState=state,next=copyState(state),old=allPoses(oldState);
+ next[a]=next[a].filter(c=>c.id!==card.id);next[b].push(card);
+ const future=allPoses(next),src=old[card.id],dst=future[card.id],node=cardElements.get(card.id);
+ if(!node||!src||!dst){status('Impossible de localiser cette carte.');return}
+ running=true;$('preview').disabled=true;$('reset').disabled=true;
+ status(`${card.rank}${card.suit} : ${labels[a]} → ${labels[b]} · la destination impose sa pose finale`);
+ reactZone(a,settings.effects.onLeave);
+ node.classList.remove('selected','selectable');node.style.zIndex='110';flyLayer.appendChild(node);
+ // Le moteur de jeu prévoit la nouvelle disposition. La zone « main » fournit
+ // les poses d'arrivée. Les autres cartes interpolent leurs poses sans que
+ // l'animation connaisse la règle de l'éventail.
+ const movers=[];
+ for(const [id,startPose] of Object.entries(old)){
+   if(id===card.id||!future[id])continue;
+   const targetPose=future[id];
+   if(startPose.x!==targetPose.x||startPose.y!==targetPose.y||startPose.rotation!==targetPose.rotation){
+     const el=cardElements.get(id);if(el)movers.push({el,startPose,targetPose});
+   }
+ }
+ const dx=dst.x-src.x,dy=dst.y-src.y,dist=Math.hypot(dx,dy)||1;
+ const normal={x:-dy/dist,y:dx/dist};
+ const bend=settings.motion.curve*Math.min(245,dist*.48);
+ const c1={x:src.x+dx*.30+normal.x*bend,y:src.y+dy*.30+normal.y*bend};
+ const c2={x:src.x+dx*.70+normal.x*bend,y:src.y+dy*.70+normal.y*bend};
+ const bz=(u,v,w,x,t)=>Math.pow(1-t,3)*u+3*Math.pow(1-t,2)*t*v+3*(1-t)*t*t*w+Math.pow(t,3)*x;
+ const flipA=src.face==='back'?180:0,flipB=dst.face==='back'?180:0;
+ let arrivalPlayed=false;
+ const startTime=performance.now();
+ await new Promise(resolve=>{
+   const tick=now=>{
+     const elapsed=now-startTime,raw=clamp(elapsed/settings.motion.durationMs);
+     const t=ease(raw,settings.motion.easing);
+     const x=bz(src.x,c1.x,c2.x,dst.x,t),y=bz(src.y,c1.y,c2.y,dst.y,t);
+     const rotation=lerp(src.rotation,dst.rotation,t);
+     const flyingPose={x,y,rotation,scale:1+.10*Math.sin(raw*Math.PI)};
+     node.style.transform=transform(flyingPose);
+     node.querySelector('.rotor').style.transform=`rotateY(${lerp(flipA,flipB,ease(raw,'smooth'))}deg)`;
+     // Une main ajuste tous ses emplacements pendant qu'une carte arrive/part.
+     const rearrange= ease(clamp((elapsed-settings.motion.durationMs*.14)/settings.handReflowMs),'smooth');
+     for(const item of movers){
+       const p={x:lerp(item.startPose.x,item.targetPose.x,rearrange),y:lerp(item.startPose.y,item.targetPose.y,rearrange),rotation:lerp(item.startPose.rotation,item.targetPose.rotation,rearrange),scale:1};
+       item.el.style.transform=transform(p);
+     }
+     if(raw>.82&&!arrivalPlayed){reactZone(b,settings.effects.onEnter);arrivalPlayed=true}
+     if(raw<1){frame=requestAnimationFrame(tick)}else{frame=null;resolve()}
+   };
+   frame=requestAnimationFrame(tick);
+ });
+ // Synchronisation de démonstration : ici le moteur « jeu » a décidé du
+ // transfert avant l'animation et la scène adopte le nouvel état à la fin.
+ state=next;
+ if(a==='hand'&&selected===card.id)selected=state.hand[Math.floor(state.hand.length/2)]?.id||null;
+ running=false;
+ node.style.zIndex='';
+ $('reset').disabled=false;
+ render();
+ status(`Terminé. La carte a rejoint ${labels[b].toLowerCase()} à ${Math.round(dst.rotation)}° ; ${movers.length} autre(s) carte(s) réorganisée(s).`);
+}
+function choose(src,dst){if(running)return;$('from').value=src;$('to').value=dst;render();status('Scénario prêt : '+labels[src]+' → '+labels[dst]+'.')}
+for(const preset of document.querySelectorAll('.preset'))preset.addEventListener('click',()=>choose(preset.dataset.src,preset.dataset.dst));
+for(const el of document.querySelectorAll('select,input'))el.addEventListener('input',()=>{if(running)return;render()});
+$('preview').addEventListener('click',play);
+$('reset').addEventListener('click',()=>{if(running)return;state=initial();selected='hand1';render();status('Table réinitialisée. Une seule carte sera déplacée à chaque aperçu.')});
+$('download').addEventListener('click',()=>{
+ const blob=new Blob([JSON.stringify(cfg(),null,2)],{type:'application/json;charset=utf-8'}),link=document.createElement('a');
+ link.href=URL.createObjectURL(blob);link.download='njambo-animation-v2-zones.json';link.click();setTimeout(()=>URL.revokeObjectURL(link.href),1500);
+ status('La configuration de l’animation a été exportée. Les poses restent gérées par les zones du jeu.');
+});
+window.addEventListener('resize',()=>{if(running)return;positionZones();render()});
+createZones();render();
+})();
+</script>
+</body>
+</html>

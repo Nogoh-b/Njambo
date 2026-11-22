@@ -85,6 +85,13 @@ import {
   setAnimMotifArchivedHandler,
   setGameMomentsHandler,
 } from "../../functions/src/animMotifAdminCommands";
+import {
+  listAdminAnimsV2Handler,
+  saveAnimV2DraftHandler,
+  publishAnimV2Handler,
+  discardAnimV2DraftHandler,
+  setAnimV2ArchivedHandler,
+} from "../../functions/src/animV2AdminCommands";
 import { registerPushTokenHandler } from "../../functions/src/notificationCommands";
 import { createRoomHandler, joinRoomHandler, leaveRoomHandler, refreshRoomPlayerHandler, startGameHandler } from "../../functions/src/roomCommands";
 import {
@@ -168,6 +175,11 @@ export const commands: Record<string, Handler> = {
   discardAnimMotifDraft: discardAnimMotifDraftHandler,
   setAnimMotifArchived: setAnimMotifArchivedHandler,
   setGameMoments: setGameMomentsHandler,
+  listAdminAnimsV2: listAdminAnimsV2Handler,
+  saveAnimV2Draft: saveAnimV2DraftHandler,
+  publishAnimV2: publishAnimV2Handler,
+  discardAnimV2Draft: discardAnimV2DraftHandler,
+  setAnimV2Archived: setAnimV2ArchivedHandler,
   getSeasons: getSeasonsHandler,
   claimSeasonTier: claimSeasonTierHandler,
   listSeasons: listSeasonsHandler,

@@ -291,6 +291,8 @@ service cloud.firestore {
     match /anim_motifs/{id} { allow read: if admin(); allow write: if false; }
     match /anim_motif_versions/{id} { allow read: if admin(); allow write: if false; }
     match /anim_moments/{id} { allow read: if admin(); allow write: if false; }
+    match /anim_v2_models/{id} { allow read: if admin(); allow write: if false; }
+    match /anim_v2_versions/{id} { allow read: if admin(); allow write: if false; }
     match /power_card_versions/{id} { allow read: if admin(); allow write: if false; }
 
     match /admin_drafts/{draftId} {

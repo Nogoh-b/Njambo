@@ -23,6 +23,9 @@ import { FUNCTIONAL_CUES } from "@/engine/power/choreography";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
 import { moveSourceUi, playChoreography, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
+import { playAnimV2, type AnimV2Move } from "@/components/power/choreo/playAnimV2";
+import type { PoseZone } from "@/components/table/zones/zonePose";
+import { getAnimV2 } from "@/engine/anim/v2/registry";
 import type { PowerModule } from "@/engine/power/types";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { T } from "@/config/theme";
@@ -360,6 +363,53 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
       }
     };
 
+    /* Animation V2 (fiche de la carte, `animV2`) : les vols de cartes passent par le lecteur V2,
+       les zones donnent les poses. Modèle inconnu de ce client = vols habituels. */
+    const animV2 = def.animV2 ? getAnimV2(def.animV2) : null;
+    /** Nombre de cartes de chaque main APRÈS les mouvements déjà joués (l'état réel n'arrive qu'au commit). */
+    const pendingHandCount = new Map<number, number>();
+    const handCountOf = (ui: number) => pendingHandCount.get(ui) ?? players[ui]?.hand.length ?? 0;
+    const v2Context = (layer: ChoreoLayerHandle): ChoreoContext => ({
+      registry: d.registry,
+      layer,
+      resolveRefUi,
+      cardsOf: (ref) => cardsOf(ref),
+      visibleCard: () => null,
+      handCardRect: (ui, index) => d.registry.hand(ui)?.getCardRect(index) ?? null,
+      burst: (preset, rect, tone, intensity, durationMs) => emitBurst(preset, rect, tone, intensity, durationMs),
+      impactShake: (intensity) => d.impactShake(intensity),
+      defaultTone: (def.tone as PowerFxTone) ?? "gold",
+      motionEnabled: d.motionEnabled,
+      lite: d.liteMotion,
+    });
+    /** Vol d'un cue « flyCards » en V2 : une carte par mouvement, toutes ensemble. */
+    const flyV2 = (layer: ChoreoLayerHandle, cue: Extract<AnimCue, { cue: "flyCards" }>, faceUp: boolean): Promise<void> => {
+      const { ids, snapshots, fromIndexes, toIndexes } = cardsOf(cue.cards);
+      const uiOf = (zone: { zone: string; player?: PlayerRef }) => (zone.player ? resolveRefUi(zone.player)[0] : activatorUi);
+      const fromUi = uiOf(cue.from as { zone: string; player?: PlayerRef });
+      const toUi = uiOf(cue.to as { zone: string; player?: PlayerRef });
+      const arrivals = ids.length;
+      // Disposition d'arrivée d'une main : celle d'après le mouvement (cartes qui partent, puis cartes qui arrivent).
+      if (cue.mode === "move" && cue.from.zone === "hand") pendingHandCount.set(fromUi, handCountOf(fromUi) - arrivals);
+      const arrivalBase = cue.to.zone === "hand" ? handCountOf(toUi) : cue.to.zone === "deposit" ? players[toUi]?.deposit.length ?? 0 : 0;
+      if (cue.mode === "move" && cue.to.zone === "hand") pendingHandCount.set(toUi, handCountOf(toUi) + arrivals);
+      const finalCount = cue.to.zone === "hand" ? handCountOf(toUi) : undefined;
+      const moves: AnimV2Move[] = ids.map((cardId, index) => {
+        const fromIndex = cue.from.zone === "hand"
+          ? fromIndexes[index] ?? Math.max(0, players[fromUi]?.hand.findIndex((candidate) => candidate.id === cardId) ?? 0)
+          : cue.from.zone === "deposit" ? fromIndexes[index] ?? Math.max(0, (players[fromUi]?.deposit.length ?? 1) - 1) : 0;
+        const toIndex = cue.to.zone === "hand" || cue.to.zone === "deposit" ? toIndexes[index] ?? arrivalBase + index : 0;
+        // Identité montrée seulement si elle l'est en V1 (ma main, pouvoir que j'ai lancé) ; sinon de dos.
+        const card = faceUp ? snapshots[index] ?? players[0]?.hand.find((candidate) => candidate.id === cardId) ?? null : null;
+        return {
+          card,
+          from: { zone: cue.from.zone as PoseZone, ui: fromUi, index: fromIndex },
+          to: { zone: cue.to.zone as PoseZone, ui: toUi, index: toIndex, count: finalCount },
+        };
+      });
+      return playAnimV2(v2Context(layer), { id: `power_v2_${Date.now().toString(36)}`, model: animV2!, moves, release: "landing" });
+    };
+
     const beats = script.beats ?? {};
     const movingCueCount = script.steps.reduce(
       (count, step) => count + (step.choreo
@@ -412,6 +462,15 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
                 hiddenHands.set(sourceUi, hidden);
                 d.registry.hand(sourceUi)?.setHiddenCards([...hidden]);
               }
+            }
+
+            if (animV2 && choreoLayerRef.current) {
+              await flyV2(choreoLayerRef.current, cue, faceUp);
+              if (cue.mode === "move") {
+                movingCuesDone += 1;
+                if (movingCuesDone >= movingCueCount) await commitTransition();
+              }
+              break;
             }
 
             d.registry.deck()?.pulse(d.flightMs);
