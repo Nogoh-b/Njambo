@@ -874,9 +874,212 @@ def vent():
     b += power_frame()
     return svg(720, 720, defs, b)
 
+
+STEEL = """<linearGradient id="steelB" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#f8fdff"/><stop offset=".35" stop-color="#c8d6e0"/><stop offset=".55" stop-color="#7a8a98"/><stop offset=".7" stop-color="#e8f2f8"/><stop offset="1" stop-color="#5a6a78"/></linearGradient>"""
+GLOW2 = '<filter id="glowS2" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="3" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>'
+MIST = """<filter id="mist" x="0" y="0" width="100%" height="100%"><feTurbulence type="fractalNoise" baseFrequency=".008 .014" numOctaves="4" seed="SEED"/>
+  <feColorMatrix type="matrix" values="0 0 0 0 1  0 0 0 0 .85  0 0 0 0 .92  0 0 0 2 -.9"/></filter>"""
+
+def sparks(cx, cy, n, seed, spread=120, cols=("#fff6d0", "#ffd25a", "#ff9ac0")):
+    rnd = random.Random(seed); s = ""
+    for _ in range(n):
+        a = rnd.uniform(0, 2*math.pi); r0 = rnd.uniform(10, 30); r1 = r0 + rnd.uniform(20, spread)
+        s += f'<path d="M{cx+r0*math.cos(a):.0f} {cy+r0*math.sin(a):.0f} L{cx+r1*math.cos(a):.0f} {cy+r1*math.sin(a):.0f}" stroke="{rnd.choice(cols)}" stroke-width="{rnd.uniform(1.5,4):.1f}" stroke-linecap="round"/>'
+    return f'<g filter="url(#glint)">{s}</g>'
+
+def chain(x0, y0, x1, y1, n, w=26):
+    L = math.hypot(x1-x0, y1-y0); ang = math.degrees(math.atan2(y1-y0, x1-x0)); s = ""
+    for i in range(n):
+        t = (i+.5)/n; x = x0 + (x1-x0)*t; y = y0 + (y1-y0)*t
+        if i % 2:
+            s += f'<rect x="{-w*.9:.1f}" y="-4" width="{w*1.8:.1f}" height="8" rx="4" fill="url(#gold)" transform="translate({x:.1f} {y:.1f}) rotate({ang:.1f})"/>'
+        else:
+            s += f'<ellipse rx="{w:.1f}" ry="{w*.55:.1f}" fill="none" stroke="url(#gold)" stroke-width="9" transform="translate({x:.1f} {y:.1f}) rotate({ang:.1f})"/>'
+    return f'<g filter="url(#metal)">{s}</g>'
+
+# ───────────────────────── COUPE-CIRCUIT ─────────────────────────
+def coupe():
+    d, bg = bg_textile("pink", .45)
+    defs = d + WOOD + STEEL + """
+    <linearGradient id="cord" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fff6d0"/><stop offset=".5" stop-color="#ffc94a"/><stop offset="1" stop-color="#a86a14"/></linearGradient>
+    <filter id="cordGlow" x="-20%" y="-50%" width="140%" height="200%"><feGaussianBlur stdDeviation="8" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>"""
+    b = bg
+    # corde lumineuse tranchée
+    b += '<g filter="url(#cordGlow)"><path d="M20 470 C140 420 230 470 330 430 M400 410 C500 380 600 440 700 400" stroke="#3ddcc8" stroke-width="34" fill="none" stroke-linecap="round" opacity=".55"/><path d="M20 470 C140 420 230 470 330 430" stroke="url(#cord)" stroke-width="20" fill="none" stroke-linecap="round"/>'
+    b += '<path d="M400 410 C500 380 600 440 700 400" stroke="url(#cord)" stroke-width="20" fill="none" stroke-linecap="round"/></g>'
+    b += '<g stroke="#fff6dc" stroke-width="3" stroke-linecap="round" fill="none"><path d="M328 432 l16 -14 M330 430 l18 4 M326 436 l14 14"/><path d="M402 410 l-16 -10 M400 412 l-16 10 M404 408 l-8 -16"/></g>'
+    b += '<path d="M20 470 C140 420 230 470 330 430 M400 410 C500 380 600 440 700 400" stroke="#7a4a0c" stroke-width="3" stroke-dasharray="6 9" fill="none" opacity=".6"/>'
+    b += sparks(366, 420, 34, 5, 150)
+    b += '<circle cx="366" cy="420" r="60" fill="#fff6dc" opacity=".8" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    # machette
+    b += '<g transform="rotate(-38 360 380)" filter="url(#drop)">'
+    blade = "M300 180 C320 170 350 168 380 176 L392 640 C380 660 350 666 340 650 C330 560 320 360 300 180Z"
+    blade = "M330 120 C350 116 382 118 396 132 C404 300 402 470 384 560 L338 560 C330 420 326 260 330 120Z"
+    b += f'<path d="{blade}" fill="url(#steelB)" filter="url(#metal)" transform="rotate(90 365 340) translate(0 0)"/>'
+    b += '</g>'
+    # (machette dessinée à plat puis tournée : lame + manche)
+    b = b.replace('<g transform="rotate(-38 360 380)" filter="url(#drop)">' + f'<path d="{blade}" fill="url(#steelB)" filter="url(#metal)" transform="rotate(90 365 340) translate(0 0)"/>' + '</g>', "")
+    m = '<g transform="translate(372 356) rotate(-34)" filter="url(#drop)">'
+    m += '<path d="M-250 -26 C-120 -40 120 -44 210 -36 C250 -32 262 -6 250 18 C180 30 -100 26 -250 22Z" fill="url(#steelB)" filter="url(#metal)"/>'
+    m += '<path d="M-250 -22 C-120 -34 120 -38 206 -32" stroke="#ffffff" stroke-width="3" fill="none" opacity=".9"/>'
+    m += '<path d="M-240 6 C-100 12 120 12 230 8" stroke="#4a5866" stroke-width="2" fill="none" opacity=".5"/>'
+    m += '<rect x="-262" y="-30" width="18" height="56" rx="4" fill="url(#gold)" filter="url(#metal)"/>'
+    handle = "M-380 -20 L-262 -22 L-262 20 L-380 18 Q-396 0 -380 -20Z"
+    m += f'<path d="{handle}" fill="#000" filter="url(#woodV)"/><path d="{handle}" fill="url(#cylH)" transform="rotate(90 -320 0) scale(1 1)" style="mix-blend-mode:multiply" opacity="0"/>'
+    m += '<path d="M-380 -20 L-262 -22 L-262 -6 L-380 -4Z" fill="#fff" opacity=".18"/><path d="M-380 8 L-262 8 L-262 20 L-380 18Z" fill="#000" opacity=".4"/>'
+    for x in (-350, -320, -290):
+        m += f'<circle cx="{x}" cy="0" r="6" fill="url(#gold)" filter="url(#metal)"/>'
+    m += '</g>'
+    b += m
+    b += glint(520, 210, 1.0) + glint(300, 520, .5) + glint(140, 180, .5)
+    b += power_frame()
+    return svg(720, 720, defs + GLOW2, b)
+
+# ───────────────────────── CRI DU CHEF (corne cérémonielle) ─────────────────────────
+def cri():
+    d, bg = bg_textile("pink", .5)
+    defs = d + """
+    <linearGradient id="ivory" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#fffaf0"/><stop offset=".4" stop-color="#f4e2c0"/><stop offset=".8" stop-color="#c8a070"/><stop offset="1" stop-color="#8a6036"/></linearGradient>"""
+    b = bg
+    b += '<circle cx="470" cy="300" r="250" fill="#fff0f4" opacity=".35" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    # ondes de choc
+    for i in range(6):
+        r = 70 + i*52
+        b += f'<path d="M{470+r*math.cos(math.radians(-70)):.0f} {300+r*math.sin(math.radians(-70)):.0f} A{r} {r} 0 0 1 {470+r*math.cos(math.radians(70)):.0f} {300+r*math.sin(math.radians(70)):.0f}" fill="none" stroke="#fff6fa" stroke-width="{12-i*1.6:.1f}" opacity="{.95-i*.14:.2f}" stroke-linecap="round" filter="url(#glint)" transform="rotate(-25 470 300)"/>'
+    # corne
+    horn = "M120 600 C110 520 150 440 230 390 C300 346 370 320 430 250 L470 300 C430 380 360 420 300 460 C220 510 190 560 196 614Z"
+    b += floor_shadow(260, 640, 170, 22, .5)
+    b += f'<path d="{horn}" fill="url(#ivory)" filter="url(#porcelain)"/>'
+    for t in (.2, .45, .7):
+        x = 120 + (430-120)*t; y = 600 + (250-600)*t
+        b += f'<g transform="translate({x+30:.0f} {y+10:.0f}) rotate(-40)"><rect x="-40" y="-9" width="80" height="18" rx="6" fill="url(#gold)" filter="url(#metal)"/></g>'
+        for k in range(-2, 3):
+            b += f'<circle cx="{x+30+k*12*math.cos(math.radians(-40)):.0f}" cy="{y+10+k*12*math.sin(math.radians(-40)):.0f}" r="4" fill="url(#gem{["Pink","Teal"][k%2]})" filter="url(#gem)"/>'
+    b += '<ellipse cx="450" cy="274" rx="34" ry="18" transform="rotate(-48 450 274)" fill="url(#gold)" filter="url(#metal)"/>'
+    b += '<ellipse cx="452" cy="272" rx="24" ry="11" transform="rotate(-48 452 272)" fill="#3a1606"/>'
+    b += '<path d="M150 560 C150 500 190 450 250 410" stroke="#fff" stroke-width="7" stroke-linecap="round" fill="none" opacity=".5" filter="url(#soft)"/>'
+    # pompon de raphia au bout
+    rnd = random.Random(3); fr = ""
+    for _ in range(60):
+        a = math.radians(rnd.uniform(70, 130)); L = rnd.uniform(40, 80)
+        fr += f'<path d="M150 605 q{rnd.uniform(-10,10):.0f} {L/2:.0f} {L*math.cos(a):.0f} {L*math.sin(a):.0f}" stroke="{rnd.choice(["#e8c070","#d8a850","#f6dc9a"])}" stroke-width="2.5"/>'
+    b += f'<g fill="none">{fr}</g>'
+    b += glint(560, 200, .9) + glint(620, 380, .6) + glint(240, 400, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── MASQUE DU BLUFFEUR ─────────────────────────
+def masque():
+    d, bg = bg_textile("pink", .4)
+    defs = d + WOOD + MIST.replace("SEED", "19") + """
+    <radialGradient id="kaolinM" cx="45%" cy="38%" r="70%"><stop offset="0" stop-color="#fffdf8"/><stop offset=".6" stop-color="#f2e8dc"/><stop offset="1" stop-color="#b8a090"/></radialGradient>
+    <linearGradient id="hollow" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b8a090"/><stop offset="1" stop-color="#fff8ef"/></linearGradient>"""
+    b = bg + '<rect width="720" height="720" filter="url(#mist)" opacity=".55"/>'
+    b += '<ellipse cx="360" cy="360" rx="200" ry="280" fill="#fff0f6" opacity=".45" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    # masque fang : visage allongé en cœur
+    outer = "M360 70 C470 70 520 170 516 300 C512 440 450 600 360 650 C270 600 208 440 204 300 C200 170 250 70 360 70Z"
+    b += f'<g filter="url(#drop)"><path d="{outer}" fill="#000" filter="url(#woodV)"/></g>'
+    face = "M360 90 C456 90 498 180 494 300 C490 430 436 580 360 626 C284 580 230 430 226 300 C222 180 264 90 360 90Z"
+    b += f'<path d="{face}" fill="url(#kaolinM)" filter="url(#porcelain)"/>'
+    # arcades en cœur concave
+    b += '<path d="M240 240 C260 150 340 140 360 210 C380 140 460 150 480 240 C440 200 390 206 360 260 C330 206 280 200 240 240Z" fill="url(#hollow)" opacity=".75"/>'
+    b += '<path d="M240 240 C260 150 340 140 360 210 C380 140 460 150 480 240" stroke="#6a4a3a" stroke-width="5" fill="none" opacity=".55"/>'
+    # nez long
+    b += '<path d="M350 232 L344 430 Q360 446 376 430 L370 232Z" fill="#fffaf2" filter="url(#porcelain)"/>'
+    b += '<path d="M344 430 Q360 446 376 430" stroke="#6a4a3a" stroke-width="4" fill="none" opacity=".6"/>'
+    # yeux en fente
+    for sx in (-1, 1):
+        ex = 360 + sx*68
+        b += f'<path d="M{ex-40} 300 Q{ex} 282 {ex+40} 300 Q{ex} 312 {ex-40} 300Z" fill="#1a0a10"/>'
+        b += f'<path d="M{ex-30} 300 Q{ex} 292 {ex+30} 300" stroke="#ff6f9a" stroke-width="3" fill="none" filter="url(#glint)"/>'
+    # bouche
+    b += '<path d="M330 506 Q360 494 390 506 Q360 524 330 506Z" fill="#c22a5e"/>'
+    # scarifications
+    for sx in (-1, 1):
+        for k in range(3):
+            b += f'<path d="M{360+sx*(120+k*10)} {360+k*14} l{sx*-6} 16" stroke="#6a4a3a" stroke-width="3" opacity=".55"/>'
+    # crête + perles
+    b += '<path d="M300 92 C310 40 340 20 360 14 C380 20 410 40 420 92Z" fill="#000" filter="url(#woodV)"/>'
+    b += gem(360, 46, 12, "Pink")
+    b += bead_band(360, 600, 70, 30, 12, ["gemPink", "pearl", "gemTeal", "pearl"], 8)
+    # demi-voile : l'autre moitié (bluff) teintée et translucide
+    b += f'<path d="M360 60 L540 60 L540 660 L360 660Z" fill="#d83c68" opacity=".22" style="mix-blend-mode:multiply" clip-path="url(#faceClip)"/>'
+    defs += f'<clipPath id="faceClip"><path d="{outer}"/></clipPath>'
+    b += '<path d="M360 70 L360 650" stroke="#ffd0de" stroke-width="2" stroke-dasharray="4 8" opacity=".7"/>'
+    b += glint(280, 150, .8) + glint(470, 560, .5) + glint(560, 220, .6)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── ŒIL DU SORCIER ─────────────────────────
+def oeil():
+    d, bg = bg_textile("pink", .45)
+    defs = d + MIST.replace("SEED", "27") + """
+    <radialGradient id="iris" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#0a0410"/><stop offset=".32" stop-color="#0a0410"/><stop offset=".36" stop-color="#ffd25a"/><stop offset=".55" stop-color="#ff6f9a"/><stop offset=".85" stop-color="#8a1a5a"/><stop offset="1" stop-color="#2a0620"/></radialGradient>
+    <radialGradient id="sclera" cx="50%" cy="45%" r="60%"><stop offset="0" stop-color="#ffffff"/><stop offset=".75" stop-color="#f4e8ee"/><stop offset="1" stop-color="#c8a0b4"/></radialGradient>
+    <clipPath id="eyeClip"><path d="M150 360 C240 230 480 230 570 360 C480 490 240 490 150 360Z"/></clipPath>"""
+    b = bg + '<rect width="720" height="720" filter="url(#mist)" opacity=".6"/>'
+    b += '<circle cx="360" cy="360" r="270" fill="#fff0f6" opacity=".35" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    # amulette dorée en amande
+    b += '<g filter="url(#drop)"><path d="M90 360 C210 170 510 170 630 360 C510 550 210 550 90 360Z" fill="url(#gold)" filter="url(#metal)"/></g>'
+    b += '<path d="M120 360 C230 200 490 200 600 360 C490 520 230 520 120 360Z" fill="#2a0620"/>'
+    for i, x, y, a in ring_pos(360, 360, 0, 1):
+        pass
+    for t in [i/12 for i in range(13)]:
+        x = 90 + 540*t; yy = 360 - 190*math.sin(math.pi*t)*.98
+        if 0 < t < 1:
+            b += f'<circle cx="{x:.0f}" cy="{yy+10:.0f}" r="5" fill="url(#pearl)" filter="url(#gem)"/><circle cx="{x:.0f}" cy="{720-yy-10:.0f}" r="5" fill="url(#pearl)" filter="url(#gem)"/>'
+    b += gem(90, 360, 16, "Teal") + gem(630, 360, 16, "Teal") + gem(360, 160, 14, "Pink") + gem(360, 560, 14, "Pink")
+    # œil
+    b += '<path d="M150 360 C240 230 480 230 570 360 C480 490 240 490 150 360Z" fill="url(#sclera)"/>'
+    eye = '<circle cx="360" cy="360" r="108" fill="url(#iris)"/>'
+    rnd = random.Random(7)
+    stri = "".join(f'<path d="M{360+40*math.cos(a):.1f} {360+40*math.sin(a):.1f} L{360+104*math.cos(a+rnd.uniform(-.05,.05)):.1f} {360+104*math.sin(a+rnd.uniform(-.05,.05)):.1f}" stroke="{rnd.choice(["#fff0a0","#ffb0c8","#c22a5e","#ffd25a"])}" stroke-width="{rnd.uniform(1,2.4):.1f}" opacity="{rnd.uniform(.3,.8):.2f}"/>' for a in [i*math.pi/60 for i in range(120)])
+    eye += f'<g>{stri}</g><circle cx="360" cy="360" r="108" fill="none" stroke="#1a0410" stroke-width="6"/>'
+    eye += '<circle cx="360" cy="360" r="36" fill="#05010a"/>'
+    # cartes reflétées dans la pupille
+    eye += '<g opacity=".8"><rect x="344" y="342" width="14" height="20" rx="2" fill="#fff0f6" transform="rotate(-14 351 352)"/><rect x="360" y="340" width="14" height="20" rx="2" fill="#fff0f6" transform="rotate(10 367 350)"/></g>'
+    eye += '<ellipse cx="330" cy="322" rx="22" ry="14" fill="#fff" opacity=".9" transform="rotate(-30 330 322)"/><circle cx="392" cy="398" r="6" fill="#fff" opacity=".7"/>'
+    eye += '<path d="M150 360 C240 230 480 230 570 360" stroke="#3a0a20" stroke-width="40" fill="none" opacity=".35" filter="url(#blur8)"/>'
+    b += f'<g clip-path="url(#eyeClip)">{eye}</g>'
+    b += '<path d="M150 360 C240 230 480 230 570 360 C480 490 240 490 150 360Z" fill="none" stroke="#1a0410" stroke-width="7"/>'
+    # cils stylisés
+    for i in range(9):
+        t = .15 + i*.0875; x = 150 + 420*t; y = 360 - 130*math.sin(math.pi*t)*.98
+        a = math.atan2(y-360, x-360)
+        b += f'<path d="M{x:.0f} {y:.0f} l{26*math.cos(a):.0f} {26*math.sin(a):.0f}" stroke="#1a0410" stroke-width="6" stroke-linecap="round"/>'
+    b += glint(318, 316, .7) + glint(560, 180, .6) + glint(160, 540, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
+# ───────────────────────── SCEAU D'ENTRAVE ─────────────────────────
+def sceau():
+    d, bg = bg_textile("pink", .45)
+    defs = d + """
+    <radialGradient id="wax" cx="40%" cy="35%" r="70%"><stop offset="0" stop-color="#ff9ab8"/><stop offset=".5" stop-color="#d83c68"/><stop offset="1" stop-color="#6a0e2e"/></radialGradient>
+    <filter id="waxEdge" x="-20%" y="-20%" width="140%" height="140%"><feTurbulence type="fractalNoise" baseFrequency=".05" numOctaves="2" seed="4" result="t"/>
+      <feDisplacementMap in="SourceGraphic" in2="t" scale="18" xChannelSelector="R" yChannelSelector="G"/></filter>"""
+    b = bg
+    b += '<circle cx="360" cy="360" r="260" fill="#fff0f6" opacity=".35" filter="url(#blur20)" style="mix-blend-mode:screen"/>'
+    b += floor_shadow(370, 640, 200, 26, .5)
+    b += mini_card(360, 360, 300, -8, True)
+    # chaînes en croix
+    b += f'<g filter="url(#drop)">{chain(60, 120, 660, 600, 22)}{chain(660, 120, 60, 600, 22)}</g>'
+    # cadenas-sceau de cire
+    b += '<g filter="url(#drop)"><circle cx="360" cy="360" r="104" fill="url(#wax)" filter="url(#waxEdge)"/></g>'
+    b += '<circle cx="360" cy="360" r="104" fill="url(#wax)" filter="url(#porcelain)"/>'
+    b += '<circle cx="360" cy="360" r="76" fill="none" stroke="#6a0e2e" stroke-width="5" opacity=".6"/>'
+    b += '<circle cx="360" cy="360" r="70" fill="none" stroke="#ffb0c8" stroke-width="2" opacity=".6"/>'
+    b += '<g transform="translate(360 360) rotate(-8)" opacity=".85"><path d="M0 -50 L44 0 L0 50 L-44 0Z" fill="none" stroke="#6a0e2e" stroke-width="7"/>'
+    b += '<path d="M0 -50 L44 0 L0 50 L-44 0Z" fill="none" stroke="#ffb0c8" stroke-width="2" transform="translate(-2 -2)"/>'
+    b += '<circle r="12" fill="#6a0e2e"/><circle r="12" fill="none" stroke="#ffb0c8" stroke-width="2" transform="translate(-1.5 -1.5)"/></g>'
+    b += glint(300, 300, .8) + glint(560, 200, .6) + glint(180, 520, .5)
+    b += power_frame()
+    return svg(720, 720, defs, b)
+
 CARDS = {"card-back": card_back, "cauris_chanceux": cauris, "feu_camp": feu,
          "tambour_appel": tambour, "benediction_chef": benediction, "pluie_etoiles": pluie, "totem_ancetres": totem,
-         "bouclier_village": bouclier, "eclair_mfoundi": eclair, "filet_pecheur": filet, "main_griot": griot, "sable_temps": sable, "vent_nord": vent}
+         "bouclier_village": bouclier, "eclair_mfoundi": eclair, "filet_pecheur": filet, "main_griot": griot, "sable_temps": sable, "vent_nord": vent,
+         "coupe_circuit": coupe, "cri_chef": cri, "masque_bluffeur": masque, "oeil_sorcier": oeil, "sceau_entrave": sceau}
 
 if __name__ == "__main__":
     import sys
