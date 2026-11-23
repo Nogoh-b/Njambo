@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { OptionsListVariant, OptionsTabsVariant, OptionsTilesVariant } from "./OptionsVariants";
 import { useGame } from "@/contexts/GameContext";
 import { useSettings, type MotionQualityPreference } from "@/contexts/SettingsContext";
 import { NjamboIcon } from "@/components/ui/Art";
@@ -26,6 +27,9 @@ export function OptionsScreen() {
   const { navigateTo, goBack, backLabelFor, musicOn, setMusicOn, sfxOn, setSfxOn } = useGame();
   const { animationsOn, setAnimationsOn, motionQuality, setMotionQuality } = useSettings();
   const [language, setLanguage] = useState("Français");
+  // MAQUETTES TEMPORAIRES : ?v=a | b | c
+  const [variant, setVariant] = useState<string | null>(null);
+  useEffect(() => { setVariant(new URLSearchParams(window.location.search).get("v")); }, []);
 
   return (
     <GameShell dock={false} scroll={false} contentClassName={styles.optionsShell}>
@@ -44,8 +48,11 @@ export function OptionsScreen() {
         <span className={styles.versionBadge}>v1.0</span>
       </header>
 
+      {variant === "a" && <OptionsListVariant />}
+      {variant === "b" && <OptionsTilesVariant />}
+      {variant === "c" && <OptionsTabsVariant />}
       {/* ═══ GRILLE DE RÉGLAGES (bornée, 2 colonnes sur desktop) ═══ */}
-      <div className={styles.boardBody}>
+      {!variant && <div className={styles.boardBody}>
         <div className={styles.cardsGrid}>
           {/* AUDIO DE TABLE */}
           <section className={`${styles.card} ${styles.cardGold}`} aria-label="Audio de table">
@@ -162,7 +169,7 @@ export function OptionsScreen() {
             </div>
           </section>
         </div>
-      </div>
+      </div>}
     </GameShell>
   );
 }
