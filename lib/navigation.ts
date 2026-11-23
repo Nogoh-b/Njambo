@@ -87,6 +87,7 @@ export const ALL_SCENES: ReadonlySet<SceneName> = new Set<SceneName>([
   "shop",
   "wallet",
   "rules",
+  "minigames",
 ]);
 
 /** Parent canonique utilisé quand la pile est vide (ex. accès direct par lien profond). */
@@ -132,6 +133,7 @@ export const SCENE_LABELS: Record<SceneName, string> = {
   season: "Saison",
   shop: "Boutique",
   wallet: "Portefeuille",
+  minigames: "Mini-jeux",
   admin: "Admin",
   rules: "Règles",
 };

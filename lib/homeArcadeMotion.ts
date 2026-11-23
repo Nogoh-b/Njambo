@@ -84,6 +84,7 @@ const SCENE_NAV_SECTION: Partial<Record<SceneName, MainBottomNavKey>> = {
   power_shop: "shop",
   power_collection: "shop",
   wallet: "shop",
+  minigames: "shop",
   friends: "social",
   players: "social",
   friend_requests: "social",

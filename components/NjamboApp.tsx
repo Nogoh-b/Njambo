@@ -73,6 +73,7 @@ const SeasonScreen = dynamic(() => import("@/components/scenes/SeasonScreen").th
 const EventDetailScreen = dynamic(() => import("@/components/scenes/EventDetailScreen").then((module) => module.EventDetailScreen), { loading });
 const EventMatchmakingOverlay = dynamic(() => import("@/components/scenes/EventMatchmakingOverlay").then((module) => module.EventMatchmakingOverlay), { loading });
 const WalletScreen = dynamic(() => import("@/components/scenes/WalletScreen").then((module) => module.WalletScreen), { loading });
+const MiniGamesScreen = dynamic(() => import("@/components/minigames/MiniGamesScreen").then((module) => module.MiniGamesScreen), { loading });
 
 /* ═══════════════ SceneRouter ═══════════════
    Orchestrateur de scènes : gère la navigation réelle (pile + hash + Capacitor),
@@ -601,6 +602,7 @@ function SceneRouter() {
       case "event_detail": return <EventDetailScreen onStart={handleEventStart} />;
       case "season": return <SeasonScreen />;
       case "wallet": return <WalletScreen />;
+      case "minigames": return <MiniGamesScreen />;
       case "bot_setup": return <BotSetupScreen onStart={handleBotStart} />;
       case "online_setup": return <OnlineSetupScreen onBotStart={handleBotStart} />;
       case "friends_invite": return <FriendsSetupScreen onBotStart={handleBotStart} />;

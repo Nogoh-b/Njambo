@@ -639,6 +639,15 @@
   --j-glow: rgba(255, 134, 41, 0.36);
 }
 
+.enamelRose {
+  --j-top: #ff7a9c;
+  --j-mid: #e03a64;
+  --j-bot: #9c1438;
+  --j-edge: #5c0a20;
+  --j-rim: #ffc4d4;
+  --j-glow: rgba(255, 71, 114, 0.36);
+}
+
 .enamelPalm {
   --j-top: #4ce882;
   --j-mid: #1db458;
