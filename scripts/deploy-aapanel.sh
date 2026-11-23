@@ -40,7 +40,7 @@ PY
 
 wait_for() {
   for _ in $(seq 1 30); do
-    if curl -fsS -o /dev/null "$1"; then return 0; fi
+    if curl -fs -o /dev/null "$1"; then return 0; fi
     sleep 2
   done
   echo "✖ $1 ne répond pas" >&2
