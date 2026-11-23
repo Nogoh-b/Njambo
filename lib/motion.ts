@@ -60,6 +60,15 @@ function getMotionEnv(): MotionEnv {
 
 const MotionProfileContext = createContext<MotionProfile | null>(null);
 
+const MOTION_PROBE_EVENT = "njambo:motion-probe";
+
+/** Demande une nouvelle mesure de fluidité (ex. à l'ouverture de la table).
+ *  Sans effet si le joueur a choisi un niveau fixe dans les Options. */
+export function requestMotionProbe(delayMs = 1_200): void {
+  if (typeof window === "undefined") return;
+  window.setTimeout(() => window.dispatchEvent(new Event(MOTION_PROBE_EVENT)), delayMs);
+}
+
 export function MotionProfileProvider({ children }: { children: ReactNode }) {
   const { animationsOn, motionQuality } = useSettings();
   const prefersReducedRaw = useReducedMotion();
@@ -100,9 +109,13 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
     }
     if (!mounted || !animationsOn) return;
     let animationFrame = 0;
-    let warmupTimer: ReturnType<typeof setTimeout> | null = null;
-    warmupTimer = setTimeout(() => {
-      warmupTimer = null;
+    let probing = false;
+
+    // Mesure la fluidité pendant 3 s ; si plus de 10 % des images sont lentes,
+    // on descend d'un cran (full → balanced → lite).
+    const runProbe = () => {
+      if (probing || document.visibilityState !== "visible") return;
+      probing = true;
       const startedAt = performance.now();
       let previous = startedAt;
       let total = 0;
@@ -118,6 +131,7 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
           total += 1;
         }
         if (now - startedAt >= 3_000) {
+          probing = false;
           if (shouldDegradeMotion(total, slow)) {
             setRuntimeLevel((current) => lowerMotionLevel(current ?? selectedLevelRef.current));
           }
@@ -126,9 +140,16 @@ export function MotionProfileProvider({ children }: { children: ReactNode }) {
         animationFrame = requestAnimationFrame(sample);
       };
       animationFrame = requestAnimationFrame(sample);
-    }, 1_500);
+    };
+
+    // 1re mesure au démarrage, puis une nouvelle à chaque début de partie
+    // (la table est bien plus lourde que le menu) via requestMotionProbe().
+    const warmupTimer = setTimeout(runProbe, 1_500);
+    const onProbeRequest = () => runProbe();
+    window.addEventListener(MOTION_PROBE_EVENT, onProbeRequest);
     return () => {
-      if (warmupTimer) clearTimeout(warmupTimer);
+      clearTimeout(warmupTimer);
+      window.removeEventListener(MOTION_PROBE_EVENT, onProbeRequest);
       cancelAnimationFrame(animationFrame);
     };
   // selectedLevel absent des deps: le sampler tourne une seule fois par

@@ -28,7 +28,12 @@ export function preferenceMotionLevel(preference: MotionQualityPreference, capab
   if (preference === "performance") return "lite";
   if (preference === "balanced") return "balanced";
   if (preference === "quality") return "full";
-  return deriveMotionLevel(capabilities);
+  // « Auto » démarre au niveau maximal sur tous les appareils : c'est le
+  // capteur de fluidité (MotionProfileProvider) qui redescend d'un cran si
+  // l'appareil n'arrive pas à suivre. `capabilities` reste dans la signature
+  // pour les appelants ; deriveMotionLevel sert de repli hors React.
+  void capabilities;
+  return "full";
 }
 
 export function lowerMotionLevel(level: MotionLevel): MotionLevel {
