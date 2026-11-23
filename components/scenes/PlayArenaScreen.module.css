@@ -1963,17 +1963,31 @@
   .casinoChip { width: 54px; height: 54px; }
   .diffCrest { min-height: 40px; padding: 3px 4px 4px; }
   .heroCta { min-height: 44px; padding: 4px 12px; }
+
+  /* Bord sud (ton siège + Deck des cartes pouvoir) : toujours visible, en version compacte */
+  .southBar { display: flex; align-items: center; gap: 8px; }
+  .yourSeatPlaque { padding: 2px 10px 2px 3px; gap: 6px; }
+  .yourAvatarRing { width: 27px; height: 27px; }
+  .yourAvatarRing > * { zoom: 0.75; }
+  .yourSeatMeta strong { font-size: 11px; }
+  .yourSeatMeta small { font-size: 9px; }
+  .powerHandDock { padding: 3px 9px 3px 6px; gap: 7px; border-radius: 12px; }
+  .powerMiniCard { width: 22px; height: 31px; border-radius: 5px; }
 }
 
 /* Très petits écrans (≈ 568px de haut) */
 @media (max-height: 600px) and (max-width: 859px) {
   .modeTab { height: 34px; }
-  .tableOvalOuter { height: clamp(80px, 15vh, 110px); }
+  .tableOvalOuter { height: 72px; }
+  .compassArena { padding-top: 26px; }
+  .deckStack { display: none; }
   .seatTag { display: none; }
   /* Tapis trop bas pour les cartes posées : on garde le pot, bien lisible */
   .centerTrickFan { display: none; }
   .potPlaque { padding: 2px 10px 2px 6px; gap: 5px; }
   .potCoins { display: none; }
+  .yourSeatMeta small { display: none; }
+  .tableStage { gap: 4px; }
   .casinoChip { width: 48px; height: 48px; }
   .chipUnit { display: none; }
 }
