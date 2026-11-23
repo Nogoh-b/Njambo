@@ -1862,6 +1862,21 @@
   line-height: 1.4;
 }
 
+.spinWheelLink {
+  justify-self: start;
+  margin-top: 2px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 1.5px solid #ffb0c4;
+  background: linear-gradient(180deg, #ff6c91, #dc2856);
+  color: #fff;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  box-shadow: 0 3px 0 #7a102b;
+}
+
 .loyaltyTrack {
   display: grid;
   grid-template-columns: repeat(7, minmax(0, 1fr));

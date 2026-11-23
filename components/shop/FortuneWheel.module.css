@@ -1,0 +1,136 @@
+/* ═══ Roue des retrouvailles ═══
+   --wheel-size pilote tout : la roue garde ses proportions à toutes les tailles. */
+
+.wheel {
+  /* Surchargeable par le parent (ex. petits écrans) */
+  --wheel-size: var(--wheel-size-override, min(78vw, 40dvh, 320px));
+  position: relative;
+  width: var(--wheel-size);
+  height: var(--wheel-size);
+  flex: 0 0 auto;
+}
+
+/* Ombre portée statique (pas de `filter` sur un parent du disque qui tourne :
+   cela forcerait à redessiner l'ombre à chaque image). */
+.wheel::before {
+  content: "";
+  position: absolute;
+  inset: 2%;
+  border-radius: 50%;
+  box-shadow: 0 14px 26px rgba(0, 0, 0, 0.55);
+  pointer-events: none;
+}
+
+.frame,
+.discSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+/* Le disque tourne autour du centre du viewBox (0,0). */
+.disc {
+  transform-origin: 0 0;
+  transform-box: view-box;
+  will-change: transform;
+}
+
+.amount {
+  font-family: var(--font-display), sans-serif;
+  font-size: 13px;
+  font-weight: 900;
+  letter-spacing: 0.01em;
+}
+
+.unit {
+  font-size: 7.4px;
+  font-weight: 850;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  opacity: 0.86;
+}
+
+.peg {
+  stroke: #5c3608;
+  stroke-width: 0.6;
+}
+
+/* Case gagnante : halo doré qui pulse (opacité uniquement). */
+.winGlow {
+  fill: rgba(255, 236, 160, 0.34);
+  stroke: #fff2b8;
+  stroke-width: 2.5;
+  animation: winPulse 0.55s ease-in-out 4 alternate both;
+  pointer-events: none;
+}
+
+@keyframes winPulse {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+
+/* ── Ampoules du cadre (fixes) ── */
+.bulbs {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.bulb {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: calc(var(--wheel-size) * 0.034);
+  height: calc(var(--wheel-size) * 0.034);
+  margin: calc(var(--wheel-size) * -0.017);
+  border-radius: 50%;
+  background: radial-gradient(circle at 35% 30%, #fffbe6, #ffcf40 55%, #a86a08);
+  box-shadow: 0 0 6px rgba(255, 214, 96, 0.8);
+  opacity: 0.45;
+}
+
+.ready .bulb {
+  animation: bulbChase 1.1s ease-in-out infinite;
+}
+
+.spinning .bulb {
+  animation: bulbChase 0.42s linear infinite;
+}
+
+@keyframes bulbChase {
+  0%, 100% { opacity: 0.35; }
+  50% { opacity: 1; }
+}
+
+/* ── Aiguille fixe en haut, pivot sur son œillet ── */
+.pointer {
+  position: absolute;
+  top: calc(var(--wheel-size) * -0.045);
+  left: 50%;
+  width: calc(var(--wheel-size) * 0.13);
+  height: calc(var(--wheel-size) * 0.18);
+  margin-left: calc(var(--wheel-size) * -0.065);
+  transform-origin: 50% 25%;
+  will-change: transform;
+  z-index: 3;
+}
+
+.pointer svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.still .bulb,
+.still .winGlow {
+  animation: none !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bulb,
+  .winGlow {
+    animation: none !important;
+  }
+}

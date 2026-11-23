@@ -1,7 +1,8 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { useSfx } from "@gxe/react";
 import { AnimatePresence, motion } from "motion/react";
 import {
   countStoredCollectionItems,
@@ -37,6 +38,9 @@ import {
   rewardLabel,
 } from "@/lib/shopVisuals";
 import type { PowerCardDef, PowerCardId } from "@/types/game";
+import { FortuneWheel, type FortuneWheelHandle } from "@/components/shop/FortuneWheel";
+import { WHEEL_TICK_SOUND, WHEEL_WIN_SOUND } from "@/lib/gxeSfx";
+import { consumeShopTab } from "@/lib/shopDeepLink";
 import styles from "./ShopScreen.module.css";
 
 type ShopTab = "offers" | "boosters" | "grid" | "wheel";
@@ -87,12 +91,12 @@ const OFFER_TONE_CLASS: Record<OfferDefinition["type"], string> = {
 };
 
 const WHEEL_ODDS = [
-  { label: "100 Nkap", weight: 35, icon: "/assets/njambo/economy/nkap-stack-64.webp" },
-  { label: "250 Nkap", weight: 25, icon: "/assets/njambo/economy/nkap-stack-64.webp" },
-  { label: "5 cauris", weight: 20, icon: "/assets/njambo/economy/cauris-pouch-64.webp" },
-  { label: "Ticket Bronze", weight: 10, icon: "/assets/njambo/tickets/ticket-bronze-64.webp" },
-  { label: "Énergie 1 h", weight: 7, icon: "/assets/njambo/economy/energy-flask-64.webp" },
-  { label: "Livre Normal", weight: 3, icon: "/assets/njambo/books/book-normal-128.webp" },
+  { label: "100 Nkap", weight: 35 },
+  { label: "250 Nkap", weight: 25 },
+  { label: "5 cauris", weight: 20 },
+  { label: "Ticket Bronze", weight: 10 },
+  { label: "Énergie 1 h", weight: 7 },
+  { label: "Livre Normal", weight: 3 },
 ];
 
 const GRID_ODDS = [
@@ -116,13 +120,20 @@ export function ShopScreen() {
   } = useDailyGrid(user && !user.isAnonymous ? user.uid : undefined);
 
   const [tab, setTab] = useState<ShopTab>("offers");
+  // Ouverture directe sur un onglet (ex. bouton « Tourner la roue » du Rituel quotidien).
+  useEffect(() => {
+    const requested = consumeShopTab();
+    if (requested) setTab(requested);
+  }, []);
   const [offerCategory, setOfferCategory] = useState<OfferCategory>("featured");
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<{ severity: "success" | "warning" | "error"; text: string; openCollection?: boolean } | null>(null);
   const [opening, setOpening] = useState<{ openingId: string; positions: number[] } | null>(null);
   const [cardReveal, setCardReveal] = useState<CardReveal | null>(null);
   const [wheelReward, setWheelReward] = useState<Reward | null>(null);
-  const [wheelRotation, setWheelRotation] = useState(0);
+  const wheelRef = useRef<FortuneWheelHandle>(null);
+  const sfx = useSfx();
+  const lastWheelTickRef = useRef(0);
   const [gridSelectingPosition, setGridSelectingPosition] = useState<number | null>(null);
   const [gridPayment, setGridPayment] = useState<"cauris" | "xaf">("cauris");
   const [oddsModal, setOddsModal] = useState<OddsModalData | null>(null);
@@ -354,9 +365,15 @@ export function ShopScreen() {
       setAuthModalOpen(true);
       return;
     }
-    setWheelRotation((prev) => prev + 1440 + Math.floor(Math.random() * 360));
+    // La roue part tout de suite ; le serveur tire le lot pendant qu'elle tourne,
+    // puis elle ralentit et s'arrête exactement sur la case gagnée.
+    wheelRef.current?.start();
+    let landed = false;
     await run("wheel", async () => {
       const result = await command<{ reward: Reward }>("spinLoyaltyWheel");
+      await wheelRef.current?.landOn(result.reward);
+      landed = true;
+      sfx.playChime(WHEEL_WIN_SOUND);
       setWheelReward(result.reward);
       const stored = result.reward.type !== "nkap" && result.reward.type !== "cauris";
       return {
@@ -366,6 +383,15 @@ export function ShopScreen() {
         openCollection: stored,
       };
     });
+    if (!landed) wheelRef.current?.abort();
+  };
+
+  const playWheelTick = () => {
+    // Au plus un cliquet toutes les 55 ms : à pleine vitesse, ça « crépite » sans saturer.
+    const now = performance.now();
+    if (now - lastWheelTickRef.current < 55) return;
+    lastWheelTickRef.current = now;
+    sfx.play(WHEEL_TICK_SOUND);
   };
 
   const openOfferOdds = (offer: OfferDefinition) => {
@@ -1030,7 +1056,7 @@ export function ShopScreen() {
             </motion.section>
           )}
 
-          {/* ─── RAYON 4 : ROUE DES RETROUVAILLES (FESTIVAL ANIMÉ) ─── */}
+          {/* ─── RAYON 4 : ROUE DES RETROUVAILLES ─── */}
           {tab === "wheel" && (
             <motion.section
               key="tab-wheel"
@@ -1041,137 +1067,66 @@ export function ShopScreen() {
               exit={cascadeOn ? { opacity: 0, y: -10 } : undefined}
               transition={{ duration: 0.22, ease: [0.22, 1, 0.36, 1] }}
             >
-              <span className={styles.wheelStageRays} aria-hidden="true" />
-
-              {/* Roue avec couronne d'ampoules + clapet doré + inertie réelle */}
-              <div className={styles.wheelVisualWrap}>
-                <span className={styles.wheelHalo} aria-hidden="true" />
-
-                {/* Clapet / Pointeur en laiton à 12h */}
-                <span
-                  className={`${styles.wheelPointer}${busy === "wheel" ? ` ${styles.pointerTick}` : ""}`}
-                  aria-hidden="true"
-                />
-
-                {/* Couronne lumineuse à 12 ampoules de fête */}
-                <div className={styles.bulbRing} aria-hidden="true">
-                  {Array.from({ length: 12 }, (_, bIdx) => (
-                    <span
-                      key={bIdx}
-                      className={styles.bulbArm}
-                      style={{ "--bulb-angle": `${bIdx * 30}deg` } as CSSProperties}
-                    >
-                      <span
-                        className={`${styles.bulbDot}${bIdx % 2 === 0 ? ` ${styles.bulbEven}` : ` ${styles.bulbOdd}`}`}
-                      />
-                    </span>
-                  ))}
-                </div>
-
-                {/* Disque de la roue avec physique de décélération fluide */}
-                <motion.div
-                  className={`${styles.wheelDisc}${busy === "wheel" ? ` ${styles.wheelSpinning}` : ""}`}
-                  animate={{ rotate: wheelRotation }}
-                  transition={{ duration: 2.4, ease: [0.14, 0.86, 0.22, 1] }}
-                >
-                  <Image
-                    src="/assets/njambo/economy/loyalty-wheel-256.webp"
-                    alt="Roulette de fidélité"
-                    width={220}
-                    height={220}
-                    className={busy !== "wheel" && availableSpins > 0 ? styles.wheelIdleSway : undefined}
-                  />
-                </motion.div>
-
-                <span className={styles.wheelCenterBadge}>
-                  <strong>{loyaltyPoints}</strong>
-                  <small>/7</small>
-                </span>
-              </div>
-
-              {/* Panneau fidélité 7 jours + aperçu des lots + bouton 3D */}
-              <div className={styles.wheelInfo}>
-                <span className={styles.gridKicker}>Fidélité du Ter</span>
+              <div className={styles.wheelHead}>
                 <h2>La roue des retrouvailles</h2>
-                <p>7 connexions débloquent un tour rempli de Nkap, Cauris, Tickets et Grimoires.</p>
-
-                {/* Piste de 7 médaillons de fidélité */}
-                <div className={styles.loyaltyTrack} aria-label={`${loyaltyPoints} jours sur 7`}>
-                  {Array.from({ length: 7 }, (_, dIdx) => {
-                    const earned = dIdx < loyaltyPoints;
-                    const isGift = dIdx === 6;
-                    return (
-                      <span
-                        key={dIdx}
-                        className={`${styles.dayToken}${earned ? ` ${styles.dayTokenOn}` : ""}${isGift ? ` ${styles.dayTokenGift}` : ""}`}
-                      >
-                        {isGift ? "★" : dIdx + 1}
-                      </span>
-                    );
-                  })}
-                </div>
-
-                {/* Aperçu 2,5D des lots à gagner */}
-                <div className={styles.wheelPrizeStrip}>
-                  {WHEEL_ODDS.slice(0, 4).map((item) => (
-                    <button
-                      key={item.label}
-                      data-nj-skin="none"
-                      type="button"
-                      className={`${styles.wheelPrizeChip} ${styles.clickableChip}`}
-                      onClick={() =>
-                        setOddsModal({
-                          title: "Roue des retrouvailles",
-                          kicker: "Détails et probabilités des lots",
-                          rows: WHEEL_ODDS.map(({ label, weight }) => ({ label, weight })),
-                          note: "Les tickets, pass énergie et livres gagnés rejoignent Ma collection sans s’activer automatiquement.",
-                        })
-                      }
-                    >
-                      <Image src={item.icon} alt="" width={18} height={18} />
-                      <span>{item.label}</span>
-                    </button>
-                  ))}
-                  <button
-                    data-nj-skin="none"
-                    type="button"
-                    className={styles.oddsLink}
-                    onClick={() =>
-                      setOddsModal({
-                        title: "Roue des retrouvailles",
-                        kicker: "Probabilités de la roue",
-                        rows: WHEEL_ODDS.map(({ label, weight }) => ({ label, weight })),
-                      })
-                    }
-                  >
-                    Tous les lots ?
-                  </button>
-                </div>
-
-                <div className={styles.wheelCtaRow}>
-                  <span className={`${styles.spinPill}${availableSpins > 0 ? ` ${styles.spinPillReady}` : ""}`}>
-                    {availableSpins} lancer{availableSpins > 1 ? "s" : ""} prêt{availableSpins > 1 ? "s" : ""}
-                  </span>
-
-                  <button
-                    data-nj-skin="none"
-                    type="button"
-                    disabled={(!guestBlocked && (blocked || !availableSpins)) || busy !== null}
-                    className={styles.spinCta}
-                    onClick={() => void spinWheel()}
-                  >
-                    <span className={styles.btnSheen} aria-hidden="true" />
-                    <NjamboIcon name="sparkle" tone="gold" size={21} />
-                    <span>
-                      {busy === "wheel"
-                        ? "La roue tourne…"
-                        : guestBlocked
-                        ? "SE CONNECTER"
-                        : "TOURNER LA ROUE"}
-                    </span>
-                  </button>
-                </div>
+                <button
+                  data-nj-skin="none"
+                  type="button"
+                  className={styles.oddsLink}
+                  onClick={() =>
+                    setOddsModal({
+                      title: "Roue des retrouvailles",
+                      kicker: "Lots et probabilités",
+                      rows: WHEEL_ODDS.map(({ label, weight }) => ({ label, weight })),
+                      note: "Les tickets, pass énergie et livres gagnés rejoignent Ma collection sans s’activer automatiquement.",
+                    })
+                  }
+                >
+                  Lots &amp; chances
+                </button>
               </div>
+
+              {/* Seul le disque tourne : cadre, ampoules et aiguille restent fixes */}
+              <FortuneWheel
+                ref={wheelRef}
+                animated={motionProfile.enabled}
+                ready={!guestBlocked && availableSpins > 0 && busy === null}
+                onTick={playWheelTick}
+              />
+
+              {/* Fidélité : 7 connexions = 1 lancer */}
+              <div className={styles.wheelLoyalty}>
+                <div className={styles.loyaltyTrack} aria-label={`${loyaltyPoints} jours sur 7`}>
+                  {Array.from({ length: 7 }, (_, dIdx) => (
+                    <span
+                      key={dIdx}
+                      className={`${styles.dayToken}${dIdx < loyaltyPoints ? ` ${styles.dayTokenOn}` : ""}${dIdx === 6 ? ` ${styles.dayTokenGift}` : ""}`}
+                    >
+                      {dIdx === 6 ? "★" : dIdx + 1}
+                    </span>
+                  ))}
+                </div>
+                <small>7 connexions = 1 lancer</small>
+              </div>
+
+              <button
+                data-nj-skin="none"
+                type="button"
+                disabled={(!guestBlocked && (blocked || !availableSpins)) || busy !== null}
+                className={styles.spinCta}
+                onClick={() => void spinWheel()}
+              >
+                <span className={styles.btnSheen} aria-hidden="true" />
+                <span>
+                  {busy === "wheel"
+                    ? "La roue tourne…"
+                    : guestBlocked
+                    ? "SE CONNECTER"
+                    : availableSpins > 0
+                    ? `TOURNER LA ROUE${availableSpins > 1 ? ` · ${availableSpins}` : ""}`
+                    : "Aucun lancer pour l’instant"}
+                </span>
+              </button>
             </motion.section>
           )}
         </AnimatePresence>

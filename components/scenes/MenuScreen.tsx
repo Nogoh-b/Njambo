@@ -33,6 +33,7 @@ import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
 import type { PlayerStats, PublicPlayerProfile, SceneName } from "@/types/game";
 import { eventArt } from "@/lib/eventArt";
 import { eventCountdown } from "@/lib/eventCountdown";
+import { requestShopTab } from "@/lib/shopDeepLink";
 import styles from "./MenuScreen.module.css";
 
 type SocialCounts = { notifications: number; messages: number; requests: number };
@@ -943,9 +944,23 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
               <strong className={styles.dailyRewardAmount}>+100 Nkap</strong>
               <p>
                 {economy?.daily.availableSpins
-                  ? "Ta roulette de fidélité est prête après la réclamation !"
+                  ? "Ta roue des retrouvailles est prête : tente ta chance !"
                   : "Reviens jouer chaque jour : tes 7 étapes s’additionnent sans jamais repartir à zéro."}
               </p>
+              {!!economy?.daily.availableSpins && (
+                <button
+                  data-nj-skin="none"
+                  type="button"
+                  className={styles.spinWheelLink}
+                  onClick={() => {
+                    setDailyModalOpen(false);
+                    requestShopTab("wheel");
+                    navigateTo("shop");
+                  }}
+                >
+                  Tourner la roue →
+                </button>
+              )}
             </div>
           </div>
 
