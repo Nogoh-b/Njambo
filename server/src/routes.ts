@@ -20,6 +20,14 @@ import {
   verifyStorePurchaseHandler,
 } from "../../functions/src/economyCommands";
 import { abandonMatchHandler, advanceMatchRoundHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "../../functions/src/matchCommands";
+import {
+  cashOutHiLoHandler,
+  finishSkillGameHandler,
+  guessHiLoHandler,
+  playMiniGameHandler,
+  startHiLoHandler,
+  startSkillGameHandler,
+} from "../../functions/src/minigameCommands";
 import { usePowerCardHandler } from "../../functions/src/powerCommands";
 import { migrateLegacyPlayerHandler, saveAdminDraftHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "../../functions/src/adminCommands";
 import {
@@ -141,6 +149,12 @@ export const commands: Record<string, Handler> = {
   chooseBoosterCard: chooseBoosterCardHandler,
   buyDailyGridSlot: buyDailyGridSlotHandler,
   spinLoyaltyWheel: spinLoyaltyWheelHandler,
+  playMiniGame: playMiniGameHandler,
+  startHiLo: startHiLoHandler,
+  guessHiLo: guessHiLoHandler,
+  cashOutHiLo: cashOutHiLoHandler,
+  startSkillGame: startSkillGameHandler,
+  finishSkillGame: finishSkillGameHandler,
   equipPowerCards: equipPowerCardsHandler,
   joinEvent: joinEventHandler,
   leaveEvent: leaveEventHandler,

@@ -25,6 +25,22 @@ export interface PlayerEconomy {
   pity: Record<string, number>;
   debtCauris: number;
   spendingBlocked: boolean;
+  /** Mini-jeux : parties jouées aujourd'hui (jour de Douala), par jeu. */
+  minigames?: { day: string | null; plays: Record<string, number> };
+  /** Mini-jeu en plusieurs étapes en cours (Plus haut / plus bas, jeux d'adresse). */
+  minigameSession?: MiniGameSession | null;
+}
+
+export interface MiniGameSession {
+  game: string;
+  sessionId: string;
+  startedAt: number;
+  /** Plus haut / plus bas : mise, bonnes réponses, carte visible. */
+  stake?: number;
+  wins?: number;
+  current?: number;
+  /** Partie gratuite (pas de mise à rendre ni à encaisser au-delà du lot). */
+  free?: boolean;
 }
 
 export const DEFAULT_ECONOMY: PlayerEconomy = {

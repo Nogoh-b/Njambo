@@ -24,6 +24,14 @@ import {
   verifyStorePurchaseHandler,
 } from "./economyCommands";
 import { abandonMatchHandler, advanceMatchRoundHandler, reconnectMatchHandler, setRoomReadyHandler, startMatchHandler, submitGameActionHandler } from "./matchCommands";
+import {
+  cashOutHiLoHandler,
+  finishSkillGameHandler,
+  guessHiLoHandler,
+  playMiniGameHandler,
+  startHiLoHandler,
+  startSkillGameHandler,
+} from "./minigameCommands";
 import { usePowerCardHandler } from "./powerCommands";
 import { migrateLegacyPlayerHandler, saveAdminDraftHandler, seedLiveOpsHandler, updateFeatureFlagsHandler } from "./adminCommands";
 import {
@@ -131,6 +139,12 @@ export const useEnergyPass = onCall(callable, useEnergyPassHandler);
 export const chooseBoosterCard = onCall(callable, chooseBoosterCardHandler);
 export const buyDailyGridSlot = onCall(callable, buyDailyGridSlotHandler);
 export const spinLoyaltyWheel = onCall(callable, spinLoyaltyWheelHandler);
+export const playMiniGame = onCall(callable, playMiniGameHandler);
+export const startHiLo = onCall(callable, startHiLoHandler);
+export const guessHiLo = onCall(callable, guessHiLoHandler);
+export const cashOutHiLo = onCall(callable, cashOutHiLoHandler);
+export const startSkillGame = onCall(callable, startSkillGameHandler);
+export const finishSkillGame = onCall(callable, finishSkillGameHandler);
 export const equipPowerCards = onCall(callable, equipPowerCardsHandler);
 export const saveGameplayConfig = onCall(callable, saveGameplayConfigHandler);
 export const advanceMatchRound = onCall(callable, advanceMatchRoundHandler);

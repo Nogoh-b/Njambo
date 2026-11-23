@@ -15,6 +15,8 @@ interface PublicEconomy {
   daily: PlayerEconomy["daily"];
   debtCauris: number;
   spendingBlocked: boolean;
+  minigames: NonNullable<PlayerEconomy["minigames"]>;
+  minigameSession: PlayerEconomy["minigameSession"] | null;
 }
 
 interface PlayerRank {
@@ -127,6 +129,7 @@ export function EconomyProvider({ children }: { children: ReactNode }) {
       setEconomy({
         nkap: value.nkap, cauris: value.cauris, energy: calculateEnergy(value.energy), daily: value.daily,
         debtCauris: value.debtCauris ?? 0, spendingBlocked: value.spendingBlocked === true,
+        minigames: value.minigames ?? { day: null, plays: {} }, minigameSession: value.minigameSession ?? null,
       });
     });
     const unsubInventory = onSnapshot(doc(db, "inventories", user.uid), (snapshot) => setInventory((snapshot.data() ?? {}) as InventoryState));
