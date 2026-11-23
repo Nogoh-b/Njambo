@@ -6,8 +6,11 @@
    (mains, minuteurs, pot, effets) puis joue l'animation et le son sur la
    table de démonstration, avec les vraies cartes déplacées. */
 
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, type CSSProperties } from "react";
 import { PlayCard } from "@/components/cards/PlayCard";
+import { PowerCardView } from "@/components/power/PowerCardView";
+import { launchStyle } from "@/components/power/powerLaunch";
+import { GAME_CONFIG } from "@/config/gameConfig";
 import { ChoreoDemoStage, demoV2MovesForCue, type ChoreoDemoHandle } from "@/components/power/choreo/ChoreoDemoStage";
 import { getAnimV2 } from "@/engine/anim/v2/registry";
 import { choreographyFromCues, type Choreography } from "@/engine/power/choreography";
@@ -18,6 +21,9 @@ import type { Card } from "@/types/game";
 import styles from "./AdminConsole.module.css";
 
 type EditedCard = Pick<PowerModule, "def" | "script">;
+
+/** Largeur de la carte d'annonce sur la table de démonstration (330 px en jeu). */
+const LAUNCH_WIDTH = 120;
 
 const needsTarget = (script: PowerScript) => (script.target.count === "one" || script.target.count === "many") && script.target.chooser !== "engine";
 
@@ -71,6 +77,10 @@ export function PowerSandbox({ card, hasIssues }: { card: EditedCard; hasIssues:
   const [shield, setShield] = useState(false);
   const [outcome, setOutcome] = useState<SandboxOutcome | null>(null);
   const [crash, setCrash] = useState<string | null>(null);
+  const [viewer, setViewer] = useState<"activator" | "others">("activator");
+  const [announce, setAnnounce] = useState<{ text: string; launch: CSSProperties | null } | null>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
+  const slotRef = useRef<HTMLDivElement>(null);
   const stageRef = useRef<ChoreoDemoHandle>(null);
   const table = useMemo(() => createSandboxTable({ seed, trickStarted }), [seed, trickStarted]);
   const targeted = needsTarget(card.script);
@@ -79,19 +89,27 @@ export function PowerSandbox({ card, hasIssues }: { card: EditedCard; hasIssues:
   const animate = async (result: SandboxOutcome | null) => {
     if (card.def.sound?.ref) playPowerSound(card.def.sound.ref, card.def.sound.volume ?? 1);
     const cards = resolvedCards(result);
+    // Annonce (overlay d'activation du jeu) : affichée ici le temps qu'elle dure en partie.
+    const frame = frameRef.current?.getBoundingClientRect();
+    setAnnounce({
+      text: viewer === "others" && card.def.activationTextOthers ? card.def.activationTextOthers.replace("{activator}", "Le lanceur") : card.def.activationText,
+      launch: frame ? launchStyle(slotRef.current?.getBoundingClientRect(), { cx: frame.left + frame.width / 2, cy: frame.top + frame.height / 2, width: LAUNCH_WIDTH }) : null,
+    });
+    await new Promise((resolve) => setTimeout(resolve, GAME_CONFIG.anim.powerMax));
+    setAnnounce(null);
     // Animation V2 de la carte : ses vols de cartes passent par le lecteur V2, comme en jeu (étapes sans chorégraphie).
     const animV2 = card.def.animV2 ? getAnimV2(card.def.animV2) : null;
     if (!animV2) {
-      for (const choreo of stepChoreographies(card.script)) await stageRef.current?.play(choreo, cards);
+      for (const choreo of stepChoreographies(card.script)) await stageRef.current?.play(choreo, cards, viewer);
       return;
     }
     const pending = new Map<number, number>();
     for (const step of card.script.steps) {
-      if (step.choreo) { if (step.choreo.tracks.length) await stageRef.current?.play(step.choreo, cards); continue; }
+      if (step.choreo) { if (step.choreo.tracks.length) await stageRef.current?.play(step.choreo, cards, viewer); continue; }
       // Dans l'ordre du script : les autres cues gardent leur mise en scène, les vols passent en V2.
       let others: AnimCue[] = [];
       const flushOthers = async () => {
-        if (others.length) await stageRef.current?.play(choreographyFromCues(others as never), cards);
+        if (others.length) await stageRef.current?.play(choreographyFromCues(others as never), cards, viewer);
         others = [];
       };
       for (const cue of step.anim ?? []) {
@@ -186,8 +204,34 @@ export function PowerSandbox({ card, hasIssues }: { card: EditedCard; hasIssues:
           </div>
         </div>
         <div style={{ flex: "0 0 auto" }}>
-          <span className={styles.hint}>Animation et son</span>
-          <div style={{ marginTop: 6 }}><ChoreoDemoStage ref={stageRef} choreo={null} tone={card.def.tone} width={260} /></div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+            <span className={styles.hint}>Animation et son, vue par</span>
+            <select data-testid="sandbox-viewer" value={viewer} onChange={(e) => setViewer(e.target.value as "activator" | "others")}>
+              <option value="activator">le lanceur</option>
+              <option value="others">un adversaire</option>
+            </select>
+          </div>
+          <div ref={frameRef} style={{ marginTop: 6, position: "relative" }}>
+            <ChoreoDemoStage ref={stageRef} choreo={null} tone={card.def.tone} width={260} />
+            {/* D'où part la carte : chez le lanceur, sa place dans l'éventail des pouvoirs ; chez les autres, l'avatar du lanceur. */}
+            <div ref={slotRef} data-testid="sandbox-power-slot" title={viewer === "activator" ? "Ton éventail de pouvoirs" : "Avatar du lanceur"}
+              style={viewer === "activator"
+                ? { position: "absolute", right: 8, bottom: 8, width: 30, opacity: announce !== null ? 0.25 : 1, transition: "opacity .2s", pointerEvents: "none" }
+                : { position: "absolute", left: "50%", top: 8, transform: "translateX(-50%)", width: 30, height: 30, borderRadius: "50%", display: "grid", placeItems: "center", background: "#2a1a08", border: "2px solid #f2bb45", fontSize: 15, pointerEvents: "none" }}>
+              {viewer === "activator" ? <PowerCardView card={card.def} compact showMeta={false} /> : "🎴"}
+            </div>
+            {announce !== null && (
+              <div data-testid="sandbox-announce" style={{ position: "absolute", inset: 0, display: "grid", placeItems: "center", background: "rgba(8,6,4,.6)", borderRadius: 12, pointerEvents: "none", overflow: "hidden" }}>
+                <div className={`nj-power-activation-card${announce.launch ? " is-launch" : ""}`} style={{ ...announce.launch, width: LAUNCH_WIDTH, animationDuration: `${GAME_CONFIG.anim.powerMax}ms` }}>
+                  <PowerCardView card={card.def} showMeta={false} />
+                </div>
+                <div className={`nj-power-activation-copy${announce.launch ? " is-launch" : ""}`} style={{ top: "auto", bottom: 14, padding: "6px 10px", animationDuration: `${GAME_CONFIG.anim.powerMax}ms` }}>
+                  <strong style={{ fontSize: 16, letterSpacing: "0.04em" }}>{card.def.activationTitle}</strong>
+                  <span style={{ fontSize: 12 }}>{announce.text}</span>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </section>

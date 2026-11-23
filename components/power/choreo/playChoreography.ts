@@ -47,6 +47,10 @@ export interface ChoreoContext {
   /** Appelé quand une piste « move » démarre / se termine (masquage de la source, voir `moveSourceUi`). */
   onMoveStart?(track: MovingTrack, cards: ChoreoCards): void;
   onMoveEnd?(track: MovingTrack): void;
+  /** Qui regarde : le lanceur ou un autre joueur (textes réservés à l'un ou l'autre). Défaut : le lanceur. */
+  viewer?: "activator" | "others";
+  /** Écart de valeur de l'échange (carte reçue − carte donnée), pour les textes « verdict ». */
+  verdict?: number | null;
 }
 
 /** Main (index UI) d'où partent les cartes d'une piste, ou null si elles ne partent pas d'une main. */
@@ -146,7 +150,17 @@ async function playCardPath(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ca
       const lastPoint = track.waypoints[track.waypoints.length - 1];
       const lastHandUi = lastPoint.at.kind === "zone" && lastPoint.at.zone === "hand" ? ctx.resolveRefUi(lastPoint.at.player)[0] : undefined;
       const endCardRect = lastHandUi !== undefined && cards.toIndexes[index] !== undefined ? ctx.handCardRect?.(lastHandUi, cards.toIndexes[index]) ?? null : null;
-      const width = Math.max(40, Math.min(96, (startCardRect?.width ?? 62)));
+      // Place exacte dans l'éventail (centre, largeur sans rotation, inclinaison) : la carte part de sa place
+      // et s'y range à l'identique, même si elle a volé en grand entre-temps.
+      // La pose V2 (celle de l'éventail, soulèvement compris) est la plus juste ; sinon la place mesurée.
+      const slotOf = (ui: number | undefined, cardIdx: number | undefined) => {
+        if (ui === undefined || cardIdx === undefined) return null;
+        const hand = ctx.registry.hand(ui);
+        return hand?.poseOf?.(cardIdx) ?? hand?.getCardSlot?.(cardIdx) ?? null;
+      };
+      const startSlot = slotOf(firstHandUi, cards.fromIndexes[index]);
+      const endSlot = slotOf(lastHandUi, cards.toIndexes[index]);
+      const width = Math.max(40, Math.min(96, startSlot?.width ?? startCardRect?.width ?? 62));
       const spriteId = `${track.id}_${index}_${Math.random().toString(36).slice(2, 7)}`;
       const card = track.cards === "ghost" ? null : ctx.visibleCard(cardId, index, cards);
       const nodes = await ctx.layer.spawnCard({ id: spriteId, card, width });
@@ -156,11 +170,25 @@ async function playCardPath(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ca
 
       // Points absolus (centres), en tenant compte de la position courante.
       let current: { x: number; y: number } | undefined;
+      const lastIndex = track.waypoints.length - 1;
+      const slotRect = (slot: typeof startSlot) => (slot ? new DOMRect(slot.x - slot.width / 2, slot.y - slot.width * 0.725, slot.width, slot.width * 1.45) : null);
       const points = track.waypoints.map((point: Waypoint, pointIndex) => {
-        const rect = pointIndex === 0 ? startCardRect : pointIndex === track.waypoints.length - 1 ? endCardRect : null;
+        const rect = pointIndex === 0 ? slotRect(startSlot) ?? startCardRect : pointIndex === lastIndex ? slotRect(endSlot) ?? endCardRect : null;
         current = anchorPoint(ctx, point.at, current, rect);
         return { ...current, point };
       });
+      // Échelle et inclinaison d'un point : sur une place de l'éventail, relatives à cette place.
+      const slotAt = (pointIndex: number) => (pointIndex === 0 ? startSlot : pointIndex === lastIndex ? endSlot : null);
+      const scaleAt = (pointIndex: number, inherited: number) => {
+        const slot = slotAt(pointIndex);
+        const own = points[pointIndex].point.scale;
+        return slot ? (own ?? 1) * (slot.width / width) : own ?? inherited;
+      };
+      const rotateAt = (pointIndex: number, inherited: number) => {
+        const slot = slotAt(pointIndex);
+        const own = points[pointIndex].point.rotate;
+        return slot ? (own ?? 0) + slot.rotate : own ?? inherited;
+      };
       // Temps : durée répartie au prorata des distances, + pauses.
       const distances = points.slice(1).map((p, i) => Math.hypot(p.x - points[i].x, p.y - points[i].y) || 1);
       const totalDistance = distances.reduce((sum, d) => sum + d, 0);
@@ -168,9 +196,11 @@ async function playCardPath(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ca
       const totalMs = track.durationMs + holds.reduce((sum, h) => sum + h, 0);
       const frames: Keyframe[] = [];
       let t = 0;
-      let face = points[0].point.face ?? (card ? "up" : "down");
-      let scale = points[0].point.scale ?? 1;
-      let rotate = points[0].point.rotate ?? 0;
+      // Carte inconnue de ce joueur : elle reste de dos, même si le trajet la retourne (sinon une face vide trahit le tirage).
+      const hiddenFace = !card && track.cards !== "ghost";
+      let face = hiddenFace ? "down" : points[0].point.face ?? (card ? "up" : "down");
+      let scale = scaleAt(0, 1);
+      let rotate = rotateAt(0, 0);
       const frame = (x: number, y: number, offset: number, extra: Partial<Keyframe> = {}) => frames.push({
         offset: Math.min(1, Math.max(0, offset)),
         transform: `translate3d(${x - width / 2}px, ${y - height / 2}px, 0) rotate(${rotate}deg) scale(${scale})`,
@@ -198,9 +228,9 @@ async function playCardPath(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ca
           frame(mx + nx * bulge, my + ny * bulge, (t + segMs / 2) / totalMs);
         }
         t += segMs;
-        scale = p.point.scale ?? scale;
-        rotate = p.point.rotate ?? rotate;
-        const nextFace = p.point.face ?? face;
+        scale = scaleAt(i + 1, scale);
+        rotate = rotateAt(i + 1, rotate);
+        const nextFace = hiddenFace ? "down" : p.point.face ?? face;
         if (nextFace !== face) { flipFrame((t - segMs) / totalMs); face = nextFace; flipFrame(t / totalMs); }
         frame(p.x, p.y, t / totalMs);
         if (holds[i + 1]) { t += holds[i + 1]; frame(p.x, p.y, t / totalMs); }
@@ -216,6 +246,18 @@ async function playCardPath(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ca
       await Promise.all([finished(move), finished(flip)]);
       const end = points[points.length - 1];
       if (track.trail) ctx.burst(track.trail, new DOMRect(end.x - width / 2, end.y - height / 2, width, height), ctx.defaultTone, "spectacular", 900);
+      // Carte fantôme (décor), ou arrivée dans la pioche / le pot : la carte s'efface à l'arrivée,
+      // au lieu de rester posée, immobile, jusqu'à la fin de toute la chorégraphie.
+      const endAnchor = lastPoint.at;
+      const intoPile = track.mode === "move" && endAnchor.kind === "zone" && (endAnchor.zone === "deck" || endAnchor.zone === "pot");
+      if (track.cards === "ghost" || intoPile) {
+        const settled = getComputedStyle(nodes.root).transform;
+        await finished(nodes.root.animate([
+          { transform: settled, opacity: 1 },
+          { transform: `${settled === "none" ? "" : settled} scale(0.6)`, opacity: 0 },
+        ], { duration: 220, easing: "ease-in", fill: "forwards" }));
+        ctx.layer.removeCard(spriteId);
+      }
     }));
   } finally {
     if (track.mode === "move") ctx.onMoveEnd?.(track);
@@ -380,16 +422,24 @@ async function playScreen(ctx: ChoreoContext, track: ChoreoTrack & { kind: "scre
 async function playText(ctx: ChoreoContext, track: ChoreoTrack & { kind: "text" }, fill: (text: string) => string) {
   const host = ctx.layer.container();
   if (!host) return;
+  const audience = track.audience ?? "all";
+  const viewer = ctx.viewer ?? "activator";
+  if (audience !== "all" && audience !== viewer) return;
+  const text = fill(track.text);
+  if (!text) return;
   const point = anchorPoint(ctx, track.at);
   const node = document.createElement("div");
   node.setAttribute("data-choreo-fx", "text");
-  node.textContent = fill(track.text);
+  node.textContent = text;
   const size = track.size === "l" ? 34 : track.size === "s" ? 15 : 22;
+  const verdict = track.verdictTone ? ctx.verdict ?? null : null;
+  const tone = verdict == null ? track.tone ?? ctx.defaultTone : verdict > 0 ? "teal" : verdict < 0 ? "pink" : "gold";
   Object.assign(node.style, {
     position: "absolute", left: `${point.x}px`, top: `${point.y}px`, transform: "translate(-50%, -50%)", whiteSpace: "nowrap",
     font: `900 ${size}px var(--font-display, sans-serif)`, color: "#fff", letterSpacing: "0.02em",
-    textShadow: `0 0 12px ${TONE_COLORS[track.tone ?? ctx.defaultTone]}, 0 3px 0 rgba(0,0,0,.45)`, pointerEvents: "none",
+    textShadow: `0 0 12px ${TONE_COLORS[tone]}, 0 3px 0 rgba(0,0,0,.45)`, pointerEvents: "none",
   });
+  if (verdict != null) Object.assign(node.style, { padding: "4px 12px", borderRadius: "999px", background: "rgba(10,8,6,.72)", border: `2px solid ${TONE_COLORS[tone]}` });
   host.appendChild(node);
   await finished(node.animate([
     { opacity: 0, transform: "translate(-50%, -30%) scale(.7)" },

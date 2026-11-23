@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CODE_POWER_MODULES } from "../config/powers";
-import { choreographyDuration, choreographyFromCues, validateChoreography, type Choreography } from "../engine/power/choreography";
+import { choreographyDuration, choreographyFromCues, fillCardPlaceholders, swapDelta, validateChoreography, type Choreography } from "../engine/power/choreography";
 import { validatePowerCard } from "../engine/power/validate";
 
 const paths = (choreo: unknown) => validateChoreography(choreo, "c").map((issue) => issue.path);
@@ -110,5 +110,33 @@ describe("pistes « modèle » (atelier d'animations)", () => {
     expect(paths({ tracks: [motifTrack({ startMs: 7_500 })] })).toEqual(["c.tracks.0.durationMs"]);
     // Le vol tient (7 + 0,6 s) mais pas les 3 cartes décalées ni les ondes d'arrivée.
     expect(paths({ tracks: [motifTrack({ startMs: 7_000, durationMs: 600, motifId: "center_add", cards: "ghost", mode: "display" })] })).toEqual(["c.tracks.0.durationMs"]);
+  });
+});
+
+describe("textes selon qui regarde et verdict d'un échange", () => {
+  const card = (rank: string, value: number, suit: "♥" | "♦" = "♥") => ({ id: `${rank}${suit}`, rank, value, suit, color: "#c00" }) as never;
+  it("remplit les cartes de l'échange et l'écart de valeur", () => {
+    expect(fillCardPlaceholders("{outgoing} → {incoming} {delta}", card("3", 3), card("8", 8, "♦"))).toBe("3♥ → 8♦ +5");
+    expect(fillCardPlaceholders("{delta}", card("9", 9), card("4", 4))).toBe("−5");
+    expect(fillCardPlaceholders("{delta}", card("7", 7), card("7", 7, "♦"))).toBe("=");
+    expect(swapDelta(card("3", 3), null)).toBeNull();
+  });
+  it("efface les cartes inconnues au lieu de les trahir", () => {
+    expect(fillCardPlaceholders("{outgoing} → {incoming} {delta}", null, null)).toBe("→");
+    expect(fillCardPlaceholders("Échange {delta}", null, null)).toBe("Échange");
+  });
+  it("valide le public et la teinte du verdict", () => {
+    const text = (extra: object) => ({ tracks: [{ id: "t", kind: "text", startMs: 0, durationMs: 800, text: "x", at: { kind: "screen", at: "center" }, ...extra }] });
+    expect(paths(text({ audience: "others", verdictTone: true }))).toEqual([]);
+    expect(paths(text({ audience: "tous" }))).toEqual(["c.tracks.0.audience"]);
+    expect(paths(text({ verdictTone: "oui" }))).toEqual(["c.tracks.0.verdictTone"]);
+  });
+  it("Vent du Nord : la mise en scène en 4 temps est valide et tient en 5 s", () => {
+    const vent = CODE_POWER_MODULES.vent_nord;
+    expect(validatePowerCard({ def: vent.def, script: vent.script } as never)).toEqual([]);
+    expect(vent.def.activationTextOthers).toContain("{activator}");
+    const choreo = vent.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(5_000);
+    expect(choreo.tracks.filter((track) => track.kind === "text").map((track) => (track as { audience?: string }).audience)).toEqual(["activator", "others"]);
   });
 });

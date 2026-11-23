@@ -1194,6 +1194,10 @@ export function TableScreen({
     impactShake,
     showTableReaction,
     launchFlight,
+    // Ma carte part de sa place dans l'éventail (ou du bouton « Mon deck » replié) ; celle d'un autre, de son avatar.
+    powerSlotRect: (cardId, ui) => ui === 0
+      ? (document.querySelector(`[data-power-slot="${cardId}"]`) ?? document.querySelector('[data-power-slot="deck"]'))?.getBoundingClientRect() ?? null
+      : zoneRegistry.timer(ui)?.getRect() ?? null,
     beginStateTransition,
     commitStateTransition,
     endStateTransition,
@@ -2421,6 +2425,7 @@ export function TableScreen({
             <button
               data-nj-skin="none"
               type="button"
+              data-power-slot="deck"
               className={styles.testTriggerBtn}
               onClick={() => setTestDrawerOpen((open) => !open)}
               aria-expanded={testDrawerOpen}
@@ -2448,6 +2453,7 @@ export function TableScreen({
               return (
                 <button
                   data-nj-skin="none"
+                  data-power-slot={cardId}
                   key={cardId}
                   type="button"
                   className={`${styles.prodPowerBtn}${active ? ` ${styles.prodPowerBtnActive}` : ""}`}

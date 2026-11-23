@@ -11,6 +11,7 @@ import { PowerSandbox } from "./PowerSandbox";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangelogAdminSection } from "@/domain";
 import { PowerCardView } from "@/components/power/PowerCardView";
+import { CODE_POWER_MODULES } from "@/config/powers";
 import { NJAMBO_ICON_NAMES } from "@/components/ui/Art";
 import type { PowerModule, PowerScript } from "@/engine/power/types";
 import { POWER_ANIM_TAGS, POWER_BOOSTER_TIERS, POWER_CATEGORIES, POWER_RARITIES, POWER_TARGET_MODES, POWER_TONES, validatePowerCard } from "@/engine/power/validate";
@@ -26,6 +27,11 @@ import { BOOSTER_TIER_LABELS, CATEGORY_LABELS, RARITY_LABELS, TARGET_MODE_LABELS
 import styles from "./AdminConsole.module.css";
 
 type Card = Pick<PowerModule, "def" | "script" | "dev">;
+
+/** JSON à clés triées : la base (jsonb) réordonne les champs, l'ordre ne doit pas compter dans une comparaison. */
+const stableJson = (value: unknown): string => JSON.stringify(value, (_key, item: unknown) => (item && typeof item === "object" && !Array.isArray(item)
+  ? Object.fromEntries(Object.entries(item as Record<string, unknown>).sort(([a], [b]) => a.localeCompare(b)))
+  : item));
 type Tab = "identity" | "target" | "effect" | "animation" | "economy" | "sandbox";
 
 const TABS: Array<{ key: Tab; label: string; prefixes: string[] }> = [
@@ -256,6 +262,17 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
     return `Révision ${result.revision} publiée : les nouvelles parties l'utilisent (les parties en cours gardent leur version).`;
   });
 
+  /** Mise en scène écrite dans le code (script + textes d'activation), quand elle diffère de l'écran :
+   *  prototypes à essayer dans le bac à sable avant publication. Prix, rareté, visuel… restent ceux de l'admin. */
+  const codeModule = (CODE_POWER_MODULES as Partial<Record<string, PowerModule>>)[def.id];
+  const codePresentation = codeModule ? {
+    activationTitle: codeModule.def.activationTitle,
+    activationText: codeModule.def.activationText,
+    activationTextOthers: codeModule.def.activationTextOthers,
+  } : null;
+  const codeVersion = codeModule && codePresentation && (stableJson(codeModule.script) !== stableJson(card.script)
+    || (Object.keys(codePresentation) as (keyof typeof codePresentation)[]).some((key) => codePresentation[key] !== def[key]))
+    ? { script: codeModule.script, presentation: codePresentation } : null;
   const loadVersion = (next: Card) => {
     setCard(next);
     setSaved(JSON.stringify(next));
@@ -301,6 +318,7 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
         <span className={styles.hint}><code>{def.id}</code>{published ? ` · en ligne rév. ${revision}` : " · jamais publiée"}</span>
         <span className={styles.spacer} />
         {dirty && <span className={styles.hint}>Modifications non enregistrées</span>}
+        {codeVersion && <button type="button" className={styles.btn} data-testid="load-code-version" title="Charge l'effet, l'animation et les textes d'activation écrits dans le code (config/powers), sans rien enregistrer : à essayer dans le bac à sable. Prix, rareté et visuel ne changent pas." onClick={() => { if (!dirty || window.confirm("Remplacer tes modifications non enregistrées par la version du code ?")) setCard({ ...card, def: { ...def, ...codeVersion.presentation }, script: codeVersion.script }); }}>Version du code</button>}
         <button type="button" className={styles.btn} disabled={busy || !dirty} onClick={() => void save()}>Enregistrer le brouillon</button>
         <button type="button" className={`${styles.btn} ${styles.primary}`} disabled={busy || issues.length > 0} title={issues.length ? "Corrige les erreurs d'abord" : undefined} onClick={() => void publish()}>Publier</button>
         {onAssistant && !assistantOpen && <AssistantButton label="✦ Demander à l'assistant" title="Expliquer, vérifier ou modifier cette carte avec l'assistant IA" onClick={() => onAssistant(true)} />}
@@ -338,6 +356,12 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
                 <label className={styles.field}><span>Affichage de la cible (boutique)</span><select value={def.targetMode} onChange={(e) => patchDef({ targetMode: e.target.value as PowerCardDef["targetMode"] })}>{POWER_TARGET_MODES.map((key) => <option key={key} value={key}>{TARGET_MODE_LABELS[key]}</option>)}</select></label>
                 {text("Titre d'activation (en grand)", "activationTitle", 24)}
                 {text("Texte d'activation", "activationText", 80)}
+                <label className={`${styles.field} ${errorFor("def.activationTextOthers") ? styles.invalid : ""}`}>
+                  <span>Texte vu par les autres joueurs ({(def.activationTextOthers ?? "").length}/80)</span>
+                  <input value={def.activationTextOthers ?? ""} maxLength={80} placeholder="Vide : même texte pour tous" onChange={(e) => patchDef({ activationTextOthers: e.target.value || undefined })} />
+                  <small className={styles.hint}>{"{activator}"} = nom du joueur qui lance la carte.</small>
+                  {errorFor("def.activationTextOthers") && <span className={styles.fieldError}>{errorFor("def.activationTextOthers")}</span>}
+                </label>
                 {text("Description", "description", 200, true)}
               </div>
               <h3>Visuel</h3>

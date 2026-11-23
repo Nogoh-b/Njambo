@@ -4058,6 +4058,60 @@ html[data-gxe-active] .njb--solid {
   }
 }
 
+/* Lancement : la carte part de son emplacement (éventail des pouvoirs, ou avatar
+   du lanceur chez les autres) et devient l'annonce. --launch-x/y = écart entre
+   l'emplacement et la place finale, --launch-scale = taille de départ. */
+.nj-power-activation-card.is-launch {
+  animation-name: powerActivationLaunch;
+  animation-timing-function: ease-out;
+}
+
+/* Le texte attend que la carte soit arrivée. */
+.nj-power-activation-copy.is-launch {
+  animation: powerActivationCopyIn 1.5s ease-out both;
+}
+
+@keyframes powerActivationCopyIn {
+  0%,
+  22% {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  32%,
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+}
+
+@keyframes powerActivationLaunch {
+  0% {
+    opacity: 1;
+    transform: translate(var(--launch-x, 0px), var(--launch-y, 28px)) scale(var(--launch-scale, 0.72)) rotate(var(--launch-rotate, 0deg));
+  }
+  9% {
+    opacity: 1;
+    transform: translate(calc(var(--launch-x, 0px) * 0.96), calc(var(--launch-y, 28px) * 0.96 - 14px)) scale(calc(var(--launch-scale, 0.72) * 1.12)) rotate(var(--launch-rotate, 0deg));
+  }
+  24% {
+    opacity: 1;
+    transform: translateY(-24px) scale(1.06) rotate(0deg);
+  }
+  30%,
+  76% {
+    opacity: 1;
+    transform: translateY(-18px) scale(1) rotate(0deg);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-42px) scale(0.92) rotate(3deg);
+  }
+}
+
 @keyframes resultPanelSweep {
   0%,
   52%,

@@ -11,7 +11,8 @@
    du script sont rejoués depuis `activation.resolved` (source de vérité
    calculée par le moteur — identique pour tous les clients). */
 
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
+import { launchStyle, screenLaunchTarget } from "@/components/power/powerLaunch";
 import dynamic from "next/dynamic";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import {
@@ -19,7 +20,7 @@ import {
   type PowerParticleBurst,
 } from "@/components/power/PowerParticleLayer";
 import { getPowerModule } from "@/config/powers";
-import { FUNCTIONAL_CUES } from "@/engine/power/choreography";
+import { FUNCTIONAL_CUES, fillCardPlaceholders, swapDelta } from "@/engine/power/choreography";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
 import { moveSourceUi, playChoreography, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
@@ -81,6 +82,8 @@ export interface OrchestratorDeps {
   }): Promise<void>;
   /** Gèle l'état React pendant toute une séquence de déplacements réels. */
   beginStateTransition(): void;
+  /** D'où part la carte lancée : sa place dans MON éventail de pouvoirs (ui 0), sinon l'avatar du lanceur. */
+  powerSlotRect?(cardId: PowerCardId, ui: number): DOMRect | null;
   /** Applique atomiquement le dernier état sync retenu. */
   commitStateTransition(): void;
   /** Libère le verrou, avec commit de sécurité si nécessaire. */
@@ -92,6 +95,10 @@ interface PowerOverlayState {
   cardId: PowerCardId;
   blocked?: boolean;
   noEffect?: boolean;
+  /** Texte d'activation pour ce joueur (version « adversaires » quand ce n'est pas lui qui lance). */
+  text?: string;
+  /** Départ de la carte (emplacement dans l'éventail, ou avatar du lanceur) : variables CSS de lancement. */
+  launch?: CSSProperties | null;
 }
 
 interface PowerFxState {
@@ -148,11 +155,11 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     burstTimersRef.current.push(timer);
   }, []);
 
-  const showOverlay = useCallback((cardId: PowerCardId, blocked: boolean, noEffect: boolean) => {
+  const showOverlay = useCallback((cardId: PowerCardId, blocked: boolean, noEffect: boolean, text?: string, from?: DOMRect | null) => {
     const d = depsRef.current;
     if (!d.motionEnabled) return;
     if (overlayTimerRef.current) clearTimeout(overlayTimerRef.current);
-    setOverlay({ key: `${cardId}-${Date.now()}`, cardId, blocked, noEffect });
+    setOverlay({ key: `${cardId}-${Date.now()}`, cardId, blocked, noEffect, text, launch: launchStyle(from, screenLaunchTarget()) });
     overlayTimerRef.current = setTimeout(() => {
       setOverlay(null);
       overlayTimerRef.current = null;
@@ -193,7 +200,11 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     if (def.sound?.ref) playPowerSound(def.sound.ref, def.sound.volume ?? 1);
     else d.playSfx();
     triggerFx((def.tone as PowerTone) ?? "gold");
-    showOverlay(activation.cardId, blocked, noEffect);
+    const activatorUi = d.uiIndexFromUid(activation.activatedByUid);
+    const othersText = !mine && def.activationTextOthers
+      ? def.activationTextOthers.replace("{activator}", (activatorUi != null ? d.getPlayers()[activatorUi]?.name : undefined) ?? "Un joueur")
+      : undefined;
+    showOverlay(activation.cardId, blocked, noEffect, othersText, activatorUi != null ? d.powerSlotRect?.(activation.cardId, activatorUi) : null);
 
     // Bloquée → l'aura de protection de la cible est consommée.
     if (blocked) {
@@ -272,6 +283,9 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
       text
         .replace("{target}", players[targetsUi[0]]?.name ?? "L'adversaire")
         .replace("{activator}", players[activatorUi]?.name ?? "Le joueur");
+    // Cartes de l'échange (repères {outgoing}/{incoming}/{delta}) : connues du lanceur seulement.
+    const swapOutgoing = resolved?.moves?.find((move) => move.key === "outgoing")?.cardSnapshots?.[0] ?? null;
+    const swapIncoming = resolved?.moves?.find((move) => move.key === "incoming")?.cardSnapshots?.[0] ?? null;
 
     const fxOf = (cue: AnimCue): {
       preset: PowerFxPreset;
@@ -641,8 +655,10 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
               }
             },
             onMoveEnd: () => { movingCuesDone += 1; },
+            viewer: mine ? "activator" : "others",
+            verdict: mine ? swapDelta(swapOutgoing, swapIncoming) : null,
           };
-          await playChoreography(choreoCtx, step.choreo, fillPlaceholders);
+          await playChoreography(choreoCtx, step.choreo, (text) => fillCardPlaceholders(fillPlaceholders(text), mine ? swapOutgoing : null, mine ? swapIncoming : null));
           if (movingCuesDone >= movingCueCount) await commitTransition();
         }
         if (beats.stepGapMs) await sleep(beats.stepGapMs);
@@ -700,12 +716,15 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
           style={{ animationDuration: `${deps.overlayMs}ms` }}
         >
           <div
-            className="nj-power-activation-card"
-            style={{ animationDuration: `${deps.overlayMs}ms` }}
+            className={`nj-power-activation-card${overlay.launch ? " is-launch" : ""}`}
+            style={{ ...overlay.launch, animationDuration: `${deps.overlayMs}ms` }}
           >
             <PowerCardView card={POWER_CARDS_BY_ID[overlay.cardId]} showMeta={false} />
           </div>
-          <div className="nj-power-activation-copy">
+          <div
+            className={`nj-power-activation-copy${overlay.launch ? " is-launch" : ""}`}
+            style={overlay.launch ? { animationDuration: `${deps.overlayMs}ms` } : undefined}
+          >
             <strong>
               {overlay.blocked
                 ? "BLOQUÉ"
@@ -718,7 +737,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
                 ? "Protection activée"
                 : overlay.noEffect
                   ? "Rien à améliorer — carte non consommée"
-                  : POWER_CARDS_BY_ID[overlay.cardId].activationText}
+                  : overlay.text ?? POWER_CARDS_BY_ID[overlay.cardId].activationText}
             </span>
           </div>
         </div>

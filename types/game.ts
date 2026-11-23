@@ -159,6 +159,8 @@ export interface PowerCardDef {
   art: string;
   activationTitle: string;
   activationText: string;
+  /** Texte d'activation montré aux AUTRES joueurs ({activator} = nom du lanceur). Absent : `activationText` pour tous. */
+  activationTextOthers?: string;
   description: string;
   /** Coût d'achat en cauris */
   costCauris: number;

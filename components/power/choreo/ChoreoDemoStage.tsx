@@ -12,7 +12,7 @@ import { ZoneRegistry, ZoneRegistryProvider, useRegisterZone, type ZoneKey } fro
 import { elementCenter, elementScale } from "@/components/table/zones/zonePose";
 import { fanPose, pilePose, stackPose } from "@/engine/anim/v2/pose";
 import { sameAnchor, type AnimMotif } from "@/engine/anim/motif";
-import type { Choreography } from "@/engine/power/choreography";
+import { fillCardPlaceholders, swapDelta, type Choreography } from "@/engine/power/choreography";
 import type { AnimCue, PlayerRef, PowerFxTone } from "@/engine/power/types";
 import type { Card } from "@/types/game";
 import { ChoreoLayer, type ChoreoLayerHandle } from "./ChoreoLayer";
@@ -241,7 +241,7 @@ function DemoCenter() {
 export interface ChoreoDemoHandle {
   /** Rejoue la chorégraphie (ou celle passée en paramètre). `cards` remplace
    *  les cartes de démonstration par les cartes calculées (bac à sable). */
-  play(override?: Choreography | null, cards?: Partial<Record<string, Card[]>>): Promise<void>;
+  play(override?: Choreography | null, cards?: Partial<Record<string, Card[]>>, viewer?: "activator" | "others"): Promise<void>;
   /** Joue un modèle de l'atelier seul (même brouillon non publié), puis remet la table en place. */
   playMotif(motif: AnimMotif): Promise<void>;
   /** Joue un modèle V2 sur un trajet d'essai, puis remet la table en place. */
@@ -262,14 +262,16 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
     setHidden((current) => ({ ...current, [ui]: new Set([...(current[ui] ?? []), ...indexes]) }));
   }, []);
 
-  const contextFor = useCallback((layer: ChoreoLayerHandle, cardsOf: ChoreoContext["cardsOf"]): ChoreoContext => {
+  const contextFor = useCallback((layer: ChoreoLayerHandle, cardsOf: ChoreoContext["cardsOf"], viewer: "activator" | "others" = "activator"): ChoreoContext => {
     const ctx: ChoreoContext = {
       registry,
       layer,
       resolveRefUi: (playerRef) => RESOLVE_REF[playerRef],
       winnerUi: () => 1,
       cardsOf,
-      visibleCard: (_id, index, cards) => cards.snapshots[index] ?? null,
+      // Vu par un adversaire : les cartes de la main du lanceur restent de dos.
+      visibleCard: (_id, index, cards) => (viewer === "others" ? null : cards.snapshots[index] ?? null),
+      viewer,
       handCardRect: (ui, index) => registry.hand(ui)?.getCardRect(index) ?? null,
       burst: (_preset, rect, burstTone) => {
         const host = layerRef.current?.container();
@@ -295,7 +297,7 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
     return ctx;
   }, [hide, registry, tone]);
 
-  const play = useCallback(async (override?: Choreography | null, cards?: Partial<Record<string, Card[]>>) => {
+  const play = useCallback(async (override?: Choreography | null, cards?: Partial<Record<string, Card[]>>, viewer: "activator" | "others" = "activator") => {
     const current = override ?? choreo;
     if (!current || busy.current || !layerRef.current) return;
     busy.current = true;
@@ -306,7 +308,11 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
       : key === "resolved:incoming" ? { ids: [GIVEN.id], snapshots: [GIVEN], fromIndexes: [1], toIndexes: [1] }
         : { ids: [MY_HAND[1].id], snapshots: [MY_HAND[1]], fromIndexes: [1], toIndexes: [1] };
     try {
-      await playChoreography(contextFor(layerRef.current, cardsOf), current, (text) => text.replace("{activator}", "Toi").replace("{target}", "La cible"));
+      const ctx = contextFor(layerRef.current, cardsOf, viewer);
+      const outgoing = viewer === "activator" ? cardsOf("resolved:outgoing").snapshots[0] : null;
+      const incoming = viewer === "activator" ? cardsOf("resolved:incoming").snapshots[0] : null;
+      ctx.verdict = swapDelta(outgoing, incoming);
+      await playChoreography(ctx, current, (text) => fillCardPlaceholders(text.replace("{activator}", viewer === "others" ? "Le lanceur" : "Toi").replace("{target}", "La cible"), outgoing, incoming));
     } finally {
       setTimeout(() => { setHidden({}); setRound((value) => value + 1); }, 400);
       busy.current = false;

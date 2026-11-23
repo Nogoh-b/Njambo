@@ -77,6 +77,7 @@ export function validatePowerDef(def: PowerCardDef, issues: PowerValidationIssue
   if (typeof def.description !== "string" || def.description.trim().length < 5 || def.description.length > 200) push("description", "Description : 5 à 200 caractères.");
   if (typeof def.activationTitle !== "string" || def.activationTitle.trim().length < 2 || def.activationTitle.length > 24) push("activationTitle", "Titre d'activation : 2 à 24 caractères.");
   if (typeof def.activationText !== "string" || def.activationText.length > 80) push("activationText", "Texte d'activation : 80 caractères maximum.");
+  if (def.activationTextOthers !== undefined && (typeof def.activationTextOthers !== "string" || def.activationTextOthers.length > 80)) push("activationTextOthers", "Texte pour les autres joueurs : 80 caractères maximum.");
   if (!has(POWER_CATEGORIES, def.category)) push("category", "Catégorie inconnue.");
   if (!has(POWER_RARITIES, def.rarity)) push("rarity", "Rareté inconnue.");
   if (!has(POWER_TARGET_MODES, def.targetMode)) push("targetMode", "Mode de ciblage inconnu.");

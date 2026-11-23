@@ -15,6 +15,7 @@
 
 import { motifTotalMs, validateMotif } from "../anim/motif";
 import { getMotif, resolveMotif, type MotifOverrides } from "../anim/registry";
+import type { Card } from "../../types/game";
 import type { PlayerRef, PowerFxPreset, PowerFxTone } from "./types";
 
 /* ─────────────── Repères ─────────────── */
@@ -117,10 +118,15 @@ export type ChoreoTrack =
     })
   | (TrackBase & {
       kind: "text";
+      /** Repères remplacés à la lecture : {activator}, {target}, {outgoing}, {incoming}, {delta} (voir `fillCardPlaceholders`). */
       text: string;
       at: Anchor;
       tone?: PowerFxTone;
       size?: "s" | "m" | "l";
+      /** Qui voit ce texte : tout le monde (défaut), le lanceur seul, ou les autres joueurs seuls. */
+      audience?: TextAudience;
+      /** Teinte selon le verdict de l'échange : vert si la carte reçue est plus forte, rose si plus faible. */
+      verdictTone?: boolean;
     })
   | (TrackBase & {
       kind: "sound";
@@ -139,6 +145,28 @@ export type ChoreoTrack =
     });
 
 export type MotifTrack = ChoreoTrack & { kind: "motif" };
+
+export const TEXT_AUDIENCES = ["all", "activator", "others"] as const;
+export type TextAudience = (typeof TEXT_AUDIENCES)[number];
+
+const cardLabel = (card: Card) => `${card.rank}${card.suit}`;
+
+/** Écart de valeur entre la carte reçue et la carte donnée (null si l'une manque). */
+export function swapDelta(outgoing?: Card | null, incoming?: Card | null): number | null {
+  return outgoing && incoming ? incoming.value - outgoing.value : null;
+}
+
+/** Remplace {outgoing}, {incoming} et {delta} par les cartes de l'échange (« 3♥ », « 8♦ », « +5 »).
+ *  Cartes inconnues (adversaire qui regarde) : repères effacés plutôt que trahis. */
+export function fillCardPlaceholders(text: string, outgoing?: Card | null, incoming?: Card | null): string {
+  const delta = swapDelta(outgoing, incoming);
+  return text
+    .replace(/\{outgoing\}/g, outgoing ? cardLabel(outgoing) : "")
+    .replace(/\{incoming\}/g, incoming ? cardLabel(incoming) : "")
+    .replace(/\{delta\}/g,delta == null ? "" : delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : "=")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+}
 
 /** Modèle d'une piste « motif », surcharges et durée de la piste appliquées. */
 export function motifOfTrack(track: MotifTrack) {
@@ -248,6 +276,8 @@ export function validateChoreography(value: unknown, base: string): ChoreoIssue[
         if (typeof track.text !== "string" || track.text.trim().length === 0 || track.text.length > CHOREO_LIMITS.textLength) issues.push({ path: `${path}.text`, message: "Texte : 1 à 60 caractères." });
         validateAnchor(track.at, `${path}.at`, issues);
         if (track.size !== undefined && !["s", "m", "l"].includes(String(track.size))) issues.push({ path: `${path}.size`, message: "Taille inconnue." });
+        if (track.audience !== undefined && !(TEXT_AUDIENCES as readonly string[]).includes(String(track.audience))) issues.push({ path: `${path}.audience`, message: "Public inconnu." });
+        if (track.verdictTone !== undefined && typeof track.verdictTone !== "boolean") issues.push({ path: `${path}.verdictTone`, message: "Teinte du verdict : oui ou non." });
         break;
       case "sound":
         if (typeof track.sound !== "string" || !isSoundRefLike(track.sound)) issues.push({ path: `${path}.sound`, message: "Son : préréglage ou fichier uploadé." });

@@ -110,6 +110,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private dealing = false;
   private dealTimer: ReturnType<typeof setTimeout> | null = null;
   private powerPending = false;
+  /** Main reçue par le canal privé pendant mon activation de pouvoir (voir le listener de main). */
+  private heldPowerHand: Card[] | null = null;
   /* ── Séquenceur de replay ── */
   private replayQueue: ReplayStep[] = [];
   private replayTimer: ReturnType<typeof setTimeout> | null = null;
@@ -353,6 +355,10 @@ export class AuthoritativeGameSync implements GameSyncActions {
       const hand = (snapshot.get("hand") ?? []) as Card[];
       this.roundHands.set(round, hand);
       if (round !== (this.match?.series?.round ?? 1)) return;
+      // Mon pouvoir est en cours : sa main modifiée (Vent du Nord…) arrive souvent par ce canal AVANT
+      // la réponse HTTP qui porte l'activation. La montrer tout de suite gâcherait l'animation :
+      // elle est retenue, et la réponse (activation, puis état) prend le relais.
+      if (this.powerPending) { this.heldPowerHand = hand; return; }
       this.hand = hand;
       this.equippedPowers = (snapshot.get("equippedPowers") ?? this.equippedPowers) as PowerCardId[];
       // Éviter un repaint intermédiaire pendant qu'un coup optimiste est encore en vol.
@@ -918,8 +924,17 @@ export class AuthoritativeGameSync implements GameSyncActions {
         this.emitPowerActivation(response.data.activation, true);
         this.applyServerState(response.data.state);
       })
+      .then(() => { this.heldPowerHand = null; })
       .catch((cause) => this.status("error", cause instanceof Error ? cause.message : "Pouvoir refusé"))
-      .finally(() => { this.powerPending = false; });
+      .finally(() => {
+        this.powerPending = false;
+        // Pas de réponse exploitable : la main retenue redevient la vérité.
+        if (this.heldPowerHand) {
+          this.hand = this.heldPowerHand;
+          this.heldPowerHand = null;
+          if (!this.optimisticCardId) this.emitState();
+        }
+      });
   };
 
   private emitPowerActivation(activation: PowerCardActivation, force = false) {
