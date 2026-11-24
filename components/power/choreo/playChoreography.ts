@@ -832,6 +832,53 @@ async function playTimerShout(ctx: ChoreoContext, ui: number, durationMs: number
   await Promise.all([...waves, ...hits, sleep(durationMs)]);
 }
 
+/** Tambour : un djembé apparaît à côté de l'avatar et bat trois coups ; à chaque coup la peau se creuse, un anneau doré
+ *  part de l'avatar et le minuteur s'illumine un peu plus ; à la fin, `label` (« +8 s ») s'envole. */
+async function playTimerDrum(ctx: ChoreoContext, ui: number, durationMs: number, color: string, label?: string) {
+  const timer = ctx.registry.timer(ui);
+  const rect = timer?.getRect();
+  const host = ctx.layer.container();
+  if (!timer || !rect || !host) return;
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const size = Math.max(30, Math.min(48, rect.width * 0.8));
+  // Le djembé se place à droite de l'avatar, ou à gauche s'il n'y a pas la place.
+  const right = rect.right + size * 1.1 < window.innerWidth;
+  const dx = right ? rect.width / 2 + size * 0.7 : -(rect.width / 2 + size * 0.7);
+  const drum = document.createElement("div");
+  drum.setAttribute("data-choreo-fx", "drum");
+  Object.assign(drum.style, { position: "absolute", left: `${cx + dx - size / 2}px`, top: `${cy - size * 0.65}px`, width: `${size}px`, height: `${size * 1.3}px`, pointerEvents: "none", transformOrigin: "50% 100%" });
+  drum.innerHTML = `<svg viewBox="0 0 40 52" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 3px 5px rgba(0,0,0,.5))">
+    <path d="M6 8 L34 8 L27 30 L31 50 L9 50 L13 30 Z" fill="#8a4b22" stroke="#3a1d0b" stroke-width="1.4"/>
+    <path d="M8 14 L32 14 M11 22 L29 22" stroke="#e0b25a" stroke-width="1.6" opacity=".8"/>
+    <path d="M9 8 L20 30 L31 8 M13 30 L20 46 L27 30" stroke="#f2d79b" stroke-width="1" fill="none" opacity=".75"/>
+    <ellipse class="skin" cx="20" cy="8" rx="15" ry="4.2" fill="#f1dcae" stroke="#3a1d0b" stroke-width="1.2"/>
+  </svg>`;
+  host.appendChild(drum);
+  const skin = drum.querySelector<SVGEllipseElement>(".skin");
+  await finished(drum.animate([{ transform: "scale(.3) translateY(10px)", opacity: 0 }, { transform: "scale(1) translateY(0)", opacity: 1 }], { duration: 260, easing: "cubic-bezier(.2,1.4,.4,1)", fill: "forwards" }));
+  const beats = 3;
+  const gap = Math.max(220, (durationMs - 260 - 420) / beats);
+  const ringEl = timer.getElement?.();
+  for (let i = 0; i < beats; i++) {
+    // Coup : le tambour s'écrase, la peau se creuse, anneau doré depuis l'avatar, le minuteur gagne en éclat.
+    void drum.animate([{ transform: "scaleY(1)" }, { transform: "scaleY(.86) scaleX(1.06)", offset: 0.25 }, { transform: "scaleY(1)" }], { duration: 220, easing: "ease-out" });
+    if (skin) void skin.animate([{ transform: "translateY(0)" }, { transform: "translateY(2px)", offset: 0.25 }, { transform: "translateY(0)" }], { duration: 220 });
+    const ring = document.createElement("div");
+    Object.assign(ring.style, { position: "absolute", left: `${cx - rect.width}px`, top: `${cy - rect.width}px`, width: `${rect.width * 2}px`, height: `${rect.width * 2}px`, borderRadius: "50%", border: `3px solid ${color}`, boxShadow: `0 0 14px ${color}`, pointerEvents: "none" });
+    host.appendChild(ring);
+    void ring.animate([{ transform: "scale(.45)", opacity: 1 }, { transform: "scale(1.15)", opacity: 0 }], { duration: 520, easing: "ease-out", fill: "forwards" }).finished.then(() => ring.remove(), () => ring.remove());
+    if (ringEl && !ctx.lite) void ringEl.animate([{ filter: "none" }, { filter: `brightness(${1.2 + i * 0.15}) drop-shadow(0 0 ${8 + i * 5}px ${color})`, offset: 0.3 }, { filter: "none" }], { duration: 480 });
+    if (i === beats - 1) ctx.impactShake(2);
+    await sleep(gap);
+  }
+  // Le temps gagné s'envole de l'avatar.
+  const seconds = Number.parseInt(String(label ?? "").replace("+", ""), 10);
+  if (Number.isFinite(seconds)) timer.showDelta(seconds);
+  ctx.burst("goldRain", rect, ctx.defaultTone, "standard", 900);
+  await finished(drum.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.6) translateY(8px)" }], { duration: 420, fill: "forwards" }));
+  drum.remove();
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -876,6 +923,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
     // Cri (Cri du Chef) : ondes depuis cet avatar jusqu'au minuteur de chaque adversaire, voir playTimerShout.
     if (target.element === "timer" && effect === "shout" && hit.ui !== undefined) {
       jobs.push(playTimerShout(ctx, hit.ui, track.durationMs, color, intensity, track.label));
+      continue;
+    }
+    // Tambour (Tambour d'Appel) : trois coups de djembé qui rechargent le minuteur, voir playTimerDrum.
+    if (target.element === "timer" && effect === "drum" && hit.ui !== undefined) {
+      jobs.push(playTimerDrum(ctx, hit.ui, track.durationMs, color, track.label));
       continue;
     }
     if (target.element === "timer" || target.element === "avatar") {

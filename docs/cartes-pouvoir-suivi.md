@@ -32,7 +32,7 @@ Ordre par famille : la première carte d'une famille construit ce que les suivan
 ### 4. Temps
 - [ ] Sable du Temps — **en cours** : règle changée (−6 s au prochain tour de la cible, plus de gel) et mise en scène écrites, vérifiées dans le bac à sable ; reste publication (accord) et commit
 - [ ] Cri du Chef — **en cours** : mise en scène écrite (règle gardée), vérifiée dans le bac à sable ; reste publication (accord) et commit
-- [ ] Tambour d'Appel
+- [ ] Tambour d'Appel — **en cours** : mise en scène écrite (règle gardée), vérifiée dans le bac à sable ; reste publication (accord) et commit
 
 ### 5. Pot
 - [ ] Bénédiction du Chef
@@ -131,3 +131,5 @@ Briques ajoutées : publics de texte « la cible » et « ni le lanceur ni la ci
 - 2026-11-24 — Sable du Temps publiée en base de dev (rév. 2 = version du code).
 - 2026-11-24 — Cri du Chef mis en scène (règle gardée : si tu ouvres le pli avant tout coup, −3 s à chaque adversaire à son prochain tour). Annonce « CRI DU CHEF — Tous tes adversaires perdent 3 secondes », « {activator} pousse le cri du chef » chez les autres ; l'avatar du lanceur enfle, trois ondes sonores roses partent de lui sur la table ; chaque minuteur adverse touché tremble, flashe et « −3 s » s'en envole, dans l'ordre où l'onde l'atteint (nouvel effet de minuteur « Cri vers les adversaires ») ; textes pour le lanceur et les autres ; puis « ⏳ −3 s » sous chaque adversaire jusqu'à sa carte (la charge « secondes perdues » couvre désormais tous les adversaires). Vérifié dans le bac à sable (version du code, sans enregistrer) : 3 opérations « −3 s (au début de son tour) », ondes depuis l'avatar du lanceur, « −3s » sur les trois adversaires. Types, lint, tests OK. Reste : publier (accord), commit.
 - 2026-11-24 — Cri du Chef publiée en base de dev (rév. 2 = version du code).
+- 2026-11-24 — Tambour d'Appel mis en scène (règle gardée : +8 s à ton minuteur, tout de suite). Annonce « TAMBOUR D'APPEL — +8 secondes pour ce tour », « {activator} bat le tambour » chez les autres ; un djembé apparaît à côté de l'avatar du lanceur et bat trois coups ; à chaque coup la peau se creuse, un anneau doré part de l'avatar et le minuteur s'illumine un peu plus ; « +8 s » s'envole avec une pluie d'or (nouvel effet de minuteur « Tambour qui recharge ») ; textes pour le lanceur et les autres. Vérifié dans le bac à sable (version du code, sans enregistrer) : « Minuteur de Toi : +8 s », djembé à côté de l'avatar, anneau lumineux. Types, lint, tests OK. Reste : publier (accord), commit.
+- 2026-11-24 — Tambour d'Appel publiée en base de dev (rév. 2 = version du code). Famille « Temps » terminée.
