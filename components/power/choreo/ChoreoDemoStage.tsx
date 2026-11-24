@@ -322,7 +322,7 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
       ctx.animV2 = animV2;
       // {reason} : raison du conseil (Main du Griot), lanceur seulement ; exemple hors bac à sable.
       const advice = viewer === "activator" ? reason ?? "Bats le 7♣ au plus juste" : "";
-      await playChoreography(ctx, current, (text) => fillCardPlaceholders(text.replace("{activator}", viewer === "activator" ? "Toi" : "Le lanceur").replace("{target}", viewer === "target" ? "Toi" : "La cible").replace("{reason}", advice), outgoing, incoming, count));
+      await playChoreography(ctx, current, (text) => fillCardPlaceholders(text.replace("{activator}", viewer === "activator" ? "Toi" : "Le lanceur").replace("{target}", viewer === "target" ? "Toi" : "La cible").replace("{reason}", advice).replace("{suit}", "♥"), outgoing, incoming, count));
     } finally {
       setTimeout(() => { setHidden({}); setRound((value) => value + 1); }, 400);
       busy.current = false;

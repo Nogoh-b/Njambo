@@ -44,8 +44,9 @@ export const ELEMENT_EFFECTS = {
   card: ["lift", "pulse", "glow", "shake", "flip", "crack", "dissolve", "burn", "freeze", "shrink", "grow"],
   /* read : une lumière parcourt la main, les cartes écartées s'éteignent une à une (lanceur) ;
      advise : la carte conseillée (resolved:highlight) reçoit aura, badge « Conseil » et fil du temps (lanceur) ;
-     strike : la foudre tombe du haut de l'écran sur la main (éclair, flash, secousse, arcs sur les cartes). */
-  hand: ["fanOpen", "tighten", "shake", "glow", "veil", "ripple", "read", "advise", "strike"],
+     strike : la foudre tombe du haut de l'écran sur la main (éclair, flash, secousse, arcs sur les cartes) ;
+     dye : un pagne aux motifs colorés glisse sur la main et la teinte (changement de couleur). */
+  hand: ["fanOpen", "tighten", "shake", "glow", "veil", "ripple", "read", "advise", "strike", "dye"],
   deposit: ["pulse", "suck", "eject", "glow", "seal"],
   deck: ["pulse", "shuffle", "spit", "shake", "glow"],
   timer: ["freeze", "speedUp", "rewind", "crack", "blink", "tint", "delta"],

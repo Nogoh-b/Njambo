@@ -6,6 +6,8 @@
    - chez moi : la main crépite, chaque carte porte sa valeur renforcée (« 7 → 9 ») ;
    - chez les autres : un badge « ⚡ +2 » sur l'avatar du joueur chargé ;
    - à la pose : la foudre frappe la carte sur le tapis, puis la charge disparaît.
+   Changement de couleur (Pagne Changeant) : « ⇄ Prochaine carte en ♥ », « 7♣ → 7♥ » sur les cartes hors
+   tendance, « ⇄ ♥ » sous l'avatar, et une vague de pagne au lieu de la foudre.
    La charge vient de l'activation (le client ne reçoit pas les effets actifs du serveur) ;
    elle est consommée dès qu'une carte de ce joueur arrive sur son dépôt. */
 
@@ -22,6 +24,8 @@ export interface PowerCharge {
   /** Joueur chargé (index UI, 0 = moi). */
   ui: number;
   valueBonus: number;
+  /** Couleur que prend la prochaine carte (Pagne Changeant), à la place d'un bonus de valeur. */
+  suit?: string;
   tone?: string;
   /** Nombre de cartes sur son dépôt à la charge : une carte de plus = carte jouée. */
   depositLen: number;
@@ -29,7 +33,7 @@ export interface PowerCharge {
 
 interface Badge { key: string; x: number; y: number; rotate: number; text: string }
 interface Frame { key: string; ui: number; x: number; y: number; w: number; h: number; kind: "hand" | "avatar"; text: string; color: string }
-interface Strike { key: string; x: number; y: number; w: number; h: number; color: string }
+interface Strike { key: string; x: number; y: number; w: number; h: number; color: string; dye: boolean }
 
 export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, registry, getPlayers, maxValue, motion, onConsumed }: {
   charges: PowerCharge[];
@@ -64,7 +68,7 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
           done.add(charge.key);
           const top = deposit.length > charge.depositLen ? registry.deposit(charge.ui)?.getTopCardRect() : null;
           if (top && motion) {
-            const strike = { key: charge.key, x: top.left, y: top.top, w: top.width, h: top.height, color };
+            const strike = { key: charge.key, x: top.left, y: top.top, w: top.width, h: top.height, color, dye: !charge.valueBonus };
             setStrikes((current) => [...current, strike]);
             setTimeout(() => setStrikes((current) => current.filter((item) => item.key !== strike.key)), STRIKE_MS);
           }
@@ -74,16 +78,21 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
         if (charge.ui === 0) {
           const hand = registry.hand(0);
           const rect = hand?.getRect();
-          if (rect) nextFrames.push({ key: charge.key, ui: 0, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "hand", text: `+${charge.valueBonus}`, color });
+          if (rect) nextFrames.push({ key: charge.key, ui: 0, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "hand", text: charge.valueBonus ? `⚡ Prochaine carte +${charge.valueBonus}` : `⇄ Prochaine carte en ${charge.suit ?? "couleur demandée"}`, color });
           (players[0]?.hand ?? []).forEach((card, index) => {
             const box = cardBox(registry, index);
             if (!box) return;
+            if (!charge.valueBonus) {
+              // Changement de couleur : seules les cartes hors tendance changent.
+              if (charge.suit && card.suit !== charge.suit) nextBadges.push({ key: `${charge.key}-${card.id}`, x: box.x, y: box.y + box.height * 0.32, rotate: box.rotate, text: `${card.rank}${card.suit} → ${card.rank}${charge.suit}` });
+              return;
+            }
             const boosted = Math.min(maxValue, card.value + charge.valueBonus);
             nextBadges.push({ key: `${charge.key}-${card.id}`, x: box.x, y: box.y + box.height * 0.32, rotate: box.rotate, text: boosted > card.value ? `${card.value} → ${boosted}` : `${card.value} max` });
           });
         } else {
           const rect = registry.timer(charge.ui)?.getRect();
-          if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "avatar", text: `+${charge.valueBonus}`, color });
+          if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "avatar", text: charge.valueBonus ? `⚡ +${charge.valueBonus}` : `⇄ ${charge.suit ?? "couleur"}`, color });
         }
       }
       const key = JSON.stringify([nextFrames.map((f) => [f.key, Math.round(f.x), Math.round(f.y), Math.round(f.w)]), nextBadges.map((b) => [b.key, Math.round(b.x), Math.round(b.y), Math.round(b.rotate), b.text])]);
@@ -102,17 +111,17 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
           <i className={styles.spark} style={{ left: "12%", animationDelay: "0ms" }} />
           <i className={styles.spark} style={{ left: "48%", animationDelay: "420ms" }} />
           <i className={styles.spark} style={{ left: "82%", animationDelay: "860ms" }} />
-          <span className={styles.handTag}>⚡ Prochaine carte {frame.text}</span>
+          <span className={styles.handTag}>{frame.text}</span>
         </div>
       ) : (
-        <span key={frame.key} className={styles.avatarTag} style={{ left: frame.x + frame.w / 2, top: frame.y + frame.h, "--charge-color": frame.color } as CSSProperties}>⚡ {frame.text}</span>
+        <span key={frame.key} className={styles.avatarTag} style={{ left: frame.x + frame.w / 2, top: frame.y + frame.h, "--charge-color": frame.color } as CSSProperties}>{frame.text}</span>
       ))}
       {charges.length > 0 && badges.map((badge) => (
         <span key={badge.key} className={styles.value} style={{ left: badge.x, top: badge.y, transform: `translate(-50%, -50%) rotate(${badge.rotate}deg)` }}>{badge.text}</span>
       ))}
       {strikes.map((strike) => (
-        <div key={strike.key} className={styles.strike} style={{ left: strike.x, top: strike.y, width: strike.w, height: strike.h, "--charge-color": strike.color } as CSSProperties}>
-          <svg className={styles.bolt} viewBox="0 0 40 200" preserveAspectRatio="none"><path d="M24 0 L10 86 L22 90 L8 200 L34 72 L22 68 L32 0 Z" /></svg>
+        <div key={strike.key} className={`${styles.strike} ${strike.dye ? styles.dye : ""}`} style={{ left: strike.x, top: strike.y, width: strike.w, height: strike.h, "--charge-color": strike.color } as CSSProperties}>
+          {!strike.dye && <svg className={styles.bolt} viewBox="0 0 40 200" preserveAspectRatio="none"><path d="M24 0 L10 86 L22 90 L8 200 L34 72 L22 68 L32 0 Z" /></svg>}
           <span className={styles.flash} />
         </div>
       ))}

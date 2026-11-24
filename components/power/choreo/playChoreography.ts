@@ -498,6 +498,33 @@ async function playHandStrike(ctx: ChoreoContext, ui: number, durationMs: number
   flash.remove();
 }
 
+/** Pagne : un tissu aux motifs colorés glisse sur la main de gauche à droite, la teinte un instant, puis se retire. */
+async function playHandDye(ctx: ChoreoContext, ui: number, durationMs: number, color: string) {
+  const hand = ctx.registry.hand(ui);
+  const rect = hand?.getRect();
+  const host = ctx.layer.container();
+  if (!hand || !rect || !host) return;
+  const clip = document.createElement("div");
+  clip.setAttribute("data-choreo-fx", "dye");
+  // Voile translucide : les cartes restent lisibles à travers le tissu.
+  Object.assign(clip.style, { position: "absolute", left: `${rect.left - 14}px`, top: `${rect.top - 14}px`, width: `${rect.width + 28}px`, height: `${rect.height + 28}px`, overflow: "hidden", borderRadius: "20px", pointerEvents: "none" });
+  const cloth = document.createElement("div");
+  Object.assign(cloth.style, {
+    position: "absolute", inset: "0", width: "220%",
+    background: `repeating-linear-gradient(115deg, ${color} 0 14px, #f2bb45 14px 22px, #ff5b82 22px 34px, #1de4be 34px 42px, ${color} 42px 52px, #fff7dc 52px 55px)`,
+    opacity: "0.38",
+  });
+  clip.appendChild(cloth);
+  host.appendChild(clip);
+  const glide = cloth.animate([{ transform: "translateX(-100%)" }, { transform: "translateX(-25%)", offset: 0.55 }, { transform: "translateX(0%)" }], { duration: durationMs, easing: "cubic-bezier(.3,0,.25,1)", fill: "forwards" });
+  const fade = clip.animate([{ opacity: 0 }, { opacity: 1, offset: 0.15 }, { opacity: 1, offset: 0.7 }, { opacity: 0 }], { duration: durationMs, fill: "forwards" });
+  const el = hand.getElement?.();
+  const tint = el && !ctx.lite ? el.animate([{ filter: "none" }, { filter: `drop-shadow(0 0 10px ${color}) saturate(1.4)`, offset: 0.5 }, { filter: "none" }], { duration: durationMs }) : null;
+  ctx.burst("mystic", rect, ctx.defaultTone, "standard", Math.min(1100, durationMs));
+  await Promise.all([finished(glide), finished(fade), tint ? finished(tint) : Promise.resolve()]);
+  clip.remove();
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -523,10 +550,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
   const jobs: Promise<void>[] = [];
   for (const hit of hits) {
     // Lecture de la main / carte conseillée (Main du Griot) : rendus propres, voir plus bas.
-    if (target.element === "hand" && hit.ui !== undefined && (effect === "read" || effect === "advise" || effect === "strike")) {
+    if (target.element === "hand" && hit.ui !== undefined && (effect === "read" || effect === "advise" || effect === "strike" || effect === "dye")) {
       jobs.push(effect === "read" ? playHandRead(ctx, hit.ui, track.durationMs, color)
         : effect === "advise" ? playHandAdvice(ctx, hit.ui, track.durationMs, color)
-          : playHandStrike(ctx, hit.ui, track.durationMs, color, intensity));
+          : effect === "strike" ? playHandStrike(ctx, hit.ui, track.durationMs, color, intensity)
+            : playHandDye(ctx, hit.ui, track.durationMs, color));
       continue;
     }
     // Effets « métier » délégués aux zones (rendu propre déjà existant).

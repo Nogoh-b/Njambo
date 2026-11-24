@@ -66,6 +66,8 @@ export interface OrchestratorDeps {
   /** seat moteur (resolved.targetSeats) → index UI. */
   uiIndexFromSeat(seat: number): number;
   getPlayers(): GameState["players"];
+  /** Couleur demandée du pli en cours (Pagne Changeant : la prochaine carte la prend). */
+  getLedSuit?(): string | null;
   /** Son d'activation. */
   playSfx(): void;
   /** Secousse d'impact table. */
@@ -225,12 +227,13 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     if (!activation.used) return; // sans effet → pas de cues
 
     // Prochaine carte renforcée : la charge s'affiche après l'annonce et la mise en scène d'activation.
-    const boost = powerModule.script.steps.flatMap((step) => step.ops ?? []).find((op) => op.op === "boostNextCard" && op.player === "self" && op.valueBonus);
+    const boost = powerModule.script.steps.flatMap((step) => step.ops ?? []).find((op) => op.op === "boostNextCard" && op.player === "self" && (op.valueBonus || op.suitOverride));
     if (boost && boost.op === "boostNextCard" && activatorUi != null) {
       const charge: PowerCharge = {
         key: activation.playId,
         ui: activatorUi,
         valueBonus: boost.valueBonus ?? 0,
+        suit: boost.suitOverride ? d.getLedSuit?.() ?? undefined : undefined,
         tone: def.tone,
         depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
       };
@@ -705,7 +708,9 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
           };
           // {reason} : pourquoi la carte conseillée (lanceur seulement).
           const reason = mine ? resolved?.highlight?.reason ?? "" : "";
-          await playChoreography(choreoCtx, step.choreo, (text) => fillCardPlaceholders(fillPlaceholders(text).replace("{reason}", reason), mine ? swapOutgoing : null, mine ? swapIncoming : null, swapCount));
+          // {suit} : couleur demandée du pli (Pagne Changeant).
+          const ledSuit = d.getLedSuit?.() ?? "";
+          await playChoreography(choreoCtx, step.choreo, (text) => fillCardPlaceholders(fillPlaceholders(text).replace("{reason}", reason).replace("{suit}", ledSuit), mine ? swapOutgoing : null, mine ? swapIncoming : null, swapCount));
           if (movingCuesDone >= movingCueCount) await commitTransition();
         }
         if (beats.stepGapMs) await sleep(beats.stepGapMs);

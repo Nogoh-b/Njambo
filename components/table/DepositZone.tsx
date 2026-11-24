@@ -179,7 +179,7 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
                   <span>
                     {c.effectiveValue != null && c.effectiveValue !== c.value
                       ? `${c.value}→${c.effectiveValue}`
-                      : (c.effectiveSuit ?? "")}
+                      : c.effectiveSuit ? `${c.suit}→${c.effectiveSuit}` : ""}
                   </span>
                 </div>
               )}

@@ -93,6 +93,17 @@
   animation: flash 900ms ease-out both;
 }
 
+/* Changement de couleur (Pagne Changeant) : vague de pagne au lieu de la foudre. */
+.dye .flash {
+  inset: -45%;
+  background:
+    radial-gradient(circle, transparent 30%, rgba(4, 10, 20, 0) 62%),
+    repeating-conic-gradient(from 0deg, var(--charge-color) 0deg 14deg, #f2bb45 14deg 28deg, #ff5b82 28deg 42deg, #1de4be 42deg 56deg);
+  -webkit-mask: radial-gradient(circle, transparent 28%, #000 32%, #000 52%, transparent 60%);
+  mask: radial-gradient(circle, transparent 28%, #000 32%, #000 52%, transparent 60%);
+  animation: dyeWave 900ms ease-out both;
+}
+
 .still .hand, .still .avatarTag { animation: none; }
 .still .spark { display: none; }
 
@@ -118,6 +129,11 @@
   30% { opacity: 1; clip-path: inset(0 0 0 0); }
   60% { opacity: 1; }
   100% { opacity: 0; }
+}
+@keyframes dyeWave {
+  0% { opacity: 0; transform: scale(.3) rotate(0deg); }
+  30% { opacity: 1; }
+  100% { opacity: 0; transform: scale(1.5) rotate(90deg); }
 }
 @keyframes flash {
   0%, 25% { opacity: 0; transform: scale(.4); }

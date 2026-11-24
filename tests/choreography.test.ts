@@ -221,6 +221,17 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     // La règle reste : +2 sur la prochaine carte.
     expect(eclair.script.steps[0].ops).toEqual([{ op: "boostNextCard", player: "self", valueBonus: 2 }]);
   });
+  it("Pagne Changeant : pagne sur la main, couleur demandée ; script valide, règle inchangée", () => {
+    const pagne = CODE_POWER_MODULES.pagne_changeant;
+    expect(validatePowerCard({ def: pagne.def, script: pagne.script } as never)).toEqual([]);
+    expect(pagne.def.activationTextOthers).toContain("{activator}");
+    const choreo = pagne.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(3_500);
+    expect(choreo.tracks.some((track) => track.kind === "element" && track.effect === "dye")).toBe(true);
+    expect(choreo.tracks.filter((track) => track.kind === "text").every((track) => (track as { text: string }).text.includes("{suit}"))).toBe(true);
+    expect(pagne.script.steps[0].ops).toEqual([{ op: "boostNextCard", player: "self", suitOverride: "led" }]);
+    expect(pagne.script.conditions).toEqual([{ kind: "ledSuitKnown" }, { kind: "activatorLacksLedSuit" }]);
+  });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;
     expect(validatePowerCard({ def: pacte.def, script: pacte.script } as never)).toEqual([]);
