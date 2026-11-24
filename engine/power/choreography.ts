@@ -135,6 +135,22 @@ export type ChoreoTrack =
       volume?: number;
     })
   | (TrackBase & {
+      /** Vrai déplacement de cartes d'une zone à une autre, animé par un modèle V2 (zones intelligentes) :
+       *  les zones donnent les poses (place exacte, inclinaison, taille), le modèle le mouvement.
+       *  `durationMs` = place prévue sur la ligne de temps ; le vol réel suit le modèle. */
+      kind: "v2";
+      cards: "resolved:outgoing" | "resolved:incoming";
+      from: V2ZoneAnchor;
+      to: V2ZoneAnchor;
+      /** Modèle V2 ; absent = celui de la carte (onglet Animation), sinon « Fluide ». */
+      model?: string;
+      /** Présentation avant le vol : la carte se lève au-dessus de sa zone de départ (décalage en % de l'écran),
+       *  se retourne si le joueur a le droit de la voir, et attend `holdMs`. */
+      present?: { holdMs: number; dx?: number; dy?: number; scale?: number };
+      /** Réorganiser les mains (défaut : oui). Non pour un échange : la nouvelle carte se pose dans la place laissée vide. */
+      reflow?: boolean;
+    })
+  | (TrackBase & {
       /** Modèle de l'atelier d'animations (phase G). `durationMs` = durée du vol d'UNE carte. */
       kind: "motif";
       motifId: string;
@@ -145,6 +161,17 @@ export type ChoreoTrack =
     });
 
 export type MotifTrack = ChoreoTrack & { kind: "motif" };
+export type V2Track = ChoreoTrack & { kind: "v2" };
+
+/** Zones qu'une piste V2 sait relier (leurs poses viennent du registre de zones). */
+export type V2ZoneAnchor =
+  | { zone: "hand" | "deposit"; player: PlayerRef }
+  | { zone: "deck" | "pot" };
+
+/** Montée de la présentation d'une piste V2 (avant la pause au-dessus de la zone de départ). */
+export const V2_PRESENT_RISE_MS = 420;
+/** Modèle V2 utilisé quand ni la piste ni la carte n'en choisissent un. */
+export const DEFAULT_V2_MODEL = "v2_fluide";
 
 export const TEXT_AUDIENCES = ["all", "activator", "others"] as const;
 export type TextAudience = (typeof TEXT_AUDIENCES)[number];
@@ -283,6 +310,24 @@ export function validateChoreography(value: unknown, base: string): ChoreoIssue[
         if (typeof track.sound !== "string" || !isSoundRefLike(track.sound)) issues.push({ path: `${path}.sound`, message: "Son : préréglage ou fichier uploadé." });
         if (track.volume !== undefined && !isNum(track.volume, 0, 1)) issues.push({ path: `${path}.volume`, message: "Volume : 0 à 100 %." });
         break;
+      case "v2": {
+        if (!["resolved:outgoing", "resolved:incoming"].includes(String(track.cards))) issues.push({ path: `${path}.cards`, message: "Cartes : celles qui partent ou celles qui arrivent." });
+        for (const key of ["from", "to"] as const) {
+          const zone = obj(track[key]);
+          if (["hand", "deposit"].includes(String(zone.zone))) {
+            if (!PLAYER_REFS.includes(String(zone.player))) issues.push({ path: `${path}.${key}.player`, message: "Joueur inconnu." });
+          } else if (!["deck", "pot"].includes(String(zone.zone))) issues.push({ path: `${path}.${key}.zone`, message: "Zone : main, dépôt, pioche ou pot." });
+        }
+        if (track.model !== undefined && (typeof track.model !== "string" || !/^[a-z0-9_]{3,48}$/.test(track.model))) issues.push({ path: `${path}.model`, message: "Modèle V2 : identifiant de 3 à 48 caractères a-z, 0-9 ou _." });
+        if (track.present !== undefined) {
+          const present = obj(track.present);
+          if (!isInt(present.holdMs, 0, 3000)) issues.push({ path: `${path}.present.holdMs`, message: "Pause : 0 à 3 s." });
+          for (const key of ["dx", "dy"]) if (present[key] !== undefined && !isNum(present[key], -CHOREO_LIMITS.offset, CHOREO_LIMITS.offset)) issues.push({ path: `${path}.present.${key}`, message: "Décalage : −50 à 50 %." });
+          if (present.scale !== undefined && !isNum(present.scale, 0.5, 3)) issues.push({ path: `${path}.present.scale`, message: "Échelle : 0,5 à 3." });
+        }
+        if (track.reflow !== undefined && typeof track.reflow !== "boolean") issues.push({ path: `${path}.reflow`, message: "Réorganiser les mains : oui ou non." });
+        break;
+      }
       case "motif": {
         if (!["resolved:outgoing", "resolved:incoming", "resolved:highlight", "ghost"].includes(String(track.cards))) issues.push({ path: `${path}.cards`, message: "Cartes animées inconnues." });
         if (track.mode !== "move" && track.mode !== "display") issues.push({ path: `${path}.mode`, message: "Nature : déplacement réel ou visuel." });
@@ -312,6 +357,7 @@ export function choreographyDuration(choreo: Choreography): number {
       const motif = motifOfTrack(track);
       return Math.max(max, track.startMs + (motif ? motifTotalMs(motif) : track.durationMs));
     }
+    if (track.kind === "v2") return Math.max(max, track.startMs + track.durationMs + (track.present ? V2_PRESENT_RISE_MS + track.present.holdMs : 0));
     return Math.max(max, track.startMs + track.durationMs + (track.kind === "cardPath" ? (track.waypoints ?? []).reduce((sum, point) => sum + (point.holdMs ?? 0), 0) : 0));
   }, 0);
 }

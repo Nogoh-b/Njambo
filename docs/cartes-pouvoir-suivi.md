@@ -15,7 +15,7 @@ Ordre par famille : la première carte d'une famille construit ce que les suivan
 
 ### 1. Main et pioche
 - [ ] Vent du Nord — **en cours** : publiée (rév. 4 en base de dev) et vérifiée en partie ; reste ton avis visuel et le commit
-- [ ] Marché de Nuit
+- [ ] Marché de Nuit — **en cours** : publiée (rév. 2 en base de dev), vérifiée en partie ; reste ton avis visuel et le commit
 - [ ] Troc Ciblé
 - [ ] Pacte des Mains
 - [ ] Main du Griot
@@ -75,6 +75,16 @@ Ordre par famille : la première carte d'une famille construit ce que les suivan
 
 Briques réutilisables ajoutées : texte de piste réservé au lanceur ou aux autres (`audience`), teinte « verdict » (`verdictTone`), repères `{outgoing}` `{incoming}` `{delta}`, carte toujours de dos pour qui ne la connaît pas, bac à sable « vu par le lanceur / un adversaire » avec l'annonce, bouton admin « Version du code ». Le modèle V2 n'est plus nécessaire : la chorégraphie pilote déjà les trajectoires.
 
+### Marché de Nuit (`config/powers/marche_nuit.ts`)
+
+**Règle gardée** : épique, 60 cauris / 1 000 Nkap. Ta plus faible carte part au fond de la pioche ; la première carte de la pioche plus forte qu'elle la remplace. Aucune carte plus forte : la carte n'est pas consommée (annonce « SANS EFFET »).
+
+**Mise en scène (V2 dans la chorégraphie)** — l'échange SÛR, face au pari de Vent du Nord :
+1. Annonce « MARCHÉ DE NUIT — Ta plus faible carte contre le meilleur de l'étal » ; les autres lisent « {activator} fait son marché ».
+2. Ta carte faible part dans la pioche (piste V2, sans réorganisation de la main).
+3. L'étal : quatre cartes de dos s'ouvrent en éventail au-dessus de la pioche ; la carte choisie se lève au milieu, plus grande, se retourne (présentation V2, 1,1 s), pluie dorée, « Le meilleur de l'étal » (les autres : « {activator} choisit sa carte ») ; les cartes de dos retournent dans la pioche.
+4. La carte choisie rejoint la place vide (V2) ; verdict « 3♥ → 8♦ +5 », toujours vert.
+
 ## Journal
 
 - 2026-11-23 — Fichier créé. Méthode et ordre par famille fixés. Fiche de Vent du Nord rédigée, en attente des choix de règle.
@@ -84,3 +94,6 @@ Briques réutilisables ajoutées : texte de piste réservé au lanceur ou aux au
 - 2026-11-23 — Corrigé : une carte de dos restait immobile ~3,5 s au-dessus de la pioche. Cause : l'effet « crache » (`spit`) de la pioche fait jaillir une carte fantôme, et toutes les cartes de chorégraphie ne disparaissaient qu'à la fin de l'animation. Désormais, une carte fantôme, ou une carte qui entre dans la pioche ou le pot, s'efface à l'arrivée (0,22 s) ; Vent du Nord n'utilise plus `spit` (la vraie carte sort déjà de la pioche). Vérifié dans le bac à sable. Note : une partie lancée n'utilise pas ce prototype tant que la carte n'est pas publiée (base de dev : révision 3).
 - 2026-11-23 — Vent du Nord publiée en révision 4 (base de dev) = version du code, champ pour champ. Comparaison « Version du code » rendue insensible à l'ordre des clés (Postgres/jsonb les réordonne). Essai en partie contre l'IA : lancement depuis « Mon deck », annonce « VENT LEVÉ — Ta plus faible carte part au vent… », 3♠ vers la pioche, 5♥ retourné au-dessus, « 3♠ → 5♥ +2 » en vert. Corrigé au passage (toutes les cartes, parties serveur) : la nouvelle main arrivait par le canal privé AVANT la réponse du serveur à l'activation, et s'affichait pendant l'annonce (la carte reçue était visible avant l'animation). `AuthoritativeGameSync` retient désormais cette main tant que mon pouvoir est en cours ; vérifié : la main garde le 3♠ jusqu'à la fin de l'animation (7,4 s).
 - 2026-11-23 — Rangement dans la main (toutes les chorégraphies) : une carte qui part d'une main ou y arrive prend exactement la place de l'éventail (pose V2 : centre, largeur, inclinaison, soulèvement), même si elle vole en grand entre-temps ; l'échelle et la rotation d'un point posé sur la main sont relatives à cette place. Vérifié en partie : 8♠ tiré, posé à 297,576 / 78 px / 4° ; la vraie carte ensuite à 298,575 / 78 px (≈ 1 px d'écart). Avant : 62 px et droite.
+- 2026-11-23 — Commit 7566694 (Vent du Nord, lancement, chorégraphies, sync, admin).
+- 2026-11-23 — Piste « Modèle V2 » dans les chorégraphies (la piste V2 prévue « plus tard » en V2-5) : vrai déplacement par un modèle V2 (celui de la carte, sinon « Fluide »), présentation facultative au-dessus de la zone de départ, réorganisation des mains réglable ; éditeur admin. Vent du Nord passé en V2 (départ et tirage). Marché de Nuit mis en scène (étal, choix, verdict). Bac à sable : Marché de Nuit joue l'étal, le choix et « 3♥ → 8♦ +5 ». Types (front, functions, server), lint et tests OK. Reste : publier les deux cartes et essayer en partie.
+- 2026-11-23 — Publiées en base de dev : Marché de Nuit rév. 2, Vent du Nord rév. 5 (pistes V2), identiques au code. Partie contre l'IA, Marché de Nuit : annonce, 6♠ vers la pioche, étal de 4 cartes de dos, 8♥ levé et retourné au milieu avec « Le meilleur de l'étal », cartes de dos rentrées, 8♥ posé à la place du 6♠, « 6♠ → 8♥ +2 » en vert ; main inchangée jusqu'à la fin (9,6 s). Vent du Nord rév. 5 pas rejouée en partie (même piste V2, vérifiée via Marché de Nuit).

@@ -26,6 +26,10 @@ export interface AnimV2Move {
   /** `count` : nombre de cartes de la zone d'arrivée APRÈS le mouvement (main : sa nouvelle disposition).
    *  `cardId` : carte posée sur un dépôt, pour viser sa place exacte (son jeté). */
   to: ZoneRef & { index: number; count?: number; cardId?: string };
+  /** Point libre (au-dessus d'une zone, par exemple) à la place de la pose de la zone de départ / d'arrivée :
+   *  la zone n'est alors ni masquée, ni réorganisée, ni animée de ce côté-là. */
+  fromPose?: ZonePose;
+  toPose?: ZonePose;
 }
 
 export interface AnimV2Run {
@@ -40,6 +44,10 @@ export interface AnimV2Run {
   reflow?: boolean;
   /** Appelé à l'atterrissage de chaque carte (index dans `moves`). */
   onLanded?(k: number): void;
+  /** Appelé une fois, quand les cartes volantes sont dessinées pour la première fois (relais sans à-coup). */
+  onFirstFrame?(): void;
+  /** Identifiants des cartes volantes, dès leur création (pour les retirer plus tard avec `layer.removeCard`). */
+  onSpawned?(spriteIds: string[]): void;
 }
 
 interface Flight {
@@ -120,7 +128,7 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
 
   // Poses au décollage (avant toute réorganisation) ; un mouvement sans zone est ignoré.
   const planned = run.moves
-    .map((move, k) => ({ move, k, from: zonePoseOf(registry, move.from, move.from.index), to: zonePoseOf(registry, move.to, move.to.index, move.to.count, move.to.cardId) }))
+    .map((move, k) => ({ move, k, from: move.fromPose ?? zonePoseOf(registry, move.from, move.from.index), to: move.toPose ?? zonePoseOf(registry, move.to, move.to.index, move.to.count, move.to.cardId) }))
     .filter((item): item is { move: AnimV2Move; k: number; from: ZonePose; to: ZonePose } => !!item.from && !!item.to);
   if (planned.length === 0) return;
 
@@ -138,18 +146,23 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
   }));
   if (flights.length === 0) return;
   flights.sort((a, b) => a.k - b.k);
+  run.onSpawned?.(flights.map((flight) => flight.spriteId));
 
   // Zones touchées : la carte de départ s'efface (son sprite la remplace), les mains se réorganisent.
   const leaving = new Map<string, { ref: ZoneRef; indexes: number[]; flight: Flight }>();
   const entering = new Map<string, { ref: ZoneRef; count: number; flight: Flight }>();
   for (const flight of flights) {
     const { move } = flight;
-    const from = leaving.get(zoneKey(move.from)) ?? { ref: move.from, indexes: [], flight };
-    from.indexes.push(move.from.index);
-    leaving.set(zoneKey(move.from), from);
-    const to = entering.get(zoneKey(move.to)) ?? { ref: move.to, count: 0, flight };
-    to.count += 1;
-    entering.set(zoneKey(move.to), to);
+    if (!move.fromPose) {
+      const from = leaving.get(zoneKey(move.from)) ?? { ref: move.from, indexes: [], flight };
+      from.indexes.push(move.from.index);
+      leaving.set(zoneKey(move.from), from);
+    }
+    if (!move.toPose) {
+      const to = entering.get(zoneKey(move.to)) ?? { ref: move.to, count: 0, flight };
+      to.count += 1;
+      entering.set(zoneKey(move.to), to);
+    }
   }
   const hideFor = timeline.totalMs + 2500;
   for (const { ref, indexes, flight } of leaving.values()) {
@@ -164,7 +177,7 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
     const elapsed = now - start;
     // 1. Lectures (poses des zones), 2. écritures : une seule mise en page par image.
     const frames = flights.map((flight) => {
-      if (elapsed < model.motion.durationMs) flight.to = zonePoseOf(registry, flight.move.to, flight.move.to.index, flight.move.to.count, flight.move.to.cardId) ?? flight.to;
+      if (elapsed < model.motion.durationMs && !flight.move.toPose) flight.to = zonePoseOf(registry, flight.move.to, flight.move.to.index, flight.move.to.count, flight.move.to.cardId) ?? flight.to;
       return { flight, frame: sampleAnimV2(model, flight.from, flight.to, elapsed) };
     });
 
@@ -193,8 +206,9 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
         flight.landed = true;
         run.onLanded?.(flight.k);
       }
-      applyFrame(flight, frame, width, frame.phase === "landed" && swallows(flight.move, flight.to));
+      applyFrame(flight, frame, width, frame.phase === "landed" && !flight.move.toPose && swallows(flight.move, flight.to));
     }
+    if (now === start) run.onFirstFrame?.();
     if (elapsed >= timeline.totalMs) break;
   }
   if (run.release === "end" || run.release === "landing") flights.forEach((flight) => ctx.layer.removeCard(flight.spriteId));

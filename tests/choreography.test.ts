@@ -131,6 +131,26 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(paths(text({ audience: "tous" }))).toEqual(["c.tracks.0.audience"]);
     expect(paths(text({ verdictTone: "oui" }))).toEqual(["c.tracks.0.verdictTone"]);
   });
+  it("piste V2 : zones, modèle, présentation et réorganisation validés ; durée = vol + montée + pause", () => {
+    const v2 = (extra: object) => ({ tracks: [{ id: "t", kind: "v2", startMs: 100, durationMs: 690, cards: "resolved:incoming", from: { zone: "deck" }, to: { zone: "hand", player: "self" }, ...extra }] });
+    expect(paths(v2({ present: { holdMs: 600, dy: -14, scale: 1.4 }, reflow: false, model: "v2_fluide" }))).toEqual([]);
+    expect(paths(v2({ cards: "ghost" }))).toEqual(["c.tracks.0.cards"]);
+    expect(paths(v2({ to: { zone: "timer", player: "self" } }))).toEqual(["c.tracks.0.to.zone"]);
+    expect(paths(v2({ from: { zone: "hand", player: "personne" } }))).toEqual(["c.tracks.0.from.player"]);
+    expect(paths(v2({ present: { holdMs: 5000, scale: 9 } }))).toEqual(["c.tracks.0.present.holdMs", "c.tracks.0.present.scale"]);
+    expect(paths(v2({ model: "Pas Bon!" }))).toEqual(["c.tracks.0.model"]);
+    expect(choreographyDuration(v2({}) as Choreography)).toBe(790);
+    expect(choreographyDuration(v2({ present: { holdMs: 600 } }) as Choreography)).toBe(100 + 690 + 420 + 600);
+  });
+  it("Marché de Nuit : étal, choix en V2, verdict ; textes du lanceur et des autres", () => {
+    const marche = CODE_POWER_MODULES.marche_nuit;
+    expect(validatePowerCard({ def: marche.def, script: marche.script } as never)).toEqual([]);
+    const choreo = marche.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(6_000);
+    expect(choreo.tracks.filter((track) => track.kind === "v2").map((track) => track.id)).toEqual(["depart", "choix"]);
+    expect(choreo.tracks.filter((track) => track.kind === "cardPath" && track.cards === "ghost")).toHaveLength(4);
+    expect(marche.def.activationTextOthers).toContain("{activator}");
+  });
   it("Vent du Nord : la mise en scène en 4 temps est valide et tient en 5 s", () => {
     const vent = CODE_POWER_MODULES.vent_nord;
     expect(validatePowerCard({ def: vent.def, script: vent.script } as never)).toEqual([]);
@@ -138,5 +158,7 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     const choreo = vent.script.steps[0].choreo!;
     expect(choreographyDuration(choreo)).toBeLessThanOrEqual(5_000);
     expect(choreo.tracks.filter((track) => track.kind === "text").map((track) => (track as { audience?: string }).audience)).toEqual(["activator", "others"]);
+    // Vrais déplacements en V2, sans réorganisation (échange en place).
+    expect(choreo.tracks.filter((track) => track.kind === "v2").map((track) => [track.id, (track as { reflow?: boolean }).reflow])).toEqual([["depart", false], ["tirage", false]]);
   });
 });

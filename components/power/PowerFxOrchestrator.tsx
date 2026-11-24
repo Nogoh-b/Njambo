@@ -218,7 +218,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     if (!activation.used) return; // sans effet → pas de cues
 
     const hasStatefulFlight = powerModule.script.steps.some((step) => step.choreo
-      ? step.choreo.tracks.some((track) => (track.kind === "cardPath" || track.kind === "motif") && track.mode === "move")
+      ? step.choreo.tracks.some((track) => track.kind === "v2" || ((track.kind === "cardPath" || track.kind === "motif") && track.mode === "move"))
       : (step.anim ?? []).some((cue) => cue.cue === "flyCards" && cue.mode === "move"));
     // Les vols `move` sont fonctionnels : même le profil lite doit les jouer,
     // avec FlyingCard sans traînée/effets coûteux. Seul le toggle global ou la
@@ -427,7 +427,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     const beats = script.beats ?? {};
     const movingCueCount = script.steps.reduce(
       (count, step) => count + (step.choreo
-        ? step.choreo.tracks.filter((track) => (track.kind === "cardPath" || track.kind === "motif") && track.mode === "move").length
+        ? step.choreo.tracks.filter((track) => track.kind === "v2" || ((track.kind === "cardPath" || track.kind === "motif") && track.mode === "move")).length
         : (step.anim ?? []).filter((cue) => cue.cue === "flyCards" && cue.mode === "move").length),
       0,
     );
@@ -656,6 +656,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
             },
             onMoveEnd: () => { movingCuesDone += 1; },
             viewer: mine ? "activator" : "others",
+            animV2: def.animV2,
             verdict: mine ? swapDelta(swapOutgoing, swapIncoming) : null,
           };
           await playChoreography(choreoCtx, step.choreo, (text) => fillCardPlaceholders(fillPlaceholders(text), mine ? swapOutgoing : null, mine ? swapIncoming : null));

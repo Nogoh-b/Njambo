@@ -241,7 +241,7 @@ function DemoCenter() {
 export interface ChoreoDemoHandle {
   /** Rejoue la chorégraphie (ou celle passée en paramètre). `cards` remplace
    *  les cartes de démonstration par les cartes calculées (bac à sable). */
-  play(override?: Choreography | null, cards?: Partial<Record<string, Card[]>>, viewer?: "activator" | "others"): Promise<void>;
+  play(override?: Choreography | null, cards?: Partial<Record<string, Card[]>>, viewer?: "activator" | "others", animV2?: string): Promise<void>;
   /** Joue un modèle de l'atelier seul (même brouillon non publié), puis remet la table en place. */
   playMotif(motif: AnimMotif): Promise<void>;
   /** Joue un modèle V2 sur un trajet d'essai, puis remet la table en place. */
@@ -297,7 +297,7 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
     return ctx;
   }, [hide, registry, tone]);
 
-  const play = useCallback(async (override?: Choreography | null, cards?: Partial<Record<string, Card[]>>, viewer: "activator" | "others" = "activator") => {
+  const play = useCallback(async (override?: Choreography | null, cards?: Partial<Record<string, Card[]>>, viewer: "activator" | "others" = "activator", animV2?: string) => {
     const current = override ?? choreo;
     if (!current || busy.current || !layerRef.current) return;
     busy.current = true;
@@ -312,6 +312,7 @@ export const ChoreoDemoStage = forwardRef<ChoreoDemoHandle, { choreo: Choreograp
       const outgoing = viewer === "activator" ? cardsOf("resolved:outgoing").snapshots[0] : null;
       const incoming = viewer === "activator" ? cardsOf("resolved:incoming").snapshots[0] : null;
       ctx.verdict = swapDelta(outgoing, incoming);
+      ctx.animV2 = animV2;
       await playChoreography(ctx, current, (text) => fillCardPlaceholders(text.replace("{activator}", viewer === "others" ? "Le lanceur" : "Toi").replace("{target}", "La cible"), outgoing, incoming));
     } finally {
       setTimeout(() => { setHidden({}); setRound((value) => value + 1); }, 400);

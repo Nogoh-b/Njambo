@@ -7,14 +7,19 @@
    ne dépendent jamais de la mise en scène). */
 
 import type { ZoneRegistry } from "@/components/table/zones/ZoneRegistry";
-import { motifOfTrack, type Anchor, type ChoreoTrack, type Choreography, type ElementTarget, type Easing, type MotifTrack, type Waypoint } from "@/engine/power/choreography";
+import { zonePoseOf, type ZoneRef } from "@/components/table/zones/zonePose";
+import { DEFAULT_ANIMS_V2 } from "@/engine/anim/v2/defaults";
+import type { ZonePose } from "@/engine/anim/v2/pose";
+import { getAnimV2 } from "@/engine/anim/v2/registry";
+import { DEFAULT_V2_MODEL, V2_PRESENT_RISE_MS, motifOfTrack, type Anchor, type ChoreoTrack, type Choreography, type ElementTarget, type Easing, type MotifTrack, type V2Track, type V2ZoneAnchor, type Waypoint } from "@/engine/power/choreography";
 import type { PlayerRef, PowerFxIntensity, PowerFxPreset, PowerFxTone } from "@/engine/power/types";
 import type { Card } from "@/types/game";
 import type { ChoreoLayerHandle } from "./ChoreoLayer";
 import { motifPlayersUi, playMotif } from "./playMotif";
+import { playAnimV2, type AnimV2Move } from "./playAnimV2";
 
-/** Pistes qui font voler des cartes (trajectoire libre ou modèle de l'atelier). */
-export type MovingTrack = ChoreoTrack & { kind: "cardPath" | "motif" };
+/** Pistes qui font voler des cartes (trajectoire libre, modèle de l'atelier ou modèle V2). */
+export type MovingTrack = ChoreoTrack & { kind: "cardPath" | "motif" | "v2" };
 
 export interface ChoreoCards {
   ids: string[];
@@ -51,10 +56,13 @@ export interface ChoreoContext {
   viewer?: "activator" | "others";
   /** Écart de valeur de l'échange (carte reçue − carte donnée), pour les textes « verdict ». */
   verdict?: number | null;
+  /** Modèle V2 de la carte (onglet Animation) : celui des pistes V2 qui n'en choisissent pas. */
+  animV2?: string;
 }
 
 /** Main (index UI) d'où partent les cartes d'une piste, ou null si elles ne partent pas d'une main. */
 export function moveSourceUi(ctx: ChoreoContext, track: MovingTrack): number | null {
+  if (track.kind === "v2") return "player" in track.from && track.from.zone === "hand" ? ctx.resolveRefUi(track.from.player)[0] ?? null : null;
   if (track.kind === "cardPath") {
     const first = track.waypoints[0]?.at;
     return first?.kind === "zone" && first.zone === "hand" ? ctx.resolveRefUi(first.player)[0] ?? null : null;
@@ -64,7 +72,7 @@ export function moveSourceUi(ctx: ChoreoContext, track: MovingTrack): number | n
 }
 
 const cardsOfTrack = (ctx: ChoreoContext, track: MovingTrack): ChoreoCards =>
-  track.cards === "ghost" ? { ids: [], snapshots: [], fromIndexes: [], toIndexes: [] } : ctx.cardsOf(track.cards);
+  track.kind !== "v2" && track.cards === "ghost" ? { ids: [], snapshots: [], fromIndexes: [], toIndexes: [] } : ctx.cardsOf(track.cards as "resolved:outgoing");
 
 const TONE_COLORS: Record<PowerFxTone, string> = { gold: "#f2bb45", teal: "#1de4be", pink: "#ff5b82", cobalt: "#6fa8ff" };
 const EASING_CSS: Record<Easing, string> = {
@@ -464,17 +472,83 @@ async function playMotifTrack(ctx: ChoreoContext, track: MotifTrack, spriteEls: 
   }
 }
 
+/** Vrai déplacement par un modèle V2 : les zones donnent les poses, le modèle le mouvement.
+ *  `pendingHand` : nombre de cartes de chaque main après les pistes déjà parties (l'état réel n'arrive qu'à la fin). */
+async function playV2Track(ctx: ChoreoContext, track: V2Track, pendingHand: Map<number, number>) {
+  const cards = ctx.cardsOf(track.cards);
+  if (cards.ids.length === 0) return;
+  ctx.onMoveStart?.(track, cards);
+  try {
+    const model = getAnimV2(track.model ?? ctx.animV2 ?? DEFAULT_V2_MODEL) ?? getAnimV2(DEFAULT_V2_MODEL) ?? DEFAULT_ANIMS_V2[0];
+    const refOf = (anchor: V2ZoneAnchor): ZoneRef => ("player" in anchor ? { zone: anchor.zone, ui: ctx.resolveRefUi(anchor.player)[0] } : { zone: anchor.zone });
+    const from = refOf(track.from);
+    const to = refOf(track.to);
+    const countOf = (ui: number) => pendingHand.get(ui) ?? ctx.registry.hand(ui)?.cardCount?.() ?? 0;
+    if (from.zone === "hand" && from.ui != null) pendingHand.set(from.ui, countOf(from.ui) - cards.ids.length);
+    if (to.zone === "hand" && to.ui != null) pendingHand.set(to.ui, countOf(to.ui) + cards.ids.length);
+    const finalCount = to.zone === "hand" && to.ui != null ? pendingHand.get(to.ui) : undefined;
+    const moves: AnimV2Move[] = cards.ids.map((cardId, index) => ({
+      card: ctx.visibleCard(cardId, index, cards),
+      from: { ...from, index: from.zone === "hand" ? cards.fromIndexes[index] ?? 0 : 0 },
+      to: { ...to, index: to.zone === "hand" ? cards.toIndexes[index] ?? Math.max(0, (finalCount ?? 1) - cards.ids.length + index) : 0, count: finalCount },
+    }));
+    const reflow = track.reflow !== false;
+    const id = `v2_${track.id}_${Math.random().toString(36).slice(2, 7)}`;
+
+    if (!track.present) {
+      await playAnimV2(ctx, { id, model, moves, reflow });
+      return;
+    }
+    // Présentation : la carte monte au-dessus de sa zone de départ (et se retourne si on a le droit de la voir), attend,
+    // puis repart de ce point vers sa destination. Même modèle, vitesse de montée fixe.
+    const view = viewportOf(ctx);
+    const present = track.present;
+    const lifted = moves.map((move): ZonePose | null => {
+      const base = zonePoseOf(ctx.registry, move.from, move.from.index);
+      if (!base) return null;
+      const dest = zonePoseOf(ctx.registry, move.to, move.to.index, move.to.count);
+      return {
+        ...base,
+        x: base.x + ((present.dx ?? 0) / 100) * view.width,
+        y: base.y + ((present.dy ?? 0) / 100) * view.height,
+        width: Math.max(base.width, dest?.width ?? 0) * (present.scale ?? 1),
+        rotate: 0,
+        face: move.card ? 0 : 180,
+        z: 999,
+      };
+    });
+    let risen: string[] = [];
+    const rise = { ...model, motion: { ...model.motion, durationMs: V2_PRESENT_RISE_MS, curve: 0 } };
+    await playAnimV2(ctx, {
+      id: `${id}_up`, model: rise, reflow,
+      moves: moves.flatMap((move, index) => (lifted[index] ? [{ ...move, to: move.from, toPose: lifted[index]! }] : [])),
+      onSpawned: (ids) => { risen = ids; },
+    });
+    const first = lifted.find(Boolean);
+    if (first) ctx.burst("mystic", new DOMRect(first.x - first.width / 2, first.y - first.width * 0.725, first.width, first.width * 1.45), ctx.defaultTone, "standard", present.holdMs);
+    await sleep(present.holdMs);
+    await playAnimV2(ctx, {
+      id, model, reflow,
+      moves: moves.flatMap((move, index) => (lifted[index] ? [{ ...move, fromPose: lifted[index]! }] : [])),
+      onFirstFrame: () => risen.forEach((spriteId) => ctx.layer.removeCard(spriteId)),
+    });
+  } finally {
+    ctx.onMoveEnd?.(track);
+  }
+}
+
 /** Joue toute la chorégraphie ; se résout quand la dernière piste est finie. */
 export async function playChoreography(ctx: ChoreoContext, choreo: Choreography, fill: (text: string) => string = (t) => t): Promise<void> {
   if (!ctx.motionEnabled) {
     // Animations coupées : on ne garde que les pistes qui accompagnent un vrai déplacement (pour libérer l'état).
-    choreo.tracks.filter((track): track is MovingTrack => (track.kind === "cardPath" || track.kind === "motif") && track.mode === "move").forEach((track) => {
+    choreo.tracks.filter((track): track is MovingTrack => track.kind === "v2" || ((track.kind === "cardPath" || track.kind === "motif") && track.mode === "move")).forEach((track) => {
       ctx.onMoveStart?.(track, cardsOfTrack(ctx, track));
       ctx.onMoveEnd?.(track);
     });
     return;
   }
   const spriteEls = new Map<string, HTMLElement[]>();
+  const pendingHand = new Map<number, number>();
   const ordered = [...choreo.tracks].sort((a, b) => a.startMs - b.startMs);
   // Les effets sur « la carte d'une trajectoire » doivent attendre que ses sprites existent.
   const pathStarted = new Map<string, Promise<void>>();
@@ -497,6 +571,7 @@ export async function playChoreography(ctx: ChoreoContext, choreo: Choreography,
         await done;
         return;
       }
+      case "v2": return playV2Track(ctx, track, pendingHand);
       case "element":
         if (track.target.element === "card") await pathStarted.get(track.target.trackId);
         return playElement(ctx, track, spriteEls);

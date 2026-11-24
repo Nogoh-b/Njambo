@@ -8,9 +8,10 @@
 import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNode } from "react";
 import { ChoreoDemoStage, type ChoreoDemoHandle } from "@/components/power/choreo/ChoreoDemoStage";
 import {
-  CHOREO_LIMITS, EASINGS, ELEMENT_EFFECTS, SCREEN_ANCHORS, choreographyDuration,
-  type Anchor, type ChoreoTrack, type Choreography, type ElementKind, type Waypoint,
+  CHOREO_LIMITS, DEFAULT_V2_MODEL, EASINGS, ELEMENT_EFFECTS, SCREEN_ANCHORS, choreographyDuration,
+  type Anchor, type ChoreoTrack, type Choreography, type ElementKind, type V2ZoneAnchor, type Waypoint,
 } from "@/engine/power/choreography";
+import { getAnimV2, listAnimsV2 } from "@/engine/anim/v2/registry";
 import type { PlayerRef, PowerFxTone } from "@/engine/power/types";
 import { MOTIF_GROUPS, MOTIF_PLAYERS, MOTIF_PLAYER_ZONES, MOTIF_TABLE_ZONES, OFFSCREEN_SIDES, type MotifAnchor, type MotifGroup } from "@/engine/anim/motif";
 import { anchorLabel as motifAnchorLabel } from "./anim/MotifInspector";
@@ -24,6 +25,7 @@ type ErrorFor = (path: string) => string | undefined;
 
 const KIND_LABELS: Record<ChoreoTrack["kind"], { label: string; color: string }> = {
   cardPath: { label: "Trajectoire", color: "#f2bb45" },
+  v2: { label: "Modèle V2", color: "#ffa45c" },
   motif: { label: "Modèle", color: "#7ee08a" },
   element: { label: "Élément", color: "#1de4be" },
   screen: { label: "Écran", color: "#ff5b82" },
@@ -203,6 +205,55 @@ function TrackForm({ track, tracks, onChange, errorFor, path }: { track: ChoreoT
         </div>
       );
     }
+    case "v2": {
+      const zoneValue = (zone: V2ZoneAnchor) => ("player" in zone ? `${zone.zone}:${zone.player}` : zone.zone);
+      const zoneOf = (value: string): V2ZoneAnchor => {
+        const [zone, player] = value.split(":");
+        return player ? { zone: zone as "hand", player: player as PlayerRef } : { zone: zone as "deck" };
+      };
+      const zoneSelect = (key: "from" | "to", label: string) => (
+        <F label={label} error={e(`${key}.zone`) ?? e(`${key}.player`)}>
+          <select value={zoneValue(track[key])} onChange={(ev) => onChange({ ...track, [key]: zoneOf(ev.target.value) })}>
+            {(["hand", "deposit"] as const).flatMap((zone) => PLAYER_REFS.map((ref) => <option key={`${zone}:${ref}`} value={`${zone}:${ref}`}>{zone === "hand" ? "Main" : "Dépôt"} · {PLAYER_LABELS[ref]}</option>))}
+            <option value="deck">Pioche</option><option value="pot">Pot</option>
+          </select>
+        </F>
+      );
+      const present = track.present;
+      const setPresent = (patch: Partial<NonNullable<typeof present>>) => onChange({ ...track, present: { holdMs: 600, dy: -14, scale: 1.4, ...present, ...patch } });
+      return (
+        <div className={styles.grid3}>
+          <F label="Modèle V2" error={e("model")}>
+            <select value={track.model ?? ""} onChange={(ev) => onChange({ ...track, model: ev.target.value || undefined, durationMs: getAnimV2(ev.target.value || DEFAULT_V2_MODEL)?.motion.durationMs ?? track.durationMs })}>
+              <option value="">Celui de la carte (onglet Animation)</option>
+              {listAnimsV2().map((model) => <option key={model.id} value={model.id}>{model.name}</option>)}
+            </select>
+          </F>
+          {timing}
+          <F label="Cartes" error={e("cards")}>
+            <select value={track.cards} onChange={(ev) => onChange({ ...track, cards: ev.target.value as typeof track.cards })}>
+              <option value="resolved:outgoing">Cartes qui partent</option><option value="resolved:incoming">Cartes qui arrivent</option>
+            </select>
+          </F>
+          {zoneSelect("from", "Départ")}
+          {zoneSelect("to", "Arrivée")}
+          <F label="Réorganiser les mains" error={e("reflow")}>
+            <select value={track.reflow === false ? "no" : "yes"} onChange={(ev) => onChange({ ...track, reflow: ev.target.value === "no" ? false : undefined })}>
+              <option value="yes">Oui</option><option value="no">Non (échange : la carte reprend la place vide)</option>
+            </select>
+          </F>
+          <F label="Présentation au départ">
+            <select value={present ? "yes" : "no"} onChange={(ev) => onChange({ ...track, present: ev.target.value === "yes" ? { holdMs: 600, dy: -14, scale: 1.4 } : undefined })}>
+              <option value="no">Non : vol direct</option><option value="yes">Oui : se lève, se retourne, attend</option>
+            </select>
+          </F>
+          {present && <F label="Pause (s)" error={e("present.holdMs")}><input type="number" min={0} max={3} step={0.1} value={seconds(present.holdMs)} onChange={(ev) => setPresent({ holdMs: ms(ev.target.value) })} /></F>}
+          {present && <F label="Hauteur (% de l'écran)" error={e("present.dy")}><input type="number" min={-50} max={50} step={1} value={present.dy ?? 0} onChange={(ev) => setPresent({ dy: Number(ev.target.value) || undefined })} /></F>}
+          {present && <F label="Taille" error={e("present.scale")}><input type="number" min={0.5} max={3} step={0.1} value={present.scale ?? 1} onChange={(ev) => setPresent({ scale: Number(ev.target.value) || undefined })} /></F>}
+          <p className={`${styles.hint} ${styles.full}`}>Vrai déplacement animé par un modèle V2 : les zones donnent la place exacte (taille, inclinaison), le modèle le mouvement. La durée affichée est celle du modèle.</p>
+        </div>
+      );
+    }
     case "motif": {
       const motif = getMotif(track.motifId);
       const groups = Object.entries(MOTIF_GROUPS) as Array<[MotifGroup, string]>;
@@ -329,6 +380,7 @@ function newTrack(kind: ChoreoTrack["kind"], tracks: ChoreoTrack[], at: number):
   const id = `t${n}`;
   switch (kind) {
     case "cardPath": return { id, kind, startMs: at, durationMs: 800, cards: "resolved:outgoing", mode: "display", easing: "smooth", arc: 25, waypoints: [{ at: { kind: "zone", zone: "hand", player: "target" } }, { at: { kind: "zone", zone: "hand", player: "self" } }] };
+    case "v2": return { id, kind, startMs: at, durationMs: getAnimV2(DEFAULT_V2_MODEL)?.motion.durationMs ?? 700, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "deck" } };
     case "element": return { id, kind, startMs: at, durationMs: 700, target: { element: "timer", player: "target" }, effect: "shake", intensity: 2 };
     case "screen": return { id, kind, startMs: at, durationMs: 300, effect: "flash", intensity: 2 };
     case "text": return { id, kind, startMs: at, durationMs: 1200, text: "{activator} frappe !", at: { kind: "screen", at: "tableCenter", dy: -10 }, size: "m" };
