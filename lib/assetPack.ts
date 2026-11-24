@@ -9,6 +9,7 @@ import { useSyncExternalStore } from "react";
 import {
   ASSET_PACK_SCOPES,
   DEFAULT_ASSET_PACKS,
+  crispAssetUrl,
   isAssetPackId,
   resolveAssetUrl,
   type AssetPackSelection,
@@ -37,7 +38,7 @@ function applyCss(selection: AssetPackSelection) {
   if (typeof document === "undefined") return;
   const root = document.documentElement.style;
   for (const [name, path] of Object.entries(CSS_ASSETS)) {
-    root.setProperty(name, `url("${resolveAssetUrl(path, selection)}")`);
+    root.setProperty(name, `url("${crispAssetUrl(resolveAssetUrl(path, selection))}")`);
   }
 }
 
@@ -69,9 +70,9 @@ function start() {
 
 start();
 
-/** Chemin d'un asset (système ou interface) dans le pack actif ; les autres chemins sont rendus tels quels. */
+/** Chemin d'un asset (système ou interface) dans le pack actif, en déclinaison nette ; les autres chemins sont rendus tels quels. */
 export function sysAsset(path: string): string {
-  return resolveAssetUrl(path, current);
+  return crispAssetUrl(resolveAssetUrl(path, current));
 }
 
 export function currentAssetPacks(): AssetPackSelection {

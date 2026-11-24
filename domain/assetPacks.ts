@@ -79,3 +79,16 @@ export function resolveAssetUrl(path: string, selection: AssetPackSelection): st
   }
   return path;
 }
+
+/* Netteté en petite taille : les vignettes 64 px (et 128 px pour les assets
+   système) sont agrandies sur les écrans de téléphone (densité 2 à 3). On sert
+   la déclinaison supérieure, présente dans tous les packs ; next/image la
+   réduit ensuite à la taille réellement affichée. */
+const CRISP_SYSTEM = /^(\/assets\/njambo\/(?:packs\/[a-z0-9-]+\/)?(?:economy|tickets|books|ranks)\/[a-z0-9-]+)-(?:64|128)\.webp$/;
+const CRISP_INTERFACE = /^(\/assets\/njambo\/(?:packs\/[a-z0-9-]+\/)?ui\/(?:icons|buttons)\/[a-z0-9-]+)-64\.webp$/;
+
+export function crispAssetUrl(path: string): string {
+  if (CRISP_SYSTEM.test(path)) return path.replace(CRISP_SYSTEM, "$1-256.webp");
+  if (CRISP_INTERFACE.test(path)) return path.replace(CRISP_INTERFACE, "$1-128.webp");
+  return path;
+}

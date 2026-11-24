@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { existsSync } from "node:fs";
 import { join } from "node:path";
-import { ASSET_PACKS, DEFAULT_ASSET_PACK, assetPackUrl, readAssetPack, readAssetPacks, resolveAssetUrl } from "@/domain/assetPacks";
+import { ASSET_PACKS, DEFAULT_ASSET_PACK, assetPackUrl, readAssetPack, readAssetPacks, resolveAssetUrl, crispAssetUrl } from "@/domain/assetPacks";
 
 const SYSTEM_ASSETS = [
   "economy/nkap", "economy/nkap-stack", "economy/cauri", "economy/cauris-pouch", "economy/energy-flask", "economy/loyalty-wheel",
@@ -66,5 +66,12 @@ describe("packs d'assets système", () => {
       }
     }
     expect(missing).toEqual([]);
+  });
+
+  it("sert une déclinaison plus nette pour les petites vignettes", () => {
+    expect(crispAssetUrl("/assets/njambo/economy/nkap-stack-64.webp")).toBe("/assets/njambo/economy/nkap-stack-256.webp");
+    expect(crispAssetUrl("/assets/njambo/packs/wax/ranks/rank-mboa-128.webp")).toBe("/assets/njambo/packs/wax/ranks/rank-mboa-256.webp");
+    expect(crispAssetUrl("/assets/njambo/ui/icons/coin-64.webp")).toBe("/assets/njambo/ui/icons/coin-128.webp");
+    expect(crispAssetUrl("/assets/njambo/economy/loyalty-wheel.webp")).toBe("/assets/njambo/economy/loyalty-wheel.webp");
   });
 });
