@@ -42,7 +42,9 @@ export type Anchor = (ZoneAnchor | ScreenAnchor | SelfAnchor) & {
 
 export const ELEMENT_EFFECTS = {
   card: ["lift", "pulse", "glow", "shake", "flip", "crack", "dissolve", "burn", "freeze", "shrink", "grow"],
-  hand: ["fanOpen", "tighten", "shake", "glow", "veil", "ripple"],
+  /* read : une lumière parcourt la main, les cartes écartées s'éteignent une à une (lanceur) ;
+     advise : la carte conseillée (resolved:highlight) reçoit aura, badge « Conseil » et fil du temps (lanceur). */
+  hand: ["fanOpen", "tighten", "shake", "glow", "veil", "ripple", "read", "advise"],
   deposit: ["pulse", "suck", "eject", "glow", "seal"],
   deck: ["pulse", "shuffle", "spit", "shake", "glow"],
   timer: ["freeze", "speedUp", "rewind", "crack", "blink", "tint", "delta"],

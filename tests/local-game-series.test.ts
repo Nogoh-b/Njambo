@@ -59,4 +59,21 @@ describe("séries locales", () => {
     expect(states.at(-1)?.phase).toBe("turns");
     sync.destroy();
   });
+
+  it("laisse aussi le joueur humain sortir de surbrillance avant de passer le tour au bot", () => {
+    const { sync, internal, cfg } = setup(1);
+    internal.stopAllTimers();
+    internal.phase = "turns"; internal.turnIdx = 0;
+    internal.players[0].hand = [card(7)];
+    const states: GameState[] = [];
+    sync.onStateUpdate((state) => states.push(state));
+    sync.playCard(0);
+    expect(states.at(-1)?.phase).toBe("trickEnd");
+    vi.advanceTimersByTime(cfg.anim.dropFlight + cfg.anim.landSettle + cfg.anim.botAfterPlay - 1);
+    expect(states.at(-1)?.phase).toBe("trickEnd");
+    vi.advanceTimersByTime(1);
+    expect(states.at(-1)?.phase).toBe("turns");
+    expect(states.at(-1)?.turnIdx).toBe(1);
+    sync.destroy();
+  });
 });

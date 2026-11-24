@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 290" fill="none">
+<defs>
+    <clipPath id="cl"><rect x="14" y="14" width="172" height="262" rx="10"/></clipPath>
+    <radialGradient id="bg" cx="50%" cy="46%" r="72%">
+      <stop offset="0%" stop-color="#175240"/>
+      <stop offset="56%" stop-color="#0b2d23"/>
+      <stop offset="100%" stop-color="#051611"/>
+    </radialGradient>
+    <linearGradient id="br" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#ebd298"/>
+      <stop offset="50%" stop-color="#bfa05c"/>
+      <stop offset="100%" stop-color="#876b33"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="290" rx="16" fill="#f2ead7"/>
+  <rect x="6" y="6" width="188" height="278" rx="13" fill="#091f18"/>
+  <rect x="14" y="14" width="172" height="262" rx="10" fill="url(#bg)"/>
+  <g clip-path="url(#cl)">
+    <rect x="24" y="24" width="152" height="242" rx="6" stroke="#d8be82" stroke-opacity="0.24" stroke-width="1" stroke-dasharray="4 4"/>
+    <ellipse cx="100" cy="145" rx="56" ry="86" stroke="#d8be82" stroke-opacity="0.26" stroke-width="1.2"/>
+    <ellipse cx="100" cy="145" rx="44" ry="68" stroke="#d8be82" stroke-opacity="0.16" stroke-width="1"/>
+  </g>
+  <rect x="14" y="14" width="172" height="262" rx="10" stroke="url(#br)" stroke-width="2.6"/>
+  <circle cx="100" cy="145" r="28" fill="#08211a" stroke="url(#br)" stroke-width="2"/>
+  <polygon points="100,124 105,140 121,145 105,150 100,166 95,150 79,145 95,140" fill="url(#br)"/>
+  <circle cx="100" cy="145" r="4.5" fill="#f5e6bf"/>
+</svg>

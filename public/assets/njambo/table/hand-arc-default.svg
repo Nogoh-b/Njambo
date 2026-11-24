@@ -1,0 +1,79 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 190" fill="none">
+  <defs>
+    <!-- Arc de cercle parfait : centre (260, 282), rayon R = 256 -->
+    <clipPath id="nj-arc-clip">
+      <path d="M 21.1 190 A 256 256 0 0 1 498.9 190 Z" />
+    </clipPath>
+
+    <radialGradient id="nj-arc-fill" cx="50%" cy="92%" r="74%">
+      <stop offset="0%" stop-color="#5d3215" />
+      <stop offset="44%" stop-color="#20110a" />
+      <stop offset="100%" stop-color="#090504" />
+    </radialGradient>
+
+    <radialGradient id="nj-arc-sun" cx="50%" cy="100%" r="60%">
+      <stop offset="0%" stop-color="#ffcf40" stop-opacity="0.42" />
+      <stop offset="56%" stop-color="#ffae28" stop-opacity="0.11" />
+      <stop offset="100%" stop-color="#000000" stop-opacity="0" />
+    </radialGradient>
+
+    <linearGradient id="nj-arc-rim" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8f5008" />
+      <stop offset="22%" stop-color="#ffd968" />
+      <stop offset="50%" stop-color="#fff4bd" />
+      <stop offset="78%" stop-color="#ffd968" />
+      <stop offset="100%" stop-color="#8f5008" />
+    </linearGradient>
+  </defs>
+
+  <!-- Dôme circulaire parfait rempli ébène chaud -->
+  <path d="M 21.1 190 A 256 256 0 0 1 498.9 190 Z" fill="url(#nj-arc-fill)" />
+
+  <!-- Intérieur : lueur solaire, 13 rayons perpendiculaires à l'arc et 2 cercles concentriques -->
+  <g clip-path="url(#nj-arc-clip)">
+    <rect x="12" y="16" width="496" height="176" fill="url(#nj-arc-sun)" />
+
+    <g stroke="#fff4bd" stroke-linecap="round">
+      <line x1="260" y1="282" x2="26.1" y2="177.9" stroke-width="1.6" opacity="0.22" />
+      <line x1="260" y1="282" x2="50.3" y2="135.2" stroke-width="0.9" opacity="0.12" />
+      <line x1="260" y1="282" x2="82.2" y2="97.9" stroke-width="1.6" opacity="0.24" />
+      <line x1="260" y1="282" x2="120.6" y2="67.3" stroke-width="0.9" opacity="0.12" />
+      <line x1="260" y1="282" x2="164.1" y2="44.6" stroke-width="1.6" opacity="0.24" />
+      <line x1="260" y1="282" x2="211.2" y2="30.7" stroke-width="0.9" opacity="0.13" />
+      <line x1="260" y1="282" x2="260.0" y2="26.0" stroke-width="1.7" opacity="0.26" />
+      <line x1="260" y1="282" x2="308.8" y2="30.7" stroke-width="0.9" opacity="0.13" />
+      <line x1="260" y1="282" x2="355.9" y2="44.6" stroke-width="1.6" opacity="0.24" />
+      <line x1="260" y1="282" x2="399.4" y2="67.3" stroke-width="0.9" opacity="0.12" />
+      <line x1="260" y1="282" x2="437.8" y2="97.9" stroke-width="1.6" opacity="0.24" />
+      <line x1="260" y1="282" x2="469.7" y2="135.2" stroke-width="0.9" opacity="0.12" />
+      <line x1="260" y1="282" x2="493.9" y2="177.9" stroke-width="1.6" opacity="0.22" />
+    </g>
+
+    <!-- Cercles concentriques parfaits (R = 216 et R = 176) -->
+    <path d="M 64.6 190 A 216 216 0 0 1 455.4 190" stroke="#ffdc76" stroke-opacity="0.28" stroke-width="1.2" />
+    <path d="M 110.0 190 A 176 176 0 0 1 410.0 190" stroke="#ffdc76" stroke-opacity="0.16" stroke-width="1" />
+  </g>
+
+  <!-- Bordure circulaire parfaite or brossé (R = 256) + filet intérieur (R = 242) -->
+  <path d="M 21.1 190 A 256 256 0 0 1 498.9 190" stroke="url(#nj-arc-rim)" stroke-width="4.6" stroke-linecap="butt" />
+  <path d="M 36.2 190 A 242 242 0 0 1 483.8 190" stroke="#fff4c6" stroke-opacity="0.36" stroke-width="1.15" />
+
+  <!-- 8 perles d'or centrées sur le cercle intermédiaire (R = 249) -->
+  <g fill="#fff4bd" opacity="0.94">
+    <circle cx="58.6" cy="135.6" r="2.3" />
+    <circle cx="99.9" cy="91.3" r="2.3" />
+    <circle cx="150.8" cy="58.2" r="2.3" />
+    <circle cx="208.2" cy="38.4" r="2.3" />
+    <circle cx="311.8" cy="38.4" r="2.3" />
+    <circle cx="369.2" cy="58.2" r="2.3" />
+    <circle cx="420.1" cy="91.3" r="2.3" />
+    <circle cx="461.4" cy="135.6" r="2.3" />
+  </g>
+
+  <!-- Médaillon étoile solaire 8 branches au sommet (260, 26) -->
+  <g>
+    <circle cx="260" cy="26" r="13.5" fill="#1b0e08" stroke="url(#nj-arc-rim)" stroke-width="2.3" />
+    <circle cx="260" cy="26" r="9.2" stroke="#ffe896" stroke-opacity="0.48" stroke-width="0.9" />
+    <polygon points="260,15.5 262.5,23 269.5,22.2 264,26.6 267.6,33.2 260,29.3 252.4,33.2 256,26.6 250.5,22.2 257.5,23" fill="#ffcf40" />
+  </g>
+</svg>

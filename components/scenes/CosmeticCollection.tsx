@@ -13,6 +13,7 @@ import {
   type PlayerCosmetics,
 } from "@/domain";
 import { useEconomy } from "@/contexts/EconomyContext";
+import { useDefaultCosmetics } from "@/hooks/useDefaultCosmetics";
 import { useMotionProfile } from "@/lib/motion";
 import { backendCallable } from "@/lib/backendCallable";
 import { CollectionItems } from "./CollectionItems";
@@ -21,7 +22,8 @@ import styles from "./CosmeticCollection.module.css";
 type CollectionSection = "items" | "cosmetics";
 
 const SLOTS: Array<{ slot: CosmeticSlot; label: string; empty: string }> = [
-  { slot: "cardBack", label: "Dos de carte", empty: "Dos classique" },
+  { slot: "cardBack", label: "Dos de carte", empty: "Astrolabe (défaut)" },
+  { slot: "handArc", label: "Arche", empty: "Soleil (défaut)" },
   { slot: "avatarFrame", label: "Cadre", empty: "Sans cadre" },
   { slot: "badge", label: "Badge", empty: "Sans badge" },
   { slot: "title", label: "Titre", empty: "Sans titre" },
@@ -31,6 +33,7 @@ const RARITY_LABELS: Record<CosmeticDefinition["rarity"], string> = { commun: "C
 
 export function CosmeticCollection({ onClose }: { onClose?: () => void }) {
   const { inventory } = useEconomy();
+  const { defaults: defaultCosmetics, defaultCardBackUrl, defaultHandArcUrl } = useDefaultCosmetics();
   const motionProfile = useMotionProfile();
   const [section, setSection] = useState<CollectionSection>("items");
   const [owned, setOwned] = useState<CosmeticDefinition[] | null>(null);
@@ -68,7 +71,12 @@ export function CosmeticCollection({ onClose }: { onClose?: () => void }) {
 
   const items = (owned ?? []).filter((item) => COSMETIC_SLOT[item.type] === slot);
   const current = equipped[slot]?.id ?? null;
-  const emptyLabel = SLOTS.find((entry) => entry.slot === slot)?.empty ?? "Aucun";
+  const emptyLabel =
+    slot === "cardBack" && defaultCosmetics.cardBack?.name
+      ? `${defaultCosmetics.cardBack.name} (défaut)`
+      : slot === "handArc" && defaultCosmetics.handArc?.name
+        ? `${defaultCosmetics.handArc.name} (défaut)`
+        : SLOTS.find((entry) => entry.slot === slot)?.empty ?? "Aucun";
 
   return (
     <div className={styles.wrap}>
@@ -133,14 +141,20 @@ export function CosmeticCollection({ onClose }: { onClose?: () => void }) {
             {owned === null ? <p className={styles.hint}>Chargement de ta collection…</p> : (
               <div className={styles.grid}>
                 <button data-nj-skin="none" type="button" aria-pressed={!current} className={styles.item} disabled={Boolean(busy)} onClick={() => void equip(null)}>
-                  <span className={styles.thumb} aria-hidden="true">∅</span>
+                  {slot === "handArc"
+                    // eslint-disable-next-line @next/next/no-img-element -- asset d'arche par défaut (intégré ou configuré en admin)
+                    ? <img className={`${styles.thumb} ${styles.thumbArc}`} src={defaultHandArcUrl} alt="" />
+                    : slot === "cardBack"
+                      // eslint-disable-next-line @next/next/no-img-element -- asset de dos de carte par défaut (intégré ou configuré en admin)
+                      ? <img className={`${styles.thumb} ${styles.thumbCard}`} src={defaultCardBackUrl} alt="" />
+                      : <span className={styles.thumb} aria-hidden="true">∅</span>}
                   <strong>{emptyLabel}</strong>
                 </button>
                 {items.map((item) => (
                   <button key={item.id} data-nj-skin="none" type="button" aria-pressed={current === item.id} className={`${styles.item} ${styles[`rarity_${item.rarity}`]}`} disabled={Boolean(busy)} onClick={() => void equip(item.id)}>
                     {item.imageUrl
                       // eslint-disable-next-line @next/next/no-img-element -- cosmétique uploadé depuis l'admin (URL du VPS)
-                      ? <img className={`${styles.thumb} ${item.type === "card_back" ? styles.thumbCard : ""}`} src={item.imageUrl} alt="" />
+                      ? <img className={`${styles.thumb} ${item.type === "card_back" ? styles.thumbCard : item.type === "hand_arc" ? styles.thumbArc : ""}`} src={item.imageUrl} alt="" />
                       : <span className={`${styles.thumb} ${styles.thumbTitle}`}>{item.type === "anim_style" ? "✦" : `« ${item.name} »`}</span>}
                     <strong>{item.name}</strong>
                     <small>{RARITY_LABELS[item.rarity]}{current === item.id ? " · équipé" : ""}</small>

@@ -1,7 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { tableAssetGroups, tableManifest } from "../lib/assets/manifests";
-import { MatchLoadingScreen } from "../components/ui/MatchLoadingScreen";
+import {
+  DEFAULT_MATCH_LOADING_MIN_MS,
+  MatchLoadingScreen,
+  SCENE_OPENING_DURATION_MS,
+} from "../components/ui/MatchLoadingScreen";
 
 vi.mock("@/lib/motion", () => ({
   loadGsap: () => Promise.resolve({}),
@@ -85,5 +89,11 @@ describe("MatchLoadingScreen & tableAssetGroups", () => {
     expect(markup).toContain("Astuce du Mboa");
     expect(markup).toContain("Décors");
     expect(markup).toContain("Pouvoirs");
+    expect(markup).toContain('data-opening-scene="false"');
+    expect(markup).toContain('data-burst-card="true"');
+    expect(markup).toContain('data-burst-ember="true"');
+    expect(markup).toContain("À table !");
+    expect(DEFAULT_MATCH_LOADING_MIN_MS).toBeGreaterThanOrEqual(5000);
+    expect(SCENE_OPENING_DURATION_MS).toBeGreaterThanOrEqual(2500);
   });
 });

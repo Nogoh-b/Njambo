@@ -131,7 +131,8 @@ export function redactActivationForBroadcast(activation: PowerCardActivation): P
   const moves = rest.resolved.moves?.map((move) => move.hiddenFor === "others"
     ? { ...move, cardIds: move.cardIds.map(() => "hidden"), cardSnapshots: undefined }
     : move);
-  return clean({ ...rest, resolved: { ...rest.resolved, moves } } as PowerCardActivation);
+  // Carte conseillée et sa raison : pour le lanceur seulement (« Pas de ♣ » trahirait sa main).
+  return clean({ ...rest, resolved: { ...rest.resolved, moves, highlight: undefined } } as PowerCardActivation);
 }
 
 /* ── Commande usePowerCard ── */

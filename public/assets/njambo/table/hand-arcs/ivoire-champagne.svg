@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 190" fill="none">
+<defs>
+    <clipPath id="cl"><path d="M 21.1 190 A 256 256 0 0 1 498.9 190 Z"/></clipPath>
+    <radialGradient id="bg" cx="50%" cy="88%" r="78%">
+      <stop offset="0%" stop-color="#f7ebd0"/>
+      <stop offset="48%" stop-color="#c4a672"/>
+      <stop offset="100%" stop-color="#4e3920"/>
+    </radialGradient>
+    <linearGradient id="rm" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8f590d"/>
+      <stop offset="24%" stop-color="#ffe285"/>
+      <stop offset="50%" stop-color="#ffffff"/>
+      <stop offset="76%" stop-color="#ffe285"/>
+      <stop offset="100%" stop-color="#8f590d"/>
+    </linearGradient>
+  </defs>
+  <path d="M 21.1 190 A 256 256 0 0 1 498.9 190 Z" fill="url(#bg)"/>
+  <g clip-path="url(#cl)">
+    <g stroke="#fffdf2" stroke-linecap="round">
+      <line x1="260" y1="282" x2="38.3" y2="154.0" stroke-width="1.2" opacity="0.22"/>
+      <line x1="260" y1="282" x2="79.0" y2="101.0" stroke-width="1.2" opacity="0.22"/>
+      <line x1="260" y1="282" x2="132.0" y2="60.3" stroke-width="1.2" opacity="0.22"/>
+      <line x1="260" y1="282" x2="193.7" y2="34.7" stroke-width="1.2" opacity="0.22"/>
+      <line x1="260" y1="282" x2="260.0" y2="26.0" stroke-width="1.2" opacity="0.22"/>
+      <line x1="260" y1="282" x2="326.3" y2="34.7" stroke-width="1.2" opacity="0.22"/>
+      <line x1="260" y1="282" x2="388.0" y2="60.3" stroke-width="1.2" opacity="0.22"/>
+      <line x1="260" y1="282" x2="441.0" y2="101.0" stroke-width="1.2" opacity="0.22"/>
+      <line x1="260" y1="282" x2="481.7" y2="154.0" stroke-width="1.2" opacity="0.22"/>
+    </g>
+    <path d="M 64.6 190 A 216 216 0 0 1 455.4 190" stroke="#6c4314" stroke-opacity="0.24" stroke-width="1.2"/>
+    <path d="M 110.0 190 A 176 176 0 0 1 410.0 190" stroke="#fffdf4" stroke-opacity="0.32" stroke-width="1"/>
+  </g>
+  <path d="M 21.1 190 A 256 256 0 0 1 498.9 190" stroke="url(#rm)" stroke-width="4.8" stroke-linecap="butt"/>
+  <path d="M 36.2 190 A 242 242 0 0 1 483.8 190" stroke="#6b4416" stroke-opacity="0.34" stroke-width="1.1"/>
+  <circle cx="58.6" cy="135.6" r="2.2" fill="#fffdf4"/>
+  <circle cx="113.6" cy="80.6" r="2.2" fill="#fffdf4"/>
+  <circle cx="183.1" cy="45.2" r="2.2" fill="#fffdf4"/>
+  <circle cx="336.9" cy="45.2" r="2.2" fill="#fffdf4"/>
+  <circle cx="406.4" cy="80.6" r="2.2" fill="#fffdf4"/>
+  <circle cx="461.4" cy="135.6" r="2.2" fill="#fffdf4"/>
+  <circle cx="260" cy="26" r="13.5" fill="#fffaf0" stroke="url(#rm)" stroke-width="2.4"/>
+  <circle cx="260" cy="26" r="8.5" fill="#0d5b44"/>
+  <polygon points="260,20 264.5,26 260,32 255.5,26" fill="#ffe282"/>
+</svg>

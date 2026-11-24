@@ -5,7 +5,7 @@
    par AssetLoader (sans proxy /_next/image) et restent 100 % compatibles Capacitor. */
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import { motion } from "motion/react";
+import { AnimatePresence, motion } from "motion/react";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { NKAP } from "@/data/mock";
 import { loadAssets, normalizeAssets, prefetchAssets } from "@/lib/assets/AssetLoader";
@@ -75,15 +75,49 @@ const MATCH_TIPS: Record<GameMode | "common", string[]> = {
 };
 
 const SPARK_POSITIONS = [
-  { left: "12%", top: "20%", size: 4, delay: "0s" },
-  { left: "86%", top: "18%", size: 3.5, delay: "0.7s" },
-  { left: "78%", top: "76%", size: 4, delay: "1.4s" },
-  { left: "18%", top: "78%", size: 3, delay: "2.1s" },
-  { left: "92%", top: "48%", size: 3, delay: "0.4s" },
-  { left: "8%", top: "52%", size: 3.5, delay: "1.1s" },
-  { left: "46%", top: "14%", size: 3, delay: "1.8s" },
-  { left: "62%", top: "86%", size: 3.5, delay: "2.5s" },
+  { left: "8%", top: "22%", size: 4.5, delay: "0s" },
+  { left: "90%", top: "18%", size: 4, delay: "0.6s" },
+  { left: "82%", top: "74%", size: 4.5, delay: "1.3s" },
+  { left: "14%", top: "78%", size: 3.5, delay: "2.0s" },
+  { left: "94%", top: "48%", size: 3.5, delay: "0.3s" },
+  { left: "6%", top: "52%", size: 4, delay: "1.0s" },
+  { left: "32%", top: "14%", size: 3.5, delay: "1.7s" },
+  { left: "68%", top: "16%", size: 4, delay: "2.4s" },
+  { left: "26%", top: "64%", size: 3, delay: "0.9s" },
+  { left: "74%", top: "58%", size: 3.5, delay: "1.9s" },
+  { left: "50%", top: "12%", size: 3.5, delay: "2.7s" },
+  { left: "54%", top: "82%", size: 4, delay: "1.4s" },
 ] as const;
+
+/* 10 cartes qui jaillissent en éventail cinématique à l'ouverture des portes */
+const BURST_CARDS: ReadonlyArray<{
+  dx: number;
+  dy: number;
+  rot: number;
+  face?: { rank: string; suit: string; red: boolean };
+}> = [
+  { dx: -52, dy: -36, rot: -118 },
+  { dx: 52, dy: -34, rot: 122 },
+  { dx: -58, dy: 4, rot: -84, face: { rank: "A", suit: "♥", red: true } },
+  { dx: 58, dy: 6, rot: 88, face: { rank: "K", suit: "♠", red: false } },
+  { dx: -44, dy: 42, rot: -136 },
+  { dx: 44, dy: 40, rot: 140 },
+  { dx: -24, dy: -46, rot: -52, face: { rank: "3", suit: "♦", red: true } },
+  { dx: 24, dy: -46, rot: 56, face: { rank: "10", suit: "♣", red: false } },
+  { dx: -30, dy: 46, rot: -64 },
+  { dx: 30, dy: 46, rot: 68 },
+];
+
+/* 16 braises dorées projetées depuis l'entrebâillement des portes */
+const BURST_EMBERS = Array.from({ length: 16 }, (_, idx) => {
+  const angle = (idx / 16) * Math.PI * 2 + (idx % 2 === 0 ? 0.14 : -0.1);
+  const radius = 34 + (idx % 4) * 12;
+  return {
+    dx: Math.round(Math.cos(angle) * radius),
+    dy: Math.round(Math.sin(angle) * radius),
+    size: 5 + (idx % 3) * 2.5,
+  };
+});
 
 export interface MatchLoadingScreenProps {
   gameMode: GameMode;
@@ -100,7 +134,11 @@ export interface MatchLoadingScreenProps {
   maxWaitMs?: number;
   /** Durée minimale de la cérémonie de chargement (ms). */
   minDisplayMs?: number;
-  /** Appelé une fois toutes les ressources et modules prêts. */
+  /** Appelé ~1 s avant l'ouverture pour pré-monter la table derrière les portes (60 fps pur). */
+  onPreMountTable?: () => void;
+  /** Appelé dès que les portes ont dévoilé la table pour lancer la donne et le chrono. */
+  onUnlockGame?: () => void;
+  /** Appelé une fois la cinématique d'ouverture complètement terminée (démontage). */
   onReady: () => void;
   /** Si fourni, permet d'annuler avec confirmation quand Retour est pressé. */
   onCancel?: () => void;
@@ -115,11 +153,20 @@ interface LoadState {
   powersLoaded: number;
   powersTotal: number;
   powersDone: boolean;
+  catalogLoaded: number;
+  catalogTotal: number;
+  catalogDone: boolean;
   modulesLoaded: number;
   modulesTotal: number;
   modulesDone: boolean;
   ready: boolean;
 }
+
+/** Durée minimale garantie du chargement (ms) pour décoder toutes les ressources. */
+export const DEFAULT_MATCH_LOADING_MIN_MS = 5000;
+const DEFAULT_MATCH_LOADING_MAX_MS = 10000;
+/** Durée de la cinématique d'ouverture en 3 actes (rassemblement → portes → « À table ! »). */
+export const SCENE_OPENING_DURATION_MS = 2650;
 
 const CHUNK_LOADERS: Array<() => Promise<unknown>> = [
   () => import("@/components/scenes/TableScreen"),
@@ -140,16 +187,49 @@ export function MatchLoadingScreen({
   resuming = false,
   maxWaitMs,
   minDisplayMs,
+  onPreMountTable,
+  onUnlockGame,
   onReady,
   onCancel,
   onBackRequestRef,
 }: MatchLoadingScreenProps) {
   const motionProfile = useMotionProfile();
-  const reducedMotion = !motionProfile.enabled || motionProfile.reduced || motionProfile.level === "lite";
+  const reducedMotion = !motionProfile.enabled || motionProfile.reduced;
+
+  const rootRef = useRef<HTMLDivElement>(null);
+  const doorLeftRef = useRef<HTMLDivElement>(null);
+  const doorRightRef = useRef<HTMLDivElement>(null);
+  const doorPanelLeftRef = useRef<HTMLDivElement>(null);
+  const doorPanelRightRef = useRef<HTMLDivElement>(null);
+  const atmosphereRef = useRef<HTMLDivElement>(null);
+  const ribbonTopRef = useRef<HTMLDivElement>(null);
+  const ribbonBottomRef = useRef<HTMLDivElement>(null);
+  const topBarRef = useRef<HTMLElement>(null);
+  const bottomDockRef = useRef<HTMLElement>(null);
+  const heroCenterRef = useRef<HTMLElement>(null);
+  const fanRef = useRef<HTMLDivElement>(null);
+  const headingRef = useRef<HTMLDivElement>(null);
+  const powersRef = useRef<HTMLDivElement>(null);
+  const markDockRef = useRef<HTMLDivElement>(null);
+  const haloOuterRef = useRef<HTMLDivElement>(null);
+  const haloInnerRef = useRef<HTMLDivElement>(null);
+  const shockwaveRef = useRef<HTMLDivElement>(null);
+  const seamBeamRef = useRef<HTMLDivElement>(null);
+  const seamHaloRef = useRef<HTMLDivElement>(null);
+  const burstLayerRef = useRef<HTMLDivElement>(null);
+  const saluteInnerRef = useRef<HTMLDivElement>(null);
+  const filamentLeftRef = useRef<HTMLSpanElement>(null);
+  const filamentRightRef = useRef<HTMLSpanElement>(null);
+
+  const onPreMountRef = useRef(onPreMountTable);
+  onPreMountRef.current = onPreMountTable;
+  const onUnlockGameRef = useRef(onUnlockGame);
+  onUnlockGameRef.current = onUnlockGame;
   const onReadyRef = useRef(onReady);
   onReadyRef.current = onReady;
   const onCancelRef = useRef(onCancel);
   onCancelRef.current = onCancel;
+  const preMountedRef = useRef(false);
 
   const groupsRef = useRef<ReturnType<typeof tableAssetGroups> | null>(null);
   if (!groupsRef.current) {
@@ -171,33 +251,41 @@ export function MatchLoadingScreen({
     powersLoaded: 0,
     powersTotal: powerAssets.length,
     powersDone: powerAssets.length === 0,
+    catalogLoaded: 0,
+    catalogTotal: backgroundAssets.length,
+    catalogDone: backgroundAssets.length === 0,
     modulesLoaded: 0,
     modulesTotal: CHUNK_LOADERS.length,
     modulesDone: false,
     ready: false,
   }));
 
-  const [displayPct, setDisplayPct] = useState(8);
+  const [displayPct, setDisplayPct] = useState(4);
+  const [openingScene, setOpeningScene] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
+  const startedAtRef = useRef<number>(0);
 
-  const [tip] = useState(() => {
-    const pool = [...(MATCH_TIPS[gameMode] ?? []), ...MATCH_TIPS.common];
-    return pool[Math.floor(Math.random() * pool.length)];
-  });
+  const tipPool = useMemo(() => [...(MATCH_TIPS[gameMode] ?? []), ...MATCH_TIPS.common], [gameMode]);
+  const [tipIndex, setTipIndex] = useState(() => Math.floor(Math.random() * tipPool.length));
+  const tip = tipPool[tipIndex % tipPool.length];
 
-  const effectiveMinMs = useMemo(() => {
-    if (minDisplayMs !== undefined) return minDisplayMs;
-    if (!motionProfile.enabled) return 0;
-    if (motionProfile.reduced || motionProfile.level === "lite") return 260;
-    return gameMode === "bot" ? 900 : 680;
-  }, [gameMode, minDisplayMs, motionProfile.enabled, motionProfile.level, motionProfile.reduced]);
+  const effectiveMinMs = minDisplayMs ?? DEFAULT_MATCH_LOADING_MIN_MS;
+  const effectiveMaxMs = Math.max(effectiveMinMs + 4000, maxWaitMs ?? DEFAULT_MATCH_LOADING_MAX_MS);
 
-  const effectiveMaxMs = maxWaitMs ?? (gameMode === "bot" ? 6000 : 3800);
+  /* Rotation douce d'une seconde astuce à mi-parcours pendant les 5 secondes. */
+  useEffect(() => {
+    if (effectiveMinMs < 3000 || tipPool.length < 2 || openingScene) return;
+    const timer = window.setInterval(() => {
+      setTipIndex((prev) => (prev + 1) % tipPool.length);
+    }, 2600);
+    return () => window.clearInterval(timer);
+  }, [effectiveMinMs, openingScene, tipPool.length]);
 
   /* Interception du bouton Retour pendant le chargement d'une partie. */
   useEffect(() => {
     if (!onBackRequestRef) return;
     onBackRequestRef.current = () => {
+      if (openingScene) return "stay";
       if (confirmCancel) {
         setConfirmCancel(false);
         return "stay";
@@ -211,23 +299,41 @@ export function MatchLoadingScreen({
     return () => {
       onBackRequestRef.current = null;
     };
-  }, [confirmCancel, onBackRequestRef]);
+  }, [confirmCancel, onBackRequestRef, openingScene]);
 
-  /* Chargement réel : décors/cartes + pouvoirs/sons/cosmétiques + modules JS. */
+  /* Chargement réel : décors/cartes + pouvoirs/sons/cosmétiques + catalogue complet + modules JS. */
   useEffect(() => {
     let cancelled = false;
     let finished = false;
     const startedAt = performance.now();
+    startedAtRef.current = startedAt;
     markPerformance("gate:table:start");
 
-    let finishDelayTimer: number | null = null;
+    let revealStartTimer: number | null = null;
     let minHoldTimer: number | null = null;
+    let preMountTimer: number | null = null;
+
+    const triggerPreMount = () => {
+      if (cancelled || preMountedRef.current) return;
+      preMountedRef.current = true;
+      onPreMountRef.current?.();
+    };
+
+    // Pré-monte TableScreen (en pause, derrière les portes opaques) ~1 s avant la fin
+    // des 5 s : ainsi le rendu React & la peinture GPU de la table sont déjà terminés
+    // AVANT le début de la cinématique d'ouverture → 60 FPS garanti !
+    if (effectiveMinMs >= 1500) {
+      preMountTimer = window.setTimeout(triggerPreMount, Math.max(800, effectiveMinMs - 1100));
+    }
 
     const complete = (timedOut: boolean) => {
       if (cancelled || finished) return;
       finished = true;
       window.clearTimeout(maxTimer);
       if (minHoldTimer !== null) window.clearTimeout(minHoldTimer);
+      if (preMountTimer !== null) window.clearTimeout(preMountTimer);
+      triggerPreMount();
+
       markPerformance("gate:table:ready");
       measurePerformance("gate:table", "gate:table:start", "gate:table:ready");
       recordGateResult("table", {
@@ -235,22 +341,26 @@ export function MatchLoadingScreen({
         shown: true,
         timedOut,
       });
+      setConfirmCancel(false);
       setLoadState((prev) => ({
         ...prev,
         decorLoaded: prev.decorTotal,
         decorDone: true,
         powersLoaded: prev.powersTotal,
         powersDone: true,
+        catalogLoaded: prev.catalogTotal,
+        catalogDone: true,
         modulesLoaded: prev.modulesTotal,
         modulesDone: true,
         ready: true,
       }));
       setDisplayPct(100);
       prefetchAssets(backgroundAssets);
-      const revealPause = effectiveMinMs === 0 ? 0 : 150;
-      finishDelayTimer = window.setTimeout(() => {
-        if (!cancelled) onReadyRef.current();
-      }, revealPause);
+
+      const holdAt100Ms = effectiveMinMs === 0 ? 0 : 180;
+      revealStartTimer = window.setTimeout(() => {
+        if (!cancelled) setOpeningScene(true);
+      }, holdAt100Ms);
     };
 
     const maxTimer = window.setTimeout(() => complete(true), effectiveMaxMs);
@@ -303,8 +413,28 @@ export function MatchLoadingScreen({
       ),
     );
 
-    void Promise.all([decorPromise, powersPromise, modulesPromise]).then(() => {
+    const catalogPromise = Promise.all([decorPromise, powersPromise]).then(() => {
+      if (cancelled || backgroundAssets.length === 0) return;
+      return loadAssets(backgroundAssets, {
+        priority: "background",
+        onProgress: ({ loaded, total }) => {
+          if (cancelled) return;
+          setLoadState((prev) => ({
+            ...prev,
+            catalogLoaded: loaded,
+            catalogTotal: total,
+            catalogDone: loaded >= total,
+          }));
+        },
+      }).then(() => {
+        if (!cancelled) setLoadState((prev) => ({ ...prev, catalogLoaded: prev.catalogTotal, catalogDone: true }));
+      });
+    });
+
+    void Promise.all([decorPromise, powersPromise, modulesPromise, catalogPromise]).then(() => {
       if (cancelled || finished) return;
+      // Dès que tout est décodé, pré-monter la table tranquillement derrière les portes
+      triggerPreMount();
       const elapsed = performance.now() - startedAt;
       const remaining = Math.max(0, effectiveMinMs - elapsed);
       if (remaining <= 16) {
@@ -318,14 +448,234 @@ export function MatchLoadingScreen({
       cancelled = true;
       window.clearTimeout(maxTimer);
       if (minHoldTimer !== null) window.clearTimeout(minHoldTimer);
-      if (finishDelayTimer !== null) window.clearTimeout(finishDelayTimer);
+      if (preMountTimer !== null) window.clearTimeout(preMountTimer);
+      if (revealStartTimer !== null) window.clearTimeout(revealStartTimer);
     };
   }, [backgroundAssets, decorAssets, effectiveMaxMs, effectiveMinMs, powerAssets]);
 
-  /* Interpolation douce de la barre de progression pour une sensation fluide. */
-  const totalCount = Math.max(1, loadState.decorTotal + loadState.powersTotal + loadState.modulesTotal);
-  const loadedCount = loadState.decorLoaded + loadState.powersLoaded + loadState.modulesLoaded;
-  const rawPct = loadState.ready ? 100 : Math.min(96, Math.max(10, Math.round((loadedCount / totalCount) * 96)));
+  /* ═══ CINÉMATIQUE D'OUVERTURE DE SCÈNE EN 3 ACTES (GSAP · GPU PUR 60 FPS) ═══
+     Acte I   (0.00 → 0.68 s) : Rétraction du HUD, rassemblement des 5 cartes au
+                                centre, onde d'or et apparition des portes sculptées.
+     Acte II  (0.68 → 1.98 s) : Faisceau vertical d'or, entrebâillement pesant des
+                                deux portes acajou à sceau fendu, puis grand écartement
+                                fluide accompagné d'une envolée de 10 cartes + 16 braises.
+     Acte III (1.72 → 2.65 s) : Salut « À TABLE ! » + filaments dorés au-dessus de la
+                                table vivante, feu vert à la donne (onUnlockGame), puis fondu. */
+  useEffect(() => {
+    if (!openingScene) return;
+    let cancelled = false;
+    let fallbackTimer: number | null = null;
+    let gsapRevert: (() => void) | null = null;
+
+    if (reducedMotion) {
+      if (rootRef.current) {
+        rootRef.current.style.transition = "opacity 360ms ease";
+        rootRef.current.style.opacity = "0";
+      }
+      fallbackTimer = window.setTimeout(() => {
+        if (!cancelled) {
+          onUnlockGameRef.current?.();
+          onReadyRef.current();
+        }
+      }, 380);
+      return () => {
+        cancelled = true;
+        if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+      };
+    }
+
+    void loadGsap()
+      .then((gsap) => {
+        if (cancelled || !rootRef.current) return;
+        const ctx = gsap.context(() => {
+          const tl = gsap.timeline({
+            defaults: { force3D: true },
+            onComplete: () => {
+              if (!cancelled) onReadyRef.current();
+            },
+          });
+
+          const fanCards = fanRef.current ? Array.from(fanRef.current.children) : [];
+          const burstCards = burstLayerRef.current
+            ? Array.from(burstLayerRef.current.querySelectorAll("[data-burst-card]"))
+            : [];
+          const burstEmbers = burstLayerRef.current
+            ? Array.from(burstLayerRef.current.querySelectorAll("[data-burst-ember]"))
+            : [];
+
+          /* ── ACTE I : Rassemblement des cartes & verrouillage des portes royales ── */
+          tl.to(topBarRef.current, { y: -42, opacity: 0, duration: 0.42, ease: "power2.in" }, 0)
+            .to(bottomDockRef.current, { y: 54, opacity: 0, duration: 0.44, ease: "power2.in" }, 0)
+            .to([ribbonTopRef.current, ribbonBottomRef.current], { opacity: 0, duration: 0.36, ease: "power2.in" }, 0.08)
+            .to([headingRef.current, powersRef.current].filter(Boolean), { y: 18, opacity: 0, duration: 0.36, ease: "power2.in" }, 0.06)
+            .to(
+              fanCards,
+              {
+                x: 0,
+                y: 8,
+                rotation: 0,
+                scale: 0.72,
+                opacity: 0,
+                duration: 0.48,
+                stagger: 0.03,
+                ease: "power3.in",
+              },
+              0.08,
+            )
+            .to(
+              [haloOuterRef.current, haloInnerRef.current],
+              { scale: 1.45, opacity: 0, duration: 0.52, ease: "power2.in" },
+              0.18,
+            )
+            .to(
+              markDockRef.current,
+              { scale: 1.38, y: -64, opacity: 0, duration: 0.46, ease: "power2.in" },
+              0.2,
+            )
+            .to(
+              atmosphereRef.current,
+              { opacity: 0, duration: 0.42, ease: "power2.out" },
+              0.22,
+            )
+            .to(
+              [doorPanelLeftRef.current, doorPanelRightRef.current],
+              { opacity: 1, duration: 0.44, ease: "power2.out" },
+              0.2,
+            )
+            .fromTo(
+              shockwaveRef.current,
+              { scale: 0.22, opacity: 0.95 },
+              { scale: 2.8, opacity: 0, duration: 0.68, ease: "power2.out" },
+              0.38,
+            );
+
+          /* ── ACTE II : Faisceau d'or, anticipation, grand écartement des portes & envolée ── */
+          tl.to(
+            seamBeamRef.current,
+            { scaleY: 1, opacity: 1, duration: 0.3, ease: "power3.out" },
+            0.58,
+          )
+            .to(
+              seamHaloRef.current,
+              { scaleX: 1, opacity: 0.88, duration: 0.32, ease: "power2.out" },
+              0.6,
+            )
+            // Anticipation pesante : les portes s'entrebâillent légèrement avant de s'élancer
+            .to(doorLeftRef.current, { xPercent: -4.2, duration: 0.24, ease: "power2.out" }, 0.68)
+            .to(doorRightRef.current, { xPercent: 4.2, duration: 0.24, ease: "power2.out" }, 0.68)
+            // Grande ouverture ample, fluide et majestueuse (1,08 s)
+            .to(doorLeftRef.current, { xPercent: -104, duration: 1.08, ease: "power3.inOut" }, 0.92)
+            .to(doorRightRef.current, { xPercent: 104, duration: 1.08, ease: "power3.inOut" }, 0.92)
+            .to(
+              seamBeamRef.current,
+              { scaleX: 2.4, opacity: 0, duration: 0.56, ease: "power2.out" },
+              0.96,
+            )
+            .to(
+              seamHaloRef.current,
+              { scaleX: 6.5, opacity: 0, duration: 0.84, ease: "power2.out" },
+              0.94,
+            );
+
+          // Envolée des 10 cartes depuis le seuil lumineux vers tout l'écran
+          burstCards.forEach((node, idx) => {
+            const spec = BURST_CARDS[idx];
+            if (!spec) return;
+            const startAt = 0.92 + idx * 0.028;
+            tl.fromTo(
+              node,
+              { x: 0, y: 0, scale: 0.34, rotation: spec.rot * 0.18, opacity: 0 },
+              {
+                x: `${spec.dx}vw`,
+                y: `${spec.dy}vh`,
+                scale: 1.08,
+                rotation: spec.rot,
+                opacity: 0.95,
+                duration: 0.68,
+                ease: "power3.out",
+              },
+              startAt,
+            ).to(
+              node,
+              { opacity: 0, scale: 1.24, duration: 0.36, ease: "power2.in" },
+              startAt + 0.52,
+            );
+          });
+
+          // Projection des 16 braises dorées
+          burstEmbers.forEach((node, idx) => {
+            const spec = BURST_EMBERS[idx];
+            if (!spec) return;
+            const startAt = 0.88 + (idx % 6) * 0.024;
+            tl.fromTo(
+              node,
+              { x: 0, y: 0, scale: 0.4, opacity: 0 },
+              {
+                x: `${spec.dx}vw`,
+                y: `${spec.dy}vh`,
+                scale: 1.25,
+                opacity: 0.95,
+                duration: 0.72,
+                ease: "power2.out",
+              },
+              startAt,
+            ).to(
+              node,
+              { opacity: 0, scale: 0.2, duration: 0.4, ease: "power2.in" },
+              startAt + 0.5,
+            );
+          });
+
+          /* ── ACTE III : Salut royal « À TABLE ! » au-dessus de la table vivante ── */
+          tl.fromTo(
+            saluteInnerRef.current,
+            { scale: 0.84, y: 14, opacity: 0 },
+            { scale: 1, y: 0, opacity: 1, duration: 0.44, ease: "back.out(1.4)" },
+            1.66,
+          )
+            .to(
+              [filamentLeftRef.current, filamentRightRef.current],
+              { scaleX: 1, duration: 0.46, ease: "power3.out" },
+              1.72,
+            )
+            .to(
+              saluteInnerRef.current,
+              { y: -14, scale: 1.04, opacity: 0, duration: 0.4, ease: "power2.in" },
+              2.25,
+            )
+            // Feu vert à la table UNIQUEMENT une fois l'ouverture 100 % terminée
+            // pour que toute l'animation de distribution des cartes soit visible.
+            .call(() => {
+              if (!cancelled) onUnlockGameRef.current?.();
+            }, undefined, 2.65);
+        }, rootRef);
+        gsapRevert = () => ctx.revert();
+      })
+      .catch(() => {
+        if (cancelled) return;
+        onUnlockGameRef.current?.();
+        fallbackTimer = window.setTimeout(() => {
+          if (!cancelled) onReadyRef.current();
+        }, 300);
+      });
+
+    return () => {
+      cancelled = true;
+      gsapRevert?.();
+      if (fallbackTimer !== null) window.clearTimeout(fallbackTimer);
+    };
+  }, [openingScene, reducedMotion]);
+
+  /* Progression cadencée sur les 5 s : ne dépasse jamais le chargement réel. */
+  const totalCount = Math.max(
+    1,
+    loadState.decorTotal + loadState.powersTotal + loadState.catalogTotal + loadState.modulesTotal,
+  );
+  const loadedCount =
+    loadState.decorLoaded + loadState.powersLoaded + loadState.catalogLoaded + loadState.modulesLoaded;
+  const realRatio = loadedCount / totalCount;
+  const realRatioRef = useRef(realRatio);
+  realRatioRef.current = realRatio;
 
   useEffect(() => {
     if (loadState.ready) {
@@ -334,16 +684,25 @@ export function MatchLoadingScreen({
     }
     let rafId = 0;
     const tick = () => {
+      const elapsed = Math.max(0, performance.now() - (startedAtRef.current || performance.now()));
+      const timeLinear = effectiveMinMs > 0 ? Math.min(1, elapsed / effectiveMinMs) : 1;
+      const timeEased = 1 - Math.pow(1 - timeLinear, 1.35);
+      const bounded = Math.min(realRatioRef.current, timeEased);
+      const target = Math.min(98, Math.max(4, Math.round(bounded * 98)));
       setDisplayPct((current) => {
-        if (current >= rawPct) return current;
-        const delta = Math.max(1, Math.ceil((rawPct - current) * 0.2));
-        return Math.min(rawPct, current + delta);
+        if (target <= current) return current;
+        const delta = Math.max(1, Math.ceil((target - current) * 0.16));
+        return Math.min(target, current + delta);
       });
       rafId = window.requestAnimationFrame(tick);
     };
     rafId = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(rafId);
-  }, [loadState.ready, rawPct]);
+  }, [effectiveMinMs, loadState.ready]);
+
+  const decorVisualDone = loadState.ready || (loadState.decorDone && displayPct >= 34);
+  const powersVisualDone = loadState.ready || (loadState.powersDone && loadState.catalogDone && displayPct >= 68);
+  const modulesVisualDone = loadState.ready || (loadState.modulesDone && displayPct >= 92);
 
   const meta = MODE_META[gameMode];
   const powerThumbs = useMemo(
@@ -357,18 +716,18 @@ export function MatchLoadingScreen({
 
   const stepLabel = loadState.ready
     ? "Table prête !"
-    : !loadState.decorDone
+    : !decorVisualDone
       ? "Déploiement du tapis & des cartes…"
-      : !loadState.powersDone
+      : !powersVisualDone
         ? "Chargement des cartes pouvoir & sons…"
-        : !loadState.modulesDone
+        : !modulesVisualDone
           ? "Initialisation du moteur de table…"
           : resuming
             ? "Synchronisation de la manche…"
             : "Mélange final du paquet…";
 
   const headline = loadState.ready
-    ? "Bonne partie !"
+    ? "Ouverture du salon…"
     : resuming
       ? "Reconnexion à la table"
       : meta.title;
@@ -382,193 +741,307 @@ export function MatchLoadingScreen({
           ? "Salon privé entre amis"
           : "Table multijoueur en direct";
 
+  const saluteSubtitle = `${playerCount} joueurs · ${mise > 0 ? NKAP(mise) : gameMode === "event" ? "Tournoi" : "Amicale"}`;
   const ratio = Math.max(0.04, Math.min(1, displayPct / 100));
 
   return (
     <motion.div
-      className={`${styles.root}${reducedMotion ? ` ${styles.reduced}` : ""}`}
+      ref={rootRef}
+      className={`${styles.root}${reducedMotion ? ` ${styles.reduced}` : ""}${openingScene ? ` ${styles.rootOpening}` : ""}`}
       data-loading-gate="table"
       data-match-loader="true"
+      data-opening-scene={openingScene ? "true" : "false"}
       role="status"
       aria-live="polite"
       aria-busy={!loadState.ready}
       initial={motionProfile.enabled ? { opacity: 0 } : false}
       animate={{ opacity: 1 }}
-      exit={motionProfile.enabled ? { opacity: 0, scale: 1.02 } : undefined}
-      transition={{ duration: 0.22, ease: "easeOut" }}
+      transition={{ duration: 0.24, ease: "easeOut" }}
     >
-      <div className={styles.ribbonTop} aria-hidden="true" />
-      <div className={styles.spotlight} aria-hidden="true" />
+      {/* ═══ PORTES DOUBLES ROYALES ACAJOU & LAITON (GPU PUR) ═══ */}
+      <div className={styles.doors} aria-hidden="true">
+        <div ref={doorLeftRef} className={styles.doorLeft}>
+          <div ref={doorPanelLeftRef} className={styles.doorPanel}>
+            <div className={styles.doorCoffer}>
+              <div className={styles.doorCofferInner} />
+            </div>
+            <span className={styles.doorTrim} />
+            <div className={styles.sealHalfLeft}>
+              <div className={styles.sealDisc}>
+                <span className={styles.sealDiscRing} />
+                <NjamboMark size={92} compact />
+              </div>
+            </div>
+          </div>
+        </div>
 
-      <div className={styles.watermarks} aria-hidden="true">
-        <span className={styles.wm1}>♠</span>
-        <span className={styles.wm2}>♥</span>
-        <span className={styles.wm3}>♦</span>
-        <span className={styles.wm4}>♣</span>
+        <div ref={doorRightRef} className={styles.doorRight}>
+          <div ref={doorPanelRightRef} className={styles.doorPanel}>
+            <div className={styles.doorCoffer}>
+              <div className={styles.doorCofferInner} />
+            </div>
+            <span className={styles.doorTrim} />
+            <div className={styles.sealHalfRight}>
+              <div className={styles.sealDisc}>
+                <span className={styles.sealDiscRing} />
+                <NjamboMark size={92} compact />
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
 
-      {!reducedMotion && (
-        <div className={styles.sparks} aria-hidden="true">
-          {SPARK_POSITIONS.map((spark, index) => (
-            <span
-              key={index}
-              style={{
-                left: spark.left,
-                top: spark.top,
-                width: `${spark.size}px`,
-                height: `${spark.size}px`,
-                animationDelay: spark.delay,
-              }}
-            />
-          ))}
-        </div>
-      )}
+      {/* ═══ EFFETS CINÉMATIQUES D'OUVERTURE (ONDE · FAISCEAU · ENVOLÉE) ═══ */}
+      <div ref={shockwaveRef} className={styles.shockwave} aria-hidden="true" />
+      <div ref={seamHaloRef} className={styles.seamHalo} aria-hidden="true" />
+      <div ref={seamBeamRef} className={styles.seamBeam} aria-hidden="true" />
 
-      <motion.section
-        className={styles.card}
-        aria-label="Chargement de la partie"
-        initial={motionProfile.enabled ? { opacity: 0, y: 18, scale: 0.96 } : false}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        transition={{ type: "spring", stiffness: 360, damping: 28 }}
-      >
-        <span className={styles.innerFrame} aria-hidden="true" />
-        {!reducedMotion && <span className={styles.sheen} aria-hidden="true" />}
-        <span className={`${styles.rivet} ${styles.rivetTL}`} aria-hidden="true" />
-        <span className={`${styles.rivet} ${styles.rivetTR}`} aria-hidden="true" />
-        <span className={`${styles.rivet} ${styles.rivetBL}`} aria-hidden="true" />
-        <span className={`${styles.rivet} ${styles.rivetBR}`} aria-hidden="true" />
-
-        {/* 1. Badge du mode */}
-        <div className={`${styles.modePill} ${styles[`mode_${meta.tone}`]}`}>
-          <span className={styles.modeDot} aria-hidden="true" />
-          <NjamboIcon name={meta.icon} tone={meta.tone} size={16} />
-          <span>{resuming ? "Reprise en cours" : meta.label}</span>
-        </div>
-
-        {/* 2. Éventail cérémoniel de 5 cartes + anneau boussole */}
-        <div className={styles.stage} aria-hidden="true">
-          <div className={styles.haloRing}>
-            <span className={`${styles.haloGem} ${styles.gemN}`}>♠</span>
-            <span className={`${styles.haloGem} ${styles.gemE}`}>♥</span>
-            <span className={`${styles.haloGem} ${styles.gemS}`}>♦</span>
-            <span className={`${styles.haloGem} ${styles.gemW}`}>♣</span>
-          </div>
-
-          <div className={styles.fan}>
-            <span className={`${styles.backCard} ${styles.fanL2}`} />
-            <span className={`${styles.backCard} ${styles.fanL1}`} />
-            <div className={styles.heroCard}>
-              <span className={styles.heroCorner}>
-                <span>3</span>
-                <span>♦</span>
+      <div ref={burstLayerRef} className={styles.burstLayer} aria-hidden="true">
+        {BURST_CARDS.map((spec, idx) =>
+          spec.face ? (
+            <div
+              key={`bc-${idx}`}
+              data-burst-card="true"
+              className={`${styles.burstCard} ${styles.burstCardFace} ${spec.face.red ? styles.suitRed : styles.suitDark}`}
+            >
+              <span className={styles.cardCorner}>
+                <span>{spec.face.rank}</span>
+                <span>{spec.face.suit}</span>
               </span>
-              <span className={styles.heroPip}>♦</span>
-              <span className={styles.heroCornerBot}>
-                <span>3</span>
-                <span>♦</span>
-              </span>
+              <span className={styles.cardPip}>{spec.face.suit}</span>
             </div>
-            <span className={`${styles.backCard} ${styles.fanR1}`} />
-            <span className={`${styles.backCard} ${styles.fanR2}`} />
-          </div>
+          ) : (
+            <span key={`bc-${idx}`} data-burst-card="true" className={styles.burstCard} />
+          ),
+        )}
+        {BURST_EMBERS.map((ember, idx) => (
+          <span
+            key={`em-${idx}`}
+            data-burst-ember="true"
+            className={styles.burstEmber}
+            style={{
+              width: `${ember.size}px`,
+              height: `${ember.size}px`,
+              marginLeft: `${-ember.size / 2}px`,
+              marginTop: `${-ember.size / 2}px`,
+            }}
+          />
+        ))}
+      </div>
 
-          <div className={styles.markDock}>
-            <NjamboMark size={30} compact />
+      {/* ═══ ACTE III : SALUT CÉRÉMONIEL AU-DESSUS DE LA TABLE DÉVOILÉE ═══ */}
+      <div className={styles.saluteOverlay} aria-hidden="true">
+        <div ref={saluteInnerRef} className={styles.saluteInner}>
+          <div className={styles.saluteMark}>
+            <NjamboMark size={46} compact />
           </div>
+          <div className={styles.saluteFilamentRow}>
+            <span ref={filamentLeftRef} className={styles.saluteFilament} />
+            <span className={styles.saluteKicker}>{meta.label}</span>
+            <span ref={filamentRightRef} className={styles.saluteFilament} />
+          </div>
+          <h2 className={styles.saluteTitle}>À table !</h2>
+          <p className={styles.saluteSub}>{saluteSubtitle}</p>
+        </div>
+      </div>
+
+      {/* ═══ AMBIANCE LUMINEUSE PLEIN ÉCRAN (PENDANT LE CHARGEMENT) ═══ */}
+      <div ref={atmosphereRef} className={styles.backdropAtmosphere} aria-hidden="true">
+        {!reducedMotion && <div className={styles.sunburst} />}
+        <div className={styles.spotlight} />
+        <div className={styles.viewportFrame} />
+
+        <div className={styles.watermarks}>
+          <span className={styles.wm1}>♠</span>
+          <span className={styles.wm2}>♥</span>
+          <span className={styles.wm3}>♦</span>
+          <span className={styles.wm4}>♣</span>
         </div>
 
-        {/* 3. Titre + infos clés de la partie */}
-        <div className={styles.heading}>
-          <h2 className={styles.title}>{headline}</h2>
-          <p className={styles.subtitle}>{subline}</p>
-        </div>
+        {!reducedMotion && (
+          <div className={styles.sparks}>
+            {SPARK_POSITIONS.map((spark, index) => (
+              <span
+                key={index}
+                style={{
+                  left: spark.left,
+                  top: spark.top,
+                  width: `${spark.size}px`,
+                  height: `${spark.size}px`,
+                  animationDelay: spark.delay,
+                }}
+              />
+            ))}
+          </div>
+        )}
+      </div>
 
-        <div className={styles.metaRow}>
-          <span className={styles.metaChip}>
-            <NjamboIcon name="users" tone="teal" size={14} />
-            <span>{playerCount} joueurs</span>
-          </span>
+      <div ref={ribbonTopRef} className={styles.ribbonTop} aria-hidden="true" />
+      <div ref={ribbonBottomRef} className={styles.ribbonBottom} aria-hidden="true" />
 
-          <span className={styles.metaChip}>
-            <img src="/assets/njambo/economy/nkap-64.webp" alt="" className={styles.coinImg} draggable={false} />
-            <span>{mise > 0 ? NKAP(mise) : gameMode === "event" ? "Tournoi" : "Amicale"}</span>
-          </span>
+      {/* ═══ MISE EN PAGE PLEIN ÉCRAN EN 3 BANDES ═══ */}
+      <div className={styles.fullscreenLayout} aria-label="Chargement de la partie">
+        <header ref={topBarRef} className={styles.topBar}>
+          <div className={`${styles.modePill} ${styles[`mode_${meta.tone}`]}`}>
+            <span className={styles.modeDot} aria-hidden="true" />
+            <NjamboIcon name={meta.icon} tone={meta.tone} size={17} />
+            <span>{resuming ? "Reprise en cours" : meta.label}</span>
+          </div>
+
+          <span className={styles.brandKicker}>NJAMBO · SALON ROYAL</span>
+
+          <div className={styles.metaRow}>
+            <span className={styles.metaChip}>
+              <NjamboIcon name="users" tone="teal" size={15} />
+              <span>{playerCount} joueurs</span>
+            </span>
+
+            <span className={styles.metaChip}>
+              <img src="/assets/njambo/economy/nkap-64.webp" alt="" className={styles.coinImg} draggable={false} />
+              <span>{mise > 0 ? NKAP(mise) : gameMode === "event" ? "Tournoi" : "Amicale"}</span>
+            </span>
+          </div>
+        </header>
+
+        <section ref={heroCenterRef} className={styles.heroCenter}>
+          <motion.div
+            className={styles.stage}
+            aria-hidden="true"
+            initial={motionProfile.enabled ? { opacity: 0, scale: 0.86 } : false}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ type: "spring", stiffness: 280, damping: 24 }}
+          >
+            <div ref={haloOuterRef} className={styles.haloOuter}>
+              <span className={`${styles.haloGem} ${styles.gemN}`}>♠</span>
+              <span className={`${styles.haloGem} ${styles.gemE}`}>♥</span>
+              <span className={`${styles.haloGem} ${styles.gemS}`}>♦</span>
+              <span className={`${styles.haloGem} ${styles.gemW}`}>♣</span>
+            </div>
+            <div ref={haloInnerRef} className={styles.haloInner} />
+
+            <div ref={fanRef} className={styles.fan}>
+              <span className={`${styles.fanCard} ${styles.fanL2}`} />
+              <div className={`${styles.fanCard} ${styles.fanFace} ${styles.suitRed} ${styles.fanL1}`}>
+                <span className={styles.cardCorner}><span>A</span><span>♥</span></span>
+                <span className={styles.cardPip}>♥</span>
+                <span className={styles.cardCornerBot}><span>A</span><span>♥</span></span>
+              </div>
+              <div className={styles.heroCard}>
+                {!reducedMotion && <span className={styles.heroCardSheen} />}
+                <span className={styles.cardCorner}><span>3</span><span>♦</span></span>
+                <span className={styles.cardPip}>♦</span>
+                <span className={styles.cardCornerBot}><span>3</span><span>♦</span></span>
+              </div>
+              <div className={`${styles.fanCard} ${styles.fanFace} ${styles.suitDark} ${styles.fanR1}`}>
+                <span className={styles.cardCorner}><span>10</span><span>♠</span></span>
+                <span className={styles.cardPip}>♠</span>
+                <span className={styles.cardCornerBot}><span>10</span><span>♠</span></span>
+              </div>
+              <span className={`${styles.fanCard} ${styles.fanR2}`} />
+            </div>
+
+            <div ref={markDockRef} className={styles.markDock}>
+              <NjamboMark size={40} compact />
+            </div>
+          </motion.div>
+
+          <motion.div
+            ref={headingRef}
+            className={styles.heading}
+            initial={motionProfile.enabled ? { opacity: 0, y: 12 } : false}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.36, delay: 0.08 }}
+          >
+            <h2 className={styles.title}>{headline}</h2>
+            <p className={styles.subtitle}>{subline}</p>
+          </motion.div>
 
           {powerThumbs.length > 0 && (
-            <span className={styles.powerChips} title="Tes cartes pouvoir équipées">
+            <div ref={powersRef} className={styles.powerShowcase} aria-label="Cartes pouvoir équipées">
               {powerThumbs.map((card) => (
-                <img
-                  key={card.id}
-                  src={card.art}
-                  alt={card.name}
-                  className={styles.powerThumb}
-                  draggable={false}
-                />
+                <span key={card.id} className={styles.powerBadge}>
+                  <img
+                    src={card.art}
+                    alt=""
+                    className={styles.powerThumb}
+                    draggable={false}
+                  />
+                  <span>{card.name}</span>
+                </span>
               ))}
               {equippedPowers.length > 3 && (
-                <span className={styles.powerChipsCount}>+{equippedPowers.length - 3}</span>
+                <span className={styles.powerExtra}>+{equippedPowers.length - 3}</span>
               )}
-            </span>
+            </div>
           )}
-        </div>
+        </section>
 
-        {/* 4. Barre de progression or liquide + étapes réelles */}
-        <div className={styles.progressWrap}>
-          <div className={styles.progressHeader}>
-            <span className={styles.stepLabel}>{stepLabel}</span>
-            <span className={styles.percent}>{displayPct} %</span>
+        <footer ref={bottomDockRef} className={styles.bottomDock}>
+          <div className={styles.tipBanner}>
+            <img
+              src="/assets/njambo/ui/icons/sparkle-64.webp"
+              alt=""
+              className={styles.tipIcon}
+              draggable={false}
+            />
+            <AnimatePresence mode="wait">
+              <motion.p
+                key={tip}
+                className={styles.tipText}
+                initial={motionProfile.enabled ? { opacity: 0, y: 4 } : false}
+                animate={{ opacity: 1, y: 0 }}
+                exit={motionProfile.enabled ? { opacity: 0, y: -4 } : undefined}
+                transition={{ duration: 0.24 }}
+              >
+                <span className={styles.tipLabel}>Astuce du Mboa</span>
+                {tip}
+              </motion.p>
+            </AnimatePresence>
           </div>
 
-          <div
-            className={styles.track}
-            role="progressbar"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={displayPct}
-            aria-label={`Chargement des ressources ${displayPct} %`}
-          >
-            <div className={styles.fill} style={{ transform: `scaleX(${ratio})` }} />
+          <div className={styles.progressWrap}>
+            <div className={styles.progressHeader}>
+              <span className={styles.stepLabel}>{stepLabel}</span>
+              <span className={styles.percent}>{displayPct} %</span>
+            </div>
+
+            <div
+              className={styles.track}
+              role="progressbar"
+              aria-valuemin={0}
+              aria-valuemax={100}
+              aria-valuenow={displayPct}
+              aria-label={`Chargement des ressources ${displayPct} %`}
+            >
+              <div className={styles.fill} style={{ transform: `scaleX(${ratio})` }} />
+            </div>
+
+            <div className={styles.footerMeta}>
+              <div className={styles.stagesRow}>
+                <span className={`${styles.stageBadge}${decorVisualDone ? ` ${styles.stageBadgeDone}` : ""}`}>
+                  <span className={styles.stageDot} aria-hidden="true" />
+                  <span>{decorVisualDone ? "✓ Décors" : "Décors"}</span>
+                </span>
+                <span className={`${styles.stageBadge}${powersVisualDone ? ` ${styles.stageBadgeDone}` : ""}`}>
+                  <span className={styles.stageDot} aria-hidden="true" />
+                  <span>{powersVisualDone ? "✓ Pouvoirs" : "Pouvoirs"}</span>
+                </span>
+                <span className={`${styles.stageBadge}${modulesVisualDone ? ` ${styles.stageBadgeDone}` : ""}`}>
+                  <span className={styles.stageDot} aria-hidden="true" />
+                  <span>{modulesVisualDone ? "✓ Table" : "Table"}</span>
+                </span>
+              </div>
+
+              <span className={styles.resourceCount}>
+                {loadedCount} / {totalCount} ressources chargées
+              </span>
+            </div>
           </div>
-
-          <div className={styles.stagesRow}>
-            <span className={`${styles.stageBadge}${loadState.decorDone ? ` ${styles.stageBadgeDone}` : ""}`}>
-              <span className={styles.stageDot} aria-hidden="true" />
-              <span>{loadState.decorDone ? "✓ Décors" : "Décors"}</span>
-            </span>
-            <span className={`${styles.stageBadge}${loadState.powersDone ? ` ${styles.stageBadgeDone}` : ""}`}>
-              <span className={styles.stageDot} aria-hidden="true" />
-              <span>{loadState.powersDone ? "✓ Pouvoirs" : "Pouvoirs"}</span>
-            </span>
-            <span className={`${styles.stageBadge}${loadState.modulesDone ? ` ${styles.stageBadgeDone}` : ""}`}>
-              <span className={styles.stageDot} aria-hidden="true" />
-              <span>{loadState.modulesDone ? "✓ Table" : "Table"}</span>
-            </span>
-          </div>
-
-          <span className={styles.resourceCount}>
-            {loadedCount} / {totalCount} ressources chargées
-          </span>
-        </div>
-
-        {/* 5. Astuce du Mboa */}
-        <div className={styles.tipBox}>
-          <img
-            src="/assets/njambo/ui/icons/sparkle-64.webp"
-            alt=""
-            className={styles.tipIcon}
-            draggable={false}
-          />
-          <p className={styles.tipText}>
-            <span className={styles.tipLabel}>Astuce du Mboa</span>
-            {tip}
-          </p>
-        </div>
-      </motion.section>
-
-      <div className={styles.ribbonBottom} aria-hidden="true" />
+        </footer>
+      </div>
 
       {/* Confirmation si le joueur appuie sur Retour pendant le lancement */}
-      {confirmCancel && onCancel && (
+      {confirmCancel && onCancel && !openingScene && (
         <div className={styles.cancelBackdrop} onClick={() => setConfirmCancel(false)}>
           <div
             className={styles.cancelBox}

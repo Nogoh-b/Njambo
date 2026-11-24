@@ -48,7 +48,15 @@ function catalogPowerAssets(): AssetRef[] {
   });
 }
 
-type CosmeticsLike = { avatarFrame?: { imageUrl?: string }; badge?: { imageUrl?: string }; cardBack?: { imageUrl?: string } } | null | undefined;
+export const DEFAULT_CARD_BACK_ASSET = "/assets/njambo/table/card-back-default.svg";
+export const DEFAULT_HAND_ARC_ASSET = "/assets/njambo/table/hand-arc-default.svg";
+
+type CosmeticsLike = {
+  avatarFrame?: { imageUrl?: string };
+  badge?: { imageUrl?: string };
+  cardBack?: { imageUrl?: string };
+  handArc?: { imageUrl?: string };
+} | null | undefined;
 
 export interface TableManifestInput {
   /** Cartes de pouvoir équipées par le joueur local (celles des adversaires restent secrètes). */
@@ -69,6 +77,8 @@ export interface TableAssetGroups {
 }
 
 const TABLE_UI_CRITICAL = [
+  DEFAULT_CARD_BACK_ASSET,
+  DEFAULT_HAND_ARC_ASSET,
   "/assets/njambo/books/card-back-128.webp",
   "/assets/njambo/ui/brand/njambo-mark-128.webp",
   "/assets/njambo/economy/nkap-64.webp",
@@ -101,7 +111,8 @@ export function tableAssetGroups(input: TableManifestInput = {}): TableAssetGrou
   const decorRaw: Array<AssetRef | null> = [
     imageAsset(cssVarUrl("--nj-table-image")),
     imageAsset(cssVarUrl("--nj-solar-app-bg")),
-    imageAsset(cssVarUrl("--nj-card-back") ?? "/assets/njambo/card-back.webp"),
+    imageAsset(cssVarUrl("--nj-card-back") ?? DEFAULT_CARD_BACK_ASSET),
+    imageAsset(cssVarUrl("--nj-hand-arc") ?? DEFAULT_HAND_ARC_ASSET),
     ...TABLE_UI_CRITICAL.map((url) => imageAsset(url)),
   ];
   const powersRaw: Array<AssetRef | null> = [];
@@ -114,6 +125,7 @@ export function tableAssetGroups(input: TableManifestInput = {}): TableAssetGrou
       imageAsset(cosmetics?.avatarFrame?.imageUrl),
       imageAsset(cosmetics?.badge?.imageUrl),
       imageAsset(cosmetics?.cardBack?.imageUrl),
+      imageAsset(cosmetics?.handArc?.imageUrl),
     );
   }
   for (const avatarUrl of input.avatars ?? []) {

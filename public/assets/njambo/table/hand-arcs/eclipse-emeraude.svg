@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 190" fill="none">
+<defs>
+    <clipPath id="cl"><path d="M 21.1 190 A 256 256 0 0 1 498.9 190 Z"/></clipPath>
+    <radialGradient id="bg" cx="50%" cy="84%" r="76%">
+      <stop offset="0%" stop-color="#2e1e13"/>
+      <stop offset="56%" stop-color="#120b09"/>
+      <stop offset="100%" stop-color="#060404"/>
+    </radialGradient>
+    <radialGradient id="gl" cx="50%" cy="22%" r="72%">
+      <stop offset="0%" stop-color="#ffcf40" stop-opacity="0.34"/>
+      <stop offset="48%" stop-color="#1de4be" stop-opacity="0.14"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rm" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#1de4be" stop-opacity="0.82"/>
+      <stop offset="22%" stop-color="#ffcf40"/>
+      <stop offset="50%" stop-color="#fff6c8"/>
+      <stop offset="78%" stop-color="#ffcf40"/>
+      <stop offset="100%" stop-color="#1de4be" stop-opacity="0.82"/>
+    </linearGradient>
+  </defs>
+  <path d="M 21.1 190 A 256 256 0 0 1 498.9 190 Z" fill="url(#bg)"/>
+  <g clip-path="url(#cl)">
+    <rect x="12" y="16" width="496" height="176" fill="url(#gl)"/>
+    <path d="M 36.2 190 A 242 242 0 0 1 483.8 190" stroke="#1de4be" stroke-opacity="0.62" stroke-width="1.6" stroke-dasharray="10 9"/>
+    <text x="68" y="160" font-size="15" font-family="Georgia, serif" fill="#ffe086" opacity="0.28">♠</text>
+    <text x="148" y="88" font-size="14" font-family="Georgia, serif" fill="#ff84a0" opacity="0.3">♥</text>
+    <text x="362" y="88" font-size="14" font-family="Georgia, serif" fill="#ffe086" opacity="0.3">♦</text>
+    <text x="440" y="160" font-size="15" font-family="Georgia, serif" fill="#80f8e0" opacity="0.28">♣</text>
+  </g>
+  <path d="M 21.1 190 A 256 256 0 0 1 498.9 190" stroke="url(#rm)" stroke-width="4.4" stroke-linecap="butt"/>
+  <path d="M216 32 Q234 22 248 26 Q236 31 224 36 Z" fill="#ffd85c" opacity="0.88"/>
+  <path d="M304 32 Q286 22 272 26 Q284 31 296 36 Z" fill="#ffd85c" opacity="0.88"/>
+  <polygon points="260,13 271,26 260,39 249,26" fill="#180d09" stroke="#ffe588" stroke-width="2"/>
+  <polygon points="260,18 266,26 260,34 254,26" fill="#1de4be"/>
+</svg>

@@ -1,0 +1,118 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   Fan — Lueurs et micro-animations vivantes sur les mains adverses
+   - Au repos : halo doré doux et subtil pour donner du relief aux dos de cartes.
+   - Au tour de l'adversaire : surbrillance lumineuse sur chaque carte, reflet
+     métallique glissant (100 % GPU) et vague de réflexion décalée carte par carte.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.oppFanIdle {
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.42));
+  transition: filter 320ms ease;
+}
+
+.oppFanActive {
+  filter: drop-shadow(0 0 16px rgba(255, 207, 64, 0.44));
+  transition: filter 300ms ease;
+}
+
+.oppFanNgata {
+  filter: drop-shadow(0 0 18px rgba(255, 94, 132, 0.56));
+  transition: filter 300ms ease;
+}
+
+/* Cartes adverses au repos : lueur douce + retour fluide sans à-coup */
+.oppCardIdle {
+  transition: transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.oppCardIdle :global(.nj-playcard) {
+  box-shadow:
+    0 5px 12px rgba(0, 0, 0, 0.48),
+    0 0 8px rgba(255, 214, 96, 0.22);
+  transition:
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 260ms ease;
+}
+
+/* Cartes adverses en tour actif : surbrillance dorée + reflet glissant + vague de réflexion */
+.oppCardActive {
+  will-change: transform;
+  animation: njOppThinkWave 1.9s ease-in-out calc(var(--opp-idx, 0) * 135ms) infinite;
+}
+
+.oppCardActive :global(.nj-playcard) {
+  box-shadow:
+    0 7px 16px rgba(0, 0, 0, 0.54),
+    0 0 0 1.4px rgba(255, 236, 152, 0.86),
+    0 0 16px rgba(255, 207, 64, 0.56);
+  transition:
+    transform 200ms cubic-bezier(0.22, 1, 0.36, 1),
+    box-shadow 240ms ease;
+}
+
+.oppCardNgata :global(.nj-playcard) {
+  box-shadow:
+    0 7px 18px rgba(0, 0, 0, 0.58),
+    0 0 0 1.5px rgba(255, 176, 198, 0.9),
+    0 0 18px rgba(255, 91, 127, 0.62);
+}
+
+/* Reflet lumineux diagonal qui balaie les dos de cartes adverses actifs (100 % GPU) */
+.oppCardActive :global(.nj-playcard)::after {
+  content: "";
+  position: absolute;
+  inset: -35%;
+  width: 58%;
+  background: linear-gradient(
+    114deg,
+    rgba(255, 255, 255, 0) 18%,
+    rgba(255, 248, 214, 0.42) 48%,
+    rgba(255, 255, 255, 0) 78%
+  );
+  transform: translateX(-180%) rotate(10deg);
+  pointer-events: none;
+  animation: njOppFoilSweep 2.4s ease-in-out calc(var(--opp-idx, 0) * 180ms) infinite;
+}
+
+/* Respect du mode sans animation / accessibilité */
+.oppStatic,
+.oppStatic :global(.nj-playcard)::after {
+  animation: none !important;
+  will-change: auto;
+}
+
+.oppStatic :global(.nj-playcard)::after {
+  display: none;
+}
+
+@keyframes njOppThinkWave {
+  0%,
+  100% {
+    transform: translateY(0px);
+  }
+  32% {
+    transform: translateY(-6px);
+  }
+  64% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes njOppFoilSweep {
+  0%,
+  36% {
+    transform: translateX(-180%) rotate(10deg);
+  }
+  76%,
+  100% {
+    transform: translateX(320%) rotate(10deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .oppCardActive,
+  .oppCardActive :global(.nj-playcard)::after {
+    animation: none !important;
+    will-change: auto;
+  }
+}

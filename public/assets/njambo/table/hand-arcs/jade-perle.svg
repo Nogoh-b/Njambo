@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 520 190" fill="none">
+<defs>
+    <clipPath id="cl"><path d="M 21.1 190 A 256 256 0 0 1 498.9 190 Z"/></clipPath>
+    <radialGradient id="bg" cx="50%" cy="88%" r="76%">
+      <stop offset="0%" stop-color="#2c6b5a"/>
+      <stop offset="54%" stop-color="#14372f"/>
+      <stop offset="100%" stop-color="#071a16"/>
+    </radialGradient>
+    <radialGradient id="gl" cx="50%" cy="100%" r="58%">
+      <stop offset="0%" stop-color="#8cf2d8" stop-opacity="0.28"/>
+      <stop offset="100%" stop-color="#000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="rm" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8b7d5c"/>
+      <stop offset="25%" stop-color="#e4d2a6"/>
+      <stop offset="50%" stop-color="#fffaf0"/>
+      <stop offset="75%" stop-color="#e4d2a6"/>
+      <stop offset="100%" stop-color="#8b7d5c"/>
+    </linearGradient>
+  </defs>
+  <path d="M 21.1 190 A 256 256 0 0 1 498.9 190 Z" fill="url(#bg)"/>
+  <g clip-path="url(#cl)">
+    <rect x="12" y="16" width="496" height="176" fill="url(#gl)"/>
+    <path d="M 64.6 190 A 216 216 0 0 1 455.4 190" stroke="#f2e6c8" stroke-opacity="0.28" stroke-width="1.1"/>
+    <path d="M 110.0 190 A 176 176 0 0 1 410.0 190" stroke="#9cead4" stroke-opacity="0.18" stroke-width="1"/>
+  </g>
+  <path d="M 21.1 190 A 256 256 0 0 1 498.9 190" stroke="url(#rm)" stroke-width="4.2" stroke-linecap="butt"/>
+  <path d="M 36.2 190 A 242 242 0 0 1 483.8 190" stroke="#fff8e8" stroke-opacity="0.36" stroke-width="1"/>
+  <circle cx="58.6" cy="135.6" r="2.2" fill="#fffaf0" opacity="0.9"/>
+  <circle cx="99.9" cy="91.3" r="2.2" fill="#fffaf0" opacity="0.9"/>
+  <circle cx="150.8" cy="58.2" r="2.2" fill="#fffaf0" opacity="0.9"/>
+  <circle cx="208.2" cy="38.4" r="2.2" fill="#fffaf0" opacity="0.9"/>
+  <circle cx="311.8" cy="38.4" r="2.2" fill="#fffaf0" opacity="0.9"/>
+  <circle cx="369.2" cy="58.2" r="2.2" fill="#fffaf0" opacity="0.9"/>
+  <circle cx="420.1" cy="91.3" r="2.2" fill="#fffaf0" opacity="0.9"/>
+  <circle cx="461.4" cy="135.6" r="2.2" fill="#fffaf0" opacity="0.9"/>
+  <circle cx="260" cy="26" r="13" fill="#113029" stroke="url(#rm)" stroke-width="2.1"/>
+  <path d="M260 17 C263.5 22 264.5 23 269 26 C264.5 29 263.5 30 260 35 C256.5 30 255.5 29 251 26 C255.5 23 256.5 22 260 17 Z" fill="#f5ead0"/>
+</svg>

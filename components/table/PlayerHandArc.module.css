@@ -1,0 +1,336 @@
+/* ═══════════════════════════════════════════════════════════════════════════
+   PlayerHandArc — Arche circulaire cosmétique (4 bords de table)
+   - Un point d'ancrage .anchor (0×0) pivote le repère vers l'intérieur de la
+     table pour bottom (0°), top (180°), left (90°) et right (-90°).
+   - Au repos : rétractée et adoucie au bord de l'écran.
+   - À l'entrée du tour : agrandissement avec ressort + surbrillance dorée
+     animée (aura, reflet mobile, onde circulaire) — puis sortie propre avant
+     le tour du joueur suivant.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.anchor {
+  position: absolute;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  user-select: none;
+}
+
+.edge_bottom {
+  left: 50%;
+  bottom: 0;
+  z-index: 22;
+  transform: rotate(0deg);
+}
+
+.edge_top {
+  left: 50%;
+  top: 0;
+  z-index: 9;
+  transform: rotate(180deg);
+}
+
+.edge_left {
+  left: 0;
+  top: var(--nj-side-y, 46%);
+  z-index: 9;
+  transform: rotate(90deg);
+}
+
+.edge_right {
+  right: 0;
+  top: var(--nj-side-y, 46%);
+  z-index: 9;
+  transform: rotate(-90deg);
+}
+
+.root {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  width: var(--nj-arc-w, 348px);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-bottom: var(--nj-edge-pad, 0px);
+  transform-origin: 50% 100%;
+  transform: translateX(-50%) translateY(6%) scale(0.84);
+  filter: brightness(0.74) saturate(0.82);
+  transition:
+    transform 400ms cubic-bezier(0.25, 0.9, 0.35, 1),
+    filter 340ms ease,
+    opacity 300ms ease;
+  will-change: transform;
+}
+
+.root[data-variant="opponent"] {
+  transform: translateX(-50%) translateY(6%) scale(0.84);
+  filter: brightness(0.7) saturate(0.8);
+}
+
+.root[data-state="dealing"] {
+  transform: translateX(-50%) translateY(2%) scale(0.96);
+  filter: brightness(0.96) saturate(0.98);
+  transition:
+    transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
+    filter 280ms ease,
+    opacity 280ms ease;
+}
+
+.root[data-variant="opponent"][data-state="dealing"] {
+  transform: translateX(-50%) translateY(4%) scale(0.88);
+  filter: brightness(0.82) saturate(0.9);
+}
+
+.root[data-state="active"] {
+  transform: translateX(-50%) translateY(0%) scale(1.06);
+  filter:
+    brightness(1.16)
+    saturate(1.16)
+    drop-shadow(0 -6px 22px rgba(255, 207, 64, 0.46));
+  transition:
+    transform 400ms cubic-bezier(0.22, 1.12, 0.36, 1),
+    filter 300ms ease,
+    opacity 260ms ease;
+}
+
+.root[data-variant="opponent"][data-state="active"] {
+  transform: translateX(-50%) translateY(0%) scale(1.1);
+  filter:
+    brightness(1.18)
+    saturate(1.2)
+    drop-shadow(0 -5px 18px rgba(255, 207, 64, 0.52));
+}
+
+.root[data-state="ngata"] {
+  transform: translateX(-50%) translateY(0%) scale(1.08);
+  filter:
+    brightness(1.18)
+    saturate(1.24)
+    drop-shadow(0 -8px 26px rgba(255, 91, 127, 0.56));
+  transition:
+    transform 400ms cubic-bezier(0.22, 1.14, 0.36, 1),
+    filter 300ms ease,
+    opacity 260ms ease;
+}
+
+.root[data-variant="opponent"][data-state="ngata"] {
+  transform: translateX(-50%) translateY(0%) scale(1.12);
+  filter:
+    brightness(1.2)
+    saturate(1.26)
+    drop-shadow(0 -6px 20px rgba(255, 91, 127, 0.6));
+}
+
+.root[data-motion="false"] {
+  transition: none;
+  will-change: auto;
+}
+
+/* Halo dorsal circulaire doux (100 % GPU) */
+.halo {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 118%;
+  height: calc(var(--nj-arc-h, 128px) * 1.28);
+  transform: translateX(-50%);
+  border-radius: 50% 50% 0 0 / 100% 100% 0 0;
+  background: radial-gradient(
+    ellipse 62% 76% at 50% 94%,
+    rgba(255, 207, 64, 0.46) 0%,
+    rgba(255, 190, 48, 0.16) 46%,
+    rgba(0, 0, 0, 0) 76%
+  );
+  opacity: 0.2;
+  transition: opacity 320ms ease, transform 400ms cubic-bezier(0.22, 1.1, 0.36, 1);
+}
+
+.root[data-state="dealing"] .halo {
+  opacity: 0.42;
+}
+
+.root[data-state="active"] .halo {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.08);
+}
+
+.root[data-state="ngata"] .halo {
+  opacity: 1;
+  transform: translateX(-50%) scale(1.12);
+  background: radial-gradient(
+    ellipse 66% 80% at 50% 94%,
+    rgba(255, 91, 127, 0.56) 0%,
+    rgba(255, 207, 64, 0.22) 48%,
+    rgba(0, 0, 0, 0) 78%
+  );
+}
+
+/* Conteneur verrouillé au ratio circulaire parfait (520 / 190) */
+.stage {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: var(--nj-arc-h, 128px);
+}
+
+.asset {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: bottom center;
+  filter: drop-shadow(0 -6px 14px rgba(0, 0, 0, 0.54));
+}
+
+/* Calque de surbrillance circulaire superposé à N'IMPORTE QUEL asset équipé */
+.highlightSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  overflow: visible;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.root[data-state="active"] .highlightSvg,
+.root[data-state="ngata"] .highlightSvg {
+  opacity: 1;
+}
+
+.rimGlow {
+  opacity: 0.88;
+}
+
+.rimSweep {
+  stroke-dasharray: 120 620;
+  stroke-dashoffset: 0;
+}
+
+.turnWave {
+  transform-box: fill-box;
+  transform-origin: 50% 100%;
+  opacity: 0;
+}
+
+.crestHalo {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.root[data-animated="true"][data-state="active"] .rimGlow,
+.root[data-animated="true"][data-state="ngata"] .rimGlow {
+  animation: njArcRimBreath 2.1s ease-in-out infinite;
+}
+
+.root[data-animated="true"][data-state="active"] .rimSweep,
+.root[data-animated="true"][data-state="ngata"] .rimSweep {
+  animation: njArcLightSweep 2.4s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+.root[data-animated="true"][data-state="active"] .turnWave,
+.root[data-animated="true"][data-state="ngata"] .turnWave {
+  animation: njArcTurnWave 720ms cubic-bezier(0.16, 0.9, 0.3, 1) 1 both;
+}
+
+.root[data-animated="true"][data-state="active"] .crestHalo,
+.root[data-animated="true"][data-state="ngata"] .crestHalo {
+  animation: njArcCrestPulse 1.9s ease-in-out infinite;
+}
+
+/* Jupe ébène prolongeant proprement la base jusqu'au bord physique (safe-area / barre haute) */
+.safeSkirt {
+  position: absolute;
+  left: 4.1%;
+  right: 4.1%;
+  bottom: 0;
+  height: var(--nj-edge-pad, 0px);
+  background: linear-gradient(
+    90deg,
+    #090504 0%,
+    #20110a 24%,
+    #311a0d 50%,
+    #20110a 76%,
+    #090504 100%
+  );
+  z-index: 1;
+}
+
+.root[data-state="ngata"] .safeSkirt {
+  background: linear-gradient(
+    90deg,
+    #0a0507 0%,
+    #260d15 24%,
+    #421422 50%,
+    #260d15 76%,
+    #0a0507 100%
+  );
+}
+
+@keyframes njArcRimBreath {
+  0%,
+  100% {
+    opacity: 0.62;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes njArcLightSweep {
+  0% {
+    stroke-dashoffset: 180;
+    opacity: 0.15;
+  }
+  20% {
+    opacity: 1;
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    stroke-dashoffset: -560;
+    opacity: 0.15;
+  }
+}
+
+@keyframes njArcTurnWave {
+  0% {
+    opacity: 0.92;
+    transform: scale(0.99);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.1);
+  }
+}
+
+@keyframes njArcCrestPulse {
+  0%,
+  100% {
+    transform: scale(0.92);
+    opacity: 0.68;
+  }
+  50% {
+    transform: scale(1.24);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .root,
+  .halo,
+  .highlightSvg {
+    transition: none;
+    will-change: auto;
+  }
+
+  .rimGlow,
+  .rimSweep,
+  .turnWave,
+  .crestHalo {
+    animation: none !important;
+  }
+}

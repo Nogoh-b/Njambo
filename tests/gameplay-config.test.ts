@@ -37,6 +37,16 @@ describe("réglages des tables", () => {
     expect(validateGameplayConfig({ ...DEFAULT_GAMEPLAY_CONFIG, unlimitedTurnsBot: true })).toBe(true);
     expect(validateGameplayConfig({ ...DEFAULT_GAMEPLAY_CONFIG, unlimitedTurnsBot: 1 })).toBe(false);
   });
+  it("taille des cartes : valeurs par défaut et bornes configurables dans l'admin", () => {
+    expect(normalizeGameplayConfig({})).toMatchObject({ opponentCardScale: 92, playerCardScale: 100 });
+    expect(normalizeGameplayConfig({ opponentCardScale: 112, playerCardScale: 108 })).toMatchObject({ opponentCardScale: 112, playerCardScale: 108 });
+    expect(normalizeGameplayConfig({ opponentCardScale: 20, playerCardScale: 500 })).toMatchObject({ opponentCardScale: 92, playerCardScale: 100 });
+    expect(validateGameplayConfig({ ...DEFAULT_GAMEPLAY_CONFIG, opponentCardScale: 110, playerCardScale: 105 })).toBe(true);
+    expect(validateGameplayConfig({ ...DEFAULT_GAMEPLAY_CONFIG, opponentCardScale: 59 })).toBe(false);
+    expect(validateGameplayConfig({ ...DEFAULT_GAMEPLAY_CONFIG, opponentCardScale: 131 })).toBe(false);
+    expect(validateGameplayConfig({ ...DEFAULT_GAMEPLAY_CONFIG, playerCardScale: 79 })).toBe(false);
+    expect(validateGameplayConfig({ ...DEFAULT_GAMEPLAY_CONFIG, playerCardScale: 131 })).toBe(false);
+  });
   it("rythme d'une partie : celui de ses règles, sinon la valeur de repli ; durée de la donne", () => {
     const fallback = { perCardMs: 110, flightMs: 520 };
     expect(dealTimingOf({ dealPerCardMs: 150, dealFlightMs: 700 }, fallback)).toEqual({ perCardMs: 150, flightMs: 700 });

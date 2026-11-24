@@ -558,6 +558,17 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
                 ? resolved?.highlight?.cardIdx
                 : undefined;
             if (ids.length === 0 && highlightIdx === undefined) break;
+            // Étape chorégraphiée : la surbrillance arrive quand la mise en scène l'amène (sans animations : tout de suite).
+            const highlightDelay = step.choreo && d.motionEnabled ? cue.delayMs ?? 0 : 0;
+            if (highlightDelay > 0) {
+              setTimeout(() => d.registry.hand(0)?.highlightCards({
+                cardIdx: highlightIdx,
+                cardIds: ids.length ? ids : undefined,
+                style: cue.style,
+                durationMs: cue.durationMs ?? 2600,
+              }), highlightDelay);
+              break;
+            }
             d.registry.hand(0)?.highlightCards({
               cardIdx: highlightIdx,
               cardIds: ids.length ? ids : undefined,
@@ -673,7 +684,9 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
             animV2: def.animV2,
             verdict: mine ? swapDelta(swapOutgoing, swapIncoming) : null,
           };
-          await playChoreography(choreoCtx, step.choreo, (text) => fillCardPlaceholders(fillPlaceholders(text), mine ? swapOutgoing : null, mine ? swapIncoming : null, swapCount));
+          // {reason} : pourquoi la carte conseillée (lanceur seulement).
+          const reason = mine ? resolved?.highlight?.reason ?? "" : "";
+          await playChoreography(choreoCtx, step.choreo, (text) => fillCardPlaceholders(fillPlaceholders(text).replace("{reason}", reason), mine ? swapOutgoing : null, mine ? swapIncoming : null, swapCount));
           if (movingCuesDone >= movingCueCount) await commitTransition();
         }
         if (beats.stepGapMs) await sleep(beats.stepGapMs);

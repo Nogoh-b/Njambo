@@ -237,6 +237,7 @@ function validateCue(value: unknown, path: string, issues: PowerValidationIssue[
       validatePlayer(cue.player, `${path}.player`, issues);
       if (!["recommend", "swapped", "locked", "boosted"].includes(String(cue.style))) issues.push({ path: `${path}.style`, message: "Style inconnu." });
       validateDuration(cue.durationMs, `${path}.durationMs`, issues, true);
+      validateDuration(cue.delayMs, `${path}.delayMs`, issues, true);
       break;
     case "timerFx":
       validatePlayer(cue.player, `${path}.player`, issues);

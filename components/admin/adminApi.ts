@@ -2,7 +2,7 @@
 
 /* Appels typés de la console admin (commandes du back VPS) + upload d'images. */
 
-import type { CosmeticDefinition, EventLifecycle, EventValidationIssue, EventVersion, SeasonDefinition } from "@/domain";
+import type { CosmeticDefinition, DefaultCosmeticsConfig, EventLifecycle, EventValidationIssue, EventVersion, SeasonDefinition } from "@/domain";
 import { BACKEND_URL, BackendError, callBackend } from "@/lib/backend";
 import type { EventLeaderboardData } from "@/hooks/useEventLeaderboard";
 import { auth } from "@/lib/authClient";
@@ -166,8 +166,10 @@ export const adminApi = {
   createCampaign: (input: { title: string; body: string; audience: string; eventId?: string; sendAt?: number | null }) =>
     call<{ campaignId: string; sendAt: number }>("createCampaign", input),
   cancelCampaign: (campaignId: string) => call<{ campaignId: string }>("cancelCampaign", { campaignId }),
-  cosmetics: () => call<{ cosmetics: CosmeticDefinition[] }>("listCosmetics"),
+  cosmetics: () => call<{ cosmetics: CosmeticDefinition[]; defaults?: DefaultCosmeticsConfig }>("listCosmetics"),
   saveCosmetic: (cosmetic: CosmeticDefinition) => call<{ cosmetic: CosmeticDefinition }>("saveCosmetic", { cosmetic }),
+  saveCosmeticDefaults: (defaults: { cardBack?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null; handArc?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null }) =>
+    call<{ defaults: DefaultCosmeticsConfig }>("saveCosmeticDefaults", { defaults }),
   seasons: () => call<{ seasons: SeasonDefinition[]; now: number }>("listSeasons"),
   saveSeason: (season: SeasonDefinition) => call<{ season: SeasonDefinition }>("saveSeason", { season }),
   seasonStats: (seasonId: string) => call<{ players: number; premium: number; premiumRevenueXaf: number; averagePoints: number; tiers: Array<{ points: number; reached: number; claimedFree: number; claimedPremium: number }> }>("getSeasonStats", { seasonId }),

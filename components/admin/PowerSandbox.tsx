@@ -102,12 +102,12 @@ export function PowerSandbox({ card, hasIssues }: { card: EditedCard; hasIssues:
     // Animation V2 de la carte : ses vols de cartes passent par le lecteur V2, comme en jeu (étapes sans chorégraphie).
     const animV2 = card.def.animV2 ? getAnimV2(card.def.animV2) : null;
     if (!animV2) {
-      for (const choreo of stepChoreographies(card.script)) await stageRef.current?.play(choreo, cards, viewer, card.def.animV2);
+      for (const choreo of stepChoreographies(card.script)) await stageRef.current?.play(choreo, cards, viewer, card.def.animV2, result?.resolved?.highlight?.reason);
       return;
     }
     const pending = new Map<number, number>();
     for (const step of card.script.steps) {
-      if (step.choreo) { if (step.choreo.tracks.length) await stageRef.current?.play(step.choreo, cards, viewer, card.def.animV2); continue; }
+      if (step.choreo) { if (step.choreo.tracks.length) await stageRef.current?.play(step.choreo, cards, viewer, card.def.animV2, result?.resolved?.highlight?.reason); continue; }
       // Dans l'ordre du script : les autres cues gardent leur mise en scène, les vols passent en V2.
       let others: AnimCue[] = [];
       const flushOthers = async () => {

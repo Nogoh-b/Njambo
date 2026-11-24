@@ -638,6 +638,10 @@ export interface GameConfig {
   dealFlightMs: number;
   /** Tables contre l'IA sans limite de temps par tour (admin, Règles des parties). */
   unlimitedTurnsBot: boolean;
+  /** Taille des cartes adverses en % de la main du joueur (admin, Règles des parties). */
+  opponentCardScale: number;
+  /** Taille des cartes du joueur en % de l'échelle de base (admin, Règles des parties). */
+  playerCardScale: number;
   matchesByMode: import("../domain/gameplayConfig").GameplayConfig["matchesByMode"];
   ranks: { min: number; max: number };
   suits: Suit[];

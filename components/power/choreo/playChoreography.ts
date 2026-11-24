@@ -350,6 +350,105 @@ function overlayAt(ctx: ChoreoContext, rect: DOMRect, effect: string, color: str
   return animation;
 }
 
+/** Carte telle qu'affichée dans une main (soulevée, inclinée) : centre, taille et inclinaison à l'écran. */
+function handCardBox(ctx: ChoreoContext, ui: number, index: number): { x: number; y: number; width: number; height: number; rotate: number } | null {
+  const hand = ctx.registry.hand(ui);
+  const face = hand?.getElement?.()?.children[index]?.firstElementChild as HTMLElement | null | undefined;
+  if (face && face.offsetWidth > 0) {
+    const box = face.getBoundingClientRect();
+    const transform = getComputedStyle(face).transform;
+    const matrix = new DOMMatrix(transform === "none" ? undefined : transform);
+    return { x: box.left + box.width / 2, y: box.top + box.height / 2, width: face.offsetWidth, height: face.offsetHeight, rotate: (Math.atan2(matrix.b, matrix.a) * 180) / Math.PI };
+  }
+  const rect = hand?.getCardRect(index);
+  return rect ? { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2, width: rect.width, height: rect.height, rotate: 0 } : null;
+}
+
+/** Lecture de la main : une lumière la parcourt de gauche à droite ; chez le lanceur, les cartes que le conseil
+ *  écarte s'éteignent une à une au passage (elles se rallument peu après la fin). */
+async function playHandRead(ctx: ChoreoContext, ui: number, durationMs: number, color: string) {
+  const hand = ctx.registry.hand(ui);
+  const rect = hand?.getRect();
+  const host = ctx.layer.container();
+  if (!hand || !rect || !host) return;
+  const clip = document.createElement("div");
+  clip.setAttribute("data-choreo-fx", "read");
+  Object.assign(clip.style, { position: "absolute", left: `${rect.left - 12}px`, top: `${rect.top - 12}px`, width: `${rect.width + 24}px`, height: `${rect.height + 24}px`, overflow: "hidden", borderRadius: "18px", pointerEvents: "none", mixBlendMode: "screen" });
+  const band = document.createElement("div");
+  Object.assign(band.style, { position: "absolute", top: "-20%", bottom: "-20%", left: "0", width: "38%", background: `linear-gradient(90deg, transparent, ${color}66 35%, #fff8 50%, ${color}66 65%, transparent)`, filter: "blur(6px)", transform: "skewX(-14deg)" });
+  clip.appendChild(band);
+  host.appendChild(clip);
+  const sweepMs = durationMs * 0.85;
+  // De sa largeur à gauche du cadre jusqu'au-delà du bord droit (bande = 38 % du cadre).
+  const sweep = band.animate([{ transform: "translateX(-120%) skewX(-14deg)" }, { transform: "translateX(300%) skewX(-14deg)" }], { duration: sweepMs, easing: "cubic-bezier(.45,0,.35,1)", fill: "forwards" });
+
+  // Lanceur seulement : la position de la carte conseillée ne doit pas se lire chez les autres.
+  const keepIdx = ctx.cardsOf("resolved:highlight").fromIndexes[0];
+  if ((ctx.viewer ?? "activator") === "activator" && keepIdx !== undefined && hand.dimCards) {
+    const count = hand.cardCount?.() ?? 0;
+    const end = performance.now() + durationMs + 500;
+    const dimmed = new Set<number>();
+    for (let index = 0; index < count; index += 1) {
+      if (index === keepIdx) continue;
+      setTimeout(() => {
+        dimmed.add(index);
+        const keep = Array.from({ length: count }, (_, k) => k).filter((k) => !dimmed.has(k));
+        hand.dimCards?.(keep, Math.max(60, end - performance.now()));
+      }, sweepMs * ((index + 0.5) / Math.max(1, count)));
+    }
+  }
+  await finished(sweep);
+  await finished(clip.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 220, fill: "forwards" }));
+  clip.remove();
+}
+
+/** Carte conseillée (resolved:highlight), chez le lanceur : aura, badge « ✦ Conseil » et contour qui se vide
+ *  pendant la durée du conseil. Suit la carte à chaque image ; s'efface si elle est jouée. */
+async function playHandAdvice(ctx: ChoreoContext, ui: number, durationMs: number, color: string) {
+  if ((ctx.viewer ?? "activator") !== "activator") return;
+  const index = ctx.cardsOf("resolved:highlight").fromIndexes[0];
+  const host = ctx.layer.container();
+  const hand = ctx.registry.hand(ui);
+  if (index === undefined || !host || !hand) return;
+  const count = hand.cardCount?.();
+  const first = handCardBox(ctx, ui, index);
+  if (!first) return;
+  ctx.burst("mystic", new DOMRect(first.x - first.width / 2, first.y - first.height / 2, first.width, first.height), ctx.defaultTone, "standard", 900);
+
+  const node = document.createElement("div");
+  node.setAttribute("data-choreo-fx", "advise");
+  Object.assign(node.style, { position: "absolute", left: "0", top: "0", pointerEvents: "none", borderRadius: "9px", boxShadow: `0 0 0 2px ${color}, 0 0 22px ${color}` });
+  // Contour du temps restant : rectangle arrondi autour de la carte, redimensionné à chaque image.
+  node.innerHTML = `<svg style="position:absolute;left:-5px;top:-5px;overflow:visible"><rect x="1.5" y="1.5" rx="11" pathLength="100" fill="none" stroke="#fff7dc" stroke-width="3" stroke-dasharray="100" style="filter:drop-shadow(0 0 4px ${color})"/></svg>`
+    + `<span style="position:absolute;left:50%;top:-14px;transform:translate(-50%,-100%);white-space:nowrap;padding:3px 9px;border-radius:999px;background:${color};color:#08120f;font:900 11px/1 var(--font-display,sans-serif);letter-spacing:.04em;box-shadow:0 3px 10px rgba(0,0,0,.45)">✦ Conseil</span>`;
+  host.appendChild(node);
+  const svg = node.querySelector("svg");
+  const ring = node.querySelector("rect");
+  const countdown = ring?.animate([{ strokeDashoffset: 0 }, { strokeDashoffset: 100 }], { duration: durationMs, easing: "linear", fill: "forwards" });
+  node.animate([{ opacity: 0, scale: "1.25" }, { opacity: 1, scale: "1" }], { duration: 320, easing: "cubic-bezier(.2,1.5,.4,1)" });
+  const pulse = node.animate([{ boxShadow: `0 0 0 2px ${color}, 0 0 14px ${color}` }, { boxShadow: `0 0 0 2px ${color}, 0 0 30px ${color}` }, { boxShadow: `0 0 0 2px ${color}, 0 0 14px ${color}` }], { duration: 1200, iterations: Infinity });
+
+  const start = performance.now();
+  await new Promise<void>((resolve) => {
+    const tick = () => {
+      // Carte jouée (la main change) ou conseil écoulé : fin.
+      const box = handCardBox(ctx, ui, index);
+      if (!box || hand.cardCount?.() !== count || performance.now() - start >= durationMs) { resolve(); return; }
+      Object.assign(node.style, { width: `${box.width}px`, height: `${box.height}px`, transform: `translate(${box.x - box.width / 2}px, ${box.y - box.height / 2}px) rotate(${box.rotate}deg)` });
+      svg?.setAttribute("width", String(box.width + 10));
+      svg?.setAttribute("height", String(box.height + 10));
+      ring?.setAttribute("width", String(box.width + 7));
+      ring?.setAttribute("height", String(box.height + 7));
+      requestAnimationFrame(tick);
+    };
+    tick();
+  });
+  pulse.cancel();
+  countdown?.cancel();
+  await finished(node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 260, fill: "forwards" }));
+  node.remove();
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -374,6 +473,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
   const effect = String(track.effect);
   const jobs: Promise<void>[] = [];
   for (const hit of hits) {
+    // Lecture de la main / carte conseillée (Main du Griot) : rendus propres, voir plus bas.
+    if (target.element === "hand" && hit.ui !== undefined && (effect === "read" || effect === "advise")) {
+      jobs.push(effect === "read" ? playHandRead(ctx, hit.ui, track.durationMs, color) : playHandAdvice(ctx, hit.ui, track.durationMs, color));
+      continue;
+    }
     // Effets « métier » délégués aux zones (rendu propre déjà existant).
     if (target.element === "timer" || target.element === "avatar") {
       const timer = hit.ui !== undefined ? ctx.registry.timer(hit.ui) : null;

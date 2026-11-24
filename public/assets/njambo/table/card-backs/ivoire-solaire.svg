@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 290" fill="none">
+<defs>
+    <clipPath id="cl"><rect x="14" y="14" width="172" height="262" rx="10"/></clipPath>
+    <radialGradient id="bg" cx="50%" cy="46%" r="72%">
+      <stop offset="0%" stop-color="#ffffff"/>
+      <stop offset="56%" stop-color="#fbf0d5"/>
+      <stop offset="100%" stop-color="#e5c57e"/>
+    </radialGradient>
+    <linearGradient id="gm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#c98012"/>
+      <stop offset="45%" stop-color="#ffdc6b"/>
+      <stop offset="100%" stop-color="#9e5908"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="290" rx="16" fill="#fffdf7"/>
+  <rect x="7" y="7" width="186" height="276" rx="13" stroke="url(#gm)" stroke-width="2.2"/>
+  <rect x="14" y="14" width="172" height="262" rx="10" fill="url(#bg)"/>
+  <g clip-path="url(#cl)">
+    <g stroke="#d69620" stroke-width="1.15" opacity="0.24">
+      <line x1="100" y1="145" x2="186.0" y2="145.0"/>
+      <line x1="100" y1="145" x2="174.5" y2="207.0"/>
+      <line x1="100" y1="145" x2="143.0" y2="252.4"/>
+      <line x1="100" y1="145" x2="100.0" y2="269.0"/>
+      <line x1="100" y1="145" x2="57.0" y2="252.4"/>
+      <line x1="100" y1="145" x2="25.5" y2="207.0"/>
+      <line x1="100" y1="145" x2="14.0" y2="145.0"/>
+      <line x1="100" y1="145" x2="25.5" y2="83.0"/>
+      <line x1="100" y1="145" x2="57.0" y2="37.6"/>
+      <line x1="100" y1="145" x2="100.0" y2="21.0"/>
+      <line x1="100" y1="145" x2="143.0" y2="37.6"/>
+      <line x1="100" y1="145" x2="174.5" y2="83.0"/>
+    </g>
+    <circle cx="100" cy="145" r="70" stroke="#c88114" stroke-opacity="0.26" stroke-width="1.2"/>
+    <path d="M100 32 L158 145 L100 258 L42 145 Z" stroke="#c88114" stroke-opacity="0.34" stroke-width="1.4"/>
+  </g>
+  <rect x="14" y="14" width="172" height="262" rx="10" stroke="url(#gm)" stroke-width="3"/>
+  <g stroke="#8a3c12" stroke-width="2.5" stroke-linecap="round">
+    <path d="M22 42 L22 22 L42 22"/>
+    <path d="M178 42 L178 22 L158 22"/>
+    <path d="M22 248 L22 268 L42 268"/>
+    <path d="M178 248 L178 268 L158 268"/>
+  </g>
+  <circle cx="100" cy="145" r="38" fill="#fffdf6" stroke="url(#gm)" stroke-width="3.2"/>
+  <circle cx="100" cy="145" r="30" fill="#0d5b44" stroke="#ffd866" stroke-width="1.6"/>
+  <polygon points="100,120 116,145 100,170 84,145" fill="#ffda68"/>
+  <polygon points="100,129 109,145 100,161 91,145" fill="#1de4be"/>
+  <circle cx="100" cy="145" r="4" fill="#ffffff"/>
+</svg>

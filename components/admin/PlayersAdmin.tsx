@@ -11,7 +11,7 @@ import styles from "./AdminConsole.module.css";
 const RUN_STATUS: Record<string, string> = {
   active: "En cours", matchmaking: "En file PvP", completed: "Grand prix", eliminated: "Éliminé", left: "Quitté", abandoned: "Abandonné",
 };
-const COSMETIC_TYPE_LABELS: Record<CosmeticDefinition["type"], string> = { card_back: "Dos de carte", avatar_frame: "Cadre", badge: "Badge", title: "Titre", anim_style: "Style d'animation" };
+const COSMETIC_TYPE_LABELS: Record<CosmeticDefinition["type"], string> = { card_back: "Dos de carte", avatar_frame: "Cadre", badge: "Badge", title: "Titre", anim_style: "Style d'animation", hand_arc: "Arche de main" };
 
 export function PlayersAdmin() {
   const [query, setQuery] = useState("");

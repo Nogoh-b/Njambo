@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 290" fill="none">
+<defs>
+    <clipPath id="cl"><rect x="14" y="14" width="172" height="262" rx="10"/></clipPath>
+    <radialGradient id="bg" cx="50%" cy="48%" r="72%">
+      <stop offset="0%" stop-color="#573424"/>
+      <stop offset="56%" stop-color="#2b1810"/>
+      <stop offset="100%" stop-color="#130a07"/>
+    </radialGradient>
+    <pattern id="rf" width="20" height="20" patternUnits="userSpaceOnUse">
+      <path d="M10 1 L19 10 L10 19 L1 10 Z" stroke="#dfa67b" stroke-opacity="0.14" stroke-width="1"/>
+    </pattern>
+    <linearGradient id="cp" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f2c9a6"/>
+      <stop offset="50%" stop-color="#c97d4d"/>
+      <stop offset="100%" stop-color="#7c4424"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="290" rx="16" fill="#f4e8dc"/>
+  <rect x="6" y="6" width="188" height="278" rx="13" fill="#1a0e09"/>
+  <rect x="14" y="14" width="172" height="262" rx="10" fill="url(#bg)"/>
+  <g clip-path="url(#cl)">
+    <rect x="14" y="14" width="172" height="262" fill="url(#rf)"/>
+  </g>
+  <rect x="14" y="14" width="172" height="262" rx="10" stroke="url(#cp)" stroke-width="2.6"/>
+  <rect x="22" y="22" width="156" height="246" rx="6" stroke="#e4b38d" stroke-opacity="0.32" stroke-width="1"/>
+  <polygon points="100,104 134,145 100,186 66,145" fill="#21120b" stroke="url(#cp)" stroke-width="2.4"/>
+  <polygon points="100,118 122,145 100,172 78,145" stroke="#efc39e" stroke-opacity="0.52" stroke-width="1.2"/>
+  <polygon points="100,132 110,145 100,158 90,145" fill="url(#cp)"/>
+</svg>

@@ -18,6 +18,7 @@ import type { AnimV2 } from "@/engine/anim/v2/model";
 import { motifSchedule } from "@/engine/anim/sample";
 import type { AnimStyle } from "@/engine/anim/style";
 import { useMotifCatalogRevision } from "@/hooks/useMotifCatalog";
+import { useDefaultCosmetics } from "@/hooks/useDefaultCosmetics";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import { PowerTargetPicker } from "@/components/power/PowerTargetPicker";
 import { PowerChoiceBar, type PowerChoiceState } from "@/components/power/PowerChoiceBar";
@@ -25,6 +26,7 @@ import { Avatar, type OpponentPowerSlot } from "@/components/table/Avatar";
 import { DepositZone } from "@/components/table/DepositZone";
 import { Fan } from "@/components/table/Fan";
 import { FlyingCard } from "@/components/table/FlyingCard";
+import { PLAYER_HAND_ARC_ASPECT, PlayerHandArc } from "@/components/table/PlayerHandArc";
 import { DeckZone } from "@/components/table/zones/DeckZone";
 import { RevealOverlay } from "@/components/table/zones/RevealOverlay";
 import { ZoneRegistry, ZoneRegistryProvider } from "@/components/table/zones/ZoneRegistry";
@@ -114,6 +116,10 @@ interface TableScreenProps {
   onNextRoundRef: { current: (() => void) | null };
   onBackRequestRef?: { current: (() => "stay" | "handled") | null };
   paused?: boolean;
+  /** True tant que l'écran de chargement joue l'ouverture des portes : la table
+   *  est déjà pré-montée et peinte en arrière-plan (60 fps garanti), mais la
+   *  donne et le minuteur attendent le feu vert. */
+  waitForReveal?: boolean;
 }
 
 interface CardBurst {
@@ -150,6 +156,16 @@ interface ReactionBubble {
   key: string;
   uiIdx: number;
   emoji: string;
+}
+
+/** Chorégraphie de tour : montée en surbrillance avant de jouer, puis sortie
+ *  complète de surbrillance avant de passer le tour au joueur suivant. */
+const TURN_SPOTLIGHT_IN_MS = 400;
+const TURN_SPOTLIGHT_OUT_MS = 420;
+
+interface TurnSpotlight {
+  seatIdx: number | null;
+  phase: "idle" | "entering" | "ready" | "exiting";
 }
 
 class TurnTimerStore {
@@ -465,7 +481,10 @@ export function TableScreen({
   onNextRoundRef,
   onBackRequestRef,
   paused = false,
+  waitForReveal = false,
 }: TableScreenProps) {
+  const wasHeldForRevealRef = useRef(waitForReveal);
+  if (waitForReveal) wasHeldForRevealRef.current = true;
   useEffect(() => {
     markPerformance("table:mount");
     return () => markPerformance("table:unmount");
@@ -500,8 +519,12 @@ export function TableScreen({
   const vp = useViewport();
   const portrait = vp.portrait;
   const vmin = Math.min(vp.w, vp.h);
-  const youW = Math.round(Math.max(50, Math.min(78, vmin * 0.168)));
-  const botW = Math.round(youW * (portrait ? 0.58 : 0.64));
+  const baseYouW = Math.max(50, Math.min(78, vmin * 0.168));
+  const playerScale = (cfg.playerCardScale ?? 100) / 100;
+  const oppScale = (cfg.opponentCardScale ?? 92) / 100;
+  const youW = Math.round(Math.max(44, Math.min(110, baseYouW * playerScale)));
+  const oppViewportFactor = portrait ? 0.9 : vp.h <= 520 ? 0.86 : 1;
+  const botW = Math.round(Math.max(36, Math.min(104, youW * oppScale * oppViewportFactor)));
   const depW = Math.round(Math.max(38, youW * 0.76));
   const deckW = Math.round(youW * 0.66);
   const fanHy = youW * 1.45;
@@ -559,6 +582,8 @@ export function TableScreen({
   const [testCategoryFilter, setTestCategoryFilter] = useState<"all" | PowerCategory>("all");
   const [opponentPowerUses, setOpponentPowerUses] = useState<Record<number, PowerCardId[]>>({});
   const [isDraggingCard, setIsDraggingCard] = useState(false);
+  const [spotlight, setSpotlight] = useState<TurnSpotlight>({ seatIdx: null, phase: "idle" });
+  const spotlightTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const openQuickHelp = useCallback(() => {
     setShowQuickHelp(true);
     setHasSeenQuickHelp(true);
@@ -672,10 +697,24 @@ export function TableScreen({
     : devEquippedPowers(authoritativePowers);
   const ledSuit: string | null = trickPlays[0]?.card.suit ?? null;
   const ledInfo: Suit | undefined = ledSuit ? cfg.suits.find((s) => s.s === ledSuit) : undefined;
-  const isYourTurn = !isGameEnded && phase === "turns" && turnIdx === 0;
+  const motionEnabled = motion.enabled;
+  const motionLevel = motion.level;
+  const liteMotion = isLiteMotion(motionLevel);
+  const balancedMotion = isBalancedMotion(motionLevel);
+  const premiumFxAllowed = motionLevel === "full";
+  const trickComplete = n > 0 && trickPlays.length >= n;
+  const isYourTurn = !isGameEnded && phase === "turns" && !trickComplete && turnIdx === 0;
+  const spotlightSeatIdx =
+    !isGameEnded && (spotlight.phase === "entering" || spotlight.phase === "ready")
+      ? spotlight.seatIdx
+      : null;
+  const isYourTurnReady =
+    isYourTurn && (!motionEnabled || (spotlight.seatIdx === 0 && spotlight.phase === "ready"));
+  const isYourTurnReadyRef = useRef(isYourTurnReady);
+  isYourTurnReadyRef.current = isYourTurnReady;
   const yourLegal = useMemo(
-    () => yourHand && isYourTurn ? legalCards(yourHand, ledSuit) : null,
-    [isYourTurn, ledSuit, yourHand],
+    () => yourHand && isYourTurnReady ? legalCards(yourHand, ledSuit) : null,
+    [isYourTurnReady, ledSuit, yourHand],
   );
 
   /* Quitter : confirmation dès qu'on est dans une partie active (hors écran résultat).
@@ -694,19 +733,58 @@ export function TableScreen({
       setBanner("Abandon impossible. Vérifiez votre connexion puis réessayez.");
     }
   };
-  const motionEnabled = motion.enabled;
-  const motionLevel = motion.level;
-  const liteMotion = isLiteMotion(motionLevel);
-  const balancedMotion = isBalancedMotion(motionLevel);
-  const premiumFxAllowed = motionLevel === "full";
   const baseTableFx = roundIntro || phase === "dealing" || !!momentOverlay;
   const connectionStatus = getSyncStatusPresentation(syncStatus);
   const getYourDropRect = useCallback(() => registryRef.current?.deposit(0)?.getRect() ?? null, []);
   const getDeckRect = useCallback(() => registryRef.current?.deck()?.getRect() ?? null, []);
 
+  const clearSpotlightTimer = useCallback(() => {
+    if (spotlightTimerRef.current) {
+      clearTimeout(spotlightTimerRef.current);
+      spotlightTimerRef.current = null;
+    }
+  }, []);
+
+  const beginSpotlightExit = useCallback(() => {
+    clearSpotlightTimer();
+    if (!animationsOnRef.current) {
+      setSpotlight({ seatIdx: null, phase: "idle" });
+      return;
+    }
+    setSpotlight({ seatIdx: null, phase: "exiting" });
+    spotlightTimerRef.current = setTimeout(() => {
+      spotlightTimerRef.current = null;
+      setSpotlight((cur) => (cur.phase === "exiting" ? { seatIdx: null, phase: "idle" } : cur));
+    }, TURN_SPOTLIGHT_OUT_MS);
+  }, [clearSpotlightTimer]);
+
+  const beginSpotlightEnter = useCallback((seatIdx: number) => {
+    clearSpotlightTimer();
+    if (!animationsOnRef.current) {
+      setSpotlight({ seatIdx, phase: "ready" });
+      return;
+    }
+    setSpotlight({ seatIdx, phase: "entering" });
+    spotlightTimerRef.current = setTimeout(() => {
+      spotlightTimerRef.current = null;
+      setSpotlight((cur) =>
+        cur.seatIdx === seatIdx && cur.phase === "entering"
+          ? { seatIdx, phase: "ready" }
+          : cur,
+      );
+    }, TURN_SPOTLIGHT_IN_MS);
+  }, [clearSpotlightTimer]);
+
+  const beginSpotlightExitRef = useRef(beginSpotlightExit);
+  beginSpotlightExitRef.current = beginSpotlightExit;
+  const clearSpotlightTimerRef = useRef(clearSpotlightTimer);
+  clearSpotlightTimerRef.current = clearSpotlightTimer;
+
+  useEffect(() => () => clearSpotlightTimer(), [clearSpotlightTimer]);
+
   useEffect(() => {
-    if (!isYourTurn || isGameEnded) setIsDraggingCard(false);
-  }, [isYourTurn, isGameEnded]);
+    if (!isYourTurnReady || isGameEnded) setIsDraggingCard(false);
+  }, [isYourTurnReady, isGameEnded]);
 
   useEffect(() => {
     playersRef.current = players;
@@ -1032,6 +1110,7 @@ export function TableScreen({
   /* Style d'animation de chaque joueur (phase G5) : le mien (essayé, reçu avec la partie, ou équipé),
      celui des autres reçu avec la partie. Il colore ses propres mouvements, sans en changer le rythme. */
   const myCosmetics = useMyCosmetics();
+  const { defaultHandArcUrl } = useDefaultCosmetics();
   const animStyleOf = (ui: number): AnimStyle | null => {
     const player = playersRef.current[ui];
     if (!player) return null;
@@ -1291,53 +1370,90 @@ export function TableScreen({
     setShowQuickHelp(false);
     setReactionsOpen(false);
     setPowerChoiceConfirm(null);
-  }, [isGameEnded, transientStore]);
+    clearSpotlightTimer();
+    setSpotlight({ seatIdx: null, phase: "idle" });
+  }, [clearSpotlightTimer, isGameEnded, transientStore]);
 
+  /* Chorégraphie stricte de surbrillance de tour :
+     1. Entrée en surbrillance (agrandissement de l'arche + sortie des cartes) AVANT de jouer.
+     2. Sortie complète de surbrillance (après atterrissage) AVANT le tour du joueur suivant. */
   useEffect(() => {
-    if (isGameEnded || phase !== "turns") return;
-    if (prevTurnIdxFxRef.current === turnIdx) return;
-    prevTurnIdxFxRef.current = turnIdx;
-
-    const activePlayer = players[turnIdx];
-
-    // Annonce du tour (À TOI / réaction) DIFFÉRÉE jusqu'à ce que la carte du
-    // joueur précédent soit posée : sinon l'overlay démarre pendant le vol.
-    // On privilégie une pilule de réaction fluide et non-bloquante plutôt qu'un
-    // overlay plein écran à chaque tour qui cassait le rythme de jeu.
-    const announceTurn = () => {
-      if (pausedRef.current || gameStateRef.current?.phase !== "turns") return;
-      if (turnIdx === 0) {
-        gxeSfxRef.current.playChime(TURN_START_SOUND); // migré vers GXE
-        const isLastTrick = trickNo >= cfg.cardsPerPlayer;
-        if (isLastTrick) {
-          showTableReaction(
-            "DERNIER TOUR 🔥",
-            "gold",
-            ledSuit ? `Suis ${ledSuit} — Le gagnant rafle le pot !` : "Pose ta carte maîtresse pour le pot !",
-          );
-        } else {
-          showTableReaction(
-            "À TOI DE JOUER",
-            "teal",
-            ledSuit ? `Suis la tendance ${ledSuit}` : "Donne la tendance",
-          );
-        }
-      } else if (motionEnabled && activePlayer) {
-        showTableReaction("Tour en cours", "gold", activePlayer.name);
+    if (isGameEnded || phase === "idle" || phase === "dealing" || n === 0) {
+      if (spotlight.seatIdx !== null || spotlight.phase !== "idle") {
+        clearSpotlightTimer();
+        setSpotlight({ seatIdx: null, phase: "idle" });
       }
-    };
-
-    const landDelay = Math.max(0, animationEndsAtRef.current - Date.now()) + A.landSettle;
-    if (landDelay <= 0) {
-      announceTurn();
       return;
     }
-    const t = setTimeout(announceTurn, landDelay);
-    return () => clearTimeout(t);
-  }, [A.landSettle, cfg.cardsPerPlayer, isGameEnded, motionEnabled, ledSuit, phase, players, showTableReaction, trickNo, turnIdx]);
+
+    if (spotlight.phase === "exiting") return;
+
+    if (phase === "trickEnd" || trickComplete) {
+      if (!animatingRef.current && spotlight.seatIdx !== null) {
+        beginSpotlightExit();
+      }
+      return;
+    }
+
+    if (phase === "turns") {
+      if (animatingRef.current) return;
+      if (spotlight.seatIdx === turnIdx) return;
+      if (spotlight.seatIdx !== null) {
+        beginSpotlightExit();
+        return;
+      }
+      if (turnIdx >= 0 && turnIdx < n) {
+        beginSpotlightEnter(turnIdx);
+      }
+    }
+  }, [
+    beginSpotlightEnter,
+    beginSpotlightExit,
+    clearSpotlightTimer,
+    isGameEnded,
+    motionEnabled,
+    n,
+    phase,
+    spotlight.phase,
+    spotlight.seatIdx,
+    trickComplete,
+    turnIdx,
+  ]);
+
+  useEffect(() => {
+    if (isGameEnded || spotlightSeatIdx === null) {
+      prevTurnIdxFxRef.current = null;
+      return;
+    }
+    if (prevTurnIdxFxRef.current === spotlightSeatIdx) return;
+    prevTurnIdxFxRef.current = spotlightSeatIdx;
+
+    const activePlayer = players[spotlightSeatIdx];
+    if (pausedRef.current || gameStateRef.current?.phase !== "turns") return;
+    if (spotlightSeatIdx === 0) {
+      gxeSfxRef.current.playChime(TURN_START_SOUND); // migré vers GXE
+      const isLastTrick = trickNo >= cfg.cardsPerPlayer;
+      if (isLastTrick) {
+        showTableReaction(
+          "DERNIER TOUR 🔥",
+          "gold",
+          ledSuit ? `Suis ${ledSuit} — Le gagnant rafle le pot !` : "Pose ta carte maîtresse pour le pot !",
+        );
+      } else {
+        showTableReaction(
+          "À TOI DE JOUER",
+          "teal",
+          ledSuit ? `Suis la tendance ${ledSuit}` : "Donne la tendance",
+        );
+      }
+    } else if (motionEnabled && activePlayer) {
+      showTableReaction("Tour en cours", "gold", activePlayer.name);
+    }
+  }, [cfg.cardsPerPlayer, isGameEnded, ledSuit, motionEnabled, players, showTableReaction, spotlightSeatIdx, trickNo]);
 
   /* ----- Initialiser le sync adapter ----- */
   useEffect(() => {
+    if (waitForReveal) return;
     let sync: GameSyncActions;
 
     if (isLocalSync) {
@@ -1447,6 +1563,9 @@ export function TableScreen({
         : depositRect;
 
       if (from && to) {
+        // Maintenir la surbrillance du lanceur pendant le vol, puis la couper proprement à l'atterrissage.
+        clearSpotlightTimerRef.current();
+        setSpotlight({ seatIdx: playerIdx, phase: "ready" });
         // Moment « Carte jouée » : modèle de l'atelier si l'admin en a attribué un (vol borné à 0,9 s),
         // aux couleurs du style du joueur (sans modèle attribué, un joueur stylé prend le « vol actuel »).
         // Un modèle V2 passe avant : il ne prend pas le style du joueur (les styles colorent les modèles V1).
@@ -1461,6 +1580,11 @@ export function TableScreen({
         const dropRot = landing?.rotate ?? 0;
         const flightKey = `${card.id}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
         handZone?.setHiddenCard(cardIdx);
+        // Resserre et réaligne les cartes restantes PENDANT le vol (avant le retrait du focus),
+        // pour éviter tout décalage tardif au moment où l'éventail adverse rétrécit.
+        if (!playV2) {
+          handZone?.collapseCards?.([cardIdx], Math.min(200, Math.round(flightMs * 0.6)));
+        }
         if (playV2) {
           void runMomentV2Ref.current({ ...playV2, motion: { ...playV2.motion, durationMs: flightMs } }, [
             { card, from: { zone: "hand", ui: playerIdx, index: cardIdx }, to: { zone: "deposit", ui: playerIdx, index: depositCount, cardId: card.id } },
@@ -1493,6 +1617,7 @@ export function TableScreen({
           if (!playMotifMoment && !playV2) setFlights((f) => f.filter((item) => item.key !== flightKey));
           handZone?.setHiddenCard(null);
           if (pausedRef.current) return;
+          beginSpotlightExitRef.current();
           if (animationsOnRef.current && premiumFxAllowed) {
             const burstKey = `${card.id}-burst-${Date.now()}`;
             setCardBursts((items) => [
@@ -1511,6 +1636,8 @@ export function TableScreen({
           }
         }, flightMs);
         burstTimersRef.current.push(landingTimer);
+      } else {
+        beginSpotlightExitRef.current();
       }
     });
 
@@ -1652,7 +1779,7 @@ export function TableScreen({
       sync.start();
     };
 
-    if (animationsOnRef.current && isLocalSync) {
+    if (animationsOnRef.current && isLocalSync && !wasHeldForRevealRef.current) {
       setRoundIntro(true);
       gxeSfxRef.current.playChime(ROUND_START_SOUND);
       showMomentOverlay({
@@ -1667,6 +1794,15 @@ export function TableScreen({
         roundIntroTimerRef.current = null;
         startSync();
       }, ROUND_INTRO_MS);
+    } else if (wasHeldForRevealRef.current) {
+      // L'ouverture de scène vient juste de se terminer : courte respiration (120 ms)
+      // sur la table totalement dégagée avant de lancer la donne complète visible.
+      if (animationsOnRef.current) gxeSfxRef.current.playChime(ROUND_START_SOUND);
+      if (roundIntroTimerRef.current) clearTimeout(roundIntroTimerRef.current);
+      roundIntroTimerRef.current = setTimeout(() => {
+        roundIntroTimerRef.current = null;
+        startSync();
+      }, 120);
     } else {
       if (animationsOnRef.current) gxeSfxRef.current.playChime(ROUND_START_SOUND);
       startSync();
@@ -1701,9 +1837,9 @@ export function TableScreen({
       sync.destroy();
     };
     // Le sync doit vivre pour toute la session. On le relance seulement quand
-    // l'identite de session arrive/change, pas quand le solde ou le viewport bouge.
+    // l'identite de session arrive/change (ou au feu vert après l'ouverture de scène).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameMode, roomId, roomSessionReady, sessionAuthKey]);
+  }, [gameMode, roomId, roomSessionReady, sessionAuthKey, waitForReveal]);
 
   /* ----- Bouton Retour (navigateur / matériel Android / Échap) exposé au router ----- */
   useEffect(() => {
@@ -1777,6 +1913,8 @@ export function TableScreen({
       setPreviewPowerCard(null);
       setTestDrawerOpen(false);
       setShowQuickHelp(false);
+      clearSpotlightTimerRef.current();
+      setSpotlight({ seatIdx: null, phase: "idle" });
       roundRestartPendingRef.current = true;
       syncRef.current?.nextRound();
     };
@@ -1786,7 +1924,7 @@ export function TableScreen({
 
   /* ----- Jouer une carte (clic humain) ----- */
   const handleCardClick = useCallback((cardIdx: number) => {
-    if (pausedRef.current || !syncRef.current || animatingRef.current) return;
+    if (pausedRef.current || !syncRef.current || animatingRef.current || !isYourTurnReadyRef.current) return;
     syncRef.current.playCard(cardIdx);
   }, []);
 
@@ -1890,7 +2028,7 @@ export function TableScreen({
 
   const handleUsePower = useCallback(async (cardId: PowerCardId, targetIdx?: number) => {
     if (!syncRef.current || animatingRef.current) return;
-    if (!isYourTurn) return;
+    if (!isYourTurnReady) return;
     if (!DEV.unlimitedPowers && usedPowers.has(cardId)) return;
     setTargetingCard(null);
 
@@ -1907,10 +2045,10 @@ export function TableScreen({
       choices = { ...(choices ?? {}), [step.choice.id]: picked };
     }
     syncRef.current?.usePowerCard(cardId, targetIdx, choices);
-  }, [isYourTurn, usedPowers, requestCardChoice]);
+  }, [isYourTurnReady, usedPowers, requestCardChoice]);
 
   const handlePowerTap = (cardId: PowerCardId) => {
-    if (!isYourTurn || animatingRef.current) return;
+    if (!isYourTurnReady || animatingRef.current) return;
     if (!DEV.unlimitedPowers && usedPowers.has(cardId)) return;
     if (targetingCard === cardId) {
       setTargetingCard(null);
@@ -1972,13 +2110,23 @@ export function TableScreen({
 
   /* ═══════════════ RENDU TABLE — SALON ROYAL ÉPURÉ ═══════════════ */
   const isFinalTrick = trickNo >= cfg.cardsPerPlayer;
-  const activeTurnEdge = phase === "turns" && players[turnIdx] ? seatEdge(turnIdx) : null;
+  const activeTurnEdge = spotlightSeatIdx !== null && players[spotlightSeatIdx] ? seatEdge(spotlightSeatIdx) : null;
   const suitIsRed = ledInfo?.color === "#c1292e";
   const hasPowersOnTable = equippedPowers.length > 0 && players.length > 0 && !roundIntro;
   const isTestPowerMode = equippedPowers.length > 3;
+  const targetArcHeight = Math.round(fanHy * (portrait ? 1.32 : vp.h <= 520 ? 1.16 : 1.32));
+  const handArcWidth = Math.min(Math.round(vp.w * 0.92), Math.round(targetArcHeight * PLAYER_HAND_ARC_ASPECT));
+  const handArcHeight = Math.round(handArcWidth / PLAYER_HAND_ARC_ASPECT);
+  const targetOppArcHeight = Math.round(fanHb * (portrait ? 1.18 : vp.h <= 520 ? 1.1 : 1.2));
+  const oppArcSpanCap = Math.round(Math.min(vp.w, vp.h) * 0.66);
+  const oppArcWidth = Math.min(oppArcSpanCap, Math.round(targetOppArcHeight * PLAYER_HAND_ARC_ASPECT));
+  const oppArcHeight = Math.round(oppArcWidth / PLAYER_HAND_ARC_ASPECT);
+  const playerHandTuckY = Math.round(fanHy * 0.56);
+  const playerHandArcUrl = myCosmetics.handArc?.imageUrl ?? you?.cosmetics?.handArc?.imageUrl ?? defaultHandArcUrl;
+  const sideEdgeTop = portrait ? "50%" : "46%";
   const turnStatusBottom = portrait
     ? cockpitBottom + (hasPowersOnTable && !isTestPowerMode ? 64 : 54)
-    : Math.round(fanHy * 1.24);
+    : Math.round(fanHy * (vp.h <= 520 ? 1.24 : 1.44));
   const filteredTestPowers = useMemo(() => {
     if (testCategoryFilter === "all") return equippedPowers;
     return equippedPowers.filter((id) => POWER_CARDS_BY_ID[id]?.category === testCategoryFilter);
@@ -2172,22 +2320,82 @@ export function TableScreen({
         );
       })}
 
-      {/* Mains débordantes */}
+      {/* Arches circulaires cosmétiques pour TOUS les joueurs (échelle réduite sur les adversaires) */}
+      {players.length > 0 ? (
+        players.map((p, i) => {
+          const edge = seatEdge(i);
+          const isSelf = p.isYou;
+          const arcAsset = isSelf ? playerHandArcUrl : p.cosmetics?.handArc?.imageUrl ?? defaultHandArcUrl;
+          return (
+            <PlayerHandArc
+              key={`arc-${edge}-${p.name}`}
+              edge={edge}
+              width={isSelf ? handArcWidth : oppArcWidth}
+              height={isSelf ? handArcHeight : oppArcHeight}
+              active={spotlightSeatIdx === i}
+              dealing={phase === "dealing"}
+              finalTrick={isFinalTrick}
+              sideTop={sideEdgeTop}
+              topPadPx={portrait ? 28 : 24}
+              assetUrl={arcAsset}
+              animated={motionEnabled && !liteMotion}
+              motionEnabled={motionEnabled}
+            />
+          );
+        })
+      ) : (
+        <PlayerHandArc
+          edge="bottom"
+          width={handArcWidth}
+          height={handArcHeight}
+          active={false}
+          dealing={phase === "dealing"}
+          finalTrick={isFinalTrick}
+          assetUrl={playerHandArcUrl}
+          animated={motionEnabled && !liteMotion}
+          motionEnabled={motionEnabled}
+        />
+      )}
+
+      {/* Mains débordantes : à moitié hors écran hors tour, révélées en entier à la surbrillance */}
       {players.map((p, i) => {
         const edge = seatEdge(i);
         const a = fanAnchor(edge);
+        const isSeatSpotlight = spotlightSeatIdx === i;
+        // Ciblage d'une carte pouvoir : les mains visables s'avancent dans la lumière.
+        const isSeatTargetable = targetingCard != null && (!p.isYou || powerScriptOf(targetingCard).target.allowSelf === true);
+        const isSeatExpanded = p.isYou
+          ? isSeatSpotlight || phase === "dealing" || Boolean(powerChoiceConfirm) || isSeatTargetable
+          : isSeatSpotlight || isSeatTargetable;
+        const dy = p.isYou
+          ? isSeatExpanded ? 0 : playerHandTuckY
+          : edge === "top"
+            ? isSeatExpanded ? -Math.round(fanHb * 0.14) : Math.round(fanHb * 0.52)
+            : isSeatExpanded ? -Math.round(fanHb * 0.3) : Math.round(fanHb * 0.24);
+        const seatScale = p.isYou
+          ? isSeatExpanded ? 1 : 0.74
+          : isSeatExpanded ? 1.04 : 0.72;
+        const handTransform = `translate(-50%,-50%) rotate(${a.angle}deg) translateY(${dy}px) scale(${seatScale})`;
+        const handTransition = motionEnabled
+          ? isSeatExpanded
+            ? "transform 400ms cubic-bezier(0.22, 1.12, 0.36, 1)"
+            : "transform 400ms cubic-bezier(0.25, 0.9, 0.35, 1)"
+          : undefined;
         return (
           <div
             key={"fan" + p.name}
             className={`nj-hand-seat${motionEnabled && !liteMotion && roundIntro ? " nj-round-hand-reveal" : ""}`}
             data-seat-edge={edge}
             data-player-hand={p.isYou || undefined}
+            data-hand-expanded={isSeatExpanded ? "true" : "false"}
             style={{
               position: "absolute",
               left: a.left,
               top: a.top,
-              transform: `translate(-50%,-50%) rotate(${a.angle}deg)`,
-              zIndex: p.isYou ? 30 : 15,
+              transform: handTransform,
+              transition: handTransition,
+              willChange: motionEnabled ? "transform" : undefined,
+              zIndex: p.isYou ? 30 : isSeatSpotlight ? 17 : 15,
               "--seat-delay": `${i * 90}ms`,
             } as CSSProperties}
           >
@@ -2207,6 +2415,8 @@ export function TableScreen({
               getDropRect={p.isYou ? getYourDropRect : undefined}
               getDeckRect={getDeckRect}
               onDragActive={p.isYou ? setIsDraggingCard : undefined}
+              activeTurn={!p.isYou && isSeatSpotlight}
+              finalTrick={isFinalTrick}
             />
           </div>
         );
@@ -2215,7 +2425,7 @@ export function TableScreen({
       {/* Avatars */}
       {players.map((p, i) => {
         const edge = seatEdge(i);
-        const active = !isGameEnded && phase === "turns" && turnIdx === i;
+        const active = spotlightSeatIdx === i;
         const avatarClassName = [
           "nj-avatar-seat",
           motionEnabled && active ? "nj-avatar-seat-active" : "",
@@ -2261,7 +2471,7 @@ export function TableScreen({
       })}
 
       {/* Ligne tactique ultra-fine 1 ligne (Salon Royal Épuré) */}
-      {isYourTurn && (() => {
+      {isYourTurnReady && (() => {
         const dominantPlay =
           liveDominantIdx !== null
             ? trickPlays.find((tp) => tp.playerIdx === liveDominantIdx) ?? trickPlays[0]
@@ -2459,7 +2669,7 @@ export function TableScreen({
                       "--fan-rot": `${rot}deg`,
                       "--fan-y": `${yShift}px`,
                       "--fan-ml": idx === 0 ? "0px" : "-7px",
-                      opacity: used ? 0.44 : isYourTurn ? 1 : 0.84,
+                      opacity: used ? 0.44 : isYourTurnReady ? 1 : 0.84,
                     } as CSSProperties
                   }
                 >
@@ -2559,7 +2769,7 @@ export function TableScreen({
         const def = POWER_CARDS_BY_ID[previewPowerCard];
         if (!def) return null;
         const used = Boolean(def.disabled) || (!DEV.unlimitedPowers && usedPowers.has(previewPowerCard));
-        const canActivateNow = isYourTurn && !used && !animatingRef.current;
+        const canActivateNow = isYourTurnReady && !used && !animatingRef.current;
         return (
           <div className={styles.modalBackdrop} onClick={() => setPreviewPowerCard(null)}>
             <div className={styles.modalCard} style={{ maxWidth: 340 }} onClick={(e) => e.stopPropagation()}>

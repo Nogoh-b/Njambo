@@ -2,7 +2,8 @@
 
 import { memo, type CSSProperties } from "react";
 import { GAME_CONFIG } from "@/config/gameConfig";
-import { CEREMONIAL_STRIP, RAFFIA_WEAVE, T } from "@/config/theme";
+import { RAFFIA_WEAVE, T } from "@/config/theme";
+import { DEFAULT_CARD_BACK_ASSET } from "@/lib/assets/manifests";
 import type { Card } from "@/types/game";
 
 const CARD_BASE_STYLE: CSSProperties = {
@@ -12,30 +13,19 @@ const CARD_BASE_STYLE: CSSProperties = {
 };
 
 const CARD_BACK_STYLE: CSSProperties = {
-  border: `2px solid ${T.gold}66`,
+  border: `1.5px solid ${T.gold}88`,
   background: `
-    linear-gradient(180deg, rgba(5,5,12,.06), rgba(5,5,12,.18)),
-    var(--nj-card-back, url("/assets/njambo/card-back.webp")) center / cover no-repeat,
-    radial-gradient(circle at 50% 38%, ${T.night3}, ${T.night1} 68%)`,
-  backgroundSize: "100% 100%, cover, 100% 100%",
+    var(--nj-card-back, url("${DEFAULT_CARD_BACK_ASSET}")) center / cover no-repeat,
+    radial-gradient(circle at 50% 44%, #3c1e0c, #110805 72%)`,
+  backgroundSize: "cover, 100% 100%",
   backgroundPosition: "center",
 };
 
-const CARD_BACK_INSET_STYLE: CSSProperties = {
+const CARD_BACK_SHEEN_STYLE: CSSProperties = {
   position: "absolute",
-  inset: 5,
-  border: "1px solid rgba(255,248,232,.18)",
-};
-
-const CEREMONIAL_STRIP_STYLE: CSSProperties = {
-  position: "absolute",
-  left: 0,
-  right: 0,
-  top: "50%",
-  height: 4,
-  transform: "translateY(-50%)",
-  background: CEREMONIAL_STRIP,
-  opacity: 0.78,
+  inset: 0,
+  background: "linear-gradient(145deg, rgba(255,248,220,.14) 0%, transparent 42%, rgba(0,0,0,.12) 100%)",
+  pointerEvents: "none",
 };
 
 const CARD_FACE_STYLE: CSSProperties = {
@@ -155,13 +145,7 @@ export const PlayCard = memo(function PlayCard({
           ...CARD_BACK_STYLE,
         }}
       >
-        <div
-          style={{
-            ...CARD_BACK_INSET_STYLE,
-            borderRadius: Math.max(6, w * 0.1),
-          }}
-        />
-        <div style={CEREMONIAL_STRIP_STYLE} />
+        <div style={CARD_BACK_SHEEN_STYLE} />
       </div>
     );
   }

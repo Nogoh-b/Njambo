@@ -12,6 +12,10 @@ export interface GameplayConfig {
   dealFlightMs: number;
   /** Tables contre l'IA : pas de limite de temps par tour (aucun coup joué automatiquement). Amis, Online et événements gardent leur minuteur. */
   unlimitedTurnsBot: boolean;
+  /** Taille des cartes des adversaires en % de la main du joueur (admin, Règles des parties). */
+  opponentCardScale: number;
+  /** Taille des cartes du joueur en % de l'échelle de base (admin, Règles des parties). */
+  playerCardScale: number;
   matchesByMode: Record<GameplayMode, MatchCounts>;
 }
 
@@ -24,12 +28,20 @@ export const DEAL_TIMING_LIMITS = {
   flightMs: { min: 200, max: 1500 },
 } as const;
 
+/** Bornes d'échelle des cartes sur la table (%, réglable dans l'admin, Règles des parties). */
+export const CARD_SCALE_LIMITS = {
+  opponentPct: { min: 60, max: 130 },
+  playerPct: { min: 80, max: 130 },
+} as const;
+
 export const DEFAULT_GAMEPLAY_CONFIG: GameplayConfig = {
   turnSeconds: 15,
   maxEquippedPowers: 3,
   dealPerCardMs: 110,
   dealFlightMs: 520,
   unlimitedTurnsBot: false,
+  opponentCardScale: 92,
+  playerCardScale: 100,
   matchesByMode: {
     bot: { 2: 1, 3: 1, 4: 1 },
     friends: { 2: 1, 3: 1, 4: 1 },
@@ -56,6 +68,12 @@ export function normalizeGameplayConfig(raw: unknown): GameplayConfig {
     dealPerCardMs: validInt(source.dealPerCardMs, DEAL_TIMING_LIMITS.perCardMs.min, DEAL_TIMING_LIMITS.perCardMs.max) ? source.dealPerCardMs : DEFAULT_GAMEPLAY_CONFIG.dealPerCardMs,
     dealFlightMs: validInt(source.dealFlightMs, DEAL_TIMING_LIMITS.flightMs.min, DEAL_TIMING_LIMITS.flightMs.max) ? source.dealFlightMs : DEFAULT_GAMEPLAY_CONFIG.dealFlightMs,
     unlimitedTurnsBot: source.unlimitedTurnsBot === true,
+    opponentCardScale: validInt(source.opponentCardScale, CARD_SCALE_LIMITS.opponentPct.min, CARD_SCALE_LIMITS.opponentPct.max)
+      ? source.opponentCardScale
+      : DEFAULT_GAMEPLAY_CONFIG.opponentCardScale,
+    playerCardScale: validInt(source.playerCardScale, CARD_SCALE_LIMITS.playerPct.min, CARD_SCALE_LIMITS.playerPct.max)
+      ? source.playerCardScale
+      : DEFAULT_GAMEPLAY_CONFIG.playerCardScale,
     matchesByMode,
   };
 }
@@ -67,6 +85,8 @@ export function validateGameplayConfig(raw: unknown): boolean {
     && validInt(source.dealPerCardMs, DEAL_TIMING_LIMITS.perCardMs.min, DEAL_TIMING_LIMITS.perCardMs.max)
     && validInt(source.dealFlightMs, DEAL_TIMING_LIMITS.flightMs.min, DEAL_TIMING_LIMITS.flightMs.max)
     && (source.unlimitedTurnsBot === undefined || typeof source.unlimitedTurnsBot === "boolean")
+    && (source.opponentCardScale === undefined || validInt(source.opponentCardScale, CARD_SCALE_LIMITS.opponentPct.min, CARD_SCALE_LIMITS.opponentPct.max))
+    && (source.playerCardScale === undefined || validInt(source.playerCardScale, CARD_SCALE_LIMITS.playerPct.min, CARD_SCALE_LIMITS.playerPct.max))
     && GAMEPLAY_MODES.every((mode) => PLAYER_COUNTS.every((count) => validInt(object(modes[mode])[count], 1, 20)));
 }
 

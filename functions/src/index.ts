@@ -56,6 +56,7 @@ import { reviveEventRunHandler } from "./eventRunCommands";
 import {
   listCosmeticsHandler,
   saveCosmeticHandler,
+  saveCosmeticDefaultsHandler,
   getCosmeticCollectionHandler,
   equipCosmeticHandler,
 } from "./cosmeticCommands";
@@ -180,6 +181,7 @@ export const saveSeason = onCall(callable, saveSeasonHandler);
 export const getSeasonStats = onCall(callable, getSeasonStatsHandler);
 export const listCosmetics = onCall(callable, listCosmeticsHandler);
 export const saveCosmetic = onCall(callable, saveCosmeticHandler);
+export const saveCosmeticDefaults = onCall(callable, saveCosmeticDefaultsHandler);
 export const getCosmeticCollection = onCall(callable, getCosmeticCollectionHandler);
 export const equipCosmetic = onCall(callable, equipCosmeticHandler);
 export const listCampaigns = onCall(callable, listCampaignsHandler);

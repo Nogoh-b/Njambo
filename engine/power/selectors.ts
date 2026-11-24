@@ -41,6 +41,23 @@ export function bestRecommendation(state: GameState, seat: number): number | nul
   return [...legal].sort((a, b) => hand[a].value - hand[b].value)[0] ?? null;
 }
 
+/** Pourquoi `bestRecommendation` conseille cette carte, en une phrase courte (même raisonnement). */
+export function recommendationReason(state: GameState, seat: number, index: number): string | null {
+  const hand = state.players[seat]?.hand ?? [];
+  const card = hand[index];
+  if (!card) return null;
+  const leader = state.trickPlays[0]?.card;
+  if (!leader) return "Tu ouvres : joue petit, garde tes fortes";
+  const ledSuit = leader.suit;
+  const best = state.trickPlays
+    .filter((play) => (play.card.effectiveSuit ?? play.card.suit) === ledSuit)
+    .reduce<Card | null>((top, play) => (!top || (play.card.effectiveValue ?? play.card.value) > (top.effectiveValue ?? top.value) ? play.card : top), null);
+  const bestLabel = best ? `${best.rank}${best.suit}` : `${leader.rank}${leader.suit}`;
+  if (card.suit !== ledSuit) return `Pas de ${ledSuit} : défausse ta plus faible`;
+  if (card.value > (best?.effectiveValue ?? best?.value ?? 0)) return `Bats le ${bestLabel} au plus juste`;
+  return `Le ${bestLabel} est trop fort : joue petit`;
+}
+
 export interface HandSelectorContext {
   state: GameState;
   /** Seat du propriétaire de la main. */

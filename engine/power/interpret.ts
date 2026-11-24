@@ -12,7 +12,7 @@ import type {
   PowerScriptTag,
 } from "./types";
 import { resolvePlayerRef } from "./targets";
-import { selectInDeck, selectInHand, selectManyInHand } from "./selectors";
+import { recommendationReason, selectInDeck, selectInHand, selectManyInHand } from "./selectors";
 import { legalCards } from "../rules";
 
 /** Opération concrète, prête à être appliquée par un PowerStateAdapter. */
@@ -104,7 +104,9 @@ export function interpretPowerScript(
           const cardIdx = selectInHand(hand, op.select, { state, seat, choices })[0];
           if (cardIdx === undefined) break; // rien à suggérer → no-op
           plan.push({ op: "highlightCard", seat, cardIdx, durationMs: op.durationMs });
-          resolved.highlight = { seat, cardIdx, cardId: hand[cardIdx].id };
+          // Conseil (Main du Griot) : la raison accompagne la carte, pour le lanceur seulement (expurgée à la diffusion).
+          const reason = op.select.kind === "bestLegal" ? recommendationReason(state, seat, cardIdx) : null;
+          resolved.highlight = { seat, cardIdx, cardId: hand[cardIdx].id, ...(reason ? { reason } : {}) };
           break;
         }
         case "exchangeCards": {

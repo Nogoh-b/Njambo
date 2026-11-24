@@ -405,10 +405,6 @@ export class LocalGameSync implements GameSyncActions {
     const led = this.trickPlays[0]?.card.suit ?? null;
     const legal = legalCards(this.players[playerIdx].hand, led);
     if (!legal.includes(cardIdx)) return;
-    if (!this.players[playerIdx].isYou) {
-      const { dropFlight, landSettle, botAfterPlay } = this.opts.cfg.anim;
-      this.botAfterPlayUntil = Date.now() + dropFlight + landSettle + botAfterPlay;
-    }
 
     let restrictedIdx = this.powerRuntime.resolvePlay(
       playerIdx,
@@ -433,6 +429,11 @@ export class LocalGameSync implements GameSyncActions {
       return;
     }
     cardIdx = restrictedIdx;
+
+    // Pause systématique après chaque coup (humain ET bot) : laisse la carte
+    // atterrir puis l'arche/main sortir de surbrillance avant le tour suivant.
+    const { dropFlight, landSettle, botAfterPlay } = this.opts.cfg.anim;
+    this.botAfterPlayUntil = Date.now() + dropFlight + landSettle + botAfterPlay;
 
     const card = this.players[playerIdx].hand[cardIdx];
     // Jeté calculé depuis la carte : le vol de la table vise exactement cette place.

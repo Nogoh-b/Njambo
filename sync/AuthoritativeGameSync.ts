@@ -133,6 +133,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private pendingPlay: { cardId: string; cardIdx: number } | null = null;
   /** Carte déjà lancée en vol optimiste (0 ms) côté client en attente de l'écho serveur. */
   private optimisticCardId: string | null = null;
+  /** Fin de la fenêtre post-coup optimiste (vol + sortie de surbrillance avant le tour suivant). */
+  private optimisticPlayUntil = 0;
   /** Matchs ayant déjà joué leur chorégraphie de donne (1 seule fois par matchId). */
   private dealtMatchIds = new Set<string>();
   /** Si true, le premier doc match contient déjà des coups d'ouverture à rejouer après la donne. */
@@ -549,6 +551,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.replaying = true;
 
     if (step.kind === "play") {
+      const waitAfterOptimistic = Math.max(0, this.optimisticPlayUntil - Date.now());
+      this.optimisticPlayUntil = 0;
       const run = () => {
         if (this.destroyed) return;
         this.emitPlay(step.action);
@@ -559,16 +563,25 @@ export class AuthoritativeGameSync implements GameSyncActions {
         const afterPlay = this.isBot(step.action.uid) ? GAME_CONFIG.anim.botAfterPlay : 0;
         this.replayTimer = setTimeout(() => this.pump(), GAME_CONFIG.anim.dropFlight + GAME_CONFIG.anim.landSettle + afterPlay);
       };
-      if (step.delayBefore <= 0) run();
-      else this.replayTimer = setTimeout(run, step.delayBefore);
+      const totalDelay = step.delayBefore + waitAfterOptimistic;
+      if (totalDelay <= 0) run();
+      else this.replayTimer = setTimeout(run, totalDelay);
       return;
     }
 
     if (step.kind === "trickEnd") {
-      if (step.winnerServerIdx >= 0) this.trickListeners.forEach((listener) => listener(this.localIndex(step.winnerServerIdx)));
-      this.applyTrickEndToDisplay(step.winnerServerIdx);
-      // État émis APRÈS la pause : les cartes restent visibles pendant la bannière.
-      this.replayTimer = setTimeout(() => { this.emitState(); this.pump(); }, GAME_CONFIG.anim.trickPause);
+      const waitAfterOptimistic = Math.max(0, this.optimisticPlayUntil - Date.now());
+      this.optimisticPlayUntil = 0;
+      const runTrickEnd = () => {
+        if (this.destroyed) return;
+        if (step.winnerServerIdx >= 0) this.trickListeners.forEach((listener) => listener(this.localIndex(step.winnerServerIdx)));
+        this.applyTrickEndToDisplay(step.winnerServerIdx);
+        // État émis APRÈS la pause : les cartes restent visibles pendant la bannière,
+        // puis seul le vrai vainqueur du pli entre en surbrillance pour le pli suivant.
+        this.replayTimer = setTimeout(() => { this.emitState(); this.pump(); }, GAME_CONFIG.anim.trickPause);
+      };
+      if (waitAfterOptimistic > 0) this.replayTimer = setTimeout(runTrickEnd, waitAfterOptimistic);
+      else runTrickEnd();
       return;
     }
 
@@ -668,6 +681,10 @@ export class AuthoritativeGameSync implements GameSyncActions {
     display.deposits[action.uid] = [...(display.deposits[action.uid] ?? []), action.card];
     display.trickPlays = [...display.trickPlays, { uid: action.uid, card: action.card }];
     const eliminated = new Set(display.eliminatedUids ?? []);
+    const activeCount = display.participants.filter((participant) => !eliminated.has(participant.uid)).length;
+    // Fin de pli : ne JAMAIS pré-avancer turnIndex vers n+1, car le prochain
+    // meneur est le vainqueur du pli (connu et appliqué à l'étape trickEnd).
+    if (display.trickPlays.length >= activeCount) return;
     let next = display.turnIndex;
     do next = (next + 1) % display.participants.length;
     while (eliminated.has(display.participants[next].uid) && next !== display.turnIndex);
@@ -714,6 +731,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.simTrickPlays = [];
     this.pendingPlay = null;
     this.optimisticCardId = null;
+    this.optimisticPlayUntil = 0;
     this.pendingOpeningReplay = false;
   }
 
@@ -830,8 +848,19 @@ export class AuthoritativeGameSync implements GameSyncActions {
       if (localWinner >= 0) dominantIdx = localWinner;
     }
 
+    const activePlayers = this.players();
+    const trickComplete = activePlayers.length > 0 && mappedTrickPlays.length >= activePlayers.length;
+    const roundTricksDone = match.trickNumber >= GAME_CONFIG.cardsPerPlayer;
+
     const state: GameState = {
-      phase: match.status === "settled" ? "result" : match.status === "between_rounds" ? "trickEnd" : this.dealing ? "dealing" : "turns",
+      phase:
+        match.status === "settled"
+          ? "result"
+          : match.status === "between_rounds" || trickComplete || roundTricksDone
+            ? "trickEnd"
+            : this.dealing
+              ? "dealing"
+              : "turns",
       trickNo: match.trickNumber + 1,
       trickPlays: mappedTrickPlays,
       leaderIdx: Math.max(0, this.localIndex(match.leaderIndex)),
@@ -839,7 +868,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
       pot: match.potNkap,
       dominantIdx,
       banner: "",
-      players: this.players(),
+      players: activePlayers,
       turnStartSeconds: this.turnBudget(match),
       dealTiming: this.dealTiming(match),
       unlimitedTurns: match.rules?.unlimitedTurns === true,
@@ -919,6 +948,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
       playId: `opt:${this.matchId}:${card.id}`,
     }));
     this.hand = this.hand.filter((_, i) => i !== cardIdx);
+    this.optimisticPlayUntil = Date.now() + GAME_CONFIG.anim.dropFlight + GAME_CONFIG.anim.landSettle + GAME_CONFIG.anim.botAfterPlay;
     this.applyPlayToDisplay({ uid: this.opts.uid, card, playId: `opt:${card.id}`, automatic: false });
     this.emitState();
 
@@ -929,6 +959,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
         this.hand = prevHand;
         this.displayMatch = null;
         this.optimisticCardId = null;
+        this.optimisticPlayUntil = 0;
         this.pendingPlay = null;
         this.emitState();
         this.status("error", cause instanceof Error ? cause.message : "Action refusée");

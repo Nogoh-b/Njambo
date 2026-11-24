@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { memo, useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { MotionCard } from "@/components/cards/MotionCard";
 import type { DealOrigin } from "@/components/cards/PlayCard";
@@ -9,6 +9,7 @@ import { elementCenter, elementScale } from "@/components/table/zones/zonePose";
 import { fanPose, fanRestLift } from "@/engine/anim/v2/pose";
 import type { PanInfo } from "motion/react";
 import type { Card } from "@/types/game";
+import styles from "./Fan.module.css";
 
 /* ═══════════════ FILE: components/table/Fan.tsx ═══════════════
    Éventail générique : le siège fait pivoter l'éventail entier,
@@ -39,6 +40,10 @@ interface FanProps {
   getDeckRect?: () => DOMRect | null;
   /** Notifie la table quand le joueur glisse une carte (illumine le dépôt cible). */
   onDragActive?: (active: boolean) => void;
+  /** Vrai quand ce siège adverse est en surbrillance pour son tour (lueur + vague de réflexion). */
+  activeTurn?: boolean;
+  /** Vrai au 5e pli décisif (Ngata) : teinte or-rubis sur la lueur adverse. */
+  finalTrick?: boolean;
 }
 
 /** Le point (viewport) est-il à l'intérieur du rect, avec une marge tolérante ? */
@@ -85,6 +90,8 @@ export const Fan = memo(function Fan({
   getDropRect,
   getDeckRect,
   onDragActive,
+  activeTurn = false,
+  finalTrick = false,
 }: FanProps) {
   const rootRef = useRef<HTMLDivElement>(null);
   const [highlight, setHighlight] = useState<HandHighlight | null>(null);
@@ -104,11 +111,14 @@ export const Fan = memo(function Fan({
   const later = (ms: number, fn: () => void) => { motifTimers.current.push(setTimeout(fn, ms)); };
   const idsOf = (idxs: number[]) => idxs.map((i) => cardsRef.current[i]?.id).filter((id): id is string => !!id);
   useEffect(() => () => motifTimers.current.forEach(clearTimeout), []);
-  // Le nouvel état de la main (autres cartes) remplace l'écartement / le resserrement provisoire.
+  // Le nouvel état de la main remplace immédiatement l'écartement / le resserrement /
+  // le masquage provisoire (synchrone avant paint, y compris pour les IDs synthétiques
+  // `hidden-<uid>-0..n` des adversaires qui se réindexent à 0).
   const handKey = cards.map((card) => card.id).join(",");
-  useEffect(() => {
+  useLayoutEffect(() => {
     setRoom((current) => (current.count ? { count: 0, ms: 0 } : current));
-    setCollapsed((current) => (current.ids.size ? { ids: new Set([...current.ids].filter((id) => cardsRef.current.some((card) => card.id === id))), ms: current.ms } : current));
+    setCollapsed((current) => (current.ids.size ? { ids: new Set(), ms: 0 } : current));
+    setHiddenIndexes((current) => (current.size ? new Set() : current));
   }, [handKey]);
 
   const cardRect = useCallback((cardIdx: number): DOMRect | null => {
@@ -225,13 +235,26 @@ export const Fan = memo(function Fan({
     setDealOrigins(origins);
   }, [dealing, cards.length, getDeckRect, seatAngle, w]);
 
-  const c = (cards.length - 1) / 2;
+  // Aligne immédiatement l'éventail sur les cartes restantes dès qu'une carte
+  // quitte la main (pendant son vol), avant même le retrait du focus.
+  const visibleCount = cards.reduce((acc, card) => acc + (collapsed.ids.has(card.id) ? 0 : 1), 0);
+  const c = (Math.max(1, visibleCount) - 1) / 2;
+  let visibleCursor = 0;
+  const oppRootClass = !faceUp
+    ? activeTurn
+      ? finalTrick
+        ? styles.oppFanNgata
+        : styles.oppFanActive
+      : styles.oppFanIdle
+    : undefined;
   return (
     <div
       ref={rootRef}
+      className={oppRootClass}
       role={faceUp ? "group" : undefined}
       aria-label={faceUp ? `Votre main, ${cards.length} cartes` : undefined}
       aria-hidden={faceUp ? undefined : true}
+      data-opp-turn={!faceUp && activeTurn ? "true" : undefined}
       style={{ display: "flex", pointerEvents: faceUp ? "auto" : "none" }}
     >
       {cards.map((card, ci) => {
@@ -249,15 +272,29 @@ export const Fan = memo(function Fan({
             ? () => onCardClick(ci)
             : undefined;
         const isCollapsed = collapsed.ids.has(card.id);
+        const slotIdx = isCollapsed ? Math.min(visibleCursor, Math.max(0, visibleCount - 1)) : visibleCursor++;
+        const oppCardClass = !faceUp
+          ? activeTurn && !dealing
+            ? [
+                styles.oppCardActive,
+                finalTrick ? styles.oppCardNgata : "",
+                !motionOn ? styles.oppStatic : "",
+              ].filter(Boolean).join(" ")
+            : styles.oppCardIdle
+          : undefined;
+        const cardClassName = [
+          highlighted ? HIGHLIGHT_CLASS[highlight.style] : "",
+          oppCardClass ?? "",
+        ].filter(Boolean).join(" ") || undefined;
         return (
           <MotionCard
             key={card.id}
-            className={highlighted ? HIGHLIGHT_CLASS[highlight.style] : undefined}
+            className={cardClassName}
             card={card}
             hidden={!faceUp}
             w={w}
-            rot={(ci - c) * 8}
-            lift={playable ? -w * 0.24 : Math.pow(Math.abs(ci - c), 1.5) * 4}
+            rot={(slotIdx - c) * 8}
+            lift={playable ? -w * 0.24 : Math.pow(Math.abs(slotIdx - c), 1.5) * 4}
             dim={(faceUp && ((selection != null && !selectable) || (selection == null && legal != null && !playable))) || (dimKeep != null && !dimKeep.has(card.id))}
             glow={!!playable}
             onClick={handleTap}
@@ -269,7 +306,8 @@ export const Fan = memo(function Fan({
               marginLeft: isCollapsed ? (ci === 0 ? -(w * 0.5) : -w) : ci === 0 ? 0 : -(w * 0.5),
               visibility: hiddenIndexes.has(ci) || tempHidden.has(card.id) ? "hidden" : "visible",
               transition: dealing ? undefined : `margin-left ${isCollapsed ? collapsed.ms : 180}ms cubic-bezier(.22,1,.36,1)`,
-            }}
+              ...(!faceUp ? { "--opp-idx": ci } : {}),
+            } as CSSProperties}
             anim={
               draggable
                 ? {

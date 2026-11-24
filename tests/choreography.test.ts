@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CODE_POWER_MODULES } from "../config/powers";
 import { V2_PRESENT_RISE_MS, audienceSees, choreographyDuration, choreographyFromCues, fillCardPlaceholders, swapDelta, validateChoreography, type Choreography, type V2Track } from "../engine/power/choreography";
 import { validatePowerCard } from "../engine/power/validate";
+import { bestRecommendation, recommendationReason } from "../engine/power/selectors";
 
 const paths = (choreo: unknown) => validateChoreography(choreo, "c").map((issue) => issue.path);
 
@@ -181,6 +182,33 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     const v2 = (extra: object) => ({ tracks: [{ id: "t", kind: "v2", startMs: 0, durationMs: 690, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "hand", player: "target" }, ...extra }] });
     expect(paths(v2({ present: { holdMs: 900, at: "tableCenter" }, inPlace: true }))).toEqual([]);
     expect(paths(v2({ present: { holdMs: 900, at: "plafond" }, inPlace: "oui" }))).toEqual(["c.tracks.0.present.at", "c.tracks.0.inPlace"]);
+  });
+  it("Main du Griot : la raison suit le choix de la carte conseillée", () => {
+    const c = (rank: string, value: number, suit: string) => ({ id: `${rank}${suit}`, rank, value, suit, color: "#000" });
+    const state = (hand: object[], plays: object[]) => ({ players: [{ hand }], trickPlays: plays.map((card) => ({ playerIdx: 1, card })) }) as never;
+    const hand = [c("3", 3, "♣"), c("9", 9, "♣"), c("5", 5, "♥")];
+    // J'ouvre : la plus faible.
+    expect(bestRecommendation(state(hand, []), 0)).toBe(0);
+    expect(recommendationReason(state(hand, []), 0, 0)).toBe("Tu ouvres : joue petit, garde tes fortes");
+    // Je peux battre le 7♣ : le 9♣, au plus juste.
+    expect(bestRecommendation(state(hand, [c("7", 7, "♣")]), 0)).toBe(1);
+    expect(recommendationReason(state(hand, [c("7", 7, "♣")]), 0, 1)).toBe("Bats le 7♣ au plus juste");
+    // Le 10♣ est trop fort : mon plus petit trèfle.
+    expect(recommendationReason(state(hand, [c("10", 10, "♣")]), 0, 0)).toBe("Le 10♣ est trop fort : joue petit");
+    // Pas de carreau : défausse.
+    expect(recommendationReason(state(hand, [c("4", 4, "♦")]), 0, 0)).toBe("Pas de ♦ : défausse ta plus faible");
+  });
+  it("Main du Griot : lecture, conseil retardé et raison ; script valide", () => {
+    const griot = CODE_POWER_MODULES.main_griot;
+    expect(validatePowerCard({ def: griot.def, script: griot.script } as never)).toEqual([]);
+    const choreo = griot.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(8_000);
+    const effects = choreo.tracks.flatMap((track) => (track.kind === "element" ? [[track.effect, track.startMs]] : []));
+    expect(effects).toEqual([["read", 0], ["advise", 1400]]);
+    // La surbrillance du jeu arrive avec le conseil, pas avant la lecture.
+    const cue = griot.script.steps[0].anim!.find((item) => item.cue === "highlightHandCard") as { delayMs?: number };
+    expect(cue.delayMs).toBe(1400);
+    expect(choreo.tracks.some((track) => track.kind === "text" && track.text === "{reason}" && track.audience === "activator")).toBe(true);
   });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;

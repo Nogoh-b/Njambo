@@ -4,14 +4,19 @@
 
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import {
+  COSMETIC_DEFAULTS_DOC,
   COSMETIC_RARITIES,
   COSMETIC_SLOT,
   COSMETIC_TYPES,
   equippedCopy,
+  isValidCosmeticImageUrl,
+  readDefaultCosmetics,
   readPlayerCosmetics,
   validateCosmetic,
   type CosmeticDefinition,
   type CosmeticSlot,
+  type DefaultCosmeticChoice,
+  type DefaultCosmeticsConfig,
 } from "../../domain";
 import { asObject, db, requireAdmin, requireUid, requiredString, runIdempotent } from "./core";
 
@@ -35,9 +40,68 @@ function cosmeticFrom(raw: unknown): CosmeticDefinition {
 
 export async function listCosmeticsHandler(request: CallableRequest<unknown>) {
   requireAdmin(request);
-  const snap = await db.collection("cosmetics").get();
+  const [snap, defaultsSnap] = await Promise.all([
+    db.collection("cosmetics").get(),
+    db.doc(`runtime_config/${COSMETIC_DEFAULTS_DOC}`).get(),
+  ]);
   const cosmetics = snap.docs.map((doc) => cosmeticFrom({ ...doc.data(), id: doc.id })).sort((a, b) => a.type.localeCompare(b.type) || a.name.localeCompare(b.name));
-  return { cosmetics };
+  const defaults = readDefaultCosmetics(defaultsSnap.exists ? defaultsSnap.data() : undefined);
+  return { cosmetics, defaults };
+}
+
+const DEFAULT_SLOT_TYPE = {
+  cardBack: "card_back",
+  handArc: "hand_arc",
+} as const;
+
+export async function saveCosmeticDefaultsHandler(request: CallableRequest<unknown>) {
+  const uid = requireAdmin(request);
+  const data = asObject(request.data);
+  const rawDefaults = asObject(data.defaults);
+
+  return runIdempotent(uid, "saveCosmeticDefaults", data.idempotencyKey, async (transaction, now) => {
+    const next: DefaultCosmeticsConfig = {};
+
+    for (const slot of ["cardBack", "handArc"] as const) {
+      const entry = rawDefaults[slot];
+      if (!entry || typeof entry !== "object") continue;
+      const obj = entry as Record<string, unknown>;
+      const cosmeticId = typeof obj.cosmeticId === "string" && obj.cosmeticId.trim() ? obj.cosmeticId.trim() : null;
+      const customImageUrl = typeof obj.imageUrl === "string" && obj.imageUrl.trim() ? obj.imageUrl.trim() : null;
+      const customName = typeof obj.name === "string" && obj.name.trim() ? obj.name.trim().slice(0, 40) : undefined;
+
+      if (cosmeticId) {
+        const snap = await transaction.get(db.doc(`cosmetics/${cosmeticId}`));
+        if (!snap.exists) throw new HttpsError("not-found", `COSMETIC_NOT_FOUND:${cosmeticId}`);
+        const cosmetic = cosmeticFrom({ ...snap.data(), id: cosmeticId });
+        if (cosmetic.type !== DEFAULT_SLOT_TYPE[slot]) throw new HttpsError("invalid-argument", `COSMETIC_WRONG_SLOT:${slot}`);
+        if (!isValidCosmeticImageUrl(cosmetic.imageUrl)) throw new HttpsError("invalid-argument", `COSMETIC_NO_IMAGE:${cosmeticId}`);
+        const choice: DefaultCosmeticChoice = {
+          cosmeticId: cosmetic.id,
+          name: cosmetic.name,
+          imageUrl: cosmetic.imageUrl,
+        };
+        next[slot] = choice;
+      } else if (customImageUrl) {
+        if (!isValidCosmeticImageUrl(customImageUrl)) throw new HttpsError("invalid-argument", `INVALID_IMAGE_URL:${slot}`);
+        next[slot] = {
+          imageUrl: customImageUrl,
+          ...(customName ? { name: customName } : {}),
+        };
+      }
+    }
+
+    const ref = db.doc(`runtime_config/${COSMETIC_DEFAULTS_DOC}`);
+    transaction.set(ref, { ...next, updatedAt: now, updatedBy: uid }, { merge: false });
+    transaction.create(db.collection("admin_audit").doc(), {
+      uid,
+      action: "cosmetic_defaults_update",
+      cardBackId: next.cardBack?.cosmeticId ?? null,
+      handArcId: next.handArc?.cosmeticId ?? null,
+      createdAt: now,
+    });
+    return { defaults: next };
+  });
 }
 
 export async function saveCosmeticHandler(request: CallableRequest<unknown>) {
@@ -48,9 +112,22 @@ export async function saveCosmeticHandler(request: CallableRequest<unknown>) {
   if (issues.length) throw new HttpsError("invalid-argument", "COSMETIC_INVALID", { issues });
   return runIdempotent(uid, "saveCosmetic", data.idempotencyKey, async (transaction, now) => {
     const ref = db.doc(`cosmetics/${cosmetic.id}`);
-    const existing = await transaction.get(ref);
+    const defaultsRef = db.doc(`runtime_config/${COSMETIC_DEFAULTS_DOC}`);
+    const [existing, defaultsSnap] = await Promise.all([transaction.get(ref), transaction.get(defaultsRef)]);
     if (existing.exists && existing.get("type") !== cosmetic.type) throw new HttpsError("failed-precondition", "COSMETIC_TYPE_LOCKED");
     transaction.set(ref, { ...cosmetic, createdAt: existing.get("createdAt") ?? now, updatedAt: now, updatedBy: uid }, { merge: false });
+    if (defaultsSnap.exists && isValidCosmeticImageUrl(cosmetic.imageUrl)) {
+      const currentDefaults = readDefaultCosmetics(defaultsSnap.data());
+      const slot = cosmetic.type === "card_back" ? "cardBack" : cosmetic.type === "hand_arc" ? "handArc" : null;
+      if (slot && currentDefaults[slot]?.cosmeticId === cosmetic.id) {
+        transaction.set(defaultsRef, {
+          ...currentDefaults,
+          [slot]: { cosmeticId: cosmetic.id, name: cosmetic.name, imageUrl: cosmetic.imageUrl },
+          updatedAt: now,
+          updatedBy: uid,
+        }, { merge: false });
+      }
+    }
     transaction.create(db.collection("admin_audit").doc(), { uid, action: existing.exists ? "cosmetic_update" : "cosmetic_create", cosmeticId: cosmetic.id, published: cosmetic.published, createdAt: now });
     return { cosmetic };
   });

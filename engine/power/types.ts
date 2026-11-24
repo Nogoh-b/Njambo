@@ -210,6 +210,8 @@ type AnimCueCore =
       cards: ResolvedCardsRef;
       style: "recommend" | "swapped" | "locked" | "boosted";
       durationMs?: number;
+      /** Étape chorégraphiée, animations actives : la surbrillance attend ce délai (la mise en scène l'amène). */
+      delayMs?: number;
     }
   | {
       cue: "timerFx";
@@ -294,7 +296,8 @@ export interface PowerResolved {
     toCardIndexes?: number[];
     hiddenFor?: "others";
   }[];
-  highlight?: { seat: number; cardIdx: number; cardId: string };
+  /** `reason` : pourquoi cette carte (conseil de la Main du Griot), pour le lanceur seulement. */
+  highlight?: { seat: number; cardIdx: number; cardId: string; reason?: string };
   /** false → aucun effet concret : la carte n'est PAS consommée. */
   impact: boolean;
 }

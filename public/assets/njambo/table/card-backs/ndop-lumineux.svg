@@ -1,0 +1,36 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 290" fill="none">
+<defs>
+    <clipPath id="cl"><rect x="13" y="13" width="174" height="264" rx="11"/></clipPath>
+    <radialGradient id="bg" cx="50%" cy="48%" r="72%">
+      <stop offset="0%" stop-color="#2757b8"/>
+      <stop offset="52%" stop-color="#112b68"/>
+      <stop offset="100%" stop-color="#071232"/>
+    </radialGradient>
+    <pattern id="nd" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M16 2 L30 16 L16 30 L2 16 Z" stroke="#e9f2ff" stroke-opacity="0.26" stroke-width="1.4"/>
+      <path d="M16 9 L23 16 L16 23 L9 16 Z" stroke="#ffd868" stroke-opacity="0.4" stroke-width="1"/>
+      <path d="M0 0 L6 6 M32 0 L26 6 M0 32 L6 26 M32 32 L26 26" stroke="#ffffff" stroke-opacity="0.24" stroke-width="1.2"/>
+    </pattern>
+    <linearGradient id="gm" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#fff6c7"/>
+      <stop offset="48%" stop-color="#ffcf40"/>
+      <stop offset="100%" stop-color="#c27a0c"/>
+    </linearGradient>
+  </defs>
+  <rect width="200" height="290" rx="16" fill="#f7f9ff"/>
+  <rect x="6" y="6" width="188" height="278" rx="13" fill="#091840"/>
+  <rect x="13" y="13" width="174" height="264" rx="11" fill="url(#bg)"/>
+  <g clip-path="url(#cl)">
+    <rect x="13" y="13" width="174" height="264" fill="url(#nd)"/>
+    <rect x="13" y="28" width="174" height="16" fill="#081436" fill-opacity="0.72"/>
+    <path d="M18 36 L28 30 L38 36 L48 30 L58 36 L68 30 L78 36 L88 30 L98 36 L108 30 L118 36 L128 30 L138 36 L148 30 L158 36 L168 30 L178 36 L186 32" stroke="#ffe588" stroke-width="1.6"/>
+    <rect x="13" y="246" width="174" height="16" fill="#081436" fill-opacity="0.72"/>
+    <path d="M18 254 L28 260 L38 254 L48 260 L58 254 L68 260 L78 254 L88 260 L98 254 L108 260 L118 254 L128 260 L138 254 L148 260 L158 254 L168 260 L178 254 L186 258" stroke="#ffe588" stroke-width="1.6"/>
+  </g>
+  <rect x="13" y="13" width="174" height="264" rx="11" stroke="url(#gm)" stroke-width="3.2"/>
+  <circle cx="100" cy="145" r="44" fill="#0a1c4c" stroke="url(#gm)" stroke-width="3"/>
+  <polygon points="100,108 134,145 100,182 66,145" stroke="#ffffff" stroke-opacity="0.86" stroke-width="2"/>
+  <polygon points="100,118 124,145 100,172 76,145" fill="url(#gm)"/>
+  <polygon points="100,129 113,145 100,161 87,145" fill="#163b8c"/>
+  <circle cx="100" cy="145" r="5" fill="#fff7d1"/>
+</svg>

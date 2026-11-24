@@ -132,8 +132,12 @@ function SceneRouter() {
   const [eventRequiredPlayers, setEventRequiredPlayers] = useState<number>(4);
   /** True quand une session de jeu est lancée. */
   const [gameActive, setGameActive] = useState(false);
-  /** True tant que l'écran de chargement de partie précharge assets/images/modules. */
+  /** True tant que l'écran de chargement / ouverture de scène est affiché. */
   const [matchLoading, setMatchLoading] = useState(false);
+  /** True dès le pré-montage silencieux de la table (~1 s avant l'ouverture, 60 fps garanti). */
+  const [tableMounted, setTableMounted] = useState(false);
+  /** True au feu vert de l'Acte III : la table lance la donne et le chrono. */
+  const [tableUnlocked, setTableUnlocked] = useState(false);
   /** True si on reprend automatiquement une partie après actualisation. */
   const [resumingMatch, setResumingMatch] = useState(false);
   /** matchId serveur à reconnecter après actualisation sans relancer startMatch. */
@@ -252,6 +256,8 @@ function SceneRouter() {
     setReconnectMatchId(options?.reconnectId ?? null);
     setLaunchNonce((n) => n + 1);
     setGameResult(null);
+    setTableMounted(false);
+    setTableUnlocked(false);
     setMatchLoading(true);
     setGameActive(true);
     navigateTo("table", { replace: options?.replace });
@@ -497,6 +503,8 @@ function SceneRouter() {
     clearActiveGameSession();
     tableRestoreAttemptedRef.current = false;
     setGameResult(null);
+    setTableMounted(false);
+    setTableUnlocked(false);
     setMatchLoading(false);
     setGameActive(false);
     setResumingMatch(false);
@@ -525,6 +533,8 @@ function SceneRouter() {
   const handleReconnectFailed = useCallback(() => {
     clearActiveGameSession();
     tableRestoreAttemptedRef.current = false;
+    setTableMounted(false);
+    setTableUnlocked(false);
     setMatchLoading(false);
     setGameActive(false);
     setResumingMatch(false);
@@ -645,33 +655,40 @@ function SceneRouter() {
           <div style={{ minHeight: "100vh" }}>{renderScene()}</div>
         )}
 
-        {/* Écran de chargement cérémoniel au lancement d'une partie : précharge
-            et décode toutes les ressources (tapis, cartes, icônes, pouvoirs,
-            sons et chunks JS) avant de révéler la table sans latence. */}
-        <AnimatePresence>
-          {gameActive && matchLoading && (
-            <MatchLoadingScreen
-              key={`loader-${tableKey}`}
-              gameMode={gameMode}
-              mise={gameMise}
-              playerCount={displayPlayerCount}
-              difficulty={gameDifficulty}
-              stageLabel={eventStageLabel}
-              equippedPowers={myEquippedPowers}
-              participants={[myCosmetics]}
-              resuming={resumingMatch}
-              maxWaitMs={isRoomMode || eventMatchmaking ? 3500 : 6000}
-              onReady={() => setMatchLoading(false)}
-              onCancel={gameMode === "bot" ? handleMenu : undefined}
-              onBackRequestRef={loadingBackRef}
-            />
-          )}
-        </AnimatePresence>
+        {/* Écran de chargement plein écran + cinématique d'ouverture en 3 actes
+            (portes acajou/laiton à sceau fendu, faisceau d'or, envolée de cartes). */}
+        {gameActive && matchLoading && (
+          <MatchLoadingScreen
+            key={`loader-${tableKey}`}
+            gameMode={gameMode}
+            mise={gameMise}
+            playerCount={displayPlayerCount}
+            difficulty={gameDifficulty}
+            stageLabel={eventStageLabel}
+            equippedPowers={myEquippedPowers}
+            participants={[myCosmetics]}
+            resuming={resumingMatch}
+            minDisplayMs={5000}
+            maxWaitMs={isRoomMode || eventMatchmaking ? 9000 : 10000}
+            onPreMountTable={() => setTableMounted(true)}
+            onUnlockGame={() => {
+              setTableMounted(true);
+              setTableUnlocked(true);
+            }}
+            onReady={() => {
+              setTableMounted(true);
+              setTableUnlocked(true);
+              setMatchLoading(false);
+            }}
+            onCancel={gameMode === "bot" ? handleMenu : undefined}
+            onBackRequestRef={loadingBackRef}
+          />
+        )}
 
-        {/* TableScreen — monté une fois les ressources prêtes et conservé pendant
-            toute la session de jeu. Les props de salle ne sont transmises QU'AUX
-            modes salle : une table bot n'hérite jamais d'une salle résiduelle. */}
-        {gameActive && !matchLoading && (
+        {/* TableScreen — pré-monté derrière les portes opaques (~1 s avant
+            l'ouverture) pour garantir 60 fps pendant la cinématique, puis
+            déverrouillé (donne + chrono) pile à l'Acte III (« À table ! »). */}
+        {gameActive && tableMounted && (
           <TableScreen
             key={tableKey}
             gameMode={gameMode}
@@ -693,12 +710,13 @@ function SceneRouter() {
             onNextRoundRef={nextRoundRef}
             onBackRequestRef={tableBackRef}
             paused={Boolean(gameResult)}
+            waitForReveal={!tableUnlocked}
           />
         )}
 
         {/* Écran de file d'attente — au-dessus de la table tant qu'un événement
             PvP n'a pas de groupe (currentMatchId absent du run). */}
-        {gameActive && !matchLoading && eventMatchmaking && eventRunId && eventId && (
+        {gameActive && tableUnlocked && !matchLoading && eventMatchmaking && eventRunId && eventId && (
           <EventMatchmakingOverlay
             key={`mm-${eventRunId}`}
             runId={eventRunId}

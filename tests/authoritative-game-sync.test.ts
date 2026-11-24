@@ -160,4 +160,48 @@ describe("AuthoritativeGameSync revanche", () => {
     expect(players.map((player) => player.name)).toEqual(["Host", "Invité"]);
     expect(players[0].equippedPowers).toEqual(["power-test"]);
   });
+
+  it("en fin de pli, n'illumine jamais n+1 avant de connaître le vrai vainqueur du pli", () => {
+    vi.useFakeTimers();
+    const internal = sync as unknown as { match: unknown; replayQueue: unknown[]; pump: () => void };
+    // Pli à 2 joueurs : host a déjà posé 6♠, bot (index 1) pose la dernière carte 9♠ et gagne le pli.
+    internal.match = {
+      id: "match-1",
+      status: "playing",
+      participants: [
+        { uid: "host", name: "Host", emoji: "h", bot: false },
+        { uid: "bot", name: "Bot", emoji: "b", bot: true },
+      ],
+      handCounts: { host: 4, bot: 5 },
+      deposits: { host: [{ id: "6♠", rank: "6", value: 6, suit: "♠", color: "#111" }], bot: [] },
+      trickPlays: [{ uid: "host", card: { id: "6♠", rank: "6", value: 6, suit: "♠", color: "#111" } }],
+      trickNumber: 0,
+      leaderIndex: 0,
+      turnIndex: 1,
+      potNkap: 200,
+    };
+    const action = {
+      uid: "bot",
+      card: { id: "9♠", rank: "9", value: 9, suit: "♠", color: "#111" },
+      playId: "play-last",
+      automatic: true,
+    };
+    internal.replayQueue = [
+      { kind: "play", action, delayBefore: 0 },
+      { kind: "trickEnd", winnerServerIdx: 1 },
+    ];
+    const emitted: Array<{ phase: string; turnIdx: number; trickPlaysLen: number }> = [];
+    sync.onStateUpdate((state) => {
+      emitted.push({ phase: state.phase, turnIdx: state.turnIdx, trickPlaysLen: state.trickPlays.length });
+    });
+
+    internal.pump();
+    // Dès la dernière carte du pli posée : phase = "trickEnd" (JAMAIS "turns" sur n+1 = host = 0).
+    expect(emitted).toHaveLength(1);
+    expect(emitted[0]).toEqual({ phase: "trickEnd", turnIdx: 1, trickPlaysLen: 2 });
+
+    // Après vol + pause bot + trickPause : passage direct à "turns" sur le VRAI vainqueur (bot = 1).
+    vi.advanceTimersByTime(340 + 80 + 450 + 2_200);
+    expect(emitted.at(-1)).toEqual({ phase: "turns", turnIdx: 1, trickPlaysLen: 0 });
+  });
 });

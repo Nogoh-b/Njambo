@@ -10,11 +10,11 @@
 
 import { readAnimStyle, validateAnimStyle, type AnimStyle } from "../engine/anim/style";
 
-export type CosmeticType = "card_back" | "avatar_frame" | "badge" | "title" | "anim_style";
+export type CosmeticType = "card_back" | "avatar_frame" | "badge" | "title" | "anim_style" | "hand_arc";
 export type CosmeticRarity = "commun" | "rare" | "epique" | "legendaire";
-export type CosmeticSlot = "cardBack" | "avatarFrame" | "badge" | "title" | "animStyle";
+export type CosmeticSlot = "cardBack" | "avatarFrame" | "badge" | "title" | "animStyle" | "handArc";
 
-export const COSMETIC_TYPES: CosmeticType[] = ["card_back", "avatar_frame", "badge", "title", "anim_style"];
+export const COSMETIC_TYPES: CosmeticType[] = ["card_back", "avatar_frame", "badge", "title", "anim_style", "hand_arc"];
 export const COSMETIC_RARITIES: CosmeticRarity[] = ["commun", "rare", "epique", "legendaire"];
 
 export const COSMETIC_SLOT: Record<CosmeticType, CosmeticSlot> = {
@@ -23,6 +23,7 @@ export const COSMETIC_SLOT: Record<CosmeticType, CosmeticSlot> = {
   badge: "badge",
   title: "title",
   anim_style: "animStyle",
+  hand_arc: "handArc",
 };
 
 /** Types sans image obligatoire : le titre est un texte, le style se voit en jeu. */
@@ -58,8 +59,30 @@ export interface EquippedCosmetic {
 
 export type PlayerCosmetics = Partial<Record<CosmeticSlot, EquippedCosmetic>>;
 
+export const COSMETIC_DEFAULTS_DOC = "cosmetics_defaults";
+
+export interface DefaultCosmeticChoice {
+  /** Identifiant d'un cosmétique du catalogue (si choisi dans le catalogue). */
+  cosmeticId?: string;
+  /** Nom lisible affiché dans l'admin et la collection. */
+  name?: string;
+  /** Asset image configuré comme valeur par défaut globale. */
+  imageUrl: string;
+}
+
+export interface DefaultCosmeticsConfig {
+  cardBack?: DefaultCosmeticChoice;
+  handArc?: DefaultCosmeticChoice;
+}
+
+export type DefaultCosmeticSlot = keyof DefaultCosmeticsConfig;
+
 const ID = /^[a-z0-9_]{3,64}$/;
 const IMAGE = /^(\/[\w\-./]+|https?:\/\/[\w\-.]+(:\d+)?\/[\w\-./%]*)$/;
+
+export function isValidCosmeticImageUrl(value: unknown): value is string {
+  return typeof value === "string" && IMAGE.test(value);
+}
 
 export function validateCosmetic(cosmetic: CosmeticDefinition): Array<{ path: string; message: string }> {
   const issues: Array<{ path: string; message: string }> = [];
@@ -109,4 +132,21 @@ export function readPlayerCosmetics(raw: unknown): PlayerCosmetics {
 export function displayCosmetics(cosmetics: PlayerCosmetics): PlayerCosmetics {
   const { avatarFrame, badge, title } = cosmetics;
   return { ...(avatarFrame ? { avatarFrame } : {}), ...(badge ? { badge } : {}), ...(title ? { title } : {}) };
+}
+
+/** Lecture tolérante de runtime_config/cosmetics_defaults (visuels par défaut configurés en admin). */
+export function readDefaultCosmetics(raw: unknown): DefaultCosmeticsConfig {
+  const source = raw && typeof raw === "object" ? (raw as Record<string, unknown>) : {};
+  const out: DefaultCosmeticsConfig = {};
+  for (const slot of ["cardBack", "handArc"] as const) {
+    const entry = source[slot] as Partial<DefaultCosmeticChoice> | null | undefined;
+    if (entry && isValidCosmeticImageUrl(entry.imageUrl)) {
+      out[slot] = {
+        imageUrl: entry.imageUrl,
+        ...(typeof entry.cosmeticId === "string" && ID.test(entry.cosmeticId) ? { cosmeticId: entry.cosmeticId } : {}),
+        ...(typeof entry.name === "string" && entry.name.trim() ? { name: entry.name.trim().slice(0, 40) } : {}),
+      };
+    }
+  }
+  return out;
 }

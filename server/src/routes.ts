@@ -52,6 +52,7 @@ import { reviveEventRunHandler } from "../../functions/src/eventRunCommands";
 import {
   listCosmeticsHandler,
   saveCosmeticHandler,
+  saveCosmeticDefaultsHandler,
   getCosmeticCollectionHandler,
   equipCosmeticHandler,
 } from "../../functions/src/cosmeticCommands";
@@ -187,6 +188,7 @@ export const commands: Record<string, Handler> = {
   getSeasonStats: getSeasonStatsHandler,
   listCosmetics: listCosmeticsHandler,
   saveCosmetic: saveCosmeticHandler,
+  saveCosmeticDefaults: saveCosmeticDefaultsHandler,
   getCosmeticCollection: getCosmeticCollectionHandler,
   equipCosmetic: equipCosmeticHandler,
   listCampaigns: listCampaignsHandler,
