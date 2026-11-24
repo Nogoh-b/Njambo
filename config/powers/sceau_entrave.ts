@@ -10,7 +10,7 @@ export const sceauEntrave: PowerModule = {
     tone: "pink",
     rarity: "epic",
     targetMode: "opponent",
-    art: "/assets/power-cards/filet_pecheur.webp",
+    art: "/assets/power-cards/sceau_entrave.webp",
     activationTitle: "SCEAU D'ENTRAVE",
     activationText: "Une carte de ta cible est scellée",
     activationTextOthers: "{activator} scelle une carte de {target}",
