@@ -48,7 +48,7 @@ function catalogPowerAssets(): AssetRef[] {
   });
 }
 
-export const DEFAULT_CARD_BACK_ASSET = "/assets/njambo/table/card-back-default.svg";
+export const DEFAULT_CARD_BACK_ASSET = "/assets/njambo/table/card-backs/cauri-soleil.webp";
 export const DEFAULT_HAND_ARC_ASSET = "/assets/njambo/table/hand-arc-default.svg";
 
 type CosmeticsLike = {

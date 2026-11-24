@@ -212,6 +212,7 @@ describe("contrat TableLayout", () => {
 
       const diskPath = join(process.cwd(), "public", asset.imageUrl.replace(/^\//, ""));
       expect(existsSync(diskPath), diskPath).toBe(true);
+      if (/\.(webp|png)$/.test(asset.imageUrl)) continue; // visuel raster (ex. dos « Cauri Soleil »)
       const svg = readFileSync(diskPath, "utf8");
       expect(svg).toContain("<svg");
       if (asset.type === "hand_arc") {

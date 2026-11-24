@@ -24,14 +24,23 @@ export interface BuiltinTableCosmeticAsset {
 
 export const BUILTIN_CARD_BACKS: readonly BuiltinTableCosmeticAsset[] = [
   {
+    id: "dos_cauri_soleil",
+    type: "card_back",
+    name: "Cauri Soleil",
+    description: "Velours cobalt tissé ndop, cadre en laiton serti de cabochons, bandeaux cérémoniels et médaillon solaire au cauri.",
+    rarity: "commun",
+    mood: "lumineux",
+    imageUrl: DEFAULT_CARD_BACK_ASSET,
+    isCoreDefault: true,
+  },
+  {
     id: "dos_astrolabe_royal",
     type: "card_back",
     name: "Astrolabe Royal (1B)",
     description: "Ébène doré gravé d'anneaux d'astrolabe, 4 médaillons d'enseignes et boussole solaire.",
     rarity: "commun",
     mood: "lumineux",
-    imageUrl: DEFAULT_CARD_BACK_ASSET,
-    isCoreDefault: true,
+    imageUrl: "/assets/njambo/table/card-back-default.svg",
   },
   {
     id: "dos_soleil_or_pur",
