@@ -129,8 +129,10 @@ export type PowerOp =
   /** Étape 5 : boost virtuel de la PROCHAINE carte jouée. */
   | { op: "boostNextCard"; player: PlayerRef; valueBonus?: number; suitOverride?: "led" }
   /** Effets persistants / économie. */
-  | { op: "potBonus"; amount: number; when: "now" | "winTrick" }
-  | { op: "potMultiplier"; factor: number; when: "winTrick" }
+  /** `winRound` : le bonus ne compte que si l'activateur gagne la MANCHE (c'est lui qui rafle le pot) ;
+   *  `winTrick` (historique) : appliqué au pot si l'activateur gagne le pli en cours, même si un autre rafle le pot. */
+  | { op: "potBonus"; amount: number; when: "now" | "winTrick" | "winRound" }
+  | { op: "potMultiplier"; factor: number; when: "winTrick" | "winRound" }
   | { op: "grantShield"; player: PlayerRef; blocks: PowerScriptTag[] }
   | { op: "refundOnLoss"; player: PlayerRef; ratio: number }
   | { op: "preventDoublePenalty"; player: PlayerRef };

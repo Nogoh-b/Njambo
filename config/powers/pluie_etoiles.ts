@@ -1,6 +1,7 @@
 import type { PowerModule } from "../../engine/power/types";
 
-/** Pluie d'Étoiles — +200 NKAP au pot si l'activateur remporte ce pli. */
+/** Pluie d'Étoiles — +200 Nkap au pot si tu gagnes la manche (c'est toi qui le rafles).
+ *  (Avant : « si tu remportes ce pli » — le bonus pouvait revenir à un adversaire.) */
 export const pluieEtoiles: PowerModule = {
   def: {
     id: "pluie_etoiles",
@@ -12,8 +13,8 @@ export const pluieEtoiles: PowerModule = {
     targetMode: "none",
     art: "/assets/power-cards/pluie_etoiles.webp",
     activationTitle: "PLUIE D'OR",
-    activationText: "+200 Nkap dans le pot",
-    description: "+200 Nkap bonus au pot si tu remportes ce pli.",
+    activationText: "+200 Nkap au pot si tu gagnes la manche",
+    description: "+200 Nkap au pot si tu gagnes la manche.",
     costCauris: 50,
     costNkap: 800,
     animTags: ["pot_bonus"],
@@ -23,7 +24,7 @@ export const pluieEtoiles: PowerModule = {
     target: { count: "none" },
     steps: [
       {
-        ops: [{ op: "potBonus", amount: 200, when: "winTrick" }],
+        ops: [{ op: "potBonus", amount: 200, when: "winRound" }],
         anim: [{ cue: "potFlash", amountLabel: "+200" }],
       },
     ],

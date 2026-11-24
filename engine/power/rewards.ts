@@ -42,22 +42,33 @@ export function consumeNextCardModifiers(
 /**
  * À la résolution d'un pli : applique au pot les bonus conditionnels et
  * multiplicateurs du VAINQUEUR, puis purge tous les effets scoped à ce pli.
+ * Bonus « jusqu'à la fin de la manche » (`untilRoundEnd` : Bénédiction du Chef,
+ * Pluie d'Étoiles) : gardés jusqu'au DERNIER pli (`isLastTrick`), comptés
+ * seulement si leur activateur le gagne — c'est lui qui rafle le pot —, bonus
+ * fixes d'abord, multiplicateurs ensuite ; purgés à la fin de la manche.
  */
 export function applyTrickPowerRewards(
   effects: ActivePowerEffect[],
   trickNo: number,
   winnerSeat: number,
   pot: number,
+  isLastTrick = false,
 ): { pot: number; effects: ActivePowerEffect[] } {
   let nextPot = pot;
   for (const effect of effects) {
-    if (effect.scopeTrickNo !== trickNo || effect.activatedBy !== winnerSeat) continue;
+    if (effect.untilRoundEnd || effect.scopeTrickNo !== trickNo || effect.activatedBy !== winnerSeat) continue;
     if (effect.scoreMultiplier && effect.scoreMultiplier > 1) nextPot *= effect.scoreMultiplier;
     if (effect.conditionalPotBonus && effect.potBonus) nextPot += effect.potBonus;
+  }
+  if (isLastTrick) {
+    const won = effects.filter((effect) => effect.untilRoundEnd && effect.activatedBy === winnerSeat);
+    for (const effect of won) if (effect.conditionalPotBonus && effect.potBonus) nextPot += effect.potBonus;
+    for (const effect of won) if (effect.scoreMultiplier && effect.scoreMultiplier > 1) nextPot *= effect.scoreMultiplier;
   }
   return {
     pot: nextPot,
     effects: effects.filter((effect) => {
+      if (effect.untilRoundEnd) return !isLastTrick;
       if (effect.scopeTrickNo !== trickNo) return true;
       return !(effect.scoreMultiplier || effect.conditionalPotBonus);
     }),

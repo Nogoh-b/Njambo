@@ -3,7 +3,7 @@
 /* Écran Saison (phase 6) : progression, passe premium, piste des paliers
    gratuits / premium avec réclamation. */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useState, type CSSProperties } from "react";
 import { canClaimTier, reachedTiers, type SeasonTrack } from "@/domain";
 import { GameShell } from "@/components/ui/GameShell";

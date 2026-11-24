@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
 import { countStoredCollectionItems } from "@/domain";

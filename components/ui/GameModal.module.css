@@ -5,8 +5,7 @@
   display: grid;
   place-items: center;
   padding: max(14px, env(safe-area-inset-top)) 14px max(14px, env(safe-area-inset-bottom));
-  background: radial-gradient(circle at 50% 42%, rgba(7, 29, 23, 0.74), rgba(2, 8, 7, 0.9));
-  backdrop-filter: blur(10px);
+  background: radial-gradient(circle at 50% 42%, rgba(7, 29, 23, 0.84), rgba(2, 8, 7, 0.94));
 }
 
 .dialog {

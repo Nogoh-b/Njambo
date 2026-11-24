@@ -30,12 +30,18 @@ import { AuthProvider, useAuth } from "@/hooks/useAuth";
 import { MenuScreen } from "@/components/scenes/MenuScreen";
 import type { BotDifficulty, GameMode, PowerCardId, Result, RoomDoc, RoomPlayer } from "@/types/game";
 
-/** Écrans riches en images protégés par la porte de chargement (titre affiché). */
+/** Écrans riches en images protégés par la porte de chargement (titre affiché).
+ *  Si les assets sont déjà décodés (préchargement post-splash ou survol),
+ *  LoadingGate rend immédiatement sans aucune latence. */
 const SCENE_GATES: Record<string, string> = {
+  play: "Ouverture du salon de jeu",
   shop: "Ouverture du marché",
   power_shop: "Ouverture du marché",
   power_collection: "Ta collection arrive",
   events: "Chargement des événements",
+  minigames: "Préparation des mini-jeux",
+  wallet: "Ouverture du coffre",
+  profile: "Chargement de ton profil",
 };
 
 /** Écran courant → écran riche probablement visité ensuite (préchargement d'approche). */
@@ -641,20 +647,20 @@ function SceneRouter() {
         style={{ minHeight: "100vh", position: "relative" }}
       >
         {motionProfile.allowNavigationMotion ? (
-          <AnimatePresence initial={false} onExitComplete={endTransition}>
+          <AnimatePresence mode="wait" initial={false} onExitComplete={endTransition}>
             <motion.div
               key={scene}
               variants={motionProfile.reduced ? reducedSceneVariants : sceneVariants}
               initial="out"
               animate="in"
               exit="exit"
-              style={{ minHeight: "100vh" }}
+              style={{ minHeight: "100dvh", willChange: "opacity" }}
             >
               {renderScene()}
             </motion.div>
           </AnimatePresence>
         ) : (
-          <div style={{ minHeight: "100vh" }}>{renderScene()}</div>
+          <div style={{ minHeight: "100dvh" }}>{renderScene()}</div>
         )}
 
         {/* Écran de chargement plein écran + cinématique d'ouverture en 3 actes

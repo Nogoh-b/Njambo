@@ -35,8 +35,8 @@ Ordre par famille : la première carte d'une famille construit ce que les suivan
 - [ ] Tambour d'Appel — **en cours** : mise en scène écrite (règle gardée), vérifiée dans le bac à sable ; reste publication (accord) et commit
 
 ### 5. Pot
-- [ ] Bénédiction du Chef
-- [ ] Pluie d'Étoiles
+- [ ] Bénédiction du Chef — **en cours** : règle changée dans le code (pot ×2 si tu gagnes la MANCHE) ; mise en scène proposée ; reste mise en scène, publication, commit
+- [ ] Pluie d'Étoiles — **en cours** : règle changée dans le code (+200 Nkap au pot si tu gagnes la MANCHE) ; reste mise en scène, publication, commit
 - [ ] Cauris Chanceux
 - [ ] Totem des Ancêtres
 
@@ -133,3 +133,4 @@ Briques ajoutées : publics de texte « la cible » et « ni le lanceur ni la ci
 - 2026-11-24 — Cri du Chef publiée en base de dev (rév. 2 = version du code).
 - 2026-11-24 — Tambour d'Appel mis en scène (règle gardée : +8 s à ton minuteur, tout de suite). Annonce « TAMBOUR D'APPEL — +8 secondes pour ce tour », « {activator} bat le tambour » chez les autres ; un djembé apparaît à côté de l'avatar du lanceur et bat trois coups ; à chaque coup la peau se creuse, un anneau doré part de l'avatar et le minuteur s'illumine un peu plus ; « +8 s » s'envole avec une pluie d'or (nouvel effet de minuteur « Tambour qui recharge ») ; textes pour le lanceur et les autres. Vérifié dans le bac à sable (version du code, sans enregistrer) : « Minuteur de Toi : +8 s », djembé à côté de l'avatar, anneau lumineux. Types, lint, tests OK. Reste : publier (accord), commit.
 - 2026-11-24 — Tambour d'Appel publiée en base de dev (rév. 2 = version du code). Famille « Temps » terminée.
+- 2026-11-24 — Famille « Pot » : Bénédiction du Chef (pot ×2) et Pluie d'Étoiles (+200 Nkap) s'appliquaient au pot si l'activateur gagnait le PLI joué ; or le pot revient au vainqueur de la manche (dernier pli) : la carte pouvait enrichir un adversaire. Choix : le bonus ne compte que si tu gagnes la manche. Moteur : nouveau moment « winRound » pour potBonus et potMultiplier (effet gardé jusqu'au dernier pli, compté seulement si son activateur le gagne, bonus fixe puis multiplicateur, purgé à la fin de la manche) ; appliqué en local (LocalGameSync) et sur le serveur (matchCommands) ; admin : « Si la manche est gagnée (pot raflé) » ; les nouvelles opérations de pot partent sur ce moment. Tests dédiés (tests/power-pot-rewards.test.ts). Types (front, functions, server), lint, 367 tests OK. Reste : mise en scène des deux cartes, publication, commit.

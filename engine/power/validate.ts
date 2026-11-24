@@ -191,11 +191,11 @@ function validateOp(value: unknown, path: string, issues: PowerValidationIssue[]
       break;
     case "potBonus":
       if (!isInt(op.amount, 1, POWER_LIMITS.potBonus)) issues.push({ path: `${path}.amount`, message: `Montant : 1 à ${POWER_LIMITS.potBonus}.` });
-      if (op.when !== "now" && op.when !== "winTrick") issues.push({ path: `${path}.when`, message: "Moment : maintenant ou au pli gagné." });
+      if (op.when !== "now" && op.when !== "winTrick" && op.when !== "winRound") issues.push({ path: `${path}.when`, message: "Moment : maintenant, au pli gagné ou à la manche gagnée." });
       break;
     case "potMultiplier":
       if (!isNum(op.factor, 1.1, POWER_LIMITS.potFactor)) issues.push({ path: `${path}.factor`, message: `Multiplicateur : 1,1 à ${POWER_LIMITS.potFactor}.` });
-      if (op.when !== "winTrick") issues.push({ path: `${path}.when`, message: "Moment : au pli gagné." });
+      if (op.when !== "winTrick" && op.when !== "winRound") issues.push({ path: `${path}.when`, message: "Moment : au pli gagné ou à la manche gagnée." });
       break;
     case "grantShield":
       validatePlayer(op.player, `${path}.player`, issues);

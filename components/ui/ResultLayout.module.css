@@ -22,9 +22,7 @@
   background:
     radial-gradient(ellipse 68% 44% at 50% 14%, rgba(255, 207, 64, 0.24), transparent 62%),
     radial-gradient(ellipse 72% 58% at 50% 62%, rgba(24, 158, 126, 0.18), transparent 66%),
-    linear-gradient(160deg, rgba(6, 26, 20, 0.94) 0%, rgba(3, 14, 11, 0.98) 100%);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+    linear-gradient(160deg, rgba(6, 26, 20, 0.96) 0%, rgba(3, 14, 11, 0.99) 100%);
   isolation: isolate;
   animation: resultLayoutFade var(--nj-motion-navigation, 240ms) ease-out both;
 }

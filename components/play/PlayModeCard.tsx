@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useId } from "react";
 import { NjamboIcon } from "@/components/ui/Art";
 import type { GameModeCatalogEntry } from "@/lib/gameModeCatalog";

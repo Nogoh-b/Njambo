@@ -95,12 +95,12 @@ export function applyResolvedOps(
           adapter.addPot(op.amount);
           adapter.pushEffect({ ...base, potBonus: op.amount });
         } else {
-          adapter.pushEffect({ ...base, potBonus: op.amount, conditionalPotBonus: true });
+          adapter.pushEffect({ ...base, potBonus: op.amount, conditionalPotBonus: true, ...(op.when === "winRound" ? { untilRoundEnd: true } : {}) });
         }
         break;
 
       case "potMultiplier":
-        adapter.pushEffect({ ...base, scoreMultiplier: op.factor });
+        adapter.pushEffect({ ...base, scoreMultiplier: op.factor, ...(op.when === "winRound" ? { untilRoundEnd: true } : {}) });
         break;
 
       case "grantShield":

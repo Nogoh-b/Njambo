@@ -49,8 +49,7 @@
   border: 1.5px solid rgba(255, 214, 96, 0.48);
   background:
     radial-gradient(ellipse 80% 90% at 50% 0%, rgba(255, 214, 96, 0.14), transparent 64%),
-    rgba(8, 20, 16, 0.88);
-  backdrop-filter: blur(8px);
+    rgba(8, 20, 16, 0.94);
   box-shadow:
     inset 0 1px 0 rgba(255, 248, 224, 0.2),
     0 8px 22px rgba(0, 0, 0, 0.5);
@@ -163,8 +162,7 @@
   padding: 5px 13px;
   border-radius: 999px;
   border: 1.5px solid rgba(255, 214, 96, 0.62);
-  background: rgba(8, 20, 16, 0.9);
-  backdrop-filter: blur(6px);
+  background: rgba(8, 20, 16, 0.95);
   color: #fff9e6;
   font-size: clamp(11px, 2.9vw, 12.5px);
   font-weight: 850;
@@ -239,8 +237,7 @@
   padding: 3px 5px;
   border-radius: 999px;
   border: 1px solid rgba(255, 214, 96, 0.45);
-  background: rgba(8, 20, 16, 0.94);
-  backdrop-filter: blur(8px);
+  background: rgba(8, 20, 16, 0.96);
   box-shadow: 0 10px 24px rgba(0, 0, 0, 0.56);
 }
 
@@ -268,8 +265,7 @@
   position: fixed;
   inset: 0;
   z-index: 84;
-  background: rgba(3, 10, 8, 0.78);
-  backdrop-filter: blur(4px);
+  background: rgba(3, 10, 8, 0.84);
   display: grid;
   place-items: center;
   padding: 18px;
@@ -369,8 +365,7 @@
   border: 1.5px solid rgba(255, 214, 96, 0.62);
   background:
     radial-gradient(circle at 20% 50%, rgba(255, 207, 64, 0.24), transparent 62%),
-    rgba(10, 22, 18, 0.92);
-  backdrop-filter: blur(8px);
+    rgba(10, 22, 18, 0.96);
   color: #fff6d2;
   cursor: pointer;
   box-shadow: 0 8px 20px rgba(0, 0, 0, 0.56), 0 0 18px rgba(255, 207, 64, 0.28);
@@ -431,8 +426,7 @@
   position: fixed;
   inset: 0;
   z-index: 74;
-  background: rgba(3, 10, 8, 0.56);
-  backdrop-filter: blur(3px);
+  background: rgba(3, 10, 8, 0.68);
   display: flex;
   align-items: flex-end;
   justify-content: center;

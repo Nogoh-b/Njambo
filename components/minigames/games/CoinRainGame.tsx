@@ -4,7 +4,7 @@
    attraper. Pièces animées en transform (Web Animations API). Gratuit,
    1 partie par jour, gain plafonné par le serveur. */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useEffect, useRef, useState } from "react";
 import { COINRAIN_DURATION_MS, COINRAIN_MAX_COINS, MINI_GAMES_BY_ID, coinRainReward } from "@/domain";
 import { GameStage, PlayButton } from "../MiniGameKit";

@@ -5,19 +5,12 @@
      métallique glissant (100 % GPU) et vague de réflexion décalée carte par carte.
    ═══════════════════════════════════════════════════════════════════════════ */
 
-.oppFanIdle {
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.42));
-  transition: filter 320ms ease;
-}
-
-.oppFanActive {
-  filter: drop-shadow(0 0 16px rgba(255, 207, 64, 0.44));
-  transition: filter 300ms ease;
-}
-
+/* Les cartes portent déjà leur propre box-shadow (.nj-playcard) : pas de filter:drop-shadow
+   sur le conteneur parent qui forçait une re-rasterisation de toute la main à chaque frame. */
+.oppFanIdle,
+.oppFanActive,
 .oppFanNgata {
-  filter: drop-shadow(0 0 18px rgba(255, 94, 132, 0.56));
-  transition: filter 300ms ease;
+  contain: layout style;
 }
 
 /* Cartes adverses au repos : lueur douce + retour fluide sans à-coup */

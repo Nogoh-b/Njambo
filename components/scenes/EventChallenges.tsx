@@ -3,7 +3,7 @@
 /* Défis entre amis (phase 7) : défier un ami sur l'événement, répondre aux
    invitations, suivre les duels (scores en direct) et leurs résultats. */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useCallback, useEffect, useState } from "react";
 import type { ChallengeSideScore, EventVersion, Reward } from "@/domain";
 import { callBackend } from "@/lib/backend";

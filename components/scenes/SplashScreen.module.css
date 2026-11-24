@@ -1,103 +1,562 @@
 .splash {
+  position: relative;
   display: grid;
   place-items: center;
+  overflow: hidden;
   padding:
-    max(24px, env(safe-area-inset-top))
-    max(20px, env(safe-area-inset-right))
-    max(24px, env(safe-area-inset-bottom))
-    max(20px, env(safe-area-inset-left));
-}
-
-.content {
-  width: min(100%, 520px);
-  display: grid;
-  justify-items: center;
-  text-align: center;
-}
-
-.mark {
-  display: block;
-  width: clamp(120px, 34vmin, 178px);
-  aspect-ratio: 1;
-  margin-bottom: 18px;
-  border-radius: 50%;
+    max(18px, env(safe-area-inset-top))
+    max(18px, env(safe-area-inset-right))
+    max(18px, env(safe-area-inset-bottom))
+    max(18px, env(safe-area-inset-left));
   background:
-    url("/assets/njambo/ui/brand/njambo-mark-256.webp") center / contain no-repeat,
-    radial-gradient(circle, rgba(243, 201, 105, 0.12), transparent 68%);
-  filter: drop-shadow(0 18px 38px rgba(0, 0, 0, 0.42));
+    radial-gradient(ellipse 84% 58% at 50% 24%, rgba(44, 216, 168, 0.28), transparent 64%),
+    radial-gradient(ellipse 68% 46% at 50% 48%, rgba(255, 207, 64, 0.16), transparent 66%),
+    radial-gradient(ellipse 120% 108% at 50% 50%, transparent 44%, rgba(2, 14, 10, 0.84) 100%),
+    radial-gradient(circle at 50% 38%, #1d7e60 0%, #0e4e3c 46%, #06281f 82%, #031510 100%);
 }
 
-.kicker {
-  color: #f3c969;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
+/* ═══ Ambiance Salon Royal (100 % CSS GPU, 0 image bloquante) ═══ */
+.spotlight {
+  position: absolute;
+  inset: -12% -10% auto;
+  height: 62%;
+  pointer-events: none;
+  background: radial-gradient(ellipse 60% 80% at 50% 0%, rgba(255, 224, 130, 0.24), rgba(29, 228, 190, 0.08) 46%, transparent 74%);
+  animation: splashSpotlightBreath 5.2s ease-in-out infinite alternate;
 }
 
-.title {
-  margin-top: 6px;
-  color: #fff4df;
-  font-family: var(--font-display), serif;
-  font-size: clamp(52px, 16vmin, 92px);
-  font-weight: 900;
-  line-height: 0.88;
+.ndopPattern {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.34;
+  background-image:
+    repeating-linear-gradient(45deg, rgba(255, 212, 92, 0.05) 0 1px, transparent 1px 18px),
+    repeating-linear-gradient(-45deg, rgba(255, 212, 92, 0.04) 0 1px, transparent 1px 18px);
+  mask-image: radial-gradient(circle at 50% 48%, black 16%, transparent 76%);
 }
 
-.tagline {
-  margin-top: 12px;
-  color: rgba(255, 244, 223, 0.72);
-  font-weight: 800;
-  line-height: 1.4;
-}
-
-.bar,
-.strip {
-  background: linear-gradient(90deg, #f3c969, #29b7a4 36%, #df4f82 68%, #3154d4);
-}
-
-.bar {
-  width: min(260px, 70vw);
-  height: 7px;
-  margin-top: 22px;
-  border-radius: 999px;
-}
-
-.dots {
-  display: flex;
-  gap: 10px;
-  margin-top: 24px;
-}
-
-.dots span {
-  width: 9px;
-  height: 9px;
+.sunburst {
+  position: absolute;
+  left: 50%;
+  top: 44%;
+  width: min(92vmin, 560px);
+  aspect-ratio: 1;
+  margin-left: calc(min(92vmin, 560px) / -2);
+  margin-top: calc(min(92vmin, 560px) / -2);
+  pointer-events: none;
   border-radius: 50%;
+  background: repeating-conic-gradient(
+    from 0deg,
+    rgba(255, 212, 92, 0.075) 0deg 8deg,
+    transparent 8deg 22.5deg
+  );
+  mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.9) 0%, rgba(0, 0, 0, 0.35) 40%, transparent 68%);
+  animation: splashSunSpin 32s linear infinite;
+  will-change: transform;
+  contain: strict;
 }
 
-.dots span:nth-child(1) { background: #f3c969; }
-.dots span:nth-child(2) { background: #29b7a4; }
-.dots span:nth-child(3) { background: #df4f82; }
-.dots span:nth-child(4) { background: #3154d4; }
+.watermarks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.watermarks span {
+  position: absolute;
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(54px, 14vmin, 112px);
+  font-weight: 900;
+  line-height: 1;
+  color: rgba(255, 224, 140, 0.06);
+  text-shadow: 0 0 28px rgba(255, 207, 64, 0.08);
+  animation: splashWatermarkFloat 12s ease-in-out infinite alternate;
+}
+
+.sparks {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.sparks span {
+  position: absolute;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff8cc 0%, #ffcf40 55%, transparent 100%);
+  box-shadow: 0 0 10px rgba(255, 207, 64, 0.72);
+  opacity: 0;
+  animation: splashSparkRise 4.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
 
 .strip {
   position: fixed;
   left: 0;
   right: 0;
-  z-index: 2;
-  height: 10px;
-  opacity: 0.8;
+  z-index: 3;
+  height: 4px;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    #1de4be 18%,
+    #ffcf40 50%,
+    #ff4772 82%,
+    transparent 100%
+  );
+  opacity: 0.9;
 }
 
 .stripTop { top: 0; }
 .stripBottom { bottom: 0; }
 
-.splash[data-motion-profile="lite"] .content,
-.splash[data-motion-profile="reduced"] .content {
-  animation: splashReducedFade 120ms linear both !important;
+/* ═══ Scène centrale ═══ */
+.content {
+  position: relative;
+  z-index: 2;
+  width: min(100%, 460px);
+  display: grid;
+  justify-items: center;
+  text-align: center;
+  gap: 0;
+  will-change: transform, opacity;
 }
 
-.splash[data-motion-profile="off"] .content {
-  animation: none;
+/* ═══ Médaillon royal ═══ */
+.emblemStage {
+  position: relative;
+  width: clamp(114px, 24vmin, 152px);
+  aspect-ratio: 1;
+  display: grid;
+  place-items: center;
+  margin-bottom: clamp(4px, 1.4vh, 10px);
+}
+
+.shockwave {
+  position: absolute;
+  inset: 6%;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 220, 118, 0.85);
+  box-shadow: 0 0 26px rgba(255, 207, 64, 0.55);
+  opacity: 0;
+  pointer-events: none;
+  will-change: transform, opacity;
+}
+
+.medallion {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  animation: splashFloat 3.6s ease-in-out infinite;
+  will-change: transform, opacity;
+}
+
+.ringOuter {
+  position: absolute;
+  inset: -6%;
+  border-radius: 50%;
+  border: 1.5px dashed rgba(255, 215, 106, 0.52);
+  animation: splashRingSpin 22s linear infinite;
+}
+
+.ringInner {
+  position: absolute;
+  inset: 2%;
+  border-radius: 50%;
+  border: 1.5px solid rgba(29, 228, 190, 0.4);
+  box-shadow:
+    0 0 22px rgba(255, 207, 64, 0.24),
+    inset 0 0 18px rgba(255, 207, 64, 0.14);
+  animation: splashRingSpinReverse 16s linear infinite;
+}
+
+.medallionHalo {
+  position: absolute;
+  inset: -16%;
+  border-radius: 50%;
+  background: radial-gradient(circle, rgba(255, 207, 64, 0.34) 0%, rgba(29, 228, 190, 0.12) 45%, transparent 72%);
+  animation: splashHaloPulse 2.8s ease-in-out infinite alternate;
+}
+
+.mark {
+  position: relative;
+  width: 82%;
+  height: 82%;
+  border-radius: 50%;
+  overflow: hidden;
+  border: 2px solid rgba(255, 218, 114, 0.72);
+  background:
+    url("/assets/njambo/ui/brand/njambo-mark-256.webp") center / 92% no-repeat,
+    radial-gradient(circle at 35% 28%, #5e2f16, #24130c 68%, #120906 100%);
+  box-shadow:
+    inset 0 2px 6px rgba(255, 240, 186, 0.35),
+    0 16px 36px rgba(0, 0, 0, 0.55);
+}
+
+.markSheen {
+  position: absolute;
+  inset: -40%;
+  background: linear-gradient(115deg, transparent 36%, rgba(255, 248, 215, 0.42) 50%, transparent 64%);
+  transform: translateX(-110%);
+  animation: splashSheenSweep 3.4s ease-in-out 0.6s infinite;
+}
+
+/* ═══ Main de 5 cartes Njambo en éventail ═══ */
+.cardFan {
+  position: relative;
+  width: clamp(230px, 64vw, 300px);
+  height: clamp(86px, 16vmin, 114px);
+  margin: clamp(4px, 1vh, 10px) 0 clamp(8px, 1.8vh, 16px);
+  display: grid;
+  place-items: center;
+}
+
+.card {
+  position: absolute;
+  width: clamp(46px, 10.5vmin, 62px);
+  height: clamp(66px, 15vmin, 88px);
+  border-radius: 9px;
+  padding: 4px 5px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: linear-gradient(158deg, #fffdf8 0%, #f7ebd0 78%, #ebd5a9 100%);
+  border: 1.5px solid rgba(255, 224, 146, 0.85);
+  color: #1a1b24;
+  font-family: var(--font-display), Georgia, serif;
+  font-weight: 900;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.9),
+    0 12px 24px rgba(0, 0, 0, 0.48);
+  overflow: hidden;
+  transform-origin: 50% 115%;
+  will-change: transform, opacity;
+}
+
+.cardRed {
+  color: #c81e36;
+}
+
+.cardFeatured {
+  z-index: 3;
+  border: 2px solid #ffcf40;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.95),
+    0 0 22px rgba(255, 207, 64, 0.46),
+    0 16px 30px rgba(0, 0, 0, 0.54);
+}
+
+.cardHolo {
+  position: absolute;
+  inset: -30%;
+  background: linear-gradient(
+    118deg,
+    transparent 32%,
+    rgba(255, 224, 118, 0.44) 48%,
+    rgba(255, 255, 255, 0.52) 52%,
+    transparent 68%
+  );
+  transform: translateX(-120%);
+  animation: splashSheenSweep 2.9s ease-in-out 0.9s infinite;
+  pointer-events: none;
+}
+
+.cardCorner {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  font-size: clamp(9px, 2vmin, 11px);
+  line-height: 0.92;
+  position: relative;
+  z-index: 1;
+}
+
+.cardCornerBot {
+  align-self: flex-end;
+  transform: rotate(180deg);
+}
+
+.cardSuit {
+  align-self: center;
+  font-size: clamp(16px, 3.8vmin, 23px);
+  line-height: 1;
+  position: relative;
+  z-index: 1;
+}
+
+/* ═══ Identité ═══ */
+.kicker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 5px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 212, 92, 0.42);
+  background: linear-gradient(180deg, rgba(46, 28, 17, 0.82), rgba(20, 14, 11, 0.88));
+  color: #ffd86b;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.18em;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.32);
+}
+
+.title {
+  position: relative;
+  margin-top: clamp(8px, 1.4vh, 12px);
+  font-family: var(--font-display), Georgia, serif;
+  font-size: clamp(46px, 13.5vmin, 84px);
+  font-weight: 900;
+  line-height: 0.9;
+  letter-spacing: 0.04em;
+  background: linear-gradient(180deg, #fffdf4 0%, #ffe699 48%, #f2b73b 86%, #c67c16 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 6px 18px rgba(0, 0, 0, 0.56)) drop-shadow(0 0 22px rgba(255, 207, 64, 0.22));
+}
+
+.tagline {
+  margin-top: clamp(6px, 1.2vh, 10px);
+  color: rgba(236, 245, 240, 0.84);
+  font-size: clamp(13px, 2.8vmin, 15.5px);
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  line-height: 1.35;
+}
+
+/* ═══ Dock de chargement réel ═══ */
+.loadDock {
+  width: min(310px, 84vw);
+  margin-top: clamp(16px, 3vh, 26px);
+  padding: 12px 15px 11px;
+  border-radius: 18px;
+  border: 1px solid rgba(255, 212, 92, 0.34);
+  background:
+    radial-gradient(ellipse 90% 50% at 50% 0%, rgba(255, 212, 92, 0.1), transparent 65%),
+    linear-gradient(164deg, rgba(40, 25, 17, 0.86), rgba(14, 24, 20, 0.92));
+  box-shadow:
+    inset 0 1px 0 rgba(255, 242, 198, 0.12),
+    0 16px 34px rgba(0, 0, 0, 0.44);
+  display: grid;
+  gap: 8px;
+}
+
+.loadMeta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.loadLabel {
+  color: #d6ece3;
+  font-weight: 700;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.loadPct {
+  color: #ffdf73;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  flex-shrink: 0;
+}
+
+.bar {
+  position: relative;
+  width: 100%;
+  height: 9px;
+  padding: 1.5px;
+  border-radius: 999px;
+  background: rgba(5, 15, 12, 0.92);
+  border: 1px solid rgba(255, 212, 92, 0.32);
+  overflow: hidden;
+}
+
+.barFill {
+  width: 100%;
+  height: 100%;
+  border-radius: inherit;
+  transform-origin: left center;
+  background: linear-gradient(90deg, #1de4be 0%, #ffcf40 52%, #fff0ad 100%);
+  box-shadow: 0 0 14px rgba(255, 207, 64, 0.6);
+  transition: transform 140ms ease-out;
+  will-change: transform;
+}
+
+.barGlint {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg, transparent 20%, rgba(255, 255, 255, 0.55) 50%, transparent 80%);
+  transform: translateX(-100%);
+  animation: splashBarGlint 1.8s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.suitPips {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  padding-top: 2px;
+}
+
+.suitPip {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 12px;
+  font-weight: 900;
+  background: rgba(9, 22, 18, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: rgba(255, 248, 234, 0.3);
+  transform: scale(0.92);
+  transition: transform 220ms cubic-bezier(0.22, 1.4, 0.36, 1), color 220ms ease, border-color 220ms ease, box-shadow 220ms ease;
+}
+
+.suitPipLit {
+  transform: scale(1.06);
+}
+
+.pip_gold.suitPipLit {
+  color: #ffcf40;
+  border-color: rgba(255, 207, 64, 0.72);
+  box-shadow: 0 0 12px rgba(255, 207, 64, 0.45);
+}
+
+.pip_pink.suitPipLit {
+  color: #ff5b84;
+  border-color: rgba(255, 91, 132, 0.72);
+  box-shadow: 0 0 12px rgba(255, 91, 132, 0.45);
+}
+
+.pip_teal.suitPipLit {
+  color: #1de4be;
+  border-color: rgba(29, 228, 190, 0.72);
+  box-shadow: 0 0 12px rgba(29, 228, 190, 0.45);
+}
+
+.pip_cobalt.suitPipLit {
+  color: #7eb0ff;
+  border-color: rgba(126, 176, 255, 0.72);
+  box-shadow: 0 0 12px rgba(126, 176, 255, 0.45);
+}
+
+.ready .barFill {
+  box-shadow: 0 0 22px rgba(255, 232, 130, 0.92);
+}
+
+/* ═══ Compact paysage mobile ═══ */
+@media (max-height: 540px) {
+  .emblemStage {
+    width: 84px;
+    margin-bottom: 2px;
+  }
+
+  .cardFan {
+    height: 70px;
+    margin: 2px 0 6px;
+  }
+
+  .card {
+    width: 40px;
+    height: 58px;
+  }
+
+  .title {
+    font-size: clamp(36px, 10vh, 52px);
+  }
+
+  .loadDock {
+    margin-top: 10px;
+    padding: 9px 12px;
+  }
+}
+
+/* ═══ Profils mouvement réduit / off ═══ */
+.splash[data-motion-profile="lite"] .sunburst,
+.splash[data-motion-profile="reduced"] .sunburst,
+.splash[data-motion-profile="off"] .sunburst,
+.splash[data-motion-profile="reduced"] .ringOuter,
+.splash[data-motion-profile="reduced"] .ringInner,
+.splash[data-motion-profile="off"] .ringOuter,
+.splash[data-motion-profile="off"] .ringInner,
+.splash[data-motion-profile="reduced"] .medallion,
+.splash[data-motion-profile="off"] .medallion,
+.splash[data-motion-profile="reduced"] .markSheen,
+.splash[data-motion-profile="off"] .markSheen,
+.splash[data-motion-profile="reduced"] .cardHolo,
+.splash[data-motion-profile="off"] .cardHolo,
+.splash[data-motion-profile="reduced"] .barGlint,
+.splash[data-motion-profile="off"] .barGlint,
+.splash[data-motion-profile="reduced"] .watermarks span,
+.splash[data-motion-profile="off"] .watermarks span {
+  animation: none !important;
+}
+
+.splash[data-motion-profile="lite"] .content,
+.splash[data-motion-profile="reduced"] .content {
+  animation: splashReducedFade 180ms ease-out both;
+}
+
+@keyframes splashSunSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes splashRingSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes splashRingSpinReverse {
+  from { transform: rotate(360deg); }
+  to { transform: rotate(0deg); }
+}
+
+@keyframes splashFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes splashHaloPulse {
+  from { transform: scale(0.94); opacity: 0.72; }
+  to { transform: scale(1.08); opacity: 1; }
+}
+
+@keyframes splashSpotlightBreath {
+  from { opacity: 0.78; transform: scaleX(0.96); }
+  to { opacity: 1; transform: scaleX(1.04); }
+}
+
+@keyframes splashWatermarkFloat {
+  from { transform: rotate(var(--wm-rot, 0deg)) translateY(0); }
+  to { transform: rotate(var(--wm-rot, 0deg)) translateY(-14px); }
+}
+
+@keyframes splashSparkRise {
+  0% { transform: translateY(18px) scale(0.4); opacity: 0; }
+  30% { opacity: 0.92; }
+  75% { opacity: 0.6; }
+  100% { transform: translateY(-48px) scale(1.05); opacity: 0; }
+}
+
+@keyframes splashSheenSweep {
+  0%, 58% { transform: translateX(-125%); }
+  100% { transform: translateX(135%); }
+}
+
+@keyframes splashBarGlint {
+  0% { transform: translateX(-100%); }
+  65%, 100% { transform: translateX(130%); }
 }
 
 @keyframes splashReducedFade {
@@ -106,7 +565,10 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .splash .content {
-    animation: splashReducedFade 120ms linear both !important;
+  .splash *,
+  .splash *::before,
+  .splash *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
   }
 }

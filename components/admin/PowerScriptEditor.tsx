@@ -181,9 +181,9 @@ function OpEditor({ op, onChange, errorFor, path, choiceIds }: { op: PowerOp; on
         </div>
       );
     case "potBonus":
-      return <div className={styles.grid3}><Field label="Nkap ajoutés" error={e("amount")}><input type="number" min={1} value={op.amount} onChange={(ev) => onChange({ ...op, amount: int(ev.target.value) })} /></Field><Field label="Quand" error={e("when")}><select value={op.when} onChange={(ev) => onChange({ ...op, when: ev.target.value as typeof op.when })}><option value="now">Tout de suite</option><option value="winTrick">Si le pli est gagné</option></select></Field></div>;
+      return <div className={styles.grid3}><Field label="Nkap ajoutés" error={e("amount")}><input type="number" min={1} value={op.amount} onChange={(ev) => onChange({ ...op, amount: int(ev.target.value) })} /></Field><Field label="Quand" error={e("when")}><select value={op.when} onChange={(ev) => onChange({ ...op, when: ev.target.value as typeof op.when })}><option value="now">Tout de suite</option><option value="winRound">Si la manche est gagnée (pot raflé)</option><option value="winTrick">Si le pli est gagné</option></select></Field></div>;
     case "potMultiplier":
-      return <div className={styles.grid3}><Field label="Multiplicateur" error={e("factor")}><input type="number" min={1.1} max={5} step={0.1} value={op.factor} onChange={(ev) => onChange({ ...op, factor: Number(ev.target.value) })} /></Field><span className={styles.hint}>Appliqué si le pli est gagné.</span></div>;
+      return <div className={styles.grid3}><Field label="Multiplicateur" error={e("factor")}><input type="number" min={1.1} max={5} step={0.1} value={op.factor} onChange={(ev) => onChange({ ...op, factor: Number(ev.target.value) })} /></Field><Field label="Quand" error={e("when")}><select value={op.when} onChange={(ev) => onChange({ ...op, when: ev.target.value as typeof op.when })}><option value="winRound">Si la manche est gagnée (pot raflé)</option><option value="winTrick">Si le pli est gagné</option></select></Field></div>;
     case "refundOnLoss":
       return <div className={styles.grid3}><PlayerField value={op.player} error={e("player")} onChange={(player) => onChange({ ...op, player })} /><Field label="Part remboursée (%)" error={e("ratio")}><input type="number" min={5} max={100} value={Math.round(op.ratio * 100)} onChange={(ev) => onChange({ ...op, ratio: int(ev.target.value) / 100 })} /></Field></div>;
     case "preventDoublePenalty":
@@ -442,10 +442,10 @@ export function summarizeOp(op: PowerOp): string {
       if (op.suitOverride === "led") parts.push("couleur du pli");
       break;
     case "potBonus":
-      parts.push(`+${op.amount} Nkap`, op.when === "now" ? "tout de suite" : "si pli gagné");
+      parts.push(`+${op.amount} Nkap`, op.when === "now" ? "tout de suite" : op.when === "winRound" ? "si manche gagnée" : "si pli gagné");
       break;
     case "potMultiplier":
-      parts.push(`×${op.factor}`, "si pli gagné");
+      parts.push(`×${op.factor}`, op.when === "winRound" ? "si manche gagnée" : "si pli gagné");
       break;
     case "refundOnLoss":
       parts.push(PLAYER_LABELS[op.player], `${Math.round(op.ratio * 100)} %`);

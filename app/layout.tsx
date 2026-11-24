@@ -42,6 +42,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="fr">
+      <head>
+        <link rel="preload" as="image" href="/assets/njambo/ui/brand/njambo-mark-256.webp" />
+      </head>
       <body className={`${bricolage.variable} ${manrope.variable}`}>
         <GxeRoot>{children}</GxeRoot>
         <PwaRegistration />

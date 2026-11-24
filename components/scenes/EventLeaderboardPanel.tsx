@@ -4,7 +4,7 @@
    épinglée, barème et récompenses par rang. Données : commande serveur
    getEventLeaderboard (le rang hors top 50 est calculé côté serveur). */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useState } from "react";
 import type { EventRankReward, EventVersion } from "@/domain";
 import type { EventLeaderboardData, RankedEntry } from "@/hooks/useEventLeaderboard";

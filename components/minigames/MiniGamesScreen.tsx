@@ -4,7 +4,7 @@
    Grille des mini-jeux (+ la roue des retrouvailles). Toucher une carte ouvre
    le jeu sur le même écran ; « ← Jeux » revient à la grille. */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useState, type ReactNode } from "react";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { GameModal } from "@/components/ui/GameModal";

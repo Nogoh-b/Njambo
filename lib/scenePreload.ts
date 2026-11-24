@@ -31,6 +31,7 @@ const SCENE_LOADERS: Record<string, SceneLoader> = {
   rules: () => import("@/components/scenes/RulesScreen"),
   profile: () => import("@/components/scenes/ProfileScreen"),
   shop: () => import("@/components/scenes/ShopScreen"),
+  power_collection: () => import("@/components/scenes/PowerCollectionScreen"),
   friends: () => import("@/components/scenes/FriendsScreen"),
   notifications: () => import("@/components/scenes/NotificationsScreen"),
   messages: () => import("@/components/scenes/MessagesScreen"),
@@ -40,13 +41,15 @@ const SCENE_LOADERS: Record<string, SceneLoader> = {
 /** Scènes préchargées au repos (les plus visitées depuis le home). */
 export const IDLE_PREFETCH_SCENES = [
   "play",
-  "wallet",
+  "shop",
+  "power_collection",
   "events",
+  "minigames",
+  "wallet",
+  "profile",
   "leaderboard",
   "history",
   "rules",
-  "profile",
-  "shop",
 ] as const;
 
 const started = new Set<string>();

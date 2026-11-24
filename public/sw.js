@@ -1,6 +1,6 @@
 const STATIC_CACHE = "njambo-static-v2";
 const NOTIFICATION_ICON = "/assets/njambo/card-back.webp";
-const IMAGE_CACHE = "njambo-images-v2";
+const IMAGE_CACHE = "njambo-images-v3";
 const PAGE_CACHE = "njambo-pages-v2";
 // Images et sons uploadés depuis l'admin (VPS, /uploads/<uuid>.<ext> : noms immuables).
 const UPLOAD_CACHE = "njambo-uploads-v1";
@@ -61,14 +61,13 @@ self.addEventListener("fetch", (event) => {
   if (/\.(?:webp|avif|png|jpe?g|svg)$/i.test(url.pathname)) {
     event.respondWith(caches.open(IMAGE_CACHE).then(async (cache) => {
       const cached = await cache.match(event.request);
-      const network = fetch(event.request).then(async (response) => {
-        if (response.ok) {
-          await cache.put(event.request, response.clone());
-          void trim(IMAGE_CACHE, 40);
-        }
-        return response;
-      });
-      return cached || network;
+      if (cached) return cached;
+      const response = await fetch(event.request);
+      if (response.ok) {
+        await cache.put(event.request, response.clone());
+        void trim(IMAGE_CACHE, 320);
+      }
+      return response;
     }));
     return;
   }

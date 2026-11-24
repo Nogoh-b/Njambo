@@ -4,7 +4,7 @@
    puis les 6 cauris sont lancés et retombent, chacun sur la face tirée.
    Animation 100 % transform (Web Animations API). */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useRef, useState } from "react";
 import { CAURIS_TIERS, MINI_GAMES_BY_ID, type Reward } from "@/domain";
 import { GameStage, PlayButton } from "../MiniGameKit";

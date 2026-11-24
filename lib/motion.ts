@@ -310,16 +310,16 @@ export const useIsomorphicLayoutEffect =
 
 /* ═══════════════ Variants réutilisables (Framer Motion) ═══════════════ */
 
-/** Transition de scène : fondu + légère montée (cohérent avec riseIn/sceneFadeIn). */
+/** Transition de scène : fondu rapide 100 % GPU (sortie courte + entrée fluide). */
 export const sceneVariants: Variants = {
   out: { opacity: 0 },
   in: {
     opacity: 1,
-    transition: { duration: MOTION_DURATION_MS.navigation / 1000, ease: [0.22, 0.85, 0.3, 1] },
+    transition: { duration: (MOTION_DURATION_MS.navigation * 0.65) / 1000, ease: [0.22, 0.85, 0.3, 1] },
   },
   exit: {
     opacity: 0,
-    transition: { duration: MOTION_DURATION_MS.navigation / 1000, ease: [0.4, 0, 1, 1] },
+    transition: { duration: (MOTION_DURATION_MS.navigation * 0.35) / 1000, ease: [0.4, 0, 1, 1] },
   },
 };
 

@@ -1156,14 +1156,23 @@ export function TableScreen({
     dealPlayedRef.current = key;
     const count = hands.length;
     if (dealV2) {
-      // V2 : une carte toutes les `dealPerCard` ms, dans l'ordre de la donne, vers sa place (déjà dans la main, cachée).
+      // V2 : distribution regroupée dans UNE seule boucle RAF + un seul spawn batché
+      // (zéro layout thrashing et zéro cascade de 20 re-rendus React).
+      const dealMoves: AnimV2Move[] = [];
       for (let round = 0; round < perPlayer; round++) {
         for (let ui = 0; ui < count; ui++) {
           const startMs = (round * count + ui) * dealPerCardMs;
           zoneRegistry.hand(ui)?.hideCardsFor?.([round], startMs + dealV2.motion.durationMs + 30);
-          const move: AnimV2Move = { card: ui === 0 ? hands[ui][round] : null, from: { zone: "deck", index: 0 }, to: { zone: "hand", ui, index: round, count: perPlayer } };
-          setTimeout(() => { if (!pausedRef.current) void runMomentV2Ref.current(dealV2, [move], { actorUi: ui, reflow: false }); }, startMs);
+          dealMoves.push({
+            card: ui === 0 ? hands[ui][round] : null,
+            from: { zone: "deck", index: 0 },
+            to: { zone: "hand", ui, index: round, count: perPlayer },
+            delayMs: startMs,
+          });
         }
+      }
+      if (!pausedRef.current && dealMoves.length > 0) {
+        void runMomentV2Ref.current(dealV2, dealMoves, { actorUi: 0, reflow: false });
       }
       return;
     }

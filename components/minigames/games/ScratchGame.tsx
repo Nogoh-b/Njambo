@@ -3,7 +3,7 @@
 /* Ticket à gratter : 6 cases recouvertes d'une pellicule dorée que l'on gratte
    au doigt (canvas). Trois symboles identiques = le lot de ce symbole. */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MINI_GAMES_BY_ID, type InstantScript, type Reward } from "@/domain";
 import { rewardIconSrc } from "@/lib/shopVisuals";

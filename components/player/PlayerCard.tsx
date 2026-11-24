@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import type { CSSProperties, ReactNode } from "react";
 import { AvatarIllustration } from "@/components/ui/Art";
 import type { PlayerLevelProgress } from "@/lib/playerLevel";

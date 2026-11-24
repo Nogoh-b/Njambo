@@ -30,6 +30,8 @@ export interface AnimV2Move {
    *  la zone n'est alors ni masquée, ni réorganisée, ni animée de ce côté-là. */
   fromPose?: ZonePose;
   toPose?: ZonePose;
+  /** Décalage optionnel au décollage (ms) : permet de regrouper une distribution dans une seule boucle RAF. */
+  delayMs?: number;
 }
 
 export interface AnimV2Run {
@@ -53,10 +55,10 @@ export interface AnimV2Run {
 interface Flight {
   k: number;
   move: AnimV2Move;
+  delayMs: number;
   spriteId: string;
   root: HTMLElement;
   flipper: HTMLElement;
-  faces: HTMLElement[];
   from: ZonePose;
   to: ZonePose;
   landed: boolean;
@@ -70,42 +72,35 @@ const zoneKey = (ref: ZoneRef) => `${ref.zone}:${ref.ui ?? ""}`;
 /** La carte disparaît en arrivant : zone qui avale (avatar, pot) ou pioche (le paquet ne grandit pas). */
 const swallows = (move: AnimV2Move, pose: ZonePose) => !!pose.sink || move.to.zone === "deck";
 
-function zoneElement(ctx: ChoreoContext, ref: ZoneRef): HTMLElement | null {
-  const { registry } = ctx, ui = ref.ui;
-  switch (ref.zone) {
-    case "hand": return ui == null ? null : registry.hand(ui)?.getElement?.() ?? null;
-    case "deposit": return ui == null ? null : registry.deposit(ui)?.getElement?.() ?? null;
-    case "avatar": case "timer": return ui == null ? null : registry.timer(ui)?.getElement?.() ?? null;
-    case "deck": return registry.deck()?.getElement?.() ?? null;
-    case "pot": return registry.pot()?.getElement?.() ?? null;
-    case "reveal": return registry.reveal()?.getElement?.() ?? null;
-  }
-}
-
-/** Effet sur une zone. Jamais de transformation de la zone elle-même : ses poses sont relues pendant le vol
- *  (une main agrandie de 7 % décalerait la place visée). La pulsation est une onde dessinée par-dessus. */
-function zoneEffect(ctx: ChoreoContext, ref: ZoneRef, effect: AnimV2Effect, at: ZonePose | null) {
-  if (effect === "none") return;
+/** Effet sur une zone — 100 % GPU (transform/opacity sur anneau superposé, jamais de filter sur un conteneur). */
+function zoneEffect(ctx: ChoreoContext, _ref: ZoneRef, effect: AnimV2Effect, at: ZonePose | null) {
+  if (effect === "none" || !at) return;
+  const host = ctx.layer.container();
+  if (!host) return;
   const color = TONE_COLORS[ctx.defaultTone];
   const duration = ANIM_V2_EFFECTS[effect].durationMs;
-  const el = zoneElement(ctx, ref);
-  if (effect === "glow") {
-    void el?.animate([{ filter: "drop-shadow(0 0 0 transparent)" }, { filter: `drop-shadow(0 0 16px ${color}) brightness(1.15)`, offset: 0.35 }, { filter: "drop-shadow(0 0 0 transparent)" }], { duration, easing: "ease-out" });
-    return;
-  }
-  void el?.animate([{ filter: "brightness(1)" }, { filter: "brightness(1.5)", offset: 0.5 }, { filter: "brightness(1)" }], { duration, easing: "ease-out" });
-  const host = ctx.layer.container();
-  if (!host || !at) return;
-  const width = at.width * 1.25, height = width * CARD_RATIO;
+  const width = at.width * (effect === "glow" ? 1.15 : 1.25);
+  const height = width * CARD_RATIO;
   const ring = document.createElement("div");
-  ring.setAttribute("data-choreo-fx", "v2-pulse");
+  ring.setAttribute("data-choreo-fx", effect === "glow" ? "v2-glow" : "v2-pulse");
   Object.assign(ring.style, {
-    position: "absolute", left: `${at.x - width / 2}px`, top: `${at.y - height / 2}px`, width: `${width}px`, height: `${height}px`,
-    borderRadius: `${Math.max(8, width * 0.14)}px`, border: `2px solid ${color}`, boxShadow: `0 0 18px ${color}`, pointerEvents: "none",
-    transform: `rotate(${at.rotate}deg)`,
+    position: "absolute",
+    left: `${at.x - width / 2}px`,
+    top: `${at.y - height / 2}px`,
+    width: `${width}px`,
+    height: `${height}px`,
+    borderRadius: `${Math.max(8, width * 0.14)}px`,
+    border: effect === "glow" ? `1.5px solid ${color}` : `2px solid ${color}`,
+    boxShadow: `0 0 ${effect === "glow" ? 14 : 18}px ${color}`,
+    pointerEvents: "none",
+    willChange: "transform, opacity",
   });
   host.appendChild(ring);
-  void ring.animate([{ opacity: 0.9, scale: "0.85" }, { opacity: 0, scale: "1.25" }], { duration, easing: "ease-out" }).finished.then(() => ring.remove(), () => ring.remove());
+  const rot = `rotate(${at.rotate}deg)`;
+  const keyframes = effect === "glow"
+    ? [{ opacity: 0, transform: `${rot} scale(0.92)` }, { opacity: 0.78, transform: `${rot} scale(1.04)`, offset: 0.35 }, { opacity: 0, transform: `${rot} scale(1.1)` }]
+    : [{ opacity: 0.9, transform: `${rot} scale(0.85)` }, { opacity: 0, transform: `${rot} scale(1.25)` }];
+  void ring.animate(keyframes, { duration, easing: "ease-out" }).finished.then(() => ring.remove(), () => ring.remove());
 }
 
 function applyFrame(flight: Flight, frame: AnimV2Frame, width: number, hidden: boolean) {
@@ -114,10 +109,6 @@ function applyFrame(flight: Flight, frame: AnimV2Frame, width: number, hidden: b
   flight.root.style.transform = `translate3d(${(frame.x - width / 2).toFixed(2)}px, ${(frame.y - height / 2).toFixed(2)}px, 0) rotate(${frame.rotate.toFixed(2)}deg) scale(${scale.toFixed(4)})`;
   flight.root.style.opacity = hidden ? "0" : "1";
   flight.flipper.style.transform = `rotateY(${frame.flip.toFixed(1)}deg)`;
-  // Ombre portée : la carte « monte » à mi-vol.
-  const lift = frame.pop - 1;
-  const shadow = `drop-shadow(0 ${(3 + lift * 120).toFixed(1)}px ${(5 + lift * 140).toFixed(1)}px rgba(0,0,0,${(0.32 + lift * 2).toFixed(2)}))`;
-  for (const face of flight.faces) face.style.filter = shadow;
 }
 
 /** Joue un modèle V2 ; se résout à la fin du vol, de la réorganisation et des effets. */
@@ -128,22 +119,46 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
 
   // Poses au décollage (avant toute réorganisation) ; un mouvement sans zone est ignoré.
   const planned = run.moves
-    .map((move, k) => ({ move, k, from: move.fromPose ?? zonePoseOf(registry, move.from, move.from.index), to: move.toPose ?? zonePoseOf(registry, move.to, move.to.index, move.to.count, move.to.cardId) }))
-    .filter((item): item is { move: AnimV2Move; k: number; from: ZonePose; to: ZonePose } => !!item.from && !!item.to);
+    .map((move, k) => ({
+      move,
+      k,
+      delayMs: Math.max(0, move.delayMs ?? 0),
+      from: move.fromPose ?? zonePoseOf(registry, move.from, move.from.index),
+      to: move.toPose ?? zonePoseOf(registry, move.to, move.to.index, move.to.count, move.to.cardId),
+    }))
+    .filter((item): item is { move: AnimV2Move; k: number; delayMs: number; from: ZonePose; to: ZonePose } => !!item.from && !!item.to);
   if (planned.length === 0) return;
 
   // Taille du sprite : la plus grande des deux cartes (on réduit, on n'agrandit jamais une petite carte).
   const width = clamp(Math.max(...planned.flatMap((item) => [item.from.width, item.to.width])) || 62, 40, 96);
 
-  const flights: Flight[] = [];
-  await Promise.all(planned.map(({ move, k, from, to }) => {
-    const spriteId = `${run.id}_${k}_${Math.random().toString(36).slice(2, 7)}`;
-    return ctx.layer.spawnCard({ id: spriteId, card: move.card, width }).then((nodes) => {
-      if (!nodes) return;
-      nodes.root.style.opacity = "0";
-      flights.push({ k, move, spriteId, root: nodes.root, flipper: nodes.flipper, faces: Array.from(nodes.flipper.children) as HTMLElement[], from, to, landed: false, released: false });
-    });
+  const spriteSpecs = planned.map(({ move, k }) => ({
+    id: `${run.id}_${k}_${Math.random().toString(36).slice(2, 7)}`,
+    card: move.card,
+    width,
   }));
+  const spawned = ctx.layer.spawnCards
+    ? await ctx.layer.spawnCards(spriteSpecs)
+    : await Promise.all(spriteSpecs.map((spec) => ctx.layer.spawnCard(spec)));
+
+  const flights: Flight[] = [];
+  spawned.forEach((nodes, idx) => {
+    if (!nodes) return;
+    const item = planned[idx]!;
+    nodes.root.style.opacity = "0";
+    flights.push({
+      k: item.k,
+      move: item.move,
+      delayMs: item.delayMs,
+      spriteId: spriteSpecs[idx]!.id,
+      root: nodes.root,
+      flipper: nodes.flipper,
+      from: item.from,
+      to: item.to,
+      landed: false,
+      released: false,
+    });
+  });
   if (flights.length === 0) return;
   flights.sort((a, b) => a.k - b.k);
   run.onSpawned?.(flights.map((flight) => flight.spriteId));
@@ -151,7 +166,9 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
   // Zones touchées : la carte de départ s'efface (son sprite la remplace), les mains se réorganisent.
   const leaving = new Map<string, { ref: ZoneRef; indexes: number[]; flight: Flight }>();
   const entering = new Map<string, { ref: ZoneRef; count: number; flight: Flight }>();
+  let maxDelayMs = 0;
   for (const flight of flights) {
+    if (flight.delayMs > maxDelayMs) maxDelayMs = flight.delayMs;
     const { move } = flight;
     if (!move.fromPose) {
       const from = leaving.get(zoneKey(move.from)) ?? { ref: move.from, indexes: [], flight };
@@ -164,7 +181,8 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
       entering.set(zoneKey(move.to), to);
     }
   }
-  const hideFor = timeline.totalMs + 2500;
+  const totalRunMs = maxDelayMs + timeline.totalMs;
+  const hideFor = totalRunMs + 2500;
   for (const { ref, indexes, flight } of leaving.values()) {
     if (ref.zone === "hand" && ref.ui != null) registry.hand(ref.ui)?.hideCardsFor?.(indexes, hideFor);
     if (ref.zone === "deposit" && ref.ui != null) registry.deposit(ref.ui)?.hideCardsFor?.(indexes, hideFor);
@@ -172,13 +190,25 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
   }
 
   let reflowed = false, entered = false;
+  const needsLiveReflowRead = run.reflow !== false;
+  const reflowWindowEnd = timeline.reflowAt + model.handReflowMs + 80;
   const start = await nextFrame();
   for (let now = start; ; now = await nextFrame()) {
     const elapsed = now - start;
-    // 1. Lectures (poses des zones), 2. écritures : une seule mise en page par image.
+    // 1. Lectures groupées uniquement si une main se réorganise réellement pendant le vol.
     const frames = flights.map((flight) => {
-      if (elapsed < model.motion.durationMs && !flight.move.toPose) flight.to = zonePoseOf(registry, flight.move.to, flight.move.to.index, flight.move.to.count, flight.move.to.cardId) ?? flight.to;
-      return { flight, frame: sampleAnimV2(model, flight.from, flight.to, elapsed) };
+      const local = elapsed - flight.delayMs;
+      if (local < 0) return { flight, local, frame: null };
+      if (
+        needsLiveReflowRead
+        && !flight.move.toPose
+        && flight.move.to.zone === "hand"
+        && local >= timeline.reflowAt
+        && local <= Math.min(model.motion.durationMs, reflowWindowEnd)
+      ) {
+        flight.to = zonePoseOf(registry, flight.move.to, flight.move.to.index, flight.move.to.count, flight.move.to.cardId) ?? flight.to;
+      }
+      return { flight, local, frame: sampleAnimV2(model, flight.from, flight.to, local) };
     });
 
     if (!reflowed && elapsed >= timeline.reflowAt) {
@@ -193,13 +223,13 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
       for (const { ref, flight } of entering.values()) zoneEffect(ctx, ref, model.effects.onEnter, flight.to);
     }
 
+    const toRemove: string[] = [];
     for (const { flight, frame } of frames) {
-      if (flight.released) continue;
-      // Release à l'atterrissage : la pose finale est dessinée une image, puis la carte volante est retirée
-      // (sinon la dernière image visible reste juste avant l'arrivée).
+      if (flight.released || !frame) continue;
+      // Release à l'atterrissage : la pose finale est dessinée une image, puis la carte volante est retirée.
       if (flight.landed && run.release === "landing") {
         flight.released = true;
-        ctx.layer.removeCard(flight.spriteId);
+        toRemove.push(flight.spriteId);
         continue;
       }
       if (frame.phase === "landed" && !flight.landed) {
@@ -208,8 +238,18 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
       }
       applyFrame(flight, frame, width, frame.phase === "landed" && !flight.move.toPose && swallows(flight.move, flight.to));
     }
+    if (toRemove.length > 0) {
+      if (ctx.layer.removeCards) ctx.layer.removeCards(toRemove);
+      else toRemove.forEach((id) => ctx.layer.removeCard(id));
+    }
     if (now === start) run.onFirstFrame?.();
-    if (elapsed >= timeline.totalMs) break;
+    if (elapsed >= totalRunMs) break;
   }
-  if (run.release === "end" || run.release === "landing") flights.forEach((flight) => ctx.layer.removeCard(flight.spriteId));
+  if (run.release === "end" || run.release === "landing") {
+    const remaining = flights.filter((f) => !f.released).map((f) => f.spriteId);
+    if (remaining.length > 0) {
+      if (ctx.layer.removeCards) ctx.layer.removeCards(remaining);
+      else remaining.forEach((id) => ctx.layer.removeCard(id));
+    }
+  }
 }

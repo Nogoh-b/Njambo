@@ -62,7 +62,7 @@ describe("budgets d'animation partagés", () => {
   it("borne les caches du service worker", () => {
     const serviceWorker = readFileSync(new URL("../public/sw.js", import.meta.url), "utf8");
     expect(serviceWorker).toContain("trim(STATIC_CACHE, 120)");
-    expect(serviceWorker).toContain("trim(IMAGE_CACHE, 40)");
+    expect(serviceWorker).toContain("trim(IMAGE_CACHE, 320)");
     expect(serviceWorker).toContain("url.pathname.startsWith(\"/api/\")");
   });
 });

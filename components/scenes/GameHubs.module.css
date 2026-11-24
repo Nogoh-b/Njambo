@@ -160,8 +160,7 @@
 
 .gameChip {
   align-items: center;
-  backdrop-filter: blur(8px);
-  background: rgba(4, 8, 18, 0.72);
+  background: rgba(4, 8, 18, 0.88);
   border: 1px solid color-mix(in srgb, var(--mode-accent) 14%, rgba(255, 255, 255, 0.12));
   border-radius: 999px;
   color: var(--nj-cream, #fff4df);
@@ -210,8 +209,7 @@
 
 .lockVeil {
   align-items: center;
-  backdrop-filter: blur(14px);
-  background: linear-gradient(90deg, rgba(9, 8, 13, 0.9), rgba(31, 24, 20, 0.82));
+  background: linear-gradient(90deg, rgba(9, 8, 13, 0.94), rgba(31, 24, 20, 0.9));
   border: 1px solid rgba(208, 163, 93, 0.24);
   border-radius: 14px;
   display: flex;
@@ -296,8 +294,7 @@
 
 .eventStatus {
   align-items: center;
-  backdrop-filter: blur(12px);
-  background: rgba(6, 8, 18, 0.74);
+  background: rgba(6, 8, 18, 0.88);
   border: 1px solid rgba(255, 255, 255, 0.15);
   border-radius: 999px;
   color: var(--nj-cream, #fff4df);
@@ -617,8 +614,7 @@
 }
 
 .stickyTabs {
-  backdrop-filter: blur(15px);
-  background: linear-gradient(180deg, rgba(6, 8, 22, 0.98), rgba(6, 8, 22, 0.83));
+  background: linear-gradient(180deg, rgba(6, 8, 22, 0.98), rgba(6, 8, 22, 0.92));
   margin: -4px -2px 3px;
   padding: 4px 2px 9px;
   position: sticky;
@@ -726,8 +722,7 @@
 .offer_element_pack .productArt { --product-tint: #ad78ff; }
 
 .simulatedFlag {
-  backdrop-filter: blur(8px);
-  background: rgba(6, 9, 24, 0.82);
+  background: rgba(6, 9, 24, 0.92);
   border: 1px solid rgba(93, 140, 255, 0.48);
   border-radius: 999px;
   color: #b7cbff;
@@ -1078,8 +1073,7 @@
 .duplicateFloat {
   align-items: center;
   animation: duplicateCaurisPop 460ms cubic-bezier(0.18, 0.9, 0.28, 1.35) 900ms both;
-  backdrop-filter: blur(10px);
-  background: rgba(34, 24, 9, 0.92);
+  background: rgba(34, 24, 9, 0.96);
   border: 1px solid rgba(243, 201, 105, 0.58);
   border-radius: 999px;
   bottom: -9px;
@@ -1149,8 +1143,7 @@
 
 .revealPowerBadge {
   align-items: center;
-  backdrop-filter: blur(9px);
-  background: rgba(5, 7, 17, 0.88);
+  background: rgba(5, 7, 17, 0.94);
   border: 1px solid color-mix(in srgb, var(--reveal-tone) 50%, rgba(255, 255, 255, 0.1));
   border-radius: 999px;
   color: var(--nj-gold, #f3c969);
@@ -1508,8 +1501,7 @@
 }
 
 .dailyCardPrice {
-  backdrop-filter: blur(8px);
-  background: rgba(4, 6, 17, 0.84);
+  background: rgba(4, 6, 17, 0.92);
   border: 1px solid rgba(243, 201, 105, 0.34);
   border-radius: 999px;
   bottom: 8px;
@@ -1750,7 +1742,7 @@
 
 .wheelImage {
   background:
-    url("/assets/njambo/economy/loyalty-wheel.webp") center / contain no-repeat,
+    url("/assets/njambo/economy/loyalty-wheel-256.webp") center / contain no-repeat,
     conic-gradient(from 15deg, #d14e72, #f0b64b, #37b9aa, #577edf, #d14e72, #f0b64b, #37b9aa, #577edf, #d14e72);
   border: 8px solid #8a5229;
   border-radius: 50%;

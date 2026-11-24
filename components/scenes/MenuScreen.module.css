@@ -802,19 +802,21 @@
 /* Halo solaire rotatif doux derrière la table royale */
 .tableSunburst {
   position: absolute;
-  width: min(98%, 500px);
+  width: min(92%, 440px);
   aspect-ratio: 1;
   border-radius: 50%;
   background: repeating-conic-gradient(
     from 0deg,
-    rgba(255, 214, 96, 0.08) 0deg 9deg,
+    rgba(255, 214, 96, 0.075) 0deg 9deg,
     transparent 9deg 22.5deg
   );
   -webkit-mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.9) 24%, transparent 68%);
   mask-image: radial-gradient(circle, rgba(0, 0, 0, 0.9) 24%, transparent 68%);
   pointer-events: none;
   z-index: 0;
-  opacity: 0.78;
+  opacity: 0.72;
+  will-change: transform;
+  contain: strict;
 }
 
 .motionFull:not(.pagePaused) .tableSunburst {
@@ -1011,29 +1013,16 @@
   line-height: 0.94;
   letter-spacing: 0.09em;
   background: linear-gradient(
-    110deg,
-    #fffdf2 0%,
-    #ffe075 28%,
-    #fffbe2 45%,
-    #e09619 64%,
-    #ffe075 82%,
-    #fffdf2 100%
+    180deg,
+    #fffdf4 0%,
+    #ffe68a 46%,
+    #f0b330 82%,
+    #cc7f12 100%
   );
-  background-size: 240% 100%;
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  filter: drop-shadow(0 5px 14px rgba(0, 0, 0, 0.68));
-}
-
-.motionFull:not(.pagePaused) .brandWordmark,
-.motionBalanced:not(.pagePaused) .brandWordmark {
-  animation: wordmarkShimmer 5.6s ease-in-out infinite;
-}
-
-@keyframes wordmarkShimmer {
-  0%, 100% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.56));
 }
 
 /* ═══ Éventail de 5 vraies cartes Njambo lumineuses ═══ */
@@ -1257,9 +1246,8 @@
   gap: 8px;
   padding: 3px 6px 3px 11px;
   border-radius: 999px;
-  background: rgba(10, 22, 18, 0.62);
-  border: 1px solid rgba(255, 214, 96, 0.24);
-  backdrop-filter: blur(4px);
+  background: rgba(10, 22, 18, 0.88);
+  border: 1px solid rgba(255, 214, 96, 0.28);
 }
 
 .chipDotGold {
@@ -1533,23 +1521,10 @@
   animation: ctaAuraPulse 3.2s ease-in-out infinite;
 }
 
+/* 100 % GPU (transform uniquement, plus de box-shadow 54 px recalculé à 60 fps) */
 @keyframes ctaAuraPulse {
-  0%, 100% {
-    box-shadow:
-      inset 0 2.5px 0 rgba(255, 255, 255, 0.78),
-      inset 0 -3px 0 rgba(128, 56, 0, 0.25),
-      0 6px 0 #7f3e03,
-      0 18px 34px rgba(0, 0, 0, 0.5),
-      0 0 30px rgba(255, 198, 42, 0.36);
-  }
-  50% {
-    box-shadow:
-      inset 0 2.5px 0 rgba(255, 255, 255, 0.88),
-      inset 0 -3px 0 rgba(128, 56, 0, 0.25),
-      0 6px 0 #7f3e03,
-      0 18px 38px rgba(0, 0, 0, 0.54),
-      0 0 54px rgba(255, 212, 72, 0.68);
-  }
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.018); }
 }
 
 .heroPlayBtn:hover {

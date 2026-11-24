@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import type { CSSProperties } from "react";
 import { T } from "@/config/theme";
 

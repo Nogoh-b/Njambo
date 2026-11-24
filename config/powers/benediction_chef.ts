@@ -1,6 +1,7 @@
 import type { PowerModule } from "../../engine/power/types";
 
-/** Bénédiction du Chef — double le gain si tu remportes ce pli. */
+/** Bénédiction du Chef — double le pot si tu gagnes la manche (c'est toi qui le rafles).
+ *  (Avant : « si tu remportes ce pli » — le pot doublé pouvait revenir à un adversaire.) */
 export const benedictionChef: PowerModule = {
   def: {
     id: "benediction_chef",
@@ -12,8 +13,8 @@ export const benedictionChef: PowerModule = {
     targetMode: "none",
     art: "/assets/power-cards/benediction_chef.webp",
     activationTitle: "BÉNÉDICTION",
-    activationText: "Gain du pli x2",
-    description: "Double le gain si tu remportes ce pli.",
+    activationText: "Pot ×2 si tu gagnes la manche",
+    description: "Double le pot si tu gagnes la manche.",
     costCauris: 35,
     costNkap: 600,
     animTags: ["pot_bonus"],
@@ -23,7 +24,7 @@ export const benedictionChef: PowerModule = {
     target: { count: "none" },
     steps: [
       {
-        ops: [{ op: "potMultiplier", factor: 2, when: "winTrick" }],
+        ops: [{ op: "potMultiplier", factor: 2, when: "winRound" }],
         anim: [{ cue: "potFlash", amountLabel: "×2" }],
       },
     ],

@@ -4,7 +4,7 @@
    La partie est comptée par le serveur dès le départ ; le gain dépend des
    paires trouvées et du temps restant, plafonné côté serveur. */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useEffect, useRef, useState } from "react";
 import { MEMORY_DURATION_MS, MEMORY_PAIRS, MINI_GAMES_BY_ID, memoryReward } from "@/domain";
 import { GameStage, PlayButton } from "../MiniGameKit";

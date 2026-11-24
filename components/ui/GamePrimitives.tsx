@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { type CSSProperties, type MouseEventHandler, type ReactNode } from "react";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import styles from "./GamePrimitives.module.css";

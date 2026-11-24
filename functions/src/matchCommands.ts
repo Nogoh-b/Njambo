@@ -595,7 +595,9 @@ export async function performGameAction(
 
     const resolveCompletedTrick = () => {
       finalWinnerIndex = winnerIndex(trickPlays, participants);
-      const trickRewards = applyTrickPowerRewards(effects, trickNumber + 1, finalWinnerIndex, pot);
+      // Dernier pli de la manche (toutes les mains vides) : les bonus « si tu gagnes la manche » se règlent maintenant.
+      const lastTrick = activeParticipants.every((participant) => (hands.get(participant.uid)?.length ?? 0) === 0);
+      const trickRewards = applyTrickPowerRewards(effects, trickNumber + 1, finalWinnerIndex, pot, lastTrick);
       pot = trickRewards.pot;
       effects = trickRewards.effects;
       leaderIndex = finalWinnerIndex;

@@ -1,9 +1,29 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { eventDetailManifest } from "../lib/assets/manifests";
+import { eventDetailManifest, menuManifest, sceneManifest } from "../lib/assets/manifests";
 
 it("précharge le décor, les boss et les récompenses avant le parcours", () => {
   const manifest = eventDetailManifest({ imageUrl: "https://assets.example/event.webp", stages: [{ boss: { avatarUrl: "https://assets.example/boss.webp" }, reward: [{ type: "nkap", amount: 100 }] }] });
   expect(manifest.critical.map((asset) => asset.url)).toEqual(expect.arrayContaining(["https://assets.example/event.webp", "https://assets.example/boss.webp", "/assets/njambo/economy/nkap-stack-64.webp"]));
+});
+
+it("déclare les manifestes critiques de l'accueil, de la boutique, des mini-jeux et du hub Jouer", () => {
+  expect(menuManifest().critical.map((a) => a.url)).toEqual(expect.arrayContaining([
+    "/assets/njambo/ui/brand/njambo-mark-256.webp",
+    "/assets/njambo/economy/nkap-stack-64.webp",
+    "/assets/njambo/economy/loyalty-wheel-128.webp",
+  ]));
+  expect(sceneManifest("shop").critical.map((a) => a.url)).toEqual(expect.arrayContaining([
+    "/assets/njambo/economy/pack-mboa-256.webp",
+    "/assets/njambo/books/book-normal-256.webp",
+  ]));
+  expect(sceneManifest("minigames").critical.map((a) => a.url)).toEqual(expect.arrayContaining([
+    "/assets/njambo/economy/loyalty-wheel-128.webp",
+    "/assets/njambo/tickets/ticket-bronze-128.webp",
+  ]));
+  expect(sceneManifest("play").critical.map((a) => a.url)).toEqual(expect.arrayContaining([
+    "/assets/njambo/ui/icons/bot-64.webp",
+    "/assets/njambo/books/card-back-128.webp",
+  ]));
 });
 
 /* Faux navigateur minimal : Image dont le chargement est piloté par le test. */
@@ -47,38 +67,37 @@ describe("AssetLoader", () => {
     expect(list).toEqual([{ kind: "image", url: "/a.webp" }, { kind: "audio", url: "/s.mp3" }]);
   });
 
-  it("limite la concurrence à 4 et suit la progression", async () => {
-    const { loadAssets, isAssetReady } = await import("../lib/assets/AssetLoader");
-    const urls = ["/1.webp", "/2.webp", "/3.webp", "/4.webp", "/5.webp", "/6.webp"];
+  it("limite la concurrence critique à 6 et suit la progression", async () => {
+    const { loadAssets, isAssetReady, isImageUrlReady } = await import("../lib/assets/AssetLoader");
+    const urls = ["/1.webp", "/2.webp", "/3.webp", "/4.webp", "/5.webp", "/6.webp", "/7.webp", "/8.webp"];
     const progress: number[] = [];
     const done = loadAssets(urls.map((url) => ({ kind: "image", url })), { onProgress: (p) => progress.push(p.loaded) });
-    expect(pending.map((item) => item.src)).toEqual(urls.slice(0, 4));
-    for (const url of urls.slice(0, 4)) settle(url);
+    expect(pending.map((item) => item.src)).toEqual(urls.slice(0, 6));
+    for (const url of urls.slice(0, 6)) settle(url);
     await flush(); await flush();
-    expect(pending.map((item) => item.src)).toEqual(urls.slice(4));
-    settle("/5.webp"); settle("/6.webp");
+    expect(pending.map((item) => item.src)).toEqual(urls.slice(6));
+    settle("/7.webp"); settle("/8.webp");
     const result = await done;
-    expect(result).toEqual({ loaded: 6, total: 6, failed: 0 });
+    expect(result).toEqual({ loaded: 8, total: 8, failed: 0 });
     expect(progress[0]).toBe(0);
-    expect(progress.at(-1)).toBe(6);
+    expect(progress.at(-1)).toBe(8);
     expect(isAssetReady({ kind: "image", url: "/3.webp" })).toBe(true);
+    expect(isImageUrlReady("/3.webp")).toBe(true);
   });
 
-  it("un asset critique passe devant le préchargement en attente", async () => {
+  it("un asset critique démarre immédiatement devant le préchargement en arrière-plan", async () => {
     const { loadAssets, prefetchAssets } = await import("../lib/assets/AssetLoader");
     prefetchAssets(["/b1", "/b2", "/b3", "/b4", "/b5", "/b6"].map((url) => ({ kind: "image" as const, url })));
     await flush();
-    expect(pending).toHaveLength(4);
+    // Le préchargement en arrière-plan est plafonné à 3 pour garder des créneaux libres.
+    expect(pending).toHaveLength(3);
     const critical = loadAssets([{ kind: "image", url: "/c1" }, { kind: "image", url: "/b6" }]);
-    settle("/b1");
-    await flush(); await flush();
-    // La place libérée va à l'asset critique, pas au préchargement /b5.
+    // Les créneaux libres (4..6) prennent immédiatement les assets critiques (y compris /b6 promu).
     expect(pending.map((item) => item.src)).toContain("/c1");
-    expect(pending.map((item) => item.src)).not.toContain("/b5");
-    for (const src of ["/b2", "/b3", "/b4", "/c1"]) settle(src);
+    expect(pending.map((item) => item.src)).toContain("/b6");
+    expect(pending.map((item) => item.src)).not.toContain("/b4");
+    for (const src of ["/b1", "/b2", "/b3", "/c1", "/b6"]) settle(src);
     await flush(); await flush();
-    expect(pending.map((item) => item.src)[0]).toBe("/b6");
-    settle("/b6");
     await critical;
   });
 

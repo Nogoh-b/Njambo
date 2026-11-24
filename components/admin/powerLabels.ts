@@ -68,7 +68,7 @@ export const OP_LABELS: Record<PowerOp["op"], { label: string; family: string; h
   timerDelta: { label: "Ajouter / retirer du temps", family: "Temps", help: "+ ou − secondes sur le minuteur du joueur." },
   boostNextCard: { label: "Renforcer la prochaine carte", family: "Valeur", help: "Bonus de valeur et/ou couleur imposée sur la prochaine carte jouée." },
   potBonus: { label: "Bonus de pot", family: "Pot", help: "Ajoute des Nkap au pot." },
-  potMultiplier: { label: "Multiplier le pot", family: "Pot", help: "Multiplie le pot si le pli est gagné." },
+  potMultiplier: { label: "Multiplier le pot", family: "Pot", help: "Multiplie le pot si la manche (ou le pli) est gagnée." },
   refundOnLoss: { label: "Remboursement en cas de défaite", family: "Pot", help: "Rend une part de la mise si la manche est perdue." },
   preventDoublePenalty: { label: "Annuler la double pénalité", family: "Pot", help: "Protège contre la pénalité de doublé." },
   grantShield: { label: "Bouclier", family: "Défense", help: "Bloque les attaques choisies jusqu'à la fin de la manche." },
@@ -99,8 +99,8 @@ export function defaultOp(kind: PowerOp["op"]): PowerOp {
     case "timerFreeze": return { op: "timerFreeze", player: "self", durationMs: 5000 };
     case "timerDelta": return { op: "timerDelta", player: "target", seconds: -3 };
     case "boostNextCard": return { op: "boostNextCard", player: "self", valueBonus: 2 };
-    case "potBonus": return { op: "potBonus", amount: 200, when: "winTrick" };
-    case "potMultiplier": return { op: "potMultiplier", factor: 2, when: "winTrick" };
+    case "potBonus": return { op: "potBonus", amount: 200, when: "winRound" };
+    case "potMultiplier": return { op: "potMultiplier", factor: 2, when: "winRound" };
     case "refundOnLoss": return { op: "refundOnLoss", player: "self", ratio: 0.5 };
     case "preventDoublePenalty": return { op: "preventDoublePenalty", player: "self" };
     case "grantShield": return { op: "grantShield", player: "self", blocks: ["targeted"] };

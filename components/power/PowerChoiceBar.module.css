@@ -159,6 +159,6 @@
 
 @keyframes barIn { from { opacity: 0; transform: translate(-50%, 12px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
 @keyframes slotIn { from { opacity: 0; transform: translateY(-8px) scale(.6); } to { opacity: 1; transform: none; } }
-@keyframes readyPulse { 0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--choice-color) 55%, transparent); } 50% { box-shadow: 0 0 22px var(--choice-color); } }
+@keyframes readyPulse { 0%, 100% { transform: scale(1); opacity: 0.92; } 50% { transform: scale(1.03); opacity: 1; } }
 @keyframes markIn { from { opacity: 0; } to { opacity: 1; } }
 @keyframes badgeIn { from { transform: translateX(-50%) scale(0); } to { transform: translateX(-50%) scale(1); } }

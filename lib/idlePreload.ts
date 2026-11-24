@@ -1,3 +1,5 @@
+import { prefetchAssets } from "@/lib/assets/AssetLoader";
+import { menuManifest } from "@/lib/assets/manifests";
 import { loadGsap } from "@/lib/motion";
 import { IDLE_PREFETCH_SCENES, preloadScene } from "@/lib/scenePreload";
 
@@ -5,25 +7,14 @@ type IdleTask = () => void | Promise<unknown>;
 
 let started = false;
 
-/** Assets lourds réutilisés hors du home (dos de carte : pluie de fond + jeu). */
-const WARM_IMAGES = [
-  "/assets/njambo/books/card-back-128.webp",
-];
-
-function warmImage(src: string): void {
-  const img = new window.Image();
-  img.decoding = "async";
-  img.src = src;
-}
-
 const tasks: IdleTask[] = [
   // Plus de warmAudio() : GXE arme l'unlock de son AudioContext tout seul,
   // sur le premier geste réel (pointerdown/keydown), sans tâche idle dédiée.
+  () => prefetchAssets(menuManifest().background),
   () => loadGsap(),
   () => import("@/components/power/PowerParticles"),
-  // Chunks des scènes les plus visitées depuis le home (une par tâche idle).
+  // Chunks + assets critiques des scènes les plus visitées depuis le home (une par tâche idle).
   ...IDLE_PREFETCH_SCENES.map((scene) => () => preloadScene(scene)),
-  ...WARM_IMAGES.map((src) => () => warmImage(src)),
 ];
 
 function scheduleIdle(task: () => void): void {

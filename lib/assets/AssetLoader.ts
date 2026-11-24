@@ -5,9 +5,10 @@
 
    - Dédoublonnage : un même URL n'est chargé qu'une fois (cache mémoire des
      promesses + références aux images décodées, pour éviter leur éviction).
-   - Priorités : "critical" (un écran attend) passe devant "background"
-     (préchargement d'approche, au repos du navigateur).
-   - Concurrence limitée (4), une nouvelle tentative en cas d'échec.
+   - Priorités : "critical" (un écran attend, jusqu'à 6 en parallèle) passe
+     devant "background" (préchargement discret, plafonné à 3 pour garder des
+     emplacements libres dès qu'un écran critique démarre).
+   - Une nouvelle tentative en cas d'échec.
    - Un asset en échec ne bloque jamais : il compte comme « terminé ». */
 
 import { preloadPowerSound } from "../powerSounds";
@@ -16,9 +17,10 @@ export type AssetKind = "image" | "audio";
 export interface AssetRef { kind: AssetKind; url: string }
 export type AssetPriority = "critical" | "background";
 
-const CONCURRENCY = 4;
+const CONCURRENCY = 6;
+const BG_CONCURRENCY = 3;
 const RETRY_DELAY_MS = 600;
-const MAX_KEPT_IMAGES = 240;
+const MAX_KEPT_IMAGES = 320;
 
 type Entry = { promise: Promise<boolean>; done: boolean; ok: boolean };
 type Job = { ref: AssetRef; priority: AssetPriority; resolve: (ok: boolean) => void };
@@ -46,10 +48,13 @@ export function normalizeAssets(list: Array<AssetRef | null | undefined | false>
   return out;
 }
 
-function loadImageOnce(url: string): Promise<boolean> {
+function loadImageOnce(url: string, priority: AssetPriority): Promise<boolean> {
   return new Promise((resolve) => {
     const img = new window.Image();
     img.decoding = "async";
+    if ("fetchPriority" in img) {
+      (img as HTMLImageElement & { fetchPriority?: string }).fetchPriority = priority === "critical" ? "high" : "low";
+    }
     let settled = false;
     const finish = (ok: boolean) => {
       if (settled) return;
@@ -69,19 +74,22 @@ function loadImageOnce(url: string): Promise<boolean> {
   });
 }
 
-async function fetchAsset(ref: AssetRef): Promise<boolean> {
-  const attempt = () => (ref.kind === "image" ? loadImageOnce(ref.url) : preloadPowerSound(ref.url));
+async function fetchAsset(ref: AssetRef, priority: AssetPriority): Promise<boolean> {
+  const attempt = () => (ref.kind === "image" ? loadImageOnce(ref.url, priority) : preloadPowerSound(ref.url));
   if (await attempt()) return true;
   await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS));
   return attempt();
 }
 
 function pump() {
-  while (active < CONCURRENCY && queue.length) {
+  while (queue.length) {
+    const next = queue[0]!;
+    const limit = next.priority === "critical" ? CONCURRENCY : BG_CONCURRENCY;
+    if (active >= limit) break;
     const job = queue.shift()!;
     queued.delete(keyOf(job.ref));
     active += 1;
-    void fetchAsset(job.ref).then((ok) => {
+    void fetchAsset(job.ref, job.priority).then((ok) => {
       active -= 1;
       job.resolve(ok);
       pump();
@@ -100,6 +108,7 @@ function enqueue(ref: AssetRef, priority: AssetPriority): Promise<boolean> {
       queue.splice(queue.indexOf(job), 1);
       const firstBackground = queue.findIndex((item) => item.priority === "background");
       queue.splice(firstBackground === -1 ? queue.length : firstBackground, 0, job);
+      pump();
     }
     return existing.promise;
   }
@@ -127,6 +136,21 @@ function enqueue(ref: AssetRef, priority: AssetPriority): Promise<boolean> {
 export function isAssetReady(ref: AssetRef): boolean {
   const entry = entries.get(keyOf(ref));
   return Boolean(entry?.done && entry.ok);
+}
+
+/** Vrai si l'image correspondant à cette URL est déjà décodée en mémoire. */
+export function isImageUrlReady(url: string | null | undefined): boolean {
+  if (!url) return false;
+  return isAssetReady({ kind: "image", url });
+}
+
+/** Marque une image comme chargée dans le cache session (ex. onLoad direct). */
+export function markImageUrlReady(url: string | null | undefined): void {
+  if (!url) return;
+  const key = keyOf({ kind: "image", url });
+  if (!entries.has(key)) {
+    entries.set(key, { done: true, ok: true, promise: Promise.resolve(true) });
+  }
 }
 
 export function areAssetsReady(list: AssetRef[]): boolean {

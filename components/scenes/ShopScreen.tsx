@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { useSfx } from "@gxe/react";
 import { AnimatePresence, motion } from "motion/react";

@@ -20,8 +20,7 @@
 
 .backdrop {
   animation: fadeIn 260ms ease-out both;
-  backdrop-filter: blur(6px);
-  background: radial-gradient(circle at 50% 38%, rgba(8, 10, 20, 0.78), rgba(2, 3, 8, 0.95));
+  background: radial-gradient(circle at 50% 38%, rgba(8, 10, 20, 0.86), rgba(2, 3, 8, 0.96));
   inset: 0;
   position: absolute;
 }
@@ -299,16 +298,16 @@
 @keyframes gemPulse { 50% { transform: scale(1.25); } }
 @keyframes gemBreak {
   0% { transform: scale(1); }
-  25% { transform: scale(1.35); filter: drop-shadow(0 0 14px #ff5c7a); }
+  25% { transform: scale(1.35); color: #ff5c7a; }
   45% { transform: scale(1.1) rotate(-12deg); color: #ff5c7a; }
-  100% { transform: scale(0.85) rotate(8deg); color: rgba(255, 255, 255, 0.16); filter: none; opacity: 0.45; }
+  100% { transform: scale(0.85) rotate(8deg); color: rgba(255, 255, 255, 0.16); opacity: 0.45; }
 }
 @keyframes shardFly {
   0% { opacity: 1; transform: translate(-50%, -50%) rotate(0); }
   100% { opacity: 0; transform: translate(calc(-50% + var(--dx)), calc(-50% + var(--dy))) rotate(var(--r)); }
 }
 @keyframes trackGrow { from { width: var(--from); } to { width: var(--to); } }
-@keyframes dotIgnite { 0% { transform: translate(-50%, -50%) scale(0.6); } 60% { transform: translate(-50%, -50%) scale(1.6); box-shadow: 0 0 18px var(--accent); } 100% { transform: translate(-50%, -50%) scale(1); } }
+@keyframes dotIgnite { 0% { transform: translate(-50%, -50%) scale(0.6); } 60% { transform: translate(-50%, -50%) scale(1.6); } 100% { transform: translate(-50%, -50%) scale(1); } }
 @keyframes rewardPop { from { opacity: 0; transform: translateY(16px) scale(0.6); } to { opacity: 1; transform: none; } }
 @keyframes confettiFall {
   0% { opacity: 1; transform: translateY(0) rotate(0); }

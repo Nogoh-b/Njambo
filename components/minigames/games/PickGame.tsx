@@ -4,7 +4,7 @@
    par le serveur apparaît sous le choix du joueur, puis les deux autres se
    révèlent (« tu aurais pu avoir… »). */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useState } from "react";
 import { MINI_GAMES_BY_ID, type Reward } from "@/domain";
 import { rewardIconSrc, rewardLabel } from "@/lib/shopVisuals";

@@ -168,15 +168,23 @@ export const PlayerHandArc = memo(function PlayerHandArc({
               />
             )}
 
-            {/* Aura de surbrillance douce collée à l'arc de cercle */}
+            {/* Aura de surbrillance douce collée à l'arc de cercle (double trait SVG sans filter blur GPU) */}
+            <path
+              d={PERFECT_CIRCLE_ARC_PATH}
+              fill="none"
+              stroke={rimColor}
+              strokeOpacity="0.24"
+              strokeWidth="18"
+              strokeLinecap="butt"
+              className={styles.rimGlow}
+            />
             <path
               d={PERFECT_CIRCLE_ARC_PATH}
               fill="none"
               stroke={`url(#njHiRim-${uid})`}
-              strokeWidth="9"
+              strokeWidth="8"
               strokeLinecap="butt"
               className={styles.rimGlow}
-              style={{ filter: `drop-shadow(0 0 10px ${rimColor})` }}
             />
 
             {/* Trait lumineux net + reflet mobile qui parcourt la courbe */}

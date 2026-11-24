@@ -318,8 +318,8 @@
 }
 
 @keyframes slotInviteBreath {
-  0%, 100% { border-color: rgba(255, 214, 96, 0.44); }
-  50% { border-color: rgba(255, 236, 148, 0.88); }
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
 }
 
 .slotHoverTarget .emptyDeckSlot {
@@ -624,22 +624,14 @@
 .cardArtImg {
   object-fit: cover;
   object-position: center 22%;
-  animation: artBreath 7.5s ease-in-out infinite;
-  animation-delay: var(--sheen-delay, 0s);
   transition: transform 280ms ease;
 }
 
-@keyframes artBreath {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.05); }
-}
-
 .artifactCard:hover .cardArtImg {
-  animation-play-state: paused;
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
-/* GRAND MOTIF NDOP COLORÉ PLEIN-CADRE (HÉROS DE LA CARTE !) */
+/* GRAND MOTIF NDOP COLORÉ PLEIN-CADRE (100 % GPU : zéro filter drop-shadow animé sur 18 cartes) */
 .cardMotifSvg {
   position: absolute;
   inset: 0;
@@ -647,10 +639,8 @@
   height: 100%;
   z-index: 2;
   pointer-events: none;
-  filter: drop-shadow(0 0 6px var(--c-glow));
-  animation: motifGlowPulse 4.2s ease-in-out infinite;
-  animation-delay: var(--sheen-delay, 0s);
-  transition: filter 200ms ease, transform 220ms ease;
+  opacity: 0.94;
+  transition: opacity 200ms ease, transform 220ms ease;
 }
 
 .rCommon {
@@ -680,22 +670,6 @@
     inset 0 0 26px rgba(255, 224, 90, 0.22);
 }
 
-.rRare .cardMotifSvg {
-  filter: drop-shadow(0 0 7px rgba(164, 218, 255, 0.56));
-}
-
-.rEpic .cardMotifSvg {
-  filter: drop-shadow(0 0 9px rgba(255, 214, 110, 0.65));
-  animation-duration: 3.4s;
-}
-
-.rLegendary .cardMotifSvg {
-  filter: drop-shadow(0 0 12px rgba(255, 226, 92, 0.84));
-  animation-duration: 2.6s;
-}
-
-.cardMotifSvg :global(.nj-motif-sunburst),
-.slotMotifSvg :global(.nj-motif-sunburst),
 .heroMotifSvg :global(.nj-motif-sunburst) {
   animation: motifSunSpin 24s linear infinite;
 }
@@ -705,12 +679,7 @@
 }
 
 .artifactCard:hover .cardMotifSvg {
-  filter: brightness(1.32) drop-shadow(0 0 12px var(--c-glow));
-}
-
-@keyframes motifGlowPulse {
-  0%, 100% { opacity: 0.9; }
-  50% { opacity: 1; filter: brightness(1.18) drop-shadow(0 0 10px var(--c-glow)); }
+  opacity: 1;
 }
 
 /* Balayage holographique glissant sur le motif */

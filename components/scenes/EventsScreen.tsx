@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { eventArt } from "@/lib/eventArt";
 import { eventCountdown } from "@/lib/eventCountdown";
 import { useSeasons } from "@/hooks/useSeasons";
@@ -271,7 +271,7 @@ export function EventsScreen() {
             const state: EventState = run?.status === "eliminated" ? "eliminated" : availability;
             const status = EVENT_STATES[state];
             const ticketCount = tickets[event.ticketTier] ?? 0;
-            const art = eventArt(event);
+            const art = eventArt(event, "thumb");
             const isPvp = event.mode === "pvp";
             const stageCount = event.stages.length;
             const completedStages = run?.status === "eliminated" ? 0 : (run?.stageIndex ?? 0);

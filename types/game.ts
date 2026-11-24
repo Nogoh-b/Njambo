@@ -208,6 +208,8 @@ export interface ActivePowerEffect {
   scoreMultiplier?: number;
   potBonus?: number;
   conditionalPotBonus?: boolean;
+  /** Bonus de pot gardé jusqu'à la fin de la manche : compté seulement si l'activateur gagne le dernier pli (rafle le pot). */
+  untilRoundEnd?: boolean;
   refundOnLoss?: number;
   shield?: boolean;
   preventDoublePenalty?: boolean;

@@ -1,5 +1,6 @@
 "use client";
 
+import { memo } from "react";
 import type { PowerCategory, PowerRarity } from "@/types/game";
 
 export interface CategoryMotifPalette {
@@ -132,7 +133,7 @@ const RARITY_RANK: Record<PowerRarity, number> = {
  *   4. Légendaire : diadème solaire impérial en or pur (5 pointes + étoile), auréole solaire 16 rayons animée,
  *                   flancs doublement tressés en or pur + mandalas d'angle + trône solaire sous l'emblème.
  */
-export function PowerCardMotif({ category, rarity, className }: PowerCardMotifProps) {
+export const PowerCardMotif = memo(function PowerCardMotif({ category, rarity, className }: PowerCardMotifProps) {
   const pal = CATEGORY_MOTIF_PALETTE[category];
   const tier = RARITY_RANK[rarity];
 
@@ -629,4 +630,4 @@ export function PowerCardMotif({ category, rarity, className }: PowerCardMotifPr
       )}
     </svg>
   );
-}
+});

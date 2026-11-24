@@ -80,13 +80,18 @@ const TABLE_UI_CRITICAL = [
   DEFAULT_CARD_BACK_ASSET,
   DEFAULT_HAND_ARC_ASSET,
   "/assets/njambo/books/card-back-128.webp",
+  "/assets/njambo/ui/brand/njambo-mark-64.webp",
   "/assets/njambo/ui/brand/njambo-mark-128.webp",
   "/assets/njambo/economy/nkap-64.webp",
   "/assets/njambo/economy/nkap-stack-64.webp",
   "/assets/njambo/ui/icons/cards-64.webp",
+  "/assets/njambo/ui/icons/cards-128.webp",
   "/assets/njambo/ui/icons/crown-64.webp",
+  "/assets/njambo/ui/icons/crown-128.webp",
   "/assets/njambo/ui/icons/trophy-64.webp",
+  "/assets/njambo/ui/icons/trophy-128.webp",
   "/assets/njambo/ui/icons/coin-64.webp",
+  "/assets/njambo/ui/icons/coin-128.webp",
   "/assets/njambo/ui/icons/check-64.webp",
   "/assets/njambo/ui/icons/sparkle-64.webp",
   "/assets/njambo/ui/icons/home-64.webp",
@@ -110,7 +115,6 @@ export function tableAssetGroups(input: TableManifestInput = {}): TableAssetGrou
   }
   const decorRaw: Array<AssetRef | null> = [
     imageAsset(cssVarUrl("--nj-table-image")),
-    imageAsset(cssVarUrl("--nj-solar-app-bg")),
     imageAsset(cssVarUrl("--nj-card-back") ?? DEFAULT_CARD_BACK_ASSET),
     imageAsset(cssVarUrl("--nj-hand-arc") ?? DEFAULT_HAND_ARC_ASSET),
     ...TABLE_UI_CRITICAL.map((url) => imageAsset(url)),
@@ -156,14 +160,96 @@ export function tableManifest(input: TableManifestInput = {}): AssetManifest {
   };
 }
 
+const RANK_BADGES_64 = [
+  "/assets/njambo/ranks/rank-braise-64.webp",
+  "/assets/njambo/ranks/rank-mboa-64.webp",
+  "/assets/njambo/ranks/rank-notable-64.webp",
+  "/assets/njambo/ranks/rank-chef-table-64.webp",
+  "/assets/njambo/ranks/rank-tambour-64.webp",
+  "/assets/njambo/ranks/rank-legende-237-64.webp",
+  "/assets/njambo/ranks/rank-ancetre-64.webp",
+] as const;
+
+const MENU_CRITICAL = [
+  "/assets/njambo/ui/brand/njambo-mark-256.webp",
+  "/assets/njambo/ui/icons/coin-64.webp",
+  "/assets/njambo/ui/icons/sparkle-64.webp",
+  "/assets/njambo/ui/icons/trophy-64.webp",
+  "/assets/njambo/ui/icons/history-64.webp",
+  "/assets/njambo/ui/icons/cards-64.webp",
+  "/assets/njambo/ui/icons/users-64.webp",
+  "/assets/njambo/ui/icons/crown-64.webp",
+  "/assets/njambo/ui/icons/notification-64.webp",
+  "/assets/njambo/ui/icons/settings-64.webp",
+  "/assets/njambo/ui/icons/play-64.webp",
+  "/assets/njambo/ui/icons/bot-64.webp",
+  "/assets/njambo/ui/icons/online-64.webp",
+  "/assets/njambo/ui/icons/friends-64.webp",
+  "/assets/njambo/ui/icons/profile-64.webp",
+  "/assets/njambo/economy/energy-flask-64.webp",
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/economy/cauris-pouch-64.webp",
+  "/assets/njambo/economy/loyalty-wheel-128.webp",
+  "/assets/njambo/economy/cauri-64.webp",
+  "/assets/njambo/economy/nkap-64.webp",
+  "/assets/njambo/books/card-back-128.webp",
+  "/assets/njambo/ranks/rank-mboa-64.webp",
+  "/assets/njambo/events/defi-du-mboa-480.webp",
+  "/assets/njambo/events/tournoi-du-ter-480.webp",
+] as const;
+
+const MENU_BACKGROUND = [
+  ...RANK_BADGES_64,
+  DEFAULT_CARD_BACK_ASSET,
+  DEFAULT_HAND_ARC_ASSET,
+  "/assets/njambo/ui/icons/home-64.webp",
+  "/assets/njambo/ui/icons/check-64.webp",
+  "/assets/njambo/ui/icons/hourglass-64.webp",
+  "/assets/njambo/ui/icons/empty-64.webp",
+  "/assets/njambo/ui/icons/spark-64.webp",
+  "/assets/njambo/ui/icons/star-64.webp",
+  "/assets/njambo/ui/icons/plus-64.webp",
+  "/assets/njambo/ui/icons/sound-64.webp",
+  "/assets/njambo/ui/icons/music-64.webp",
+  "/assets/njambo/ui/icons/globe-64.webp",
+  "/assets/njambo/ui/icons/message-64.webp",
+  "/assets/njambo/ui/icons/search-64.webp",
+] as const;
+
+/** Accueil (Salon) : préchargé pendant le SplashScreen avant le premier rendu. */
+export function menuManifest(): AssetManifest {
+  return {
+    critical: MENU_CRITICAL.map((url) => imageAsset(url)!),
+    background: MENU_BACKGROUND.map((url) => imageAsset(url)!),
+  };
+}
+
 const SHOP_STATIC = [
+  "/assets/njambo/economy/pack-mboa-256.webp",
+  "/assets/njambo/economy/pack-quartier-256.webp",
+  "/assets/njambo/economy/pack-chefferie-256.webp",
+  "/assets/njambo/economy/cauris-pouch-256.webp",
+  "/assets/njambo/economy/nkap-stack-256.webp",
+  "/assets/njambo/economy/energy-flask-256.webp",
+  "/assets/njambo/tickets/ticket-bronze-256.webp",
+  "/assets/njambo/tickets/ticket-argent-256.webp",
+  "/assets/njambo/tickets/ticket-or-256.webp",
   "/assets/njambo/books/book-normal-256.webp",
   "/assets/njambo/books/book-rare-256.webp",
   "/assets/njambo/books/book-exceptionnel-256.webp",
   "/assets/njambo/books/card-back-256.webp",
   "/assets/njambo/economy/nkap-stack-64.webp",
   "/assets/njambo/economy/cauris-pouch-64.webp",
-];
+  "/assets/njambo/economy/cauri-64.webp",
+  "/assets/njambo/economy/energy-flask-64.webp",
+  "/assets/njambo/tickets/ticket-bronze-64.webp",
+  "/assets/njambo/tickets/ticket-argent-64.webp",
+  "/assets/njambo/tickets/ticket-or-64.webp",
+  "/assets/njambo/ui/icons/coin-64.webp",
+  "/assets/njambo/ui/icons/cards-64.webp",
+  "/assets/njambo/ui/icons/sparkle-64.webp",
+  "/assets/njambo/ui/icons/trophy-64.webp",
+] as const;
 
 const EVENTS_STATIC = [
   "/assets/njambo/tickets/ticket-bronze-64.webp",
@@ -172,12 +258,72 @@ const EVENTS_STATIC = [
   "/assets/njambo/economy/nkap-stack-64.webp",
   "/assets/njambo/economy/cauris-pouch-64.webp",
   "/assets/njambo/economy/energy-flask-64.webp",
-];
+  "/assets/njambo/events/defi-du-mboa-480.webp",
+  "/assets/njambo/events/tournoi-du-ter-480.webp",
+  "/assets/njambo/events/event-fallback.webp",
+] as const;
 
-/** Collection : les 12 premiers visuels (premier écran) bloquent, le reste suit. */
+const PLAY_STATIC = [
+  "/assets/njambo/economy/energy-flask-64.webp",
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/economy/nkap-64.webp",
+  "/assets/njambo/books/card-back-64.webp",
+  "/assets/njambo/books/card-back-128.webp",
+  "/assets/njambo/ui/icons/bot-64.webp",
+  "/assets/njambo/ui/icons/online-64.webp",
+  "/assets/njambo/ui/icons/friends-64.webp",
+  "/assets/njambo/ui/icons/play-64.webp",
+  "/assets/njambo/ui/icons/cards-64.webp",
+  "/assets/njambo/ui/icons/crown-64.webp",
+  "/assets/njambo/ui/icons/sparkle-64.webp",
+  "/assets/njambo/ui/icons/plus-64.webp",
+] as const;
+
+const MINIGAMES_STATIC = [
+  "/assets/njambo/tickets/ticket-bronze-128.webp",
+  "/assets/njambo/tickets/ticket-bronze-64.webp",
+  "/assets/njambo/economy/cauri-128.webp",
+  "/assets/njambo/books/card-back-128.webp",
+  "/assets/njambo/economy/cauris-pouch-128.webp",
+  "/assets/njambo/economy/cauris-pouch-64.webp",
+  "/assets/njambo/economy/energy-flask-128.webp",
+  "/assets/njambo/economy/nkap-128.webp",
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/economy/loyalty-wheel-128.webp",
+] as const;
+
+const WALLET_STATIC = [
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/economy/cauris-pouch-64.webp",
+  "/assets/njambo/economy/energy-flask-64.webp",
+  "/assets/njambo/ui/icons/coin-64.webp",
+  ...RANK_BADGES_64,
+] as const;
+
+const PROFILE_STATIC = [
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/economy/cauris-pouch-64.webp",
+  "/assets/njambo/economy/energy-flask-64.webp",
+  "/assets/njambo/ui/icons/history-64.webp",
+  "/assets/njambo/ui/icons/trophy-64.webp",
+  "/assets/njambo/ui/icons/profile-64.webp",
+  ...RANK_BADGES_64,
+] as const;
+
+/** Collection : toutes les cartes actives visibles dans le classeur (≤ 24) en critique, le reste ensuite. */
 function powerCollectionManifest(): AssetManifest {
-  const arts = listPowerModules().filter((entry) => !entry.dev && !entry.def.archived).map((entry) => imageAsset(entry.def.art)).filter(Boolean) as AssetRef[];
-  return { critical: arts.slice(0, 12), background: [...arts.slice(12), ...catalogPowerAssets()] };
+  const arts = listPowerModules()
+    .filter((entry) => !entry.dev && !entry.def.archived)
+    .map((entry) => imageAsset(entry.def.art))
+    .filter(Boolean) as AssetRef[];
+  return {
+    critical: arts.slice(0, 24),
+    background: [
+      ...arts.slice(24),
+      ...SHOP_STATIC.map((url) => imageAsset(url)!),
+      ...catalogPowerAssets(),
+    ],
+  };
 }
 
 /** Liste des événements : icônes + vignettes des événements connus. */
@@ -207,6 +353,21 @@ export function eventDetailManifest(event: EventLike): AssetManifest {
 /** Manifeste statique d'une scène de navigation (pour la porte et le préchargement d'approche). */
 export function sceneManifest(scene: string): AssetManifest {
   switch (scene) {
+    case "menu":
+      return menuManifest();
+    case "play":
+    case "bot_setup":
+    case "online_setup":
+    case "friends_invite":
+      return { critical: PLAY_STATIC.map((url) => imageAsset(url)!), background: [] };
+    case "minigames":
+      return { critical: MINIGAMES_STATIC.map((url) => imageAsset(url)!), background: [] };
+    case "wallet":
+      return { critical: WALLET_STATIC.map((url) => imageAsset(url)!), background: [] };
+    case "profile":
+    case "leaderboard":
+    case "friends":
+      return { critical: PROFILE_STATIC.map((url) => imageAsset(url)!), background: [] };
     case "shop":
     case "power_shop":
       return { critical: SHOP_STATIC.map((url) => imageAsset(url)!), background: catalogPowerAssets() };

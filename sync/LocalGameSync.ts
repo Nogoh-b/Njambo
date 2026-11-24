@@ -466,7 +466,8 @@ export class LocalGameSync implements GameSyncActions {
     if (this.trickPlays.length === ps.length) {
       const led = this.trickPlays[0].card.suit;
       const win = trickWinner(this.trickPlays, led);
-      const rewards = applyTrickPowerRewards(this.activePowerEffects, this.trickNo, win, this.pot);
+      // Dernier pli : les bonus « si tu gagnes la manche » se règlent maintenant.
+      const rewards = applyTrickPowerRewards(this.activePowerEffects, this.trickNo, win, this.pot, this.trickNo >= this.opts.cfg.cardsPerPlayer);
       this.pot = rewards.pot;
       this.activePowerEffects = rewards.effects;
       this.dominantIdx = win;

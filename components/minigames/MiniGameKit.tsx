@@ -4,7 +4,7 @@
    chances », zone de jeu, bouton), bouton de lancement (coût ou « Gratuit »),
    fenêtre de gain et fenêtre des probabilités. */
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import type { ReactNode } from "react";
 import { GameModal } from "@/components/ui/GameModal";
 import { miniGameOdds, type MiniGameDef, type Reward } from "@/domain";

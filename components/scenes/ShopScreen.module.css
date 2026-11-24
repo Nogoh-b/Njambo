@@ -103,7 +103,7 @@
 
 @keyframes walletBump {
   0% { transform: scale(1); }
-  35% { transform: scale(1.16); box-shadow: 0 0 18px rgba(255, 207, 64, 0.72); }
+  35% { transform: scale(1.16); }
   100% { transform: scale(1); }
 }
 

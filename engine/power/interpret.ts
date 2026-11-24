@@ -35,8 +35,8 @@ export type ResolvedOp =
   /** deferred : le joueur n'est pas au tour → delta appliqué au début de SON tour. */
   | { op: "timerDelta"; seat: number; seconds: number; deferred: boolean }
   | { op: "boostNextCard"; seat: number; valueBonus?: number; suitOverride?: boolean }
-  | { op: "potBonus"; amount: number; when: "now" | "winTrick" }
-  | { op: "potMultiplier"; factor: number }
+  | { op: "potBonus"; amount: number; when: "now" | "winTrick" | "winRound" }
+  | { op: "potMultiplier"; factor: number; when: "winTrick" | "winRound" }
   | { op: "grantShield"; seat: number; blocks: PowerScriptTag[] }
   | { op: "refundOnLoss"; seat: number; ratio: number }
   | { op: "preventDoublePenalty"; seat: number };
@@ -223,7 +223,7 @@ export function interpretPowerScript(
           plan.push({ op: "potBonus", amount: op.amount, when: op.when });
           break;
         case "potMultiplier":
-          plan.push({ op: "potMultiplier", factor: op.factor });
+          plan.push({ op: "potMultiplier", factor: op.factor, when: op.when });
           break;
         case "grantShield": {
           for (const seat of resolvePlayerRef(op.player, refCtx)) {

@@ -622,8 +622,8 @@
 }
 
 @keyframes trophyFloat {
-  0%, 100% { transform: translateY(0) scale(1); box-shadow: 0 0 10px rgba(255, 207, 64, 0.3); }
-  50% { transform: translateY(-2.5px) scale(1.07); box-shadow: 0 0 18px rgba(255, 207, 64, 0.62); }
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-2.5px) scale(1.07); }
 }
 
 .cardCountdown {

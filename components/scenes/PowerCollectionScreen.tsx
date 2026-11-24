@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import {
   useCallback,
   useEffect,
@@ -85,12 +85,7 @@ export function PowerCollectionScreen() {
   const [hoverOutsideTray, setHoverOutsideTray] = useState(false);
   const [snappedSlot, setSnappedSlot] = useState<number | null>(null);
   const [feedback, setFeedback] = useState<string | null>(null);
-  const [tilt, setTilt] = useState<{ rx: number; ry: number; gx: number; gy: number }>({
-    rx: 0,
-    ry: 0,
-    gx: 50,
-    gy: 35,
-  });
+  const tiltShellRef = useRef<HTMLDivElement | null>(null);
 
   const slotRefs = useRef<Array<HTMLDivElement | null>>([null, null, null]);
   const trayRef = useRef<HTMLDivElement | null>(null);
@@ -476,19 +471,23 @@ export function PowerCollectionScreen() {
 
   const handleInspectorMove = (e: ReactPointerEvent<HTMLDivElement>) => {
     if (!loopsOn) return;
-    const rect = e.currentTarget.getBoundingClientRect();
+    const target = tiltShellRef.current ?? e.currentTarget;
+    const rect = target.getBoundingClientRect();
     const px = (e.clientX - rect.left) / rect.width;
     const py = (e.clientY - rect.top) / rect.height;
-    setTilt({
-      rx: (0.5 - py) * 16,
-      ry: (px - 0.5) * 18,
-      gx: Math.round(px * 100),
-      gy: Math.round(py * 100),
-    });
+    target.style.setProperty("--rx", `${((0.5 - py) * 16).toFixed(2)}deg`);
+    target.style.setProperty("--ry", `${((px - 0.5) * 18).toFixed(2)}deg`);
+    target.style.setProperty("--gx", `${Math.round(px * 100)}%`);
+    target.style.setProperty("--gy", `${Math.round(py * 100)}%`);
   };
 
   const resetInspectorTilt = () => {
-    setTilt({ rx: 0, ry: 0, gx: 50, gy: 35 });
+    const target = tiltShellRef.current;
+    if (!target) return;
+    target.style.setProperty("--rx", "0deg");
+    target.style.setProperty("--ry", "0deg");
+    target.style.setProperty("--gx", "50%");
+    target.style.setProperty("--gy", "35%");
   };
 
   const inspected = POWER_CARDS_BY_ID[selectedId] ?? POWER_CARDS[0];
@@ -727,15 +726,16 @@ export function PowerCollectionScreen() {
               <span className={styles.inspectorSunburst} aria-hidden="true" />
 
               <div
+                ref={tiltShellRef}
                 className={styles.tiltCardShell}
                 onPointerMove={handleInspectorMove}
                 onPointerLeave={resetInspectorTilt}
                 style={
                   {
-                    "--rx": `${tilt.rx}deg`,
-                    "--ry": `${tilt.ry}deg`,
-                    "--gx": `${tilt.gx}%`,
-                    "--gy": `${tilt.gy}%`,
+                    "--rx": "0deg",
+                    "--ry": "0deg",
+                    "--gx": "50%",
+                    "--gy": "35%",
                   } as CSSProperties
                 }
               >

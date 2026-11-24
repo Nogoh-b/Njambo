@@ -45,11 +45,26 @@ const nextConfig: NextConfig = {
     root: process.cwd(),
   },
   images: {
-    // Les assets sont déjà en .webp ; on sert directement ce format.
+    // Tous les assets locaux sont déjà générés en .webp aux tailles cibles
+    // (64 / 128 / 256 / 480 px). Servir les URLs directement sans proxy
+    // /_next/image garantit 100 % de partage du cache avec AssetLoader et le
+    // Service Worker, élimine les doubles requêtes et supprime le ré-encodage VPS.
+    unoptimized: true,
     formats: ["image/webp"],
-    // Cache HTTP long de /_next/image : les icônes/fonds réutilisés entre
-    // écrans ne sont plus re-fetchés à chaque navigation (juste re-décodés).
     minimumCacheTTL: 60 * 60 * 24 * 30,
+  },
+  async headers() {
+    return [
+      {
+        source: "/assets/:path*",
+        headers: [
+          {
+            key: "Cache-Control",
+            value: "public, max-age=604800, stale-while-revalidate=2592000",
+          },
+        ],
+      },
+    ];
   },
 };
 

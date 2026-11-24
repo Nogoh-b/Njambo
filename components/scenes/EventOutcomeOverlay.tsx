@@ -1,6 +1,6 @@
 "use client";
 
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { useEffect, useRef, type CSSProperties } from "react";
 import type { EventVersion } from "@/domain";
 import type { EventOutcome } from "@/lib/eventOutcome";

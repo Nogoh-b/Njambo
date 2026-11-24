@@ -55,71 +55,55 @@
   padding-bottom: var(--nj-edge-pad, 0px);
   transform-origin: 50% 100%;
   transform: translateX(-50%) translateY(6%) scale(0.84);
-  filter: brightness(0.74) saturate(0.82);
+  opacity: 0.76;
   transition:
     transform 400ms cubic-bezier(0.25, 0.9, 0.35, 1),
-    filter 340ms ease,
     opacity 300ms ease;
-  will-change: transform;
+  will-change: transform, opacity;
 }
 
 .root[data-variant="opponent"] {
   transform: translateX(-50%) translateY(6%) scale(0.84);
-  filter: brightness(0.7) saturate(0.8);
+  opacity: 0.72;
 }
 
 .root[data-state="dealing"] {
   transform: translateX(-50%) translateY(2%) scale(0.96);
-  filter: brightness(0.96) saturate(0.98);
+  opacity: 0.92;
   transition:
     transform 360ms cubic-bezier(0.22, 1, 0.36, 1),
-    filter 280ms ease,
     opacity 280ms ease;
 }
 
 .root[data-variant="opponent"][data-state="dealing"] {
   transform: translateX(-50%) translateY(4%) scale(0.88);
-  filter: brightness(0.82) saturate(0.9);
+  opacity: 0.84;
 }
 
 .root[data-state="active"] {
   transform: translateX(-50%) translateY(0%) scale(1.06);
-  filter:
-    brightness(1.16)
-    saturate(1.16)
-    drop-shadow(0 -6px 22px rgba(255, 207, 64, 0.46));
+  opacity: 1;
   transition:
     transform 400ms cubic-bezier(0.22, 1.12, 0.36, 1),
-    filter 300ms ease,
     opacity 260ms ease;
 }
 
 .root[data-variant="opponent"][data-state="active"] {
   transform: translateX(-50%) translateY(0%) scale(1.1);
-  filter:
-    brightness(1.18)
-    saturate(1.2)
-    drop-shadow(0 -5px 18px rgba(255, 207, 64, 0.52));
+  opacity: 1;
 }
 
 .root[data-state="ngata"] {
   transform: translateX(-50%) translateY(0%) scale(1.08);
-  filter:
-    brightness(1.18)
-    saturate(1.24)
-    drop-shadow(0 -8px 26px rgba(255, 91, 127, 0.56));
+  opacity: 1;
   transition:
     transform 400ms cubic-bezier(0.22, 1.14, 0.36, 1),
-    filter 300ms ease,
     opacity 260ms ease;
 }
 
 .root[data-variant="opponent"][data-state="ngata"] {
   transform: translateX(-50%) translateY(0%) scale(1.12);
-  filter:
-    brightness(1.2)
-    saturate(1.26)
-    drop-shadow(0 -6px 20px rgba(255, 91, 127, 0.6));
+  opacity: 1;
 }
 
 .root[data-motion="false"] {
@@ -180,7 +164,6 @@
   height: 100%;
   object-fit: contain;
   object-position: bottom center;
-  filter: drop-shadow(0 -6px 14px rgba(0, 0, 0, 0.54));
 }
 
 /* Calque de surbrillance circulaire superposé à N'IMPORTE QUEL asset équipé */

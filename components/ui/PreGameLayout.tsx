@@ -1,7 +1,7 @@
 "use client";
 
 import { useId, type ReactNode } from "react";
-import Image from "next/image";
+import Image from "@/components/ui/GameImage";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { GameShell } from "@/components/ui/GameShell";
 import type { GameTone } from "@/components/ui/GamePrimitives";

@@ -63,6 +63,7 @@ interface Flight {
   released: boolean;
   /** Pose finale dessinée (le sprite sera retiré à l'image suivante). */
   finalShown: boolean;
+  glowActive: boolean;
   spriteId: string;
 }
 
@@ -256,7 +257,7 @@ function emitSpark(ctx: ChoreoContext, at: Point, seed: number, color: string) {
 
 /* ─────────────── Lecture ─────────────── */
 
-function applyFrame(flight: Flight, frame: CardFrame, width: number, sink: boolean, blur: number, color: string) {
+function applyFrame(flight: Flight, frame: CardFrame, width: number, sink: boolean, color: string) {
   const height = width * CARD_RATIO;
   const lift = frame.lift * width * LIFT_RATIO;
   const scale = frame.scale;
@@ -264,13 +265,13 @@ function applyFrame(flight: Flight, frame: CardFrame, width: number, sink: boole
   const hidden = frame.phase === "waiting" || (frame.phase === "landed" && sink);
   flight.root.style.opacity = hidden ? "0" : Math.max(0, Math.min(1, frame.opacity)).toFixed(3);
   flight.flipper.style.transform = `rotateY(${frame.flip.toFixed(1)}deg)`;
-  const glow = Math.max(0, Math.min(1, frame.glow));
-  const filters = [
-    `drop-shadow(0 ${(2 + frame.lift * 12).toFixed(1)}px ${(4 + frame.lift * 16).toFixed(1)}px rgba(0,0,0,${(0.3 + frame.lift * 0.25).toFixed(2)}))`,
-    glow > 0.01 ? `drop-shadow(0 0 ${(glow * 18).toFixed(1)}px ${color})` : "",
-    blur > 0.2 ? `blur(${blur.toFixed(2)}px)` : "",
-  ].filter(Boolean).join(" ");
-  for (const face of flight.faces) face.style.filter = filters;
+  const glowActive = frame.glow > 0.15;
+  if (glowActive !== flight.glowActive) {
+    flight.glowActive = glowActive;
+    flight.flipper.style.boxShadow = glowActive
+      ? `0 10px 22px rgba(0, 0, 0, 0.44), 0 0 18px ${color}`
+      : "0 10px 22px rgba(0, 0, 0, 0.44)";
+  }
 }
 
 /** Joue un modèle ; se résout à la fin du dernier vol et de la dernière réaction. Les cartes (et la couronne) restent
@@ -307,22 +308,25 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
   const width = clamp(Math.max(first.cardWidth ?? 0, firstTo.cardWidth ?? 0) || 62, 40, 96);
 
   const flights: Flight[] = [];
-  const spriteIds: string[] = [];
-  await Promise.all(ids.map((cardId, k) => {
+  const spriteSpecs = ids.map((cardId, k) => {
     const card = cardId.startsWith("ghost_") && !run.cards ? null : ctx.visibleCard(cardId, k, cards);
     const spriteId = `${run.id}_${k}_${Math.random().toString(36).slice(2, 7)}`;
-    spriteIds.push(spriteId);
-    return ctx.layer.spawnCard({ id: spriteId, card, width }).then((nodes) => {
-      if (!nodes) return;
-      nodes.root.style.opacity = "0";
-      flights.push({
-        k, cardId, card, fromUi: fromUis[k], toUi: toUis[k], fromIdx: fromIdx[k], toIdx: toIdx[k],
-        startMs: schedule[k].startMs, endMs: schedule[k].endMs,
-        root: nodes.root, flipper: nodes.flipper, faces: Array.from(nodes.flipper.children) as HTMLElement[],
-        frozenFrom: null, lastTo: null, history: [], emittedSparks: 0, departed: false, landed: false, released: false, finalShown: false, spriteId,
-      });
+    return { id: spriteId, card, width, cardId, k };
+  });
+  const spawned = ctx.layer.spawnCards
+    ? await ctx.layer.spawnCards(spriteSpecs.map(({ id, card, width: w }) => ({ id, card, width: w })))
+    : await Promise.all(spriteSpecs.map(({ id, card, width: w }) => ctx.layer.spawnCard({ id, card, width: w })));
+  spawned.forEach((nodes, idx) => {
+    if (!nodes) return;
+    const spec = spriteSpecs[idx]!;
+    nodes.root.style.opacity = "0";
+    flights.push({
+      k: spec.k, cardId: spec.cardId, card: spec.card, fromUi: fromUis[spec.k], toUi: toUis[spec.k], fromIdx: fromIdx[spec.k], toIdx: toIdx[spec.k],
+      startMs: schedule[spec.k].startMs, endMs: schedule[spec.k].endMs,
+      root: nodes.root, flipper: nodes.flipper, faces: Array.from(nodes.flipper.children) as HTMLElement[],
+      frozenFrom: null, lastTo: null, history: [], emittedSparks: 0, departed: false, landed: false, released: false, finalShown: false, glowActive: false, spriteId: spec.id,
     });
-  }));
+  });
   flights.sort((a, b) => a.k - b.k);
   if (spriteEls) spriteEls.set(run.id, flights.map((flight) => flight.root));
 
@@ -353,13 +357,15 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
       const realId = run.cards ? flight.cardId : undefined;
       if (local >= 0 && !flight.frozenFrom) flight.frozenFrom = slotOf(ctx, motif.from, flight.fromUi, flight.fromIdx, realId);
       const from = flight.frozenFrom ?? slotOf(ctx, motif.from, flight.fromUi, flight.fromIdx, realId);
-      const to = inPlace ? from : local <= motif.durationMs || !flight.lastTo ? slotOf(ctx, motif.to, flight.toUi, flight.toIdx, realId) : flight.lastTo;
+      const needsLiveTo = !inPlace && (!flight.lastTo || (motif.to.zone === "hand" && spreads.length > 0 && local >= 0 && local <= motif.durationMs));
+      const to = inPlace ? from : needsLiveTo ? slotOf(ctx, motif.to, flight.toUi, flight.toIdx, realId) : flight.lastTo!;
       flight.lastTo = to;
       const fromSlot = { ...from, scale: from.cardWidth ? from.cardWidth / width : from.scale };
       const toSlot = { ...to, scale: to.cardWidth ? to.cardWidth / width : to.scale, face: motif.to.zone === "offscreen" ? from.face : to.face };
       return { flight, local, frame: sampleFlight(motif, { from: fromSlot, to: toSlot }, local) };
     });
 
+    const toRemove: string[] = [];
     for (const { flight, local, frame } of frames) {
       if (local >= 0 && !flight.departed) {
         flight.departed = true;
@@ -378,28 +384,21 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
       }
       const settledAt = motif.durationMs + (motif.squash && !inPlace ? SQUASH_MS : 0);
       if (run.release === "landing" && !flight.released && local >= settledAt) {
-        // La pose finale est d'abord dessinée (image ci-dessous), la carte volante n'est retirée qu'à l'image
-        // suivante : sinon la dernière image visible reste « juste avant l'arrivée » (quelques px d'écart).
         if (flight.finalShown) {
           flight.released = true;
-          ctx.layer.removeCard(flight.spriteId);
+          toRemove.push(flight.spriteId);
           continue;
         }
         flight.finalShown = true;
       }
       if (flight.released) continue;
-      let blur = 0;
-      if (motif.trail === "blur" && frame.phase === "flying" && !ctx.lite) {
-        const previous = flight.history[flight.history.length - 1];
-        if (previous) blur = Math.min(3, Math.hypot(frame.x - previous.x, frame.y - previous.y) * 0.12);
+      if (frame.phase === "flying" && afterimages > 0) {
+        flight.history.push({ x: frame.x, y: frame.y });
+        if (flight.history.length > 12) flight.history.shift();
       }
-      if (frame.phase === "flying") flight.history.push({ x: frame.x, y: frame.y });
-      if (flight.history.length > 12) flight.history.shift();
-      // Une vraie carte qui se pose dans une main ou sur un dépôt : son soulèvement retombe à zéro dans le dernier
-      // quart du vol, sinon elle « saute » de quelques pixels quand la vraie carte apparaît (« vol actuel » : 12 px).
       const settles = run.mode === "move" && !inPlace && (motif.to.zone === "hand" || motif.to.zone === "deposit");
       const landed = settles ? { ...frame, lift: frame.lift * clamp((motif.durationMs - local) / (motif.durationMs * LIFT_SETTLE), 0, 1) } : frame;
-      applyFrame(flight, landed, width, sink, blur, color);
+      applyFrame(flight, landed, width, sink, color);
 
       // Traînée lumineuse : reflets qui suivent la carte avec un léger retard.
       if (afterimages) {
@@ -430,6 +429,10 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
         while (flight.emittedSparks < due) emitSpark(ctx, frame, flight.k * 977 + flight.emittedSparks++, color);
       }
     }
+    if (toRemove.length > 0) {
+      if (ctx.layer.removeCards) ctx.layer.removeCards(toRemove);
+      else toRemove.forEach((id) => ctx.layer.removeCard(id));
+    }
 
     for (const spread of spreads) {
       if (!spread.done && elapsed >= spread.atMs) {
@@ -449,7 +452,13 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
   }
   ghostNodes.forEach((nodes) => nodes.forEach((node) => node.remove()));
   // Sur place : la vraie carte réapparaît, le sprite n'a plus lieu d'être.
-  if (run.release === "end" || run.release === "landing" || (inPlace && (motif.from.zone === "hand" || motif.from.zone === "deposit"))) spriteIds.forEach((id) => ctx.layer.removeCard(id));
+  if (run.release === "end" || run.release === "landing" || (inPlace && (motif.from.zone === "hand" || motif.from.zone === "deposit"))) {
+    const remaining = flights.filter((f) => !f.released).map((f) => f.spriteId);
+    if (remaining.length > 0) {
+      if (ctx.layer.removeCards) ctx.layer.removeCards(remaining);
+      else remaining.forEach((id) => ctx.layer.removeCard(id));
+    }
+  }
   // Moments du jeu : leur calque n'est vidé qu'en fin de manche, rien ne doit rester (couronne posée sur un dépôt déjà ramassé).
   if (run.release === "end" || run.release === "landing") {
     for (const node of kept) void node.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 240, fill: "forwards" }).finished.then(() => node.remove(), () => node.remove());

@@ -170,8 +170,8 @@ function describe(op: ResolvedOp, before: SandboxTable): string {
     case "timerFreeze": return `Minuteur de ${name(op.seat)} gelé ${op.durationMs / 1000} s.`;
     case "timerDelta": return `Minuteur de ${name(op.seat)} : ${op.seconds > 0 ? "+" : ""}${op.seconds} s${op.deferred ? " (au début de son tour)" : ""}.`;
     case "boostNextCard": return `${name(op.seat)} : prochaine carte${op.valueBonus ? ` +${op.valueBonus}` : ""}${op.suitOverride ? ", prend la couleur demandée" : ""}.`;
-    case "potBonus": return `Pot +${op.amount} Nkap${op.when === "winTrick" ? " si le pli est gagné" : ""}.`;
-    case "potMultiplier": return `Pot ×${op.factor} si le pli est gagné.`;
+    case "potBonus": return `Pot +${op.amount} Nkap${op.when === "winTrick" ? " si le pli est gagné" : op.when === "winRound" ? " si la manche est gagnée" : ""}.`;
+    case "potMultiplier": return `Pot ×${op.factor} si ${op.when === "winRound" ? "la manche" : "le pli"} est gagné${op.when === "winRound" ? "e" : ""}.`;
     case "grantShield": return `${name(op.seat)} protégé (bloque : ${op.blocks.join(", ") || "tout"}).`;
     case "refundOnLoss": return `${name(op.seat)} : ${Math.round(op.ratio * 100)} % de la mise remboursés en cas de défaite.`;
     case "preventDoublePenalty": return `${name(op.seat)} : pas de double pénalité.`;
