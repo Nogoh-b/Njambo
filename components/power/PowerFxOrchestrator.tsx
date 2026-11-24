@@ -226,18 +226,47 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     }
     if (!activation.used) return; // sans effet → pas de cues
 
-    // Prochaine carte renforcée : la charge s'affiche après l'annonce et la mise en scène d'activation.
-    const boost = powerModule.script.steps.flatMap((step) => step.ops ?? []).find((op) => op.op === "boostNextCard" && op.player === "self" && (op.valueBonus || op.suitOverride));
+    // Effets « jusqu'à la prochaine carte » (renfort, couleur, carte imposée) : visibles après l'annonce et la
+    // mise en scène d'activation, jusqu'à ce que le joueur concerné pose une carte.
+    const ops = powerModule.script.steps.flatMap((step) => step.ops ?? []);
+    const pendingCharges: PowerCharge[] = [];
+    const boost = ops.find((op) => op.op === "boostNextCard" && op.player === "self" && (op.valueBonus || op.suitOverride));
     if (boost && boost.op === "boostNextCard" && activatorUi != null) {
-      const charge: PowerCharge = {
+      const suit = boost.suitOverride ? d.getLedSuit?.() ?? undefined : undefined;
+      pendingCharges.push({
         key: activation.playId,
         ui: activatorUi,
-        valueBonus: boost.valueBonus ?? 0,
-        suit: boost.suitOverride ? d.getLedSuit?.() ?? undefined : undefined,
+        valueBonus: boost.valueBonus,
+        suit,
+        handTag: boost.valueBonus ? `⚡ Prochaine carte +${boost.valueBonus}` : `⇄ Prochaine carte en ${suit ?? "couleur demandée"}`,
+        avatarTag: boost.valueBonus ? `⚡ +${boost.valueBonus}` : `⇄ ${suit ?? "couleur"}`,
+        landing: boost.valueBonus ? "bolt" : "dye",
         tone: def.tone,
         depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
-      };
-      const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => item.ui !== charge.ui), charge]), d.motionEnabled ? d.overlayMs + 1100 : 0);
+      });
+    }
+    const forcedPlay = ops.find((op) => op.op === "restrictNextPlay" && op.mode === "forceSelector" && op.player === "target");
+    const forcedUi = d.uiIndexFromUid(activation.targetUid);
+    if (forcedPlay && forcedPlay.op === "restrictNextPlay" && forcedUi != null && (forcedPlay.select.kind === "weakest" || forcedPlay.select.kind === "strongest")) {
+      const force = forcedPlay.select.kind;
+      const which = force === "weakest" ? "faible" : "forte";
+      pendingCharges.push({
+        key: `${activation.playId}-force`,
+        ui: forcedUi,
+        force,
+        handTag: `⛓ ${def.name} : ta plus ${which} carte est imposée`,
+        avatarTag: `⛓ Plus ${which} imposée`,
+        landing: "spark",
+        tone: def.tone,
+        depositLen: d.getPlayers()[forcedUi]?.deposit.length ?? 0,
+      });
+    }
+    if (pendingCharges.length) {
+      const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && !!a.force === !!b.force;
+      const timer = setTimeout(() => setCharges((current) => [
+        ...current.filter((item) => !pendingCharges.some((charge) => sameKind(item, charge))),
+        ...pendingCharges,
+      ]), d.motionEnabled ? d.overlayMs + 1100 : 0);
       burstTimersRef.current.push(timer);
     }
 
@@ -728,7 +757,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
   const element: ReactNode = (
     <>
       <ChoreoLayer ref={choreoLayerRef} />
-      <PowerChargeLayer charges={charges} registry={deps.registry} getPlayers={deps.getPlayers} maxValue={GAME_CONFIG.ranks.max} motion={deps.motionEnabled} onConsumed={dropCharge} />
+      <PowerChargeLayer charges={charges} registry={deps.registry} getPlayers={deps.getPlayers} getLedSuit={deps.getLedSuit} maxValue={GAME_CONFIG.ranks.max} motion={deps.motionEnabled} onConsumed={dropCharge} />
       {deps.motionEnabled && bursts.length > 0 && (
         <PowerParticleLayer
           bursts={bursts}

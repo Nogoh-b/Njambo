@@ -232,6 +232,18 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(pagne.script.steps[0].ops).toEqual([{ op: "boostNextCard", player: "self", suitOverride: "led" }]);
     expect(pagne.script.conditions).toEqual([{ kind: "ledSuitKnown" }, { kind: "activatorLacksLedSuit" }]);
   });
+  it("Coupe-Circuit et Filet du Pêcheur : plus faible contre plus forte ; arc sur la main de la cible", () => {
+    const coupe = CODE_POWER_MODULES.coupe_circuit;
+    const filet = CODE_POWER_MODULES.filet_pecheur;
+    for (const card of [coupe, filet]) expect(validatePowerCard({ def: card.def, script: card.script } as never)).toEqual([]);
+    const selectOf = (card: typeof coupe) => (card.script.steps[0].ops?.[0] as { select: { kind: string } }).select.kind;
+    expect(selectOf(coupe)).toBe("weakest");
+    expect(selectOf(filet)).toBe("strongest");
+    const choreo = coupe.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(3_000);
+    expect(choreo.tracks.some((track) => track.kind === "element" && track.effect === "cut" && "player" in track.target && track.target.player === "target")).toBe(true);
+    expect(new Set(choreo.tracks.flatMap((track) => (track.kind === "text" ? [track.audience] : [])))).toEqual(new Set(["activator", "target", "bystanders"]));
+  });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;
     expect(validatePowerCard({ def: pacte.def, script: pacte.script } as never)).toEqual([]);
