@@ -1,28 +1,46 @@
 "use client";
 
-/* Choix du pack d'assets système utilisé dans tout le jeu (monnaies, énergie,
-   roue, packs boutique, tickets, livres, rangs). Les autres packs restent
-   installés et peuvent être réactivés à tout moment. */
+/* Choix des packs d'assets utilisés dans tout le jeu, en deux réglages
+   indépendants : assets système (monnaies, énergie, roue, packs boutique,
+   tickets, livres, rangs) et interface (icônes, navigation, cadres de boutons,
+   cartes de modes de jeu). Les autres packs restent installés. */
 
 import { useState } from "react";
-import { ASSET_PACKS, assetPackUrl, type AssetPackId } from "@/domain/assetPacks";
-import { setAssetPack, useAssetPack } from "@/lib/assetPack";
+import { ASSET_PACKS, assetPackUrl, type AssetPackId, type AssetPackScope } from "@/domain/assetPacks";
+import { setAssetPacks, useAssetPacks } from "@/lib/assetPack";
 import { useAssetPackSync } from "@/hooks/useAssetPackSync";
 import { adminApi, adminErrorText } from "./adminApi";
 import styles from "./AdminConsole.module.css";
 
-const PREVIEW = [
-  "/assets/njambo/economy/nkap-128.webp",
-  "/assets/njambo/economy/cauri-128.webp",
-  "/assets/njambo/economy/energy-flask-128.webp",
-  "/assets/njambo/tickets/ticket-or-128.webp",
-  "/assets/njambo/books/book-rare-128.webp",
-  "/assets/njambo/ranks/rank-legende-237-128.webp",
-];
+const SECTIONS: Record<AssetPackScope, { title: string; hint: string; preview: string[] }> = {
+  system: {
+    title: "Pack d'assets système",
+    hint: "Monnaies, énergie, roue, packs boutique, tickets, livres et rangs.",
+    preview: [
+      "/assets/njambo/economy/nkap-128.webp",
+      "/assets/njambo/economy/cauri-128.webp",
+      "/assets/njambo/economy/energy-flask-128.webp",
+      "/assets/njambo/tickets/ticket-or-128.webp",
+      "/assets/njambo/books/book-rare-128.webp",
+      "/assets/njambo/ranks/rank-legende-237-128.webp",
+    ],
+  },
+  interface: {
+    title: "Pack d'interface",
+    hint: "Icônes, icônes de navigation, cadres de boutons et cartes des modes de jeu.",
+    preview: [
+      "/assets/njambo/ui/icons/home-128.webp",
+      "/assets/njambo/ui/icons/trophy-128.webp",
+      "/assets/njambo/ui/icons/settings-128.webp",
+      "/assets/njambo/ui/icons/friends-128.webp",
+      "/assets/njambo/ui/icons/star-128.webp",
+      "/assets/njambo/ui/buttons/icon-plate-128.webp",
+    ],
+  },
+};
 
-export function AssetPackPanel() {
-  useAssetPackSync();
-  const active = useAssetPack();
+function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPackId }) {
+  const section = SECTIONS[scope];
   const [saving, setSaving] = useState<AssetPackId | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
 
@@ -30,10 +48,10 @@ export function AssetPackPanel() {
     setSaving(pack);
     setMessage(null);
     try {
-      await adminApi.saveAssetPack(pack);
-      setAssetPack(pack);
+      await adminApi.saveAssetPack(pack, scope);
+      setAssetPacks({ [scope]: pack });
       const name = ASSET_PACKS.find((item) => item.id === pack)?.name ?? pack;
-      setMessage({ kind: "ok", text: `Pack « ${name} » activé pour tous les joueurs. Il s'affiche au fil des écrans, et partout au prochain lancement du jeu.` });
+      setMessage({ kind: "ok", text: `« ${name} » activé pour tous les joueurs. Il s'affiche au fil des écrans, et partout au prochain lancement du jeu.` });
     } catch (error) {
       setMessage({ kind: "error", text: `Activation impossible : ${adminErrorText(error)}` });
     } finally {
@@ -43,9 +61,9 @@ export function AssetPackPanel() {
 
   return (
     <section className={styles.panel}>
-      <h2>Pack d&apos;assets du jeu</h2>
+      <h2>{section.title}</h2>
       <p className={styles.hint} style={{ marginTop: 0, marginBottom: 12 }}>
-        Monnaies, énergie, roue, packs boutique, tickets, livres et rangs. Un seul pack est utilisé à la fois ; les autres restent installés.
+        {section.hint} Un seul pack est utilisé à la fois ; les autres restent installés.
       </p>
       {message && <div className={`${styles.notice} ${styles[message.kind]}`}>{message.text}</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
@@ -60,9 +78,9 @@ export function AssetPackPanel() {
               }}
             >
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, background: "#0c0906", borderRadius: 8, padding: 6 }}>
-                {PREVIEW.map((path) => (
+                {section.preview.map((path) => (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img key={path} src={assetPackUrl(path, pack.id)} alt="" width={64} height={64} style={{ width: "100%", height: "auto" }} />
+                  <img key={path} src={assetPackUrl(path, pack.id, scope)} alt="" width={64} height={64} style={{ width: "100%", height: "auto" }} />
                 ))}
               </div>
               <div>
@@ -82,5 +100,16 @@ export function AssetPackPanel() {
         })}
       </div>
     </section>
+  );
+}
+
+export function AssetPackPanel() {
+  useAssetPackSync();
+  const active = useAssetPacks();
+  return (
+    <>
+      <PackSection scope="system" active={active.system} />
+      <PackSection scope="interface" active={active.interface} />
+    </>
   );
 }

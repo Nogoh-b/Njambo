@@ -170,7 +170,7 @@ export const adminApi = {
   saveCosmetic: (cosmetic: CosmeticDefinition) => call<{ cosmetic: CosmeticDefinition }>("saveCosmetic", { cosmetic }),
   saveCosmeticDefaults: (defaults: { cardBack?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null; handArc?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null }) =>
     call<{ defaults: DefaultCosmeticsConfig }>("saveCosmeticDefaults", { defaults }),
-  saveAssetPack: (pack: string) => call<{ pack: string }>("saveAssetPack", { pack }),
+  saveAssetPack: (pack: string, scope: "system" | "interface") => call<{ pack: string; scope: string }>("saveAssetPack", { pack, scope }),
   seasons: () => call<{ seasons: SeasonDefinition[]; now: number }>("listSeasons"),
   saveSeason: (season: SeasonDefinition) => call<{ season: SeasonDefinition }>("saveSeason", { season }),
   seasonStats: (seasonId: string) => call<{ players: number; premium: number; premiumRevenueXaf: number; averagePoints: number; tiers: Array<{ points: number; reached: number; claimedFree: number; claimedPremium: number }> }>("getSeasonStats", { seasonId }),

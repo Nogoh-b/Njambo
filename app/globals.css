@@ -574,7 +574,7 @@ button.nj-list-card {
 
 /* Surfaces raster 9-slice : le texte reste du HTML, les matières viennent des assets. */
 button[data-nj-skin]:not([data-nj-skin="none"]):not([data-nj-skin="icon"]):not(.nj-list-card):not([role="tab"]) {
-  --nj-button-frame: url("/assets/njambo/ui/buttons/dark-frame.webp");
+  --nj-button-frame: var(--nj-ui-frame-dark, url("/assets/njambo/ui/buttons/dark-frame.webp"));
   --nj-button-accent: var(--nj-solar-outline, #b88e54);
   --nj-button-surface:
     radial-gradient(circle at 84% 10%, color-mix(in srgb, var(--nj-button-accent) 16%, transparent), transparent 36%),
@@ -597,7 +597,7 @@ button[data-nj-skin]:not([data-nj-skin="none"]):not([data-nj-skin="icon"]):not(.
 
 button[data-nj-skin="gold"],
 .btn-gold {
-  --nj-button-frame: url("/assets/njambo/ui/buttons/gold-frame.webp");
+  --nj-button-frame: var(--nj-ui-frame-gold, url("/assets/njambo/ui/buttons/gold-frame.webp"));
   --nj-button-accent: var(--nj-solar-outline, #b88e54);
   --nj-button-surface:
     radial-gradient(circle at 78% 8%, rgba(255, 247, 228, 0.6), transparent 38%),
@@ -606,7 +606,7 @@ button[data-nj-skin="gold"],
 
 button[data-nj-skin="teal"],
 .btn-teal {
-  --nj-button-frame: url("/assets/njambo/ui/buttons/teal-frame.webp");
+  --nj-button-frame: var(--nj-ui-frame-teal, url("/assets/njambo/ui/buttons/teal-frame.webp"));
   --nj-button-accent: var(--nj-solar-green, #199b68);
   --nj-button-surface:
     radial-gradient(circle at 78% 8%, rgba(234, 247, 240, 0.7), transparent 38%),
@@ -615,7 +615,7 @@ button[data-nj-skin="teal"],
 
 button[data-nj-skin="pink"],
 .btn-pink {
-  --nj-button-frame: url("/assets/njambo/ui/buttons/pink-frame.webp");
+  --nj-button-frame: var(--nj-ui-frame-pink, url("/assets/njambo/ui/buttons/pink-frame.webp"));
   --nj-button-accent: var(--nj-solar-red, #e45145);
   --nj-button-surface:
     radial-gradient(circle at 78% 8%, rgba(253, 236, 232, 0.7), transparent 38%),
@@ -625,7 +625,7 @@ button[data-nj-skin="pink"],
 button[data-nj-skin="ghost"],
 .btn-ghost {
   --nj-button-accent: var(--nj-solar-outline, #b88e54);
-  --nj-button-frame: url("/assets/njambo/ui/buttons/ghost-frame.webp");
+  --nj-button-frame: var(--nj-ui-frame-ghost, url("/assets/njambo/ui/buttons/ghost-frame.webp"));
   --nj-button-surface:
     linear-gradient(155deg, var(--nj-solar-surface-strong, #f7ead0), #e6d3ae);
 }
@@ -633,7 +633,7 @@ button[data-nj-skin="ghost"],
 button[data-nj-skin="dark"],
 .btn-dark {
   --nj-button-accent: var(--nj-solar-card-edge, #765033);
-  --nj-button-frame: url("/assets/njambo/ui/buttons/dark-frame.webp");
+  --nj-button-frame: var(--nj-ui-frame-dark, url("/assets/njambo/ui/buttons/dark-frame.webp"));
   --nj-button-surface:
     linear-gradient(155deg, #ecd9b5, #d9ba82);
 }
@@ -718,7 +718,7 @@ button[data-nj-skin="icon"],
   border-image: none !important;
   border-color: transparent;
   background:
-    url("/assets/njambo/ui/buttons/icon-plate-128.webp") center / 112% 112% no-repeat,
+    var(--nj-ui-icon-plate, url("/assets/njambo/ui/buttons/icon-plate-128.webp")) center / 112% 112% no-repeat,
     transparent !important;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.34);
 }

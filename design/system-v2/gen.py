@@ -3,8 +3,12 @@ Usage : python3 gen.py && node ../cards-v2/render.js out/*.svg
 Chaque asset est dessiné une fois et décliné par thème (métal, émaux, halo)."""
 import math, os, random, sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "cards-v2"))
-from gen import COMMON, cowrie, glint, ring_pos  # noqa: E402
+import importlib.util
+
+# Primitives des cartes pouvoir (design/cards-v2/gen.py), chargées sous un autre nom.
+_spec = importlib.util.spec_from_file_location("cards_gen", os.path.join(os.path.dirname(__file__), "..", "cards-v2", "gen.py"))
+cards_gen = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(cards_gen)
+COMMON, cowrie, glint, ring_pos = cards_gen.COMMON, cards_gen.cowrie, cards_gen.glint, cards_gen.ring_pos
 
 S = 512; C = 256
 

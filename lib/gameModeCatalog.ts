@@ -1,5 +1,6 @@
 import type { NjamboIconName } from "@/components/ui/Art";
 import type { SceneName } from "@/types/game";
+import { sysAsset } from "@/lib/assetPack";
 
 export type GameModeTone = "gold" | "teal" | "pink";
 
@@ -35,7 +36,7 @@ export const GAME_MODE_CATALOG: ReadonlyArray<GameModeCatalogEntry> = [
     homeDescription: "Affronte le Ter et fais monter ton rang",
     icon: "online",
     tone: "teal",
-    art: "/assets/njambo/menu/mode-online.webp",
+    art: sysAsset("/assets/njambo/menu/mode-online.webp"),
     primary: true,
     guestAllowed: false,
     chips: [
@@ -54,7 +55,7 @@ export const GAME_MODE_CATALOG: ReadonlyArray<GameModeCatalogEntry> = [
     homeDescription: "Entraîne ton jeu à ton rythme",
     icon: "bot",
     tone: "gold",
-    art: "/assets/njambo/menu/mode-ai.webp",
+    art: sysAsset("/assets/njambo/menu/mode-ai.webp"),
     guestAllowed: true,
     chips: [
       { label: "5 énergie", icon: "spark" },
@@ -72,7 +73,7 @@ export const GAME_MODE_CATALOG: ReadonlyArray<GameModeCatalogEntry> = [
     homeDescription: "Invite ta bande autour de la table",
     icon: "friends",
     tone: "pink",
-    art: "/assets/njambo/menu/mode-friends.webp",
+    art: sysAsset("/assets/njambo/menu/mode-friends.webp"),
     guestAllowed: false,
     chips: [
       { label: "10 énergie", icon: "spark" },

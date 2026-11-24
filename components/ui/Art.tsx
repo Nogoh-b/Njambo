@@ -3,6 +3,7 @@
 import Image from "next/image";
 import type { CSSProperties } from "react";
 import { T } from "@/config/theme";
+import { sysAsset } from "@/lib/assetPack";
 
 export const NJAMBO_ICON_NAMES = [
   "bot", "cards", "check", "coin", "code", "copy", "crown", "cut",
@@ -106,7 +107,7 @@ export function NjamboIcon({ name, size = 28, tone = "gold", priority = false }:
   return (
     <span className={`njambo-asset-icon njambo-asset-icon--${tone}`} style={style} aria-hidden="true">
       <Image
-        src={`/assets/njambo/ui/icons/${ICON_ASSETS[name] ?? "spark"}-${sourceSize}.webp`}
+        src={sysAsset(`/assets/njambo/ui/icons/${ICON_ASSETS[name] ?? "spark"}-${sourceSize}.webp`)}
         alt=""
         width={size}
         height={size}
@@ -129,7 +130,7 @@ export function NjamboFriendlyIcon({
   return (
     <span className="njambo-friendly-icon" style={{ width: size, height: size }} aria-hidden="true">
       <Image
-        src={`/assets/njambo/friendly/icons/${name}.svg`}
+        src={sysAsset(`/assets/njambo/friendly/icons/${name}.svg`)}
         alt=""
         width={size}
         height={size}

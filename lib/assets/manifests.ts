@@ -84,21 +84,21 @@ const TABLE_UI_CRITICAL = [
   "/assets/njambo/ui/brand/njambo-mark-128.webp",
   sysAsset("/assets/njambo/economy/nkap-64.webp"),
   sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
-  "/assets/njambo/ui/icons/cards-64.webp",
-  "/assets/njambo/ui/icons/crown-64.webp",
-  "/assets/njambo/ui/icons/trophy-64.webp",
-  "/assets/njambo/ui/icons/coin-64.webp",
-  "/assets/njambo/ui/icons/check-64.webp",
-  "/assets/njambo/ui/icons/sparkle-64.webp",
-  "/assets/njambo/ui/icons/home-64.webp",
+  sysAsset("/assets/njambo/ui/icons/cards-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/crown-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/trophy-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/coin-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/check-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/sparkle-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/home-64.webp"),
 ] as const;
 
 const TABLE_UI_BACKGROUND = [
-  "/assets/njambo/ui/icons/hourglass-64.webp",
-  "/assets/njambo/ui/buttons/gold-frame.webp",
-  "/assets/njambo/ui/buttons/teal-frame.webp",
-  "/assets/njambo/ui/buttons/pink-frame.webp",
-  "/assets/njambo/ui/buttons/dark-frame.webp",
+  sysAsset("/assets/njambo/ui/icons/hourglass-64.webp"),
+  sysAsset("/assets/njambo/ui/buttons/gold-frame.webp"),
+  sysAsset("/assets/njambo/ui/buttons/teal-frame.webp"),
+  sysAsset("/assets/njambo/ui/buttons/pink-frame.webp"),
+  sysAsset("/assets/njambo/ui/buttons/dark-frame.webp"),
 ] as const;
 
 /**

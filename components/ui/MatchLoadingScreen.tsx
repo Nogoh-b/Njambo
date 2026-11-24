@@ -980,7 +980,7 @@ export function MatchLoadingScreen({
         <footer ref={bottomDockRef} className={styles.bottomDock}>
           <div className={styles.tipBanner}>
             <img
-              src="/assets/njambo/ui/icons/sparkle-64.webp"
+              src={sysAsset("/assets/njambo/ui/icons/sparkle-64.webp")}
               alt=""
               className={styles.tipIcon}
               draggable={false}

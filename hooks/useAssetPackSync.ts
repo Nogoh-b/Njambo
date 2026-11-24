@@ -1,11 +1,11 @@
 "use client";
 
-/* Suit le pack d'assets système choisi dans l'admin (runtime_config/asset_pack).
-   À monter une seule fois, à la racine de l'application. */
+/* Suit les packs d'assets choisis dans l'admin (runtime_config/asset_pack) :
+   assets système et interface. À monter une seule fois, à la racine de l'application. */
 
 import { useEffect } from "react";
-import { ASSET_PACK_DOC, readAssetPack } from "@/domain/assetPacks";
-import { setAssetPack, useAssetPack } from "@/lib/assetPack";
+import { ASSET_PACK_DOC, readAssetPacks } from "@/domain/assetPacks";
+import { setAssetPacks, useAssetPacks } from "@/lib/assetPack";
 import { db } from "@/lib/firebase";
 import { doc, onSnapshot } from "@/lib/firestoreClient";
 
@@ -14,13 +14,13 @@ export function useAssetPackSync() {
     try {
       return onSnapshot(
         doc(db, "runtime_config", ASSET_PACK_DOC),
-        (snapshot) => setAssetPack(readAssetPack(snapshot.exists() ? snapshot.data() : undefined)),
-        () => { /* hors ligne : on garde le dernier pack connu */ },
+        (snapshot) => setAssetPacks(readAssetPacks(snapshot.exists() ? snapshot.data() : undefined)),
+        () => { /* hors ligne : on garde les derniers packs connus */ },
       );
     } catch {
       return undefined;
     }
   }, []);
-  // Re-rendu de la racine quand le pack change : les écrans affichés reprennent le nouveau pack.
-  return useAssetPack();
+  // Re-rendu de la racine quand un pack change : les écrans affichés reprennent les nouveaux packs.
+  return useAssetPacks();
 }
