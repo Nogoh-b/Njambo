@@ -52,8 +52,9 @@ export const ELEMENT_EFFECTS = {
   hand: ["fanOpen", "tighten", "shake", "glow", "veil", "ripple", "read", "advise", "strike", "dye", "cut", "net", "stamp"],
   deposit: ["pulse", "suck", "eject", "glow", "seal"],
   deck: ["pulse", "shuffle", "spit", "shake", "glow"],
-  /* drain : un sablier se retourne au-dessus de l'avatar, son sable coule dans l'anneau du minuteur (« −6 s » en `label`). */
-  timer: ["freeze", "speedUp", "rewind", "crack", "blink", "tint", "delta", "drain"],
+  /* drain : un sablier se retourne au-dessus de l'avatar, son sable coule dans l'anneau du minuteur (« −6 s » en `label`) ;
+     shout : des ondes de cri partent de cet avatar et frappent le minuteur de chaque adversaire (`label` sur chacun). */
+  timer: ["freeze", "speedUp", "rewind", "crack", "blink", "tint", "delta", "drain", "shout"],
   avatar: ["auraShield", "auraMask", "auraTotem", "auraLucky", "shake", "halo", "bounce"],
   pot: ["flash", "coinRain", "grow", "label"],
 } as const;

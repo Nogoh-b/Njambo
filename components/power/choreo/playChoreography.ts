@@ -785,6 +785,53 @@ async function playTimerDrain(ctx: ChoreoContext, ui: number, durationMs: number
   grains.remove();
 }
 
+/** Cri : l'avatar du lanceur enfle et trois ondes sonores (arcs épais) partent vers la table ; quand une onde atteint le
+ *  minuteur d'un adversaire, celui-ci tremble, flashe et `label` (« −3 s ») s'en envole. */
+async function playTimerShout(ctx: ChoreoContext, ui: number, durationMs: number, color: string, intensity: number, label?: string) {
+  const source = ctx.registry.timer(ui);
+  const rect = source?.getRect();
+  const host = ctx.layer.container();
+  if (!source || !rect || !host) return;
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  // Adversaires : tous les autres sièges qui ont un minuteur à l'écran.
+  const victims = ctx.resolveRefUi("all_opponents")
+    .filter((other) => other !== ui)
+    .map((other) => ({ ui: other, rect: ctx.registry.timer(other)?.getRect() ?? null }))
+    .filter((victim): victim is { ui: number; rect: DOMRect } => !!victim.rect);
+  const reach = Math.max(120, ...victims.map((victim) => Math.hypot(victim.rect.left + victim.rect.width / 2 - cx, victim.rect.top + victim.rect.height / 2 - cy) + 30));
+  const waveMs = Math.min(900, durationMs * 0.55);
+  // L'avatar du lanceur enfle (il crie).
+  const el = source.getElement?.();
+  // Propriétés `scale` / `translate` séparées : le placement de l'avatar (souvent un `transform`) reste intact.
+  if (el && !ctx.lite) void el.animate([{ scale: "1" }, { scale: "1.18", offset: 0.25 }, { scale: "1" }], { duration: 520, easing: "ease-out" });
+  ctx.impactShake(intensity);
+  const waves: Promise<void>[] = [];
+  for (let i = 0; i < 3; i++) {
+    const ring = document.createElement("div");
+    ring.setAttribute("data-choreo-fx", "shout");
+    Object.assign(ring.style, {
+      position: "absolute", left: `${cx - reach}px`, top: `${cy - reach}px`, width: `${reach * 2}px`, height: `${reach * 2}px`,
+      borderRadius: "50%", border: `${6 - i * 1.5}px solid ${color}`, boxShadow: `0 0 18px ${color}, inset 0 0 18px ${color}`, pointerEvents: "none",
+    });
+    host.appendChild(ring);
+    waves.push(finished(ring.animate([{ transform: "scale(.06)", opacity: 0.95 }, { transform: "scale(1)", opacity: 0 }], { duration: waveMs, delay: i * 150, easing: "cubic-bezier(.2,.6,.3,1)", fill: "forwards" })).then(() => ring.remove()));
+  }
+  // La première onde atteint chaque adversaire selon sa distance : secousse, éclat, « −3 s ».
+  const seconds = Number.parseInt(String(label ?? "").replace("−", "-"), 10);
+  const hits = victims.map((victim) => {
+    const distance = Math.hypot(victim.rect.left + victim.rect.width / 2 - cx, victim.rect.top + victim.rect.height / 2 - cy);
+    const at = waveMs * Math.min(1, Math.sqrt(distance / reach));
+    return sleep(at).then(() => {
+      const timer = ctx.registry.timer(victim.ui);
+      const node = timer?.getElement?.();
+      if (node && !ctx.lite) void node.animate([0, -1, 1, -1, 1, 0].map((s, k, all) => ({ translate: `${s * 4}px 0`, offset: k / (all.length - 1) })), { duration: 360 });
+      ctx.burst("time", victim.rect, ctx.defaultTone, "standard", 700);
+      if (Number.isFinite(seconds)) timer?.showDelta(seconds);
+    });
+  });
+  await Promise.all([...waves, ...hits, sleep(durationMs)]);
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -824,6 +871,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
     // Sablier qui se vide dans le minuteur (Sable du Temps) : rendu propre, voir playTimerDrain.
     if (target.element === "timer" && effect === "drain" && hit.ui !== undefined) {
       jobs.push(playTimerDrain(ctx, hit.ui, track.durationMs, color, track.label));
+      continue;
+    }
+    // Cri (Cri du Chef) : ondes depuis cet avatar jusqu'au minuteur de chaque adversaire, voir playTimerShout.
+    if (target.element === "timer" && effect === "shout" && hit.ui !== undefined) {
+      jobs.push(playTimerShout(ctx, hit.ui, track.durationMs, color, intensity, track.label));
       continue;
     }
     if (target.element === "timer" || target.element === "avatar") {

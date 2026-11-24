@@ -31,7 +31,7 @@ Ordre par famille : la première carte d'une famille construit ce que les suivan
 
 ### 4. Temps
 - [ ] Sable du Temps — **en cours** : règle changée (−6 s au prochain tour de la cible, plus de gel) et mise en scène écrites, vérifiées dans le bac à sable ; reste publication (accord) et commit
-- [ ] Cri du Chef
+- [ ] Cri du Chef — **en cours** : mise en scène écrite (règle gardée), vérifiée dans le bac à sable ; reste publication (accord) et commit
 - [ ] Tambour d'Appel
 
 ### 5. Pot
@@ -129,3 +129,5 @@ Briques ajoutées : publics de texte « la cible » et « ni le lanceur ni la ci
 - 2026-11-24 — Publiées en base de dev : Sceau d'Entrave rév. 2 (C2) et Filet du Pêcheur rév. 4 (Projecteur, sans filet), identiques au code.
 - 2026-11-24 — Sable du Temps : l'ancienne règle « gèle le timer de la cible 10 s » DONNAIT du temps à la cible (en local, son minuteur s'arrêtait) et n'avait aucun effet en ligne (le gel n'est pris en compte que si la cible joue à ce moment). Nouvelle règle (choix) : la cible perd 6 secondes au début de son prochain tour (opération timerDelta −6, différée par le moteur ; Cri du Chef −3 s à tous, Tambour d'Appel +8 s pour soi). Mise en scène : un sablier de verre apparaît près de l'avatar de la cible, se retourne, son sable coule en grains dans l'anneau de son minuteur, qui pâlit ; « −6 s » s'envole (nouvel effet de minuteur « Sablier qui se vide ») ; textes pour le lanceur, la cible et les autres ; puis « ⏳ −6 s » sous l'avatar de la cible pour tous (et bandeau chez elle) jusqu'à sa carte. Vérifié dans le bac à sable (version du code, sans enregistrer) : « Minuteur de Tonton Rene : −6 s (au début de son tour) », sablier, « −6s ». Types, lint, tests OK. Reste : publier (accord), commit.
 - 2026-11-24 — Sable du Temps publiée en base de dev (rév. 2 = version du code).
+- 2026-11-24 — Cri du Chef mis en scène (règle gardée : si tu ouvres le pli avant tout coup, −3 s à chaque adversaire à son prochain tour). Annonce « CRI DU CHEF — Tous tes adversaires perdent 3 secondes », « {activator} pousse le cri du chef » chez les autres ; l'avatar du lanceur enfle, trois ondes sonores roses partent de lui sur la table ; chaque minuteur adverse touché tremble, flashe et « −3 s » s'en envole, dans l'ordre où l'onde l'atteint (nouvel effet de minuteur « Cri vers les adversaires ») ; textes pour le lanceur et les autres ; puis « ⏳ −3 s » sous chaque adversaire jusqu'à sa carte (la charge « secondes perdues » couvre désormais tous les adversaires). Vérifié dans le bac à sable (version du code, sans enregistrer) : 3 opérations « −3 s (au début de son tour) », ondes depuis l'avatar du lanceur, « −3s » sur les trois adversaires. Types, lint, tests OK. Reste : publier (accord), commit.
+- 2026-11-24 — Cri du Chef publiée en base de dev (rév. 2 = version du code).

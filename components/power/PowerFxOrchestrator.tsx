@@ -281,20 +281,25 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         depositLen: d.getPlayers()[sealedUi]?.deposit.length ?? 0,
       });
     }
-    // Secondes retirées à la cible pour son prochain tour (Sable du Temps) : « ⏳ −6 s » jusqu'à sa carte, pour tous.
-    const sand = ops.find((op) => op.op === "timerDelta" && op.player === "target" && op.seconds < 0);
-    const sandUi = d.uiIndexFromUid(activation.targetUid);
-    if (sand && sand.op === "timerDelta" && sandUi != null) {
+    // Secondes retirées pour le prochain tour (Sable du Temps : la cible ; Cri du Chef : tous les adversaires) :
+    // « ⏳ −6 s » sous chaque avatar concerné jusqu'à sa carte, pour tous.
+    const sand = ops.find((op) => op.op === "timerDelta" && (op.player === "target" || op.player === "all_opponents") && op.seconds < 0);
+    if (sand && sand.op === "timerDelta" && activatorUi != null) {
       const lost = `−${Math.abs(sand.seconds)} s`;
-      pendingCharges.push({
-        key: `${activation.playId}-sand`,
-        ui: sandUi,
-        handTag: `⏳ ${def.name} : ${lost} à ton prochain tour`,
-        avatarTag: `⏳ ${lost}`,
-        landing: "spark",
-        tone: def.tone,
-        depositLen: d.getPlayers()[sandUi]?.deposit.length ?? 0,
-      });
+      const losers = sand.player === "target"
+        ? [d.uiIndexFromUid(activation.targetUid)].filter((ui): ui is number => ui != null)
+        : d.getPlayers().map((_, ui) => ui).filter((ui) => ui !== activatorUi);
+      for (const ui of losers) {
+        pendingCharges.push({
+          key: `${activation.playId}-${ui}-sand`,
+          ui,
+          handTag: `⏳ ${def.name} : ${lost} à ton prochain tour`,
+          avatarTag: `⏳ ${lost}`,
+          landing: "spark",
+          tone: def.tone,
+          depositLen: d.getPlayers()[ui]?.deposit.length ?? 0,
+        });
+      }
     }
     const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
     const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && kindOf(a) === kindOf(b);

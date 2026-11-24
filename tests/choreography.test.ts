@@ -272,6 +272,14 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(choreo.tracks.some((track) => track.kind === "element" && track.effect === "drain" && "player" in track.target && track.target.player === "target")).toBe(true);
     expect(new Set(choreo.tracks.flatMap((track) => (track.kind === "text" ? [track.audience] : [])))).toEqual(new Set(["activator", "target", "bystanders"]));
   });
+  it("Cri du Chef : ondes depuis l'avatar du lanceur, règle inchangée (−3 s aux adversaires)", () => {
+    const cri = CODE_POWER_MODULES.cri_chef;
+    expect(validatePowerCard({ def: cri.def, script: cri.script } as never)).toEqual([]);
+    expect(cri.script.steps[0].ops).toEqual([{ op: "timerDelta", player: "all_opponents", seconds: -3 }]);
+    const choreo = cri.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(3_000);
+    expect(choreo.tracks.some((track) => track.kind === "element" && track.effect === "shout" && "player" in track.target && track.target.player === "self")).toBe(true);
+  });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;
     expect(validatePowerCard({ def: pacte.def, script: pacte.script } as never)).toEqual([]);
