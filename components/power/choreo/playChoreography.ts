@@ -17,6 +17,7 @@ import type { Card } from "@/types/game";
 import type { ChoreoLayerHandle } from "./ChoreoLayer";
 import { motifPlayersUi, playMotif } from "./playMotif";
 import { playAnimV2, type AnimV2Move } from "./playAnimV2";
+import { backOut, drawChain, drawPadlock, drawRing, drawRune, easeOut, jolt, sealCorners, seg, sineInOut, spring } from "./sealArt";
 
 /** Pistes qui font voler des cartes (trajectoire libre, modèle de l'atelier ou modèle V2). */
 export type MovingTrack = ChoreoTrack & { kind: "cardPath" | "motif" | "v2" };
@@ -625,6 +626,87 @@ async function playHandNet(ctx: ChoreoContext, ui: number, durationMs: number, c
   net.remove();
 }
 
+/** Sceau (version C2 validée sur l'atelier) : le sceau runique part de l'avatar du lanceur en tournoyant sur un arc,
+ *  se pose sur la carte désignée (resolved:highlight) avec un rebond amorti ; quatre chaînes poussent maillon par
+ *  maillon vers les coins de la carte et se tendent ; le sceau se fond en cadenas qui se ferme d'un clac élastique ;
+ *  la carte s'éteint. Dessiné sur un canvas qui suit la carte à chaque image. Durée de référence : 1,9 s. */
+async function playHandStamp(ctx: ChoreoContext, ui: number, durationMs: number, color: string, intensity: number) {
+  const index = ctx.cardsOf("resolved:highlight").fromIndexes[0];
+  const hand = ctx.registry.hand(ui);
+  const sourceRect = ctx.registry.timer(ctx.resolveRefUi("self")[0])?.getRect();
+  const host = ctx.layer.container();
+  if (index === undefined || !hand || !sourceRect || !host) return;
+  if (!handCardBox(ctx, ui, index)) return;
+  const canvas = document.createElement("canvas");
+  canvas.setAttribute("data-choreo-fx", "stamp");
+  Object.assign(canvas.style, { position: "absolute", left: "0", top: "0", width: "100vw", height: "100vh", pointerEvents: "none" });
+  host.appendChild(canvas);
+  const g = canvas.getContext("2d");
+  if (!g) { canvas.remove(); return; }
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width = Math.round(window.innerWidth * dpr);
+  canvas.height = Math.round(window.innerHeight * dpr);
+  const source = { x: sourceRect.left + sourceRect.width / 2, y: sourceRect.top + sourceRect.height / 2 };
+  // Repères de l'atelier (1,9 s) mis à la durée de la piste.
+  const k = durationMs / 1900;
+  const at = (ms: number) => ms * k;
+  let landed = false, closedHit = false, dimmed = false;
+  const start = performance.now();
+  await new Promise<void>((resolve) => {
+    const frame = () => {
+      const t = performance.now() - start;
+      const box = handCardBox(ctx, ui, index);
+      if (!box || t >= durationMs) { resolve(); return; }
+      const s = box.width / 58;
+      const fly = sineInOut(seg(t, 0, at(520)));
+      const land = spring(seg(t, at(470), at(1000)));
+      const grow = [0, 1, 2, 3].map((i) => sineInOut(seg(t, at(560 + i * 45), at(1060 + i * 45))));
+      const settle = spring(seg(t, at(1000), at(1500)), 6, 13);
+      const morph = sineInOut(seg(t, at(1080), at(1360)));
+      const close = backOut(seg(t, at(1380), at(1520)));
+      const flash = easeOut(seg(t, at(1500), at(1880)));
+      const fade = 1 - seg(t, durationMs - 140, durationMs);
+      const shake = jolt(t, at(500), 2.4 * s) + jolt(t, at(1510), 1.8 * s);
+      if (!landed && t >= at(500)) { landed = true; ctx.impactShake(intensity); }
+      if (!closedHit && t >= at(1510)) {
+        closedHit = true;
+        ctx.burst("lock", new DOMRect(box.x - box.width / 2, box.y - box.height / 2, box.width, box.height), ctx.defaultTone, intensity >= 3 ? "spectacular" : "standard", 900);
+      }
+      // La carte scellée s'éteint (les autres restent jouables).
+      if (!dimmed && t >= at(1420)) {
+        dimmed = true;
+        const count = hand.cardCount?.() ?? 0;
+        hand.dimCards?.(Array.from({ length: count }, (_, i) => i).filter((i) => i !== index), Math.max(300, durationMs - t + 400));
+      }
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      g.clearRect(0, 0, canvas.width, canvas.height);
+      g.setTransform(dpr, 0, 0, dpr, 0, 0);
+      g.globalAlpha = fade;
+      // Vol du sceau : de l'avatar au centre de la carte, sur un arc, en tournoyant.
+      if (fly < 1) {
+        const x = source.x + (box.x - source.x) * fly, y = source.y + (box.y - source.y) * fly - Math.sin(Math.PI * fly) * 34 * s;
+        drawRune(g, x, y, (0.5 + 1.2 * fly) * s, seg(t, 0, at(120)), (1 - fly) * -Math.PI * 3);
+      }
+      g.save();
+      g.translate(box.x + shake, box.y);
+      g.rotate((box.rotate * Math.PI) / 180);
+      const link = 8.5 * s;
+      sealCorners(box.width, box.height).forEach(([cx, cy], i) => {
+        const stretch = grow[i] < 1 ? grow[i] : 1 + (1 - settle) * 0.06;
+        drawChain(g, 0, 0, cx * stretch, cy * stretch, Math.min(1, grow[i]), link);
+      });
+      if (fly >= 1) drawRune(g, 0, 0, (1.7 + (1 - 1.7) * land) * (1 - morph * 0.4) * s, 1 - morph);
+      if (morph > 0) drawPadlock(g, 0, 2 * s, (0.9 + 0.7 * morph) * s, close, flash > 0 ? 1 - flash : 0);
+      drawRing(g, 0, 0, (10 + 30 * easeOut(seg(t, at(480), at(820)))) * s, 1 - seg(t, at(480), at(820)), color, 2.5);
+      drawRing(g, 0, 0, (12 + 32 * flash) * s, 1 - flash, color);
+      g.restore();
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
+  });
+  canvas.remove();
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -650,13 +732,14 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
   const jobs: Promise<void>[] = [];
   for (const hit of hits) {
     // Lecture de la main / carte conseillée (Main du Griot) : rendus propres, voir plus bas.
-    if (target.element === "hand" && hit.ui !== undefined && ["read", "advise", "strike", "dye", "cut", "net"].includes(effect)) {
+    if (target.element === "hand" && hit.ui !== undefined && ["read", "advise", "strike", "dye", "cut", "net", "stamp"].includes(effect)) {
       jobs.push(effect === "read" ? playHandRead(ctx, hit.ui, track.durationMs, color)
         : effect === "advise" ? playHandAdvice(ctx, hit.ui, track.durationMs, color)
           : effect === "strike" ? playHandStrike(ctx, hit.ui, track.durationMs, color, intensity)
             : effect === "dye" ? playHandDye(ctx, hit.ui, track.durationMs, color)
               : effect === "cut" ? playHandCut(ctx, hit.ui, track.durationMs, color, intensity)
-                : playHandNet(ctx, hit.ui, track.durationMs, color, intensity));
+                : effect === "net" ? playHandNet(ctx, hit.ui, track.durationMs, color, intensity)
+                  : playHandStamp(ctx, hit.ui, track.durationMs, color, intensity));
       continue;
     }
     // Effets « métier » délégués aux zones (rendu propre déjà existant).

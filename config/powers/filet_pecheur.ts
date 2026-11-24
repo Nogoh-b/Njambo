@@ -36,15 +36,17 @@ export const filetPecheur: PowerModule = {
         anim: [
           { cue: "toast", text: "{target} devra jouer sa plus forte carte", tone: "teal" },
         ],
-        /* Le gros poisson est pris :
+        /* Le gros poisson est désigné (version « Projecteur » validée sur l'atelier, sans filet) :
            1. annonce (« {activator} jette son filet sur toi / sur {target} ») ;
-           2. le filet part de l'avatar du lanceur, s'ouvre en vol, tombe sur la main de la cible et se resserre ;
+           2. un éclat passe sur la main de la cible (tout le monde le voit, sans savoir quelle carte) ;
+              chez la cible, la table s'assombrit et un faisceau tombe sur sa plus forte carte, qui se lève et brille
+              (PowerChargeLayer) ;
            3. textes : la cible apprend que sa plus forte carte est imposée ;
-           ensuite, jusqu'à sa carte (PowerChargeLayer) : chez la cible, ses autres cartes s'éteignent et la plus forte
-           porte « Imposée » ; « ⛓ Plus forte imposée » sous son avatar chez les autres ; étincelle à la pose. */
+           ensuite, jusqu'à sa carte : ses autres cartes restent éteintes, la plus forte porte « Imposée » ;
+           « ⛓ Plus forte imposée » sous son avatar chez les autres ; étincelle à la pose. */
         choreo: {
           tracks: [
-            { id: "filet", kind: "element", startMs: 0, durationMs: 1500, target: { element: "hand", player: "target" }, effect: "net", intensity: 3 },
+            { id: "eclat", kind: "element", startMs: 0, durationMs: 900, target: { element: "hand", player: "target" }, effect: "glow", intensity: 3, tone: "teal" },
             { id: "lanceur", kind: "text", startMs: 1000, durationMs: 1800, text: "{target} jouera sa plus forte carte", at: { kind: "screen", at: "tableCenter", dy: -10 }, size: "s", tone: "teal", audience: "activator" },
             { id: "cible", kind: "text", startMs: 1000, durationMs: 2000, text: "Pris au filet : ta plus forte carte est imposée", at: { kind: "zone", zone: "hand", player: "target", dy: -24 }, size: "s", tone: "teal", audience: "target" },
             { id: "temoin", kind: "text", startMs: 1000, durationMs: 1800, text: "{target} jouera sa plus forte carte", at: { kind: "screen", at: "tableCenter", dy: -10 }, size: "s", tone: "teal", audience: "bystanders" },

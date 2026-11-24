@@ -261,12 +261,29 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         depositLen: d.getPlayers()[forcedUi]?.deposit.length ?? 0,
       });
     }
-    if (pendingCharges.length) {
-      const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && !!a.force === !!b.force;
-      const timer = setTimeout(() => setCharges((current) => [
-        ...current.filter((item) => !pendingCharges.some((charge) => sameKind(item, charge))),
-        ...pendingCharges,
-      ]), d.motionEnabled ? d.overlayMs + 1100 : 0);
+    // Carte scellée (Sceau d'Entrave) : la cible retrouve la carte par sa place dans SA main (identité non diffusée).
+    const seal = ops.find((op) => op.op === "blockNextLegalCard" && op.player === "target");
+    const sealedUi = activation.resolved?.highlight ? d.uiIndexFromSeat(activation.resolved.highlight.seat) : null;
+    if (seal && sealedUi != null) {
+      const sealedIdx = activation.resolved!.highlight!.cardIdx;
+      pendingCharges.push({
+        key: `${activation.playId}-seal`,
+        ui: sealedUi,
+        lockedCardId: sealedUi === 0 ? d.getPlayers()[0]?.hand[sealedIdx]?.id : undefined,
+        handTag: `🔒 ${def.name} : une de tes cartes est scellée`,
+        avatarTag: "🔒 1 carte scellée",
+        landing: "spark",
+        tone: def.tone,
+        depositLen: d.getPlayers()[sealedUi]?.deposit.length ?? 0,
+      });
+    }
+    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.key.endsWith("-seal") ? "seal" : "boost");
+    const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && kindOf(a) === kindOf(b);
+    // Chaque charge prend le relais au bon moment : carte imposée dès la fin de l'annonce (son projecteur fait partie
+    // de la mise en scène), carte scellée à la fin de l'animation du sceau (1,9 s), renfort après la sienne.
+    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" ? 1850 : 1100));
+    for (const charge of pendingCharges) {
+      const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => !sameKind(item, charge)), charge]), delayOf(charge));
       burstTimersRef.current.push(timer);
     }
 

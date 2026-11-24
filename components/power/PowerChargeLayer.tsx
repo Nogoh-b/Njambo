@@ -9,12 +9,15 @@
    - Carte imposée (Coupe-Circuit, Filet du Pêcheur) : chez la cible, ses autres cartes s'éteignent, seule
      la carte imposée reste allumée (« Imposée ») ; chez les autres, un badge sous son avatar ; étincelle
      à la pose. Simple affichage : le serveur impose déjà la carte.
+   - Carte scellée (Sceau d'Entrave) : chez la cible, la carte scellée s'éteint et porte « 🔒 Scellée » ;
+     « 🔒 1 carte scellée » sous son avatar chez les autres.
    La charge vient de l'activation (le client ne reçoit pas les effets actifs du serveur) ;
    elle est consommée dès qu'une carte de ce joueur arrive sur son dépôt. */
 
 import { memo, useEffect, useRef, useState, type CSSProperties } from "react";
 import type { ZoneRegistry } from "@/components/table/zones/ZoneRegistry";
 import { legalCards } from "@/engine/rules";
+import { drawSealedRest, seg, sineInOut } from "@/components/power/choreo/sealArt";
 import type { Card, GameState } from "@/types/game";
 import styles from "./PowerChargeLayer.module.css";
 
@@ -31,6 +34,8 @@ export interface PowerCharge {
   suit?: string;
   /** Carte imposée : la plus faible ou la plus forte carte jouable (Coupe-Circuit, Filet). */
   force?: "weakest" | "strongest";
+  /** Carte scellée de MA main (Sceau d'Entrave), par son id : elle s'éteint et porte « Scellée ». */
+  lockedCardId?: string;
   /** Bandeau au-dessus de ma main, badge sous l'avatar d'un autre joueur. */
   handTag: string;
   avatarTag: string;
@@ -42,8 +47,11 @@ export interface PowerCharge {
 }
 
 interface Badge { key: string; x: number; y: number; rotate: number; text: string }
+/** Projecteur sur la carte imposée : centre et hauteur de la carte, ombre de la table et faisceau (0 → 1). */
+interface Spot { x: number; y: number; h: number; dark: number; beam: number; color: string }
+const SPOT_MS = 1500;
 /** Contour de la carte imposée. */
-interface Veil { key: string; x: number; y: number; w: number; h: number; rotate: number; color: string }
+interface Veil { key: string; x: number; y: number; w: number; h: number; rotate: number; color: string; sealed?: boolean }
 interface Frame { key: string; ui: number; x: number; y: number; w: number; h: number; kind: "hand" | "avatar"; text: string; color: string; crackle: boolean }
 interface Strike { key: string; x: number; y: number; w: number; h: number; color: string; landing: PowerCharge["landing"] }
 
@@ -68,6 +76,10 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
   const [badges, setBadges] = useState<Badge[]>([]);
   const [veils, setVeils] = useState<Veil[]>([]);
   const [strikes, setStrikes] = useState<Strike[]>([]);
+  const [spot, setSpot] = useState<Spot | null>(null);
+  /* Début de chaque charge (projecteur de la carte imposée) ; carte déjà soulevée par le projecteur. */
+  const startedRef = useRef(new Map<string, number>());
+  const liftedRef = useRef(new Set<string>());
   const consumedRef = useRef(onConsumed);
   const getPlayersRef = useRef(getPlayers);
   const getLedSuitRef = useRef(getLedSuit);
@@ -79,11 +91,14 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
     let last = "";
     let lastDim = 0;
     const done = new Set<string>();
+    const started = startedRef.current;
+    const lifted = liftedRef.current;
     const tick = () => {
       const players = getPlayersRef.current();
       const nextFrames: Frame[] = [];
       const nextBadges: Badge[] = [];
       const nextVeils: Veil[] = [];
+      let nextSpot: Spot | null = null;
       for (const charge of charges) {
         if (done.has(charge.key)) continue;
         const color = TONE_COLORS[charge.tone ?? "teal"] ?? TONE_COLORS.teal;
@@ -98,18 +113,33 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
             setTimeout(() => setStrikes((current) => current.filter((item) => item.key !== strike.key)), STRIKE_MS);
           }
           // Contrainte levée : la main se rallume tout de suite.
-          if (charge.force && charge.ui === 0) registry.hand(0)?.dimCards?.((players[0]?.hand ?? []).map((_, index) => index), 1);
+          if ((charge.force || charge.lockedCardId) && charge.ui === 0) registry.hand(0)?.dimCards?.((players[0]?.hand ?? []).map((_, index) => index), 1);
           consumedRef.current(charge.key);
           continue;
         }
         if (charge.ui !== 0) {
           const rect = registry.timer(charge.ui)?.getRect();
-          if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "avatar", text: charge.avatarTag, color, crackle: !charge.force });
+          if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "avatar", text: charge.avatarTag, color, crackle: !charge.force && !charge.lockedCardId });
           continue;
         }
         const rect = registry.hand(0)?.getRect();
-        if (rect) nextFrames.push({ key: charge.key, ui: 0, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "hand", text: charge.handTag, color, crackle: !charge.force });
+        if (rect) nextFrames.push({ key: charge.key, ui: 0, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "hand", text: charge.handTag, color, crackle: !charge.force && !charge.lockedCardId });
         const hand = players[0]?.hand ?? [];
+        // Carte scellée : elle seule s'éteint (les autres restent jouables), contour et « 🔒 Scellée ».
+        if (charge.lockedCardId) {
+          const locked = hand.findIndex((card) => card.id === charge.lockedCardId);
+          if (locked >= 0) {
+            if (performance.now() - lastDim > 600) {
+              lastDim = performance.now();
+              registry.hand(0)?.dimCards?.(hand.map((_, index) => index).filter((index) => index !== locked), 1200);
+            }
+            const box = cardBox(registry, locked);
+            if (box) {
+              nextVeils.push({ key: `${charge.key}-${charge.lockedCardId}`, x: box.x, y: box.y, w: box.width, h: box.height, rotate: box.rotate, color, sealed: true });
+            }
+          }
+          continue;
+        }
         const forced = charge.force ? forcedIndex(hand, getLedSuitRef.current?.() ?? null, charge.force) : null;
         // Carte imposée : la main éteint elle-même les autres cartes (l'empilement de l'éventail reste juste),
         // renouvelé tant que la contrainte dure.
@@ -117,12 +147,25 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
           lastDim = performance.now();
           registry.hand(0)?.dimCards?.([forced], 1200);
         }
+        // Projecteur (version validée sur l'atelier) : au début, la table s'assombrit et un faisceau descend sur la carte
+        // imposée, qui se lève et brille ; contour et « Imposée » arrivent à la fin du faisceau.
+        const now = performance.now();
+        if (!started.has(charge.key)) started.set(charge.key, now);
+        const intro = charge.force && motion ? now - (started.get(charge.key) ?? now) : SPOT_MS;
+        if (charge.force && forced != null && intro < SPOT_MS) {
+          const box = cardBox(registry, forced);
+          if (box) {
+            if (!lifted.has(charge.key)) { lifted.add(charge.key); registry.hand(0)?.highlightCards({ cardIdx: forced, style: "recommend", durationMs: SPOT_MS }); }
+            const out = 1 - seg(intro, 1100, SPOT_MS);
+            nextSpot = { x: box.x, y: box.y, h: box.height, dark: sineInOut(seg(intro, 0, 450)) * out, beam: sineInOut(seg(intro, 200, 700)) * out, color };
+          }
+        }
         hand.forEach((card, index) => {
           const box = cardBox(registry, index);
           if (!box) return;
           const badgeAt = { x: box.x, y: box.y + box.height * 0.32, rotate: box.rotate };
           if (charge.force) {
-            if (index !== forced) return;
+            if (index !== forced || intro < 800) return;
             nextVeils.push({ key: `${charge.key}-${card.id}`, x: box.x, y: box.y, w: box.width, h: box.height, rotate: box.rotate, color });
             nextBadges.push({ key: `${charge.key}-${card.id}`, ...badgeAt, text: "Imposée" });
           } else if (charge.valueBonus) {
@@ -138,9 +181,10 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
       const key = JSON.stringify([
         nextFrames.map((f) => [f.key, round(f.x), round(f.y), round(f.w)]),
         nextBadges.map((b) => [b.key, round(b.x), round(b.y), round(b.rotate), b.text]),
-        nextVeils.map((v) => [v.key, round(v.x), round(v.y), round(v.rotate)]),
+        nextVeils.map((v) => [v.key, round(v.x), round(v.y), round(v.rotate), round(v.w)]),
+        nextSpot ? [round(nextSpot.x), round(nextSpot.y), nextSpot.dark.toFixed(2), nextSpot.beam.toFixed(2)] : null,
       ]);
-      if (key !== last) { last = key; setFrames(nextFrames); setBadges(nextBadges); setVeils(nextVeils); }
+      if (key !== last) { last = key; setFrames(nextFrames); setBadges(nextBadges); setVeils(nextVeils); setSpot(nextSpot); }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -151,9 +195,15 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
   const live = charges.length > 0;
   return (
     <div className={`${styles.root} ${motion ? "" : styles.still}`} aria-hidden="true" data-power-charge>
+      {live && spot && <>
+        <div className={styles.spotDark} style={{ opacity: spot.dark, background: `radial-gradient(circle at ${spot.x}px ${spot.y}px, transparent ${spot.h * 0.7}px, rgba(0, 0, 0, .62) ${spot.h * 2.4}px)` }} />
+        <div className={styles.spotBeam} style={{ left: spot.x - spot.h * 0.65, width: spot.h * 1.3, height: spot.y + spot.h * 0.45, opacity: spot.beam, "--charge-color": spot.color } as CSSProperties} />
+      </>}
       {live && veils.map((veil) => (
-        <span key={veil.key} className={styles.forced}
-          style={{ left: veil.x, top: veil.y, width: veil.w, height: veil.h, transform: `translate(-50%, -50%) rotate(${veil.rotate}deg)`, "--charge-color": veil.color } as CSSProperties} />
+        <span key={veil.key} className={veil.sealed ? styles.sealed : styles.forced}
+          style={{ left: veil.x, top: veil.y, width: veil.w, height: veil.h, transform: `translate(-50%, -50%) rotate(${veil.rotate}deg)`, "--charge-color": veil.color } as CSSProperties}>
+          {veil.sealed && <SealedArt width={veil.w} height={veil.h} />}
+        </span>
       ))}
       {live && frames.map((frame) => frame.kind === "hand" ? (
         <div key={frame.key} className={`${styles.hand} ${frame.crackle ? "" : styles.handCut}`} style={{ left: frame.x - 10, top: frame.y - 10, width: frame.w + 20, height: frame.h + 20, "--charge-color": frame.color } as CSSProperties}>
@@ -179,6 +229,26 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
     </div>
   );
 });
+
+/** Carte scellée au repos : chaînes tendues vers les coins et cadenas fermé (dessin du Sceau d'Entrave). */
+function SealedArt({ width, height }: { width: number; height: number }) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const w = Math.round(width), h = Math.round(height);
+  useEffect(() => {
+    const canvas = ref.current;
+    const g = canvas?.getContext("2d");
+    if (!canvas || !g) return;
+    const dpr = window.devicePixelRatio || 1;
+    const pad = 12;
+    canvas.width = Math.round((w + pad * 2) * dpr);
+    canvas.height = Math.round((h + pad * 2) * dpr);
+    g.setTransform(dpr, 0, 0, dpr, 0, 0);
+    g.clearRect(0, 0, w + pad * 2, h + pad * 2);
+    g.translate(w / 2 + pad, h / 2 + pad);
+    drawSealedRest(g, w, h);
+  }, [w, h]);
+  return <canvas ref={ref} className={styles.sealedArt} style={{ width: w + 24, height: h + 24 }} />;
+}
 
 /** Carte telle qu'affichée dans ma main (soulevée, inclinée). */
 function cardBox(registry: ZoneRegistry, index: number): { x: number; y: number; width: number; height: number; rotate: number } | null {

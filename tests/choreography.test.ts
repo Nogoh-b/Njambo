@@ -243,11 +243,25 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(choreographyDuration(choreo)).toBeLessThanOrEqual(3_000);
     expect(choreo.tracks.some((track) => track.kind === "element" && track.effect === "cut" && "player" in track.target && track.target.player === "target")).toBe(true);
     expect(new Set(choreo.tracks.flatMap((track) => (track.kind === "text" ? [track.audience] : [])))).toEqual(new Set(["activator", "target", "bystanders"]));
-    // Filet : le filet tombe sur la main de la cible.
+    // Filet : plus de filet ; un éclat sur la main de la cible (le projecteur sur la carte imposée vient de la couche
+    // « prochaine carte », chez la cible seulement).
     const net = filet.script.steps[0].choreo!;
     expect(choreographyDuration(net)).toBeLessThanOrEqual(3_000);
-    expect(net.tracks.some((track) => track.kind === "element" && track.effect === "net" && "player" in track.target && track.target.player === "target")).toBe(true);
+    expect(net.tracks.some((track) => track.kind === "element" && track.effect === "net")).toBe(false);
+    expect(net.tracks.some((track) => track.kind === "element" && track.effect === "glow" && "player" in track.target && track.target.player === "target")).toBe(true);
     expect(filet.def.activationTextOthers).toContain("{target}");
+  });
+  it("Sceau d'Entrave : sceau sur la carte, surbrillance retardée ; script valide, règle inchangée", () => {
+    const sceau = CODE_POWER_MODULES.sceau_entrave;
+    expect(validatePowerCard({ def: sceau.def, script: sceau.script } as never)).toEqual([]);
+    expect(sceau.def.activationTextOthers).toContain("{target}");
+    const choreo = sceau.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(3_500);
+    expect(choreo.tracks.some((track) => track.kind === "element" && track.effect === "stamp" && "player" in track.target && track.target.player === "target")).toBe(true);
+    expect(new Set(choreo.tracks.flatMap((track) => (track.kind === "text" ? [track.audience] : [])))).toEqual(new Set(["activator", "target", "bystanders"]));
+    const cue = sceau.script.steps[0].anim!.find((item) => item.cue === "highlightHandCard") as { delayMs?: number };
+    expect(cue.delayMs).toBeGreaterThan(0);
+    expect(sceau.script.steps[0].ops).toEqual([{ op: "blockNextLegalCard", player: "target", select: { kind: "random" }, minLegalChoices: 2 }]);
   });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;

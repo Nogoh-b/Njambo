@@ -131,8 +131,12 @@ export function redactActivationForBroadcast(activation: PowerCardActivation): P
   const moves = rest.resolved.moves?.map((move) => move.hiddenFor === "others"
     ? { ...move, cardIds: move.cardIds.map(() => "hidden"), cardSnapshots: undefined }
     : move);
-  // Carte conseillée et sa raison : pour le lanceur seulement (« Pas de ♣ » trahirait sa main).
-  return clean({ ...rest, resolved: { ...rest.resolved, moves, highlight: undefined } } as PowerCardActivation);
+  // Conseil (carte de SA main + raison, Main du Griot) : pour le lanceur seulement (« Pas de ♣ » trahirait sa main).
+  // Une carte désignée dans la main d'une cible (Sceau d'Entrave) reste diffusée par sa PLACE seulement : la cible
+  // la retrouve dans sa main, les autres ne lisent pas son identité (l'id d'une carte est sa valeur, « 7♥ »).
+  const highlight = rest.resolved.highlight?.reason ? undefined
+    : rest.resolved.highlight ? { ...rest.resolved.highlight, cardId: "hidden" } : undefined;
+  return clean({ ...rest, resolved: { ...rest.resolved, moves, highlight } } as PowerCardActivation);
 }
 
 /* ── Commande usePowerCard ── */

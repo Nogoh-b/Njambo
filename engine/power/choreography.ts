@@ -47,8 +47,9 @@ export const ELEMENT_EFFECTS = {
      strike : la foudre tombe du haut de l'écran sur la main (éclair, flash, secousse, arcs sur les cartes) ;
      dye : un pagne aux motifs colorés glisse sur la main et la teinte (changement de couleur) ;
      cut : un arc électrique part de l'avatar du lanceur et frappe la main visée, qui grésille (carte imposée) ;
-     net : un filet lancé depuis l'avatar du lanceur s'ouvre sur la main visée, puis se resserre (carte imposée). */
-  hand: ["fanOpen", "tighten", "shake", "glow", "veil", "ripple", "read", "advise", "strike", "dye", "cut", "net"],
+     net : un filet lancé depuis l'avatar du lanceur s'ouvre sur la main visée, puis se resserre (carte imposée) ;
+     stamp : un sceau runique vole de l'avatar du lanceur et frappe la carte désignée (resolved:highlight) de la main. */
+  hand: ["fanOpen", "tighten", "shake", "glow", "veil", "ripple", "read", "advise", "strike", "dye", "cut", "net", "stamp"],
   deposit: ["pulse", "suck", "eject", "glow", "seal"],
   deck: ["pulse", "shuffle", "spit", "shake", "glow"],
   timer: ["freeze", "speedUp", "rewind", "crack", "blink", "tint", "delta"],
