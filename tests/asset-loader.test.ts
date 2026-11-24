@@ -3,7 +3,7 @@ import { eventDetailManifest, menuManifest, sceneManifest } from "../lib/assets/
 
 it("précharge le décor, les boss et les récompenses avant le parcours", () => {
   const manifest = eventDetailManifest({ imageUrl: "https://assets.example/event.webp", stages: [{ boss: { avatarUrl: "https://assets.example/boss.webp" }, reward: [{ type: "nkap", amount: 100 }] }] });
-  expect(manifest.critical.map((asset) => asset.url)).toEqual(expect.arrayContaining(["https://assets.example/event.webp", "https://assets.example/boss.webp", "/assets/njambo/economy/nkap-stack-64.webp"]));
+  expect(manifest.critical.map((asset) => asset.url)).toEqual(expect.arrayContaining(["https://assets.example/event.webp", "https://assets.example/boss.webp", "/assets/njambo/economy/nkap-stack-256.webp"]));
 });
 
 it("déclare les manifestes critiques de l'accueil, de la boutique, des mini-jeux et du hub Jouer", () => {

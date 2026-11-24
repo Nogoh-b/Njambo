@@ -53,8 +53,8 @@ describe("MatchLoadingScreen & tableAssetGroups", () => {
       "/assets/njambo/table-desktop.webp",
       "/assets/njambo/card-back.webp",
       "/assets/njambo/ui/brand/njambo-mark-128.webp",
-      "/assets/njambo/economy/nkap-64.webp",
-      "/assets/njambo/ui/icons/cards-64.webp",
+      "/assets/njambo/economy/nkap-256.webp",
+      "/assets/njambo/ui/icons/cards-128.webp",
     ]));
 
     const powerUrls = groups.powersAndAudio.map((ref) => ref.url);
