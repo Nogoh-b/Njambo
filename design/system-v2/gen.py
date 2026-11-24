@@ -445,14 +445,24 @@ ASSETS = {
     **{f"ranks/{n}": (lambda m, k, e, l: (lambda t, name: rank(t, name, m, k, e, l)))(m, k, e, l) for n, m, k, e, l in RANKS},
 }
 
+def plain_svg(defs, body):
+    return f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {S} {S}" width="{S}" height="{S}"><defs>{defs}</defs>{body}</svg>'
+
 if __name__ == "__main__":
+    import style_wax, style_aurore
     out = os.path.join(os.path.dirname(__file__), "out")
     only = sys.argv[1:]
-    for theme, t in THEMES.items():
+    for theme in ("soleil", "wax", "aurore"):
+        os.makedirs(os.path.join(out, theme), exist_ok=True)
         for path, fn in ASSETS.items():
             key = path.split("/")[1]
             if only and key not in only:
                 continue
-            os.makedirs(os.path.join(out, theme), exist_ok=True)
-            open(os.path.join(out, theme, f"{key}.svg"), "w").write(svg(t, fn(t, theme)))
-    print("ok", len(ASSETS), "assets ×", len(THEMES))
+            if theme == "soleil":
+                doc = svg(THEMES["soleil"], fn(THEMES["soleil"], "soleil"))
+            elif theme == "wax":
+                doc = plain_svg(style_wax.DEFS, style_wax.ASSETS[key]())
+            else:
+                doc = plain_svg(style_aurore.DEFS, style_aurore.ASSETS[key]())
+            open(os.path.join(out, theme, f"{key}.svg"), "w").write(doc)
+    print("ok", len(ASSETS), "assets × 3 directions")
