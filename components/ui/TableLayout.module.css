@@ -331,7 +331,7 @@
 .root[data-motion-level="lite"] .turnStatusMotion,
 .root[data-motion-level="lite"] .feltSheen,
 .root[data-motion-level="lite"] :global(.nj-turn-prompt)::before,
-.root[data-motion-level="lite"] :global(.playcard-clickable) {
+.root[data-motion-level="lite"] :global(.playcard-clickable)::after {
   animation: none !important;
 }
 

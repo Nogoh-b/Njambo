@@ -39,6 +39,7 @@ const COMMAND_LABELS: Record<string, { label: string; icon: NjamboIconName }> = 
   chooseBoosterCard: { label: "Carte choisie", icon: "cards" },
   buyDailyGridSlot: { label: "Grille du jour", icon: "cards" },
   spinLoyaltyWheel: { label: "Gain roulette", icon: "trophy" },
+  miniGame: { label: "Mini-jeu", icon: "sparkle" },
   joinEvent: { label: "Entrée dans le Ter", icon: "trophy" },
   leaveEvent: { label: "Sortie du Ter", icon: "trophy" },
   startMatch: { label: "Mise de table", icon: "play" },

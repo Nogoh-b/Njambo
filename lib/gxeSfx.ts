@@ -112,3 +112,21 @@ export const AMBIENT_PENTA = {
   notes: [261.6, 293.7, 329.6, 392.0, 440.0, 523.2],
   intervalMs: 700,
 } as const;
+
+/** Roue des retrouvailles : cliquet de l'aiguille sur un clou (très court, sec). */
+export const WHEEL_TICK_SOUND = {
+  frequencyHz: 1250,
+  durationMs: 22,
+  type: "square",
+  gain: 0.018,
+} as const;
+
+/** Roue des retrouvailles : la roue s'arrête sur le lot gagné (arpège montant). */
+export const WHEEL_WIN_SOUND = {
+  notes: [
+    { frequencyHz: 523.2, durationMs: 140, type: "triangle", gain: 0.05, delayMs: 0 },
+    { frequencyHz: 659.3, durationMs: 140, type: "triangle", gain: 0.05, delayMs: 110 },
+    { frequencyHz: 784, durationMs: 160, type: "triangle", gain: 0.055, delayMs: 220 },
+    { frequencyHz: 1046.5, durationMs: 320, type: "sine", gain: 0.06, delayMs: 340 },
+  ],
+} as const;

@@ -4,7 +4,6 @@
    campagnes) + permission et jeton push de cet appareil. */
 
 import { useEffect, useState } from "react";
-import { Toggle } from "@/components/ui/Toggle";
 import { useAuth } from "@/hooks/useAuth";
 import { backendCallable } from "@/lib/backendCallable";
 import { db } from "@/lib/firebase";
@@ -20,7 +19,8 @@ const CAPTIONS: Record<string, string> = {
   guest: "Connecte-toi pour recevoir les alertes",
 };
 
-export function EventAlertsToggle() {
+/** État et action des alertes d'événements, réutilisable par n'importe quel rendu. */
+export function useEventAlerts() {
   const { user } = useAuth();
   const [on, setOn] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -57,5 +57,5 @@ export function EventAlertsToggle() {
 
   const support = typeof window === "undefined" ? "ok" : pushSupport();
   const caption = guest ? CAPTIONS.guest : note ?? (!on ? CAPTIONS.off : support === "ok" ? CAPTIONS.on : CAPTIONS[support]);
-  return <Toggle label="Alertes d’événements" caption={caption} on={!guest && on} onChange={(next) => void change(next)} />;
+  return { on: !guest && on, guest, busy, caption, setOn: (next: boolean) => void change(next) };
 }

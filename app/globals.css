@@ -2277,6 +2277,21 @@ html[data-gxe-active] .njb--solid {
 }
 
 .playcard-clickable {
+  position: relative;
+}
+
+/* Pulsation des cartes jouables : un calque lumineux dont seule l'OPACITÉ est
+   animée (composité par le GPU). Animer `filter` sur la carte elle-même forçait
+   à redessiner chaque carte de la main à chaque image, en boucle. */
+.playcard-clickable::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(255, 246, 214, 0.16), rgba(255, 214, 120, 0.08));
+  opacity: 0;
+  will-change: opacity;
   animation: playableCardPulse 2.4s ease-in-out infinite;
 }
 
@@ -2321,6 +2336,21 @@ html[data-gxe-active] .njb--solid {
 
 .nj-table-image-ceremony {
   overflow: hidden;
+}
+
+/* Lueur de cérémonie : ombre FIXE sur un calque dont seule l'opacité est
+   animée (GPU), au lieu d'animer box-shadow sur toute la surface de la table. */
+.nj-table-image-ceremony::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  box-shadow:
+    inset 0 0 46px rgba(242, 187, 69, 0.32),
+    inset 0 0 28px rgba(16, 183, 166, 0.16);
+  opacity: 0;
+  will-change: opacity;
   animation: tableCeremonyGlow 1.55s ease-out both;
 }
 
@@ -3651,10 +3681,10 @@ html[data-gxe-active] .njb--solid {
 @keyframes playableCardPulse {
   0%,
   100% {
-    filter: brightness(1);
+    opacity: 0;
   }
   50% {
-    filter: brightness(1.08) saturate(1.06);
+    opacity: 1;
   }
 }
 
@@ -3801,13 +3831,10 @@ html[data-gxe-active] .njb--solid {
 @keyframes tableCeremonyGlow {
   0%,
   100% {
-    box-shadow: 0 26px 70px rgba(0, 0, 0, 0.62);
+    opacity: 0;
   }
   42% {
-    box-shadow:
-      0 26px 70px rgba(0, 0, 0, 0.62),
-      0 0 46px rgba(242, 187, 69, 0.32),
-      inset 0 0 28px rgba(16, 183, 166, 0.16);
+    opacity: 1;
   }
 }
 

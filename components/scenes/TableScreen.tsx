@@ -71,7 +71,7 @@ import {
   TICK_SOUND,
   TURN_START_SOUND,
 } from "@/lib/gxeSfx";
-import { loadGsap, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
+import { loadGsap, requestMotionProbe, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
 import { markPerformance } from "@/lib/performanceMetrics";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
 import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
@@ -566,6 +566,12 @@ export function TableScreen({
   const [powerChoiceConfirm, setPowerChoiceConfirm] = useState<PowerChoiceState | null>(null);
   /* Confirmation avant de quitter une partie EN COURS (abandon + retour menu). */
   const [confirmQuit, setConfirmQuit] = useState(false);
+  /* Mesure de fluidité à l'ouverture de la table (mode « Auto » uniquement) :
+     si l'appareil décroche pendant la donne, le niveau d'animation baisse d'un cran. */
+  useEffect(() => {
+    requestMotionProbe();
+  }, []);
+
   /* Aide rapide en cours de manche & aperçu tactile des cartes pouvoir */
   const [showQuickHelp, setShowQuickHelp] = useState(false);
   const [hasSeenQuickHelp, setHasSeenQuickHelp] = useState<boolean>(() => {

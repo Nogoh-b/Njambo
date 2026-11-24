@@ -9,3 +9,4 @@ export * from "./cosmetics";
 export * from "./seasons";
 export * from "./eventChallenges";
 export * from "./changelog";
+export * from "./minigames";

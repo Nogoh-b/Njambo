@@ -17,6 +17,8 @@ describe("profil d'animation", () => {
     expect(deriveMotionLevel(capable)).toBe("full");
     expect(deriveMotionLevel({ width: 390, height: 844, hardwareConcurrency: 4, deviceMemory: 2 })).toBe("lite");
     expect(preferenceMotionLevel("performance", capable)).toBe("lite");
+    // « Auto » démarre au niveau maximal, même sur téléphone ; la baisse se fait à l'usage.
+    expect(preferenceMotionLevel("auto", { width: 390, height: 844, hardwareConcurrency: 4, deviceMemory: 2 })).toBe("full");
   });
 
   it("dégrade après plus de 10 % de frames lentes", () => {

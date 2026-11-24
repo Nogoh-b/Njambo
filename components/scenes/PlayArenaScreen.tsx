@@ -344,6 +344,7 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
     }
   };
 
+  const matchCount = matchCountFor(cfg, mode, seats);
   const seatSlots = seatPositionsForCount(opponentCount);
   const stageAuraClass =
     mode === "bot"
@@ -731,12 +732,15 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
               <span className={styles.elementTitle}>
                 {botTraining ? "Mode d’entraînement" : "Jetons de mise"}
               </span>
-              <span className={styles.elementHint}>
-                {botTraining ? "Accès libre invité" : `Pot : ${pot.toLocaleString("fr-FR")} Nkap`}
+              {/* Règles de la partie en rappel discret : le pot est déjà affiché sur le tapis */}
+              <span
+                className={`${styles.elementHint} ${styles.ruleHint}`}
+                title={`${matchCount} manche${matchCount > 1 ? "s" : ""} · ${cfg.turnSeconds} s par tour${botTraining ? "" : " · mise pour toute la table"}`}
+              >
+                {matchCount} manche{matchCount > 1 ? "s" : ""} · {cfg.turnSeconds} s/tour
               </span>
             </div>
 
-            <p>{matchCountFor(cfg, mode, seats)} manche(s) · {cfg.turnSeconds} s par tour{!botTraining && " · mise pour toute la table"}</p>
             {botTraining ? (
               <div className={styles.guestFreePlaque} role="status">
                 <span className={styles.guestFreeIcon}>

@@ -1047,7 +1047,9 @@
 .gridCellName { position: absolute; bottom: 7px; left: 6px; right: 6px; z-index: 4; color: #fffaf0; font-family: var(--font-display), sans-serif; font-size: 10px; font-weight: 950; line-height: 1.08; text-align: center; text-shadow: 0 2px 6px rgba(0, 0, 0, 0.95); }
 .gridDupPill { position: absolute; top: 5px; right: 5px; z-index: 5; padding: 2px 6px; border-radius: 999px; background: #ffcf40; color: #241203; font-size: 8.5px; font-weight: 900; }
 
-/* ═══ RAYON 4 : ROULETTE ROYALE ANIMÉE (AMPOULES + CLAPET + JALONS) ═══ */
+/* ═══ RAYON 4 : ROUE DES RETROUVAILLES ═══
+   Mise en page épurée : titre, roue (seul le disque tourne), fidélité, bouton.
+   Tient sur un écran mobile sans défilement. */
 .wheelArena {
   position: relative;
   flex: 1 1 auto;
@@ -1055,195 +1057,44 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 18px;
-  padding: 16px;
+  justify-content: space-between;
+  gap: clamp(8px, 2dvh, 18px);
+  padding: clamp(10px, 2dvh, 18px) 16px;
   border-radius: 24px;
   border: 1.5px solid rgba(255, 207, 64, 0.52);
   background:
-    radial-gradient(circle at 50% 34%, rgba(255, 207, 64, 0.26), transparent 58%),
+    radial-gradient(circle at 50% 46%, rgba(255, 207, 64, 0.2), transparent 56%),
     linear-gradient(170deg, rgba(50, 28, 22, 0.95), rgba(11, 24, 20, 0.97));
   overflow: hidden;
   isolation: isolate;
 }
 
-.wheelStageRays {
-  position: absolute;
-  width: 680px;
-  height: 680px;
-  top: 50%;
-  left: 50%;
-  margin: -340px 0 0 -340px;
-  background: repeating-conic-gradient(
-    from 0deg,
-    rgba(255, 207, 64, 0.08) 0deg 10deg,
-    transparent 10deg 24deg
-  );
-  animation: slowSpin 38s linear infinite;
-  pointer-events: none;
-  z-index: 0;
-}
-
-@media (min-width: 760px) {
-  .wheelArena {
-    flex-direction: row;
-    gap: 40px;
-    padding: 28px 38px;
-  }
-}
-
-.wheelVisualWrap {
-  position: relative;
-  z-index: 2;
-  width: clamp(200px, 46vw, 256px);
-  height: clamp(200px, 46vw, 256px);
-  display: grid;
-  place-items: center;
-  flex: 0 0 auto;
-}
-
-.wheelHalo {
-  position: absolute;
-  inset: -16px;
-  border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 207, 64, 0.42), transparent 68%);
-}
-
-/* Clapet doré en haut (12h) */
-.wheelPointer {
-  position: absolute;
-  top: -10px;
-  left: 50%;
-  transform: translateX(-50%);
-  z-index: 6;
-  width: 0;
-  height: 0;
-  border-left: 12px solid transparent;
-  border-right: 12px solid transparent;
-  border-top: 22px solid #ffe573;
-  filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.7));
-  transform-origin: 50% 0%;
-}
-
-.pointerTick {
-  animation: clapperBounce 0.14s ease-in-out infinite;
-}
-
-@keyframes clapperBounce {
-  0%, 100% { transform: translateX(-50%) rotate(0deg); }
-  50% { transform: translateX(-50%) rotate(-14deg); }
-}
-
-/* Couronne lumineuse à 12 ampoules alternées */
-.bulbRing {
-  position: absolute;
-  inset: -4px;
-  border-radius: 50%;
-  border: 3px solid rgba(255, 207, 64, 0.55);
-  box-shadow: inset 0 0 18px rgba(255, 207, 64, 0.24), 0 0 24px rgba(0, 0, 0, 0.48);
-  pointer-events: none;
-  z-index: 3;
-}
-
-.bulbArm {
-  position: absolute;
-  inset: 0;
-  transform: rotate(var(--bulb-angle));
-  pointer-events: none;
-}
-
-.bulbDot {
-  position: absolute;
-  top: -5px;
-  left: 50%;
-  width: 9px;
-  height: 9px;
-  margin-left: -4.5px;
-  border-radius: 50%;
-}
-
-.bulbEven {
-  background: #fff4b8;
-  box-shadow: 0 0 10px #ffcf40;
-  animation: bulbBlink 1.4s ease-in-out infinite;
-}
-
-.bulbOdd {
-  background: #ff789a;
-  box-shadow: 0 0 10px #ff4772;
-  animation: bulbBlink 1.4s ease-in-out 0.7s infinite;
-}
-
-@keyframes bulbBlink {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.35; }
-}
-
-.wheelDisc {
-  position: relative;
-  z-index: 2;
-  width: 88%;
-  height: 88%;
-  display: grid;
-  place-items: center;
-}
-
-.wheelDisc img {
+.wheelHead {
   width: 100%;
-  height: 100%;
-  object-fit: contain;
-  filter: drop-shadow(0 16px 26px rgba(0, 0, 0, 0.58));
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
 }
 
-.wheelIdleSway {
-  animation: wheelTease 4s ease-in-out infinite;
-}
-
-@keyframes wheelTease {
-  0%, 100% { transform: rotate(-4deg); }
-  50% { transform: rotate(4deg); }
-}
-
-.wheelSpinning {
-  filter: brightness(1.1);
-}
-
-.wheelCenterBadge {
-  position: absolute;
-  z-index: 4;
-  width: 66px;
-  height: 66px;
-  border-radius: 50%;
-  border: 2.5px solid #fff5be;
-  background: linear-gradient(180deg, #ffe573, #e69210);
-  color: #241203;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 1px;
-  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.56);
+.wheelHead h2 {
+  margin: 0;
   font-family: var(--font-display), sans-serif;
+  font-size: clamp(17px, 4.4vw, 24px);
+  color: #fffaf0;
 }
 
-.wheelCenterBadge strong { font-size: 25px; font-weight: 950; line-height: 1; }
-.wheelCenterBadge small { font-size: 13px; font-weight: 900; opacity: 0.85; }
-
-.wheelInfo {
-  position: relative;
-  z-index: 2;
-  max-width: 390px;
+.wheelLoyalty {
   display: grid;
-  gap: 11px;
-  text-align: center;
+  justify-items: center;
+  gap: 4px;
 }
 
-@media (min-width: 760px) {
-  .wheelInfo { text-align: left; }
-  .loyaltyTrack, .wheelPrizeStrip, .wheelCtaRow { justify-content: flex-start; }
+.wheelLoyalty small {
+  color: var(--sr-muted, #b8d3c9);
+  font-size: 11px;
+  font-weight: 750;
 }
-
-.wheelInfo h2 { margin: 0; font-family: var(--font-display), sans-serif; font-size: clamp(22px, 4.8vw, 29px); color: #fffaf0; }
-.wheelInfo p { margin: 0; color: var(--sr-muted, #b8d3c9); font-size: 13px; line-height: 1.44; }
 
 /* Piste 7 jours de fidélité */
 .loyaltyTrack {
@@ -1284,28 +1135,6 @@
   box-shadow: 0 0 16px rgba(255, 207, 64, 0.72);
 }
 
-/* Aperçu 2,5D des lots de la roue */
-.wheelPrizeStrip {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 6px;
-}
-
-.wheelPrizeChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  padding: 3px 9px 3px 5px;
-  border-radius: 9px;
-  border: 1px solid rgba(255, 207, 64, 0.34);
-  background: rgba(12, 20, 18, 0.84);
-  color: #fff2be;
-  font-size: 11px;
-  font-weight: 850;
-}
-
 .oddsLink {
   border: 0;
   background: transparent;
@@ -1316,32 +1145,8 @@
   cursor: pointer;
 }
 
-.wheelCtaRow {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.spinPill {
-  align-self: center;
-  padding: 4px 12px;
-  border-radius: 999px;
-  background: rgba(255, 207, 64, 0.14);
-  border: 1px solid rgba(255, 207, 64, 0.42);
-  color: #fff0a8;
-  font-size: 11.5px;
-  font-weight: 850;
-}
-
-@media (min-width: 760px) {
-  .spinPill { align-self: flex-start; }
-}
-
-.spinPillReady {
-  border-color: #70ffe3;
-  background: rgba(29, 228, 190, 0.2);
-  color: #a6fff0;
-  box-shadow: 0 0 14px rgba(29, 228, 190, 0.36);
+.wheelArena .spinCta {
+  max-width: 420px;
 }
 
 .spinCta {
@@ -1480,10 +1285,6 @@
 .motionReduced .itemShadow,
 .motionReduced .runeHalo,
 .motionReduced .btnSheen,
-.motionReduced .wheelStageRays,
-.motionReduced .bulbEven,
-.motionReduced .bulbOdd,
-.motionReduced .wheelIdleSway,
 .motionReduced .revealBurstRays,
 .motionReduced .revealHoloGlint,
 .motionReduced .tabLiveBadge {
@@ -1497,10 +1298,6 @@
   .itemShadow,
   .runeHalo,
   .btnSheen,
-  .wheelStageRays,
-  .bulbEven,
-  .bulbOdd,
-  .wheelIdleSway,
   .revealBurstRays,
   .revealHoloGlint,
   .tabLiveBadge {
@@ -1910,4 +1707,17 @@
   .detailHeroFloat {
     animation: none !important;
   }
+}
+
+/* Roue : petits écrans en hauteur (≈ 568 px) */
+.wheelHead .oddsLink { white-space: nowrap; }
+
+@media (max-width: 360px) {
+  .wheelHead h2 { font-size: 16px; }
+}
+
+@media (max-height: 620px) {
+  .wheelArena { --wheel-size-override: min(72vw, 34dvh, 300px); }
+  .wheelArena .dayToken { width: 26px; height: 26px; border-radius: 8px; font-size: 11px; }
+  .wheelLoyalty small { font-size: 10px; }
 }

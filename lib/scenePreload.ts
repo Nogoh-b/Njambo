@@ -23,6 +23,7 @@ const SCENE_LOADERS: Record<string, SceneLoader> = {
   online_setup: () => import("@/components/scenes/OnlineSetupScreen"),
   friends_invite: () => import("@/components/scenes/FriendsSetupScreen"),
   wallet: () => import("@/components/scenes/WalletScreen"),
+  minigames: () => import("@/components/minigames/MiniGamesScreen"),
   events: () => import("@/components/scenes/EventsScreen"),
   event_detail: () => import("@/components/scenes/EventDetailScreen"),
   leaderboard: () => import("@/components/scenes/LeaderboardScreen"),

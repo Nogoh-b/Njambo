@@ -136,6 +136,8 @@ export function publicEconomy(economy: PlayerEconomy, now: number) {
     daily: economy.daily,
     debtCauris: economy.debtCauris,
     spendingBlocked: economy.spendingBlocked,
+    minigames: economy.minigames ?? { day: null, plays: {} },
+    minigameSession: economy.minigameSession ?? null,
   };
 }
 

@@ -9,7 +9,7 @@ import { AvatarIllustration, NjamboIcon, type NjamboIconName, type NjamboIconTon
 import { MAX_EQUIPPED_POWERS, POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { useGame } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
-import { DEFAULT_EVENTS, doualaDayKey, type Reward } from "@/domain";
+import { DEFAULT_EVENTS, doualaDayKey, totalFreePlaysLeft, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useLiveOpsContent } from "@/hooks/useLiveOpsContent";
 import {
@@ -33,6 +33,7 @@ import { listenPlayer, listenSocialCounts } from "@/lib/socialData";
 import type { PlayerStats, PublicPlayerProfile, SceneName } from "@/types/game";
 import { eventArt } from "@/lib/eventArt";
 import { eventCountdown } from "@/lib/eventCountdown";
+import { requestShopTab } from "@/lib/shopDeepLink";
 import styles from "./MenuScreen.module.css";
 
 type SocialCounts = { notifications: number; messages: number; requests: number };
@@ -353,6 +354,8 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
 
   const level = getPlayerLevel(displayProfile.stats, displayProfile.balance);
   const bonusReady = !!economy && economy.daily.lastClaimDay !== doualaDayKey();
+  // Parties de mini-jeux offertes aujourd'hui (badge de la tuile « Jeux »).
+  const freeMiniGames = economy ? totalFreePlaysLeft(economy.minigames, doualaDayKey()) : 0;
   const resumeScene = resumeRoomType ? RESUME_SCENE[resumeRoomType] : null;
   const canResume = Boolean(resumeScene && onResumeGame);
   const now = useMemo(() => Date.now(), []);
@@ -595,7 +598,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
 
       {/* ═══ ZONE 2 : ARÈNE DE TABLE (Tapis 3D acajou/émeraude + Badges émaillés) ═══ */}
       <section className={styles.arenaStage} aria-label="Salon de jeu Njambo">
-        {/* Rail gauche : Boutique · Pouvoirs · Cadeau */}
+        {/* Rail gauche : Boutique · Pouvoirs · Cadeau · Jeux */}
         <motion.nav
           className={styles.sideRailLeft}
           aria-label="Boutique et récompenses"
@@ -663,6 +666,25 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
               <small>{bonusReady ? "+100 prêt" : `Jour ${loyaltyPoints}/7`}</small>
             </span>
             {bonusReady && <span className={styles.alertDot} aria-hidden="true">!</span>}
+          </button>
+
+          <button
+            data-nj-skin="none"
+            type="button"
+            className={`${styles.jewelTile} ${styles.enamelRose}${freeMiniGames > 0 ? ` ${styles.tileReady}` : ""}`}
+            onClick={() => openLink("minigames")}
+            onPointerEnter={() => preloadScene("minigames")}
+            aria-label={freeMiniGames > 0 ? `Mini-jeux, ${freeMiniGames} parties gratuites` : "Ouvrir les mini-jeux"}
+          >
+            <span className={styles.tileGleam} aria-hidden="true" />
+            <span className={styles.tileIconWrap} aria-hidden="true">
+              <Image src="/assets/njambo/economy/cauri-64.webp" alt="" width={28} height={28} />
+            </span>
+            <span className={styles.tileMeta}>
+              <strong>Jeux</strong>
+              <small>{freeMiniGames > 0 ? `${freeMiniGames} gratuits` : "Mini-jeux"}</small>
+            </span>
+            <CountBadge count={freeMiniGames} />
           </button>
         </motion.nav>
 
@@ -943,9 +965,23 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
               <strong className={styles.dailyRewardAmount}>+100 Nkap</strong>
               <p>
                 {economy?.daily.availableSpins
-                  ? "Ta roulette de fidélité est prête après la réclamation !"
+                  ? "Ta roue des retrouvailles est prête : tente ta chance !"
                   : "Reviens jouer chaque jour : tes 7 étapes s’additionnent sans jamais repartir à zéro."}
               </p>
+              {!!economy?.daily.availableSpins && (
+                <button
+                  data-nj-skin="none"
+                  type="button"
+                  className={styles.spinWheelLink}
+                  onClick={() => {
+                    setDailyModalOpen(false);
+                    requestShopTab("wheel");
+                    navigateTo("shop");
+                  }}
+                >
+                  Tourner la roue →
+                </button>
+              )}
             </div>
           </div>
 
