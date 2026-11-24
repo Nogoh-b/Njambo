@@ -946,6 +946,85 @@ async function playAvatarCowrie(ctx: ChoreoContext, ui: number, durationMs: numb
   tag?.remove();
 }
 
+/** Totem des ancêtres : un totem sculpté sort de terre à côté de l'avatar, ses yeux s'allument ; des pierres levées
+ *  se dressent en cercle autour de l'avatar, puis l'aura « totem » prend le relais et `label` (« Protégé ») s'affiche. */
+async function playAvatarTotem(ctx: ChoreoContext, ui: number, durationMs: number, color: string, label?: string) {
+  const timer = ctx.registry.timer(ui);
+  const rect = timer?.getRect();
+  const host = ctx.layer.container();
+  if (!timer || !rect || !host) return;
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const h = Math.max(64, Math.min(100, rect.height * 1.9));
+  const w = h * 0.42;
+  // Le totem se dresse à côté de l'avatar (le calque passe au-dessus de la table : derrière, il le cacherait),
+  // à droite, ou à gauche s'il n'y a pas la place ; sa base au niveau du bas de l'avatar.
+  const right = rect.right + w * 1.4 < window.innerWidth;
+  const tx = right ? rect.right + w * 0.15 : rect.left - w * 1.15;
+  const totem = document.createElement("div");
+  totem.setAttribute("data-choreo-fx", "totem");
+  Object.assign(totem.style, { position: "absolute", left: `${tx}px`, top: `${rect.bottom - h}px`, width: `${w}px`, height: `${h}px`, pointerEvents: "none", transformOrigin: "50% 100%", clipPath: "inset(0 -40% 0 -40%)" });
+  totem.innerHTML = `<svg viewBox="0 0 40 96" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 4px 6px rgba(0,0,0,.55))">
+    <path d="M8 6 Q20 -4 32 6 L33 30 L36 34 L33 38 L34 62 L37 66 L34 70 L33 94 L7 94 L6 70 L3 66 L6 62 L7 38 L4 34 L7 30 Z" fill="#7a4520" stroke="#2e1608" stroke-width="1.4"/>
+    <path d="M7 34 H33 M6 66 H34" stroke="#2e1608" stroke-width="2"/>
+    <path d="M12 12 L18 15 M28 12 L22 15 M14 24 Q20 28 26 24 M12 44 L18 48 L12 50 M28 44 L22 48 L28 50 M15 56 H25 M13 78 Q20 72 27 78 M14 86 H26" stroke="#e4b25e" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    <circle class="eye" cx="15" cy="17" r="2.6" fill="#2e1608"/><circle class="eye" cx="25" cy="17" r="2.6" fill="#2e1608"/>
+    <circle class="eye" cx="15" cy="48" r="2.2" fill="#2e1608"/><circle class="eye" cx="25" cy="48" r="2.2" fill="#2e1608"/>
+  </svg>`;
+  const ring = timer.getElement?.();
+  host.insertBefore(totem, host.firstChild);
+  const riseMs = Math.min(650, durationMs * 0.33);
+  ctx.impactShake(1);
+  // Sortie de terre, avec un léger tremblement.
+  await finished(totem.animate([
+    { transform: "translateY(100%) scaleY(.9)", opacity: 0 },
+    { transform: "translateY(30%) scaleY(1)", opacity: 1, offset: 0.4 },
+    { transform: "translateY(-4%) rotate(-1.5deg)", offset: 0.8 },
+    { transform: "translateY(0) rotate(0deg)" },
+  ], { duration: riseMs, easing: "cubic-bezier(.3,.9,.4,1)", fill: "forwards" }));
+  // Les yeux s'allument.
+  totem.querySelectorAll<SVGCircleElement>(".eye").forEach((eye, index) => {
+    void eye.animate([{ fill: "#2e1608" }, { fill: color, filter: `drop-shadow(0 0 3px ${color})` }], { duration: 260, delay: index * 90, fill: "forwards" });
+  });
+  // Pierres levées : six pierres sortent de terre en cercle autour de l'avatar, l'une après l'autre.
+  const stones: HTMLElement[] = [];
+  const radius = rect.width * 0.78;
+  for (let i = 0; i < 6; i++) {
+    const angle = (Math.PI * 2 * i) / 6 + Math.PI / 6;
+    const stone = document.createElement("span");
+    const sw = Math.max(7, rect.width * 0.18), sh = sw * 1.5;
+    Object.assign(stone.style, {
+      position: "absolute", left: `${cx + Math.cos(angle) * radius - sw / 2}px`, top: `${cy + Math.sin(angle) * radius - sh / 2}px`, width: `${sw}px`, height: `${sh}px`,
+      borderRadius: "45% 45% 20% 20%", background: "linear-gradient(#9a8f80, #5d554b)", border: "1px solid #2f2a24", boxShadow: `0 0 8px ${color}`, pointerEvents: "none",
+    });
+    host.appendChild(stone);
+    stones.push(stone);
+    void stone.animate([{ transform: "scaleY(0)", opacity: 0 }, { transform: "scaleY(1.15)", opacity: 1, offset: 0.7 }, { transform: "scaleY(1)", opacity: 1 }], { duration: 260, delay: i * 70, easing: "ease-out", fill: "both" });
+  }
+  await sleep(6 * 70 + 260);
+  timer.showAura("totem");
+  if (ring && !ctx.lite) void ring.animate([{ filter: "none" }, { filter: `brightness(1.3) drop-shadow(0 0 14px ${color})`, offset: 0.4 }, { filter: "none" }], { duration: 700 });
+  ctx.burst("mystic", rect, ctx.defaultTone, "standard", 900);
+  const tag = label ? document.createElement("span") : null;
+  if (tag) {
+    tag.textContent = label ?? "";
+    Object.assign(tag.style, {
+      position: "absolute", left: `${cx}px`, top: `${rect.bottom + 4}px`, transform: "translateX(-50%)", padding: "2px 8px", borderRadius: "999px",
+      background: "rgba(24,16,6,.86)", border: `1px solid ${color}`, color: "#ffe6a6", font: "800 11px/1.3 system-ui, sans-serif", whiteSpace: "nowrap", pointerEvents: "none",
+    });
+    host.appendChild(tag);
+    void tag.animate([{ opacity: 0, translate: "0 6px" }, { opacity: 1, translate: "0 0" }], { duration: 260, fill: "forwards" });
+  }
+  await sleep(Math.max(300, durationMs - riseMs - 6 * 70 - 260 - 350));
+  // Le totem redescend, les pierres s'effacent : l'aura totem et le badge de protection restent.
+  await Promise.all([
+    finished(totem.animate([{ transform: "translateY(0)", opacity: 1 }, { transform: "translateY(60%)", opacity: 0 }], { duration: 350, easing: "ease-in", fill: "forwards" })),
+    ...[...stones, ...(tag ? [tag] : [])].map((el) => finished(el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: "forwards" }))),
+  ]);
+  totem.remove();
+  stones.forEach((stone) => stone.remove());
+  tag?.remove();
+}
+
 /** Halo sur le pot : un anneau doré se forme au-dessus de l'avatar du lanceur, vole jusqu'au pot en tournant et s'y pose ;
  *  le pot enfle et rayonne, `label` (« ×2 ») s'affiche sur lui. */
 async function playPotBless(ctx: ChoreoContext, durationMs: number, color: string, label?: string) {
@@ -1040,6 +1119,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
     // Cauris porte-bonheur (Cauris Chanceux) : il tombe sur l'avatar, bulle d'assurance, voir playAvatarCowrie.
     if (target.element === "avatar" && effect === "cowrie" && hit.ui !== undefined) {
       jobs.push(playAvatarCowrie(ctx, hit.ui, track.durationMs, color, track.label));
+      continue;
+    }
+    // Totem des ancêtres : il sort de terre à côté de l'avatar, cercle de pierres levées, voir playAvatarTotem.
+    if (target.element === "avatar" && effect === "totem" && hit.ui !== undefined) {
+      jobs.push(playAvatarTotem(ctx, hit.ui, track.durationMs, color, track.label));
       continue;
     }
     // Tambour (Tambour d'Appel) : trois coups de djembé qui rechargent le minuteur, voir playTimerDrum.

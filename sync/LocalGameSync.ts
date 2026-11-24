@@ -590,6 +590,8 @@ export class LocalGameSync implements GameSyncActions {
     }
 
     final[winnerIdx].balance += potNow;
+    /* Mise double par perdant (écran de résultat) : payée, ou évitée grâce au Totem des Ancêtres. */
+    const doubleBy = new Map<number, { paid?: number; blocked?: boolean }>();
     if (info.doubles) {
       final.forEach((p, i) => {
         if (i !== winnerIdx) {
@@ -597,10 +599,14 @@ export class LocalGameSync implements GameSyncActions {
           if (!protectedByTotem) {
             p.balance -= this.opts.mise;
             final[winnerIdx].balance += this.opts.mise;
+            doubleBy.set(i, { paid: this.opts.mise });
+          } else {
+            doubleBy.set(i, { blocked: true });
           }
         }
       });
     }
+    const doubleGain = [...doubleBy.values()].reduce((sum, entry) => sum + (entry.paid ?? 0), 0);
     let youRefund = 0;
     final.forEach((p, i) => {
       if (i === winnerIdx) return;
@@ -626,6 +632,9 @@ export class LocalGameSync implements GameSyncActions {
       playerIdx: index,
       contributed: this.opts.mise,
       nkapDelta: (player.balance - ps[index].balance) - this.opts.mise,
+      doublePenalty: doubleBy.get(index)?.paid,
+      doubleBlocked: doubleBy.get(index)?.blocked,
+      doubleGain: index === winnerIdx && doubleGain > 0 ? doubleGain : undefined,
     }));
     this.result = {
       ...info, winner: final[winnerIdx], gain: potNow, playersCount: ps.length,

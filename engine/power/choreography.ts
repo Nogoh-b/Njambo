@@ -56,8 +56,9 @@ export const ELEMENT_EFFECTS = {
      shout : des ondes de cri partent de cet avatar et frappent le minuteur de chaque adversaire (`label` sur chacun) ;
      drum : un djembé bat trois coups près de l'avatar, chaque coup recharge l'anneau du minuteur (`label` à la fin). */
   timer: ["freeze", "speedUp", "rewind", "crack", "blink", "tint", "delta", "drain", "shout", "drum"],
-  /* cowrie : un cauris tombe sur l'avatar, rebondit et se pose devant ; bulle d'assurance et aura « chance » (`label` dessous). */
-  avatar: ["auraShield", "auraMask", "auraTotem", "auraLucky", "shake", "halo", "bounce", "cowrie"],
+  /* cowrie : un cauris tombe sur l'avatar, rebondit et se pose devant ; bulle d'assurance et aura « chance » (`label` dessous).
+     totem : un totem sculpté sort de terre à côté de l'avatar, ses yeux s'allument, un cercle de pierres se referme (aura totem). */
+  avatar: ["auraShield", "auraMask", "auraTotem", "auraLucky", "shake", "halo", "bounce", "cowrie", "totem"],
   /* bless : un halo doré part de l'avatar du lanceur et se pose sur le pot, qui enfle et rayonne. */
   pot: ["flash", "coinRain", "grow", "label", "bless"],
 } as const;

@@ -59,6 +59,12 @@ export interface MatchSettlementEntry {
   nkapDelta: number;
   /** Remboursement Cauris Chanceux déjà compris dans nkapDelta (affiché à part au résultat). */
   refund?: number;
+  /** Mise double payée (dernier pli gagné avec un 3), déjà comprise dans nkapDelta. */
+  doublePenalty?: number;
+  /** Mise double évitée grâce au Totem des Ancêtres. */
+  doubleBlocked?: boolean;
+  /** Vainqueur : total des mises doubles reçues, déjà compris dans nkapDelta. */
+  doubleGain?: number;
   crownsBefore?: number;
   crownsDelta?: number;
 }
@@ -580,6 +586,8 @@ export async function performGameAction(
     let finished = false;
     let finalWinnerIndex = -1;
     let completedTricks = 0;
+    /* Carte qui a remporté le dernier pli de la manche (règle du 3 qui double). */
+    let lastTrickWin: { seat: number; card: ServerCard } | null = null;
 
     // Rotation « consciente des éliminés » : un joueur ayant abandonné est
     // sauté (aucune carte), mais ses cartes déjà posées comptent pour le pli.
@@ -599,6 +607,10 @@ export async function performGameAction(
       finalWinnerIndex = winnerIndex(trickPlays, participants);
       // Dernier pli de la manche (toutes les mains vides) : les bonus « si tu gagnes la manche » se règlent maintenant.
       const lastTrick = activeParticipants.every((participant) => (hands.get(participant.uid)?.length ?? 0) === 0);
+      if (lastTrick) {
+        const winningPlay = trickPlays.find((entry) => entry.uid === participants[finalWinnerIndex]?.uid);
+        lastTrickWin = winningPlay ? { seat: finalWinnerIndex, card: winningPlay.card } : null;
+      }
       const trickRewards = applyTrickPowerRewards(effects, trickNumber + 1, finalWinnerIndex, pot, lastTrick);
       pot = trickRewards.pot;
       effects = trickRewards.effects;
@@ -691,11 +703,19 @@ export async function performGameAction(
     if (finished) finalWinnerIndex = participants.findIndex((participant) => participant.uid === seriesWinner(series.winners, activeUids));
     const handCounts = Object.fromEntries(participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0]));
     const nextTurnId = stableId(matchId, "turn", String(trickNumber), String(actions.length), String(now)).slice(0, 24);
+    /* Dernier pli gagné avec un 3 (GAME_CONFIG.lastCardThreeDoubles, annoncé dans les règles) : chaque perdant paie
+       une mise de plus au vainqueur, plafonnée à son solde ; Totem des Ancêtres (preventDoublePenalty) en protège.
+       En série, seul le dernier pli de la dernière manche compte, et il doit être gagné par le vainqueur du match.
+       Hors événements : leurs tables ont leur propre barème. */
+    // (affecté dans resolveCompletedTrick : TypeScript ne suit pas l'affectation faite dans la closure)
+    const lastWin = lastTrickWin as { seat: number; card: ServerCard } | null;
+    const doubled = finished && GAME_CONFIG.lastCardThreeDoubles && eventRunSnaps.length === 0
+      && lastWin !== null && lastWin.seat === finalWinnerIndex && lastWin.card.value === 3;
     const result = finished ? {
       winnerUid: participants[finalWinnerIndex].uid,
       winnerName: participants[finalWinnerIndex].name,
       winnerIsBot: participants[finalWinnerIndex].bot,
-      type: "lastTrick", settledAt: now,
+      type: "lastTrick", settledAt: now, doubled,
     } : null;
 
     /* Règlement par joueur, exposé à l'UI pour animer les transferts.
@@ -736,28 +756,58 @@ export async function performGameAction(
         transaction.create(db.doc(`users/${participant.uid}/matches/${matchId}`), {
           id: matchId, mode: match.mode, stake: Number(match.stakeNkap ?? 0), gain,
           won, winnerName: participants[finalWinnerIndex].name, playersCount: participants.length,
-          resultType: "lastTrick", doubles: false, roomId: match.roomId ?? null, createdAt: now,
+          resultType: "lastTrick", doubles: doubled, roomId: match.roomId ?? null, createdAt: now,
         });
       });
     }
 
+    /* Perdants : remboursement Cauris Chanceux (refundOnLoss), puis mise double si le dernier pli est gagné avec un 3
+       (sauf Totem des Ancêtres). Une seule écriture de solde par joueur. */
+    let doubleGain = 0;
     if (finished) {
-      // Remboursement partiel des perdants protégés (Cauris Chanceux — refundOnLoss).
       const stakeNkap = Number(match.stakeNkap ?? 0);
+      const protectedByTotem = (seat: number) => effects.some((effect) => effect.activatedBy === seat && effect.preventDoublePenalty);
+      // Mode bot : la maison finance la mise des bots, donc aussi leur mise double.
+      if (doubled && stakeNkap > 0 && match.mode === "bot") {
+        participants.forEach((participant, seat) => {
+          if (!participant.bot || seat === finalWinnerIndex || eliminated.has(participant.uid) || protectedByTotem(seat)) return;
+          doubleGain += stakeNkap;
+          const settled = settlementByUid.get(participant.uid);
+          if (settled) { settled.nkapDelta -= stakeNkap; settled.doublePenalty = stakeNkap; }
+        });
+      }
       realParticipants.forEach((participant, index) => {
         const seat = participants.findIndex((candidate) => candidate.uid === participant.uid);
         if (seat === finalWinnerIndex || eliminated.has(participant.uid) || stakeNkap <= 0) return;
-        const ratio = effects.find((effect) => effect.activatedBy === seat && effect.refundOnLoss)?.refundOnLoss;
-        if (!ratio) return;
-        const amount = Math.round(stakeNkap * ratio);
-        if (amount <= 0) return;
-        const loserEconomy = economyFrom(economySnaps[index].data(), now);
-        loserEconomy.nkap += amount;
-        transaction.set(db.doc(`economies/${participant.uid}`), loserEconomy, { merge: false });
-        ledger(transaction, participant.uid, stableId(participant.uid, "power-refund", matchId), "powerRefund", { nkap: amount }, loserEconomy, now, { matchId });
         const settled = settlementByUid.get(participant.uid);
-        if (settled) { settled.nkapDelta += amount; settled.refund = amount; }
+        const loserEconomy = economyFrom(economySnaps[index].data(), now);
+        let touched = false;
+        const ratio = effects.find((effect) => effect.activatedBy === seat && effect.refundOnLoss)?.refundOnLoss;
+        const refund = ratio ? Math.round(stakeNkap * ratio) : 0;
+        if (refund > 0) {
+          loserEconomy.nkap += refund;
+          touched = true;
+          ledger(transaction, participant.uid, stableId(participant.uid, "power-refund", matchId), "powerRefund", { nkap: refund }, loserEconomy, now, { matchId });
+          if (settled) { settled.nkapDelta += refund; settled.refund = refund; }
+        }
+        if (doubled) {
+          if (protectedByTotem(seat)) {
+            if (settled) settled.doubleBlocked = true;
+          } else {
+            const paid = Math.max(0, Math.min(stakeNkap, loserEconomy.nkap));
+            if (paid > 0) {
+              loserEconomy.nkap -= paid;
+              doubleGain += paid;
+              touched = true;
+              ledger(transaction, participant.uid, stableId(participant.uid, "double-penalty", matchId), "doublePenalty", { nkap: -paid }, loserEconomy, now, { matchId });
+              if (settled) { settled.nkapDelta -= paid; settled.doublePenalty = paid; }
+            }
+          }
+        }
+        if (touched) transaction.set(db.doc(`economies/${participant.uid}`), loserEconomy, { merge: false });
       });
+      const winnerSettled = settlementByUid.get(participants[finalWinnerIndex].uid);
+      if (winnerSettled && doubleGain > 0) { winnerSettled.nkapDelta += doubleGain; winnerSettled.doubleGain = doubleGain; }
     }
 
     if (finished && !participants[finalWinnerIndex].bot) {
@@ -765,8 +815,12 @@ export async function performGameAction(
       const winnerEconomyIndex = realParticipants.findIndex((participant) => participant.uid === winnerUid);
       const winnerEconomy = economyFrom(economySnaps[winnerEconomyIndex].data(), now);
       winnerEconomy.nkap += pot;
-      transaction.set(db.doc(`economies/${winnerUid}`), winnerEconomy, { merge: false });
       ledger(transaction, winnerUid, stableId(winnerUid, "match-settle", matchId), "settleMatch", { nkap: pot }, winnerEconomy, now, { matchId });
+      if (doubleGain > 0) {
+        winnerEconomy.nkap += doubleGain;
+        ledger(transaction, winnerUid, stableId(winnerUid, "double-win", matchId), "doubleWin", { nkap: doubleGain }, winnerEconomy, now, { matchId });
+      }
+      transaction.set(db.doc(`economies/${winnerUid}`), winnerEconomy, { merge: false });
       if (match.ranked === true && realParticipants.length > 1) {
         const crownValues = playerSnaps.map((snap) => Number(snap.get("crowns") ?? 1_000));
         const winnerPlayerIndex = realParticipants.findIndex((participant) => participant.uid === winnerUid);

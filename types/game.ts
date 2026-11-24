@@ -413,6 +413,12 @@ export interface ResultSettlementEntry {
   contributed: number;
   /** Solde net de la manche : part du pot moins la mise, remboursements inclus. */
   nkapDelta: number;
+  /** Mise double payée (dernier pli gagné avec un 3), comprise dans nkapDelta. */
+  doublePenalty?: number;
+  /** Mise double évitée grâce au Totem des Ancêtres. */
+  doubleBlocked?: boolean;
+  /** Vainqueur : total des mises doubles reçues, compris dans nkapDelta. */
+  doubleGain?: number;
   /** Renseignés uniquement en match classé — absents en mode bot et amis,
    *  où les couronnes ne bougent pas. Leur présence pilote l'affichage. */
   crownsBefore?: number;

@@ -40,8 +40,10 @@ interface ServerMatch {
   rules?: { turnSeconds?: number; maxEquippedPowers?: number; dealPerCardMs?: number; dealFlightMs?: number; unlimitedTurns?: boolean };
   result: null | {
     winnerUid: string; winnerName: string; winnerIsBot: boolean; type: "lastTrick"; crownGain?: number;
+    /** Dernier pli gagné avec un 3 : chaque perdant a payé une mise de plus (sauf Totem des Ancêtres). */
+    doubled?: boolean;
     /** Règlement par joueur calculé au serveur (cf. matchCommands, settle). */
-    settlement?: Array<{ uid: string; bot?: boolean; contributed: number; nkapDelta: number; refund?: number; crownsBefore?: number; crownsDelta?: number }>;
+    settlement?: Array<{ uid: string; bot?: boolean; contributed: number; nkapDelta: number; refund?: number; doublePenalty?: number; doubleBlocked?: boolean; doubleGain?: number; crownsBefore?: number; crownsDelta?: number }>;
   };
   recentActions?: ServerAction[];
   /** Activations de pouvoir diffusées à tous les participants (version
@@ -911,6 +913,9 @@ export class AuthoritativeGameSync implements GameSyncActions {
           bot: entry.bot ?? match.participants[serverIdx]?.bot,
           contributed: entry.contributed,
           nkapDelta: entry.nkapDelta,
+          doublePenalty: entry.doublePenalty,
+          doubleBlocked: entry.doubleBlocked,
+          doubleGain: entry.doubleGain,
           crownsBefore: entry.crownsBefore,
           crownsDelta: entry.crownsDelta,
         };
@@ -918,7 +923,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
       .filter((entry): entry is NonNullable<typeof entry> => entry !== null);
 
     const result: Result = {
-      type: "lastTrick", winnerIdx, winner: players[winnerIdx], doubles: false, lastCard,
+      type: "lastTrick", winnerIdx, winner: players[winnerIdx], doubles: match.result.doubled === true, lastCard,
       gain: match.potNkap, playersCount: players.length, players, settlement,
       // Remboursement Cauris Chanceux (déjà compris dans mon nkapDelta) : ligne dédiée à l'écran de résultat.
       refund: match.result.settlement?.find((entry) => entry.uid === this.opts.uid)?.refund || undefined,

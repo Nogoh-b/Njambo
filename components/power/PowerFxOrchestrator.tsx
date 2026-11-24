@@ -335,11 +335,25 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
       });
     }
-    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.insured ? "insured" :charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
+    // Protection (Totem des Ancêtres) : même badge, jusqu'au dernier pli.
+    if (ops.some((op) => op.op === "preventDoublePenalty") && activatorUi != null) {
+      pendingCharges.push({
+        key: `${activation.playId}-totem`,
+        ui: activatorUi,
+        insured: true,
+        handTag: "",
+        avatarTag: "🗿 Protégé de la mise double",
+        landing: "spark",
+        tone: def.tone,
+        depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
+      });
+    }
+    // Cauris et Totem sur le même joueur : deux badges distincts (un genre chacun).
+    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.insured ? (charge.key.endsWith("-totem") ? "totem" : "insured") : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
     const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && kindOf(a) === kindOf(b);
     // Chaque charge prend le relais au bon moment : carte imposée dès la fin de l'annonce (son projecteur fait partie
     // de la mise en scène), carte scellée à la fin de l'animation du sceau (1,9 s), renfort après la sienne.
-    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" || kindOf(charge) === "insured" ? 1800 : 1100));
+    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" || kindOf(charge) === "insured" || kindOf(charge) === "totem" ? 1800 : 1100));
     for (const charge of pendingCharges) {
       const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => !sameKind(item, charge)), charge]), delayOf(charge));
       burstTimersRef.current.push(timer);

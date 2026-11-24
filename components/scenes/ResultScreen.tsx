@@ -71,7 +71,10 @@ export function ResultScreen({
   const [showRematchScreen, setShowRematchScreen] = useState(false);
   const titleId = useId();
   const summaryId = useId();
-  const totalGain = result.gain + (result.doubles ? mise * (result.playersCount - 1) : 0);
+  /* Mises doubles réellement reçues (plafonnées au solde, Totem des Ancêtres) quand le règlement les donne. */
+  const doubleGain = result.settlement?.find((entry) => entry.doubleGain)?.doubleGain;
+  const totalGain = result.gain + (doubleGain ?? (result.doubles ? mise * (result.playersCount - 1) : 0));
+  const mySettlement = result.settlement?.find((entry) => result.players?.[entry.playerIdx]?.isYou);
   const scriptedMotion = motion.enabled && motion.allowEntranceCascade;
   const reasonLabels = getResultReasonLabels(result);
 
@@ -296,6 +299,18 @@ export function ResultScreen({
           <div className={styles.refund}>
             <img src={NKAP_COIN_SRC} alt="" className={styles.refundCoin} draggable={false} />
             <span>Remboursement Cauris : + {NKAP(result.refund ?? 0)}</span>
+          </div>
+        )}
+        {!win.isYou && mySettlement?.doubleBlocked && (
+          <div className={styles.refund}>
+            <span aria-hidden="true">🗿</span>
+            <span>Totem des Ancêtres : mise double évitée</span>
+          </div>
+        )}
+        {!win.isYou && (mySettlement?.doublePenalty ?? 0) > 0 && (
+          <div className={styles.refund}>
+            <span aria-hidden="true">3</span>
+            <span>Dernier pli gagné avec un 3 : mise double − {NKAP(mySettlement?.doublePenalty ?? 0)}</span>
           </div>
         )}
 
