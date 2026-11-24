@@ -2,10 +2,22 @@ import { prefetchAssets } from "@/lib/assets/AssetLoader";
 import { menuManifest } from "@/lib/assets/manifests";
 import { loadGsap } from "@/lib/motion";
 import { IDLE_PREFETCH_SCENES, preloadScene } from "@/lib/scenePreload";
+import { sysAsset } from "@/lib/assetPack";
 
 type IdleTask = () => void | Promise<unknown>;
 
 let started = false;
+
+/** Assets lourds réutilisés hors du home (dos de carte : pluie de fond + jeu). */
+const WARM_IMAGES = [
+  sysAsset("/assets/njambo/books/card-back-128.webp"),
+];
+
+function warmImage(src: string): void {
+  const img = new window.Image();
+  img.decoding = "async";
+  img.src = src;
+}
 
 const tasks: IdleTask[] = [
   // Plus de warmAudio() : GXE arme l'unlock de son AudioContext tout seul,

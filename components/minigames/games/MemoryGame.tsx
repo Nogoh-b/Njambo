@@ -10,15 +10,16 @@ import { MEMORY_DURATION_MS, MEMORY_PAIRS, MINI_GAMES_BY_ID, memoryReward } from
 import { GameStage, PlayButton } from "../MiniGameKit";
 import { miniGameError, type MiniGameProps } from "../useMiniGames";
 import styles from "../MiniGames.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 const game = MINI_GAMES_BY_ID.memory;
 const SYMBOLS = [
-  "/assets/njambo/economy/nkap-stack-64.webp",
-  "/assets/njambo/economy/cauris-pouch-64.webp",
-  "/assets/njambo/economy/energy-flask-64.webp",
-  "/assets/njambo/tickets/ticket-bronze-64.webp",
-  "/assets/njambo/books/book-normal-64.webp",
-  "/assets/njambo/economy/cauri-64.webp",
+  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
+  sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
+  sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
+  sysAsset("/assets/njambo/books/book-normal-64.webp"),
+  sysAsset("/assets/njambo/economy/cauri-64.webp"),
 ];
 
 function shuffled(): number[] {

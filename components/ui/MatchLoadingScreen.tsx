@@ -15,6 +15,7 @@ import { markPerformance, measurePerformance, recordGateResult } from "@/lib/per
 import { NjamboIcon, NjamboMark, type NjamboIconName } from "@/components/ui/Art";
 import type { BotDifficulty, GameMode, PowerCardId } from "@/types/game";
 import styles from "./MatchLoadingScreen.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 const MODE_META: Record<GameMode, { label: string; tone: "gold" | "teal" | "palm" | "pink"; icon: NjamboIconName; title: string }> = {
   bot: {
@@ -897,7 +898,7 @@ export function MatchLoadingScreen({
             </span>
 
             <span className={styles.metaChip}>
-              <img src="/assets/njambo/economy/nkap-64.webp" alt="" className={styles.coinImg} draggable={false} />
+              <img src={sysAsset("/assets/njambo/economy/nkap-64.webp")} alt="" className={styles.coinImg} draggable={false} />
               <span>{mise > 0 ? NKAP(mise) : gameMode === "event" ? "Tournoi" : "Amicale"}</span>
             </span>
           </div>
@@ -979,7 +980,7 @@ export function MatchLoadingScreen({
         <footer ref={bottomDockRef} className={styles.bottomDock}>
           <div className={styles.tipBanner}>
             <img
-              src="/assets/njambo/ui/icons/sparkle-64.webp"
+              src={sysAsset("/assets/njambo/ui/icons/sparkle-64.webp")}
               alt=""
               className={styles.tipIcon}
               draggable={false}

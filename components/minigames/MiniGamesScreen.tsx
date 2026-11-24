@@ -22,20 +22,21 @@ import { ScratchGame } from "./games/ScratchGame";
 import { OddsModal, RewardModal } from "./MiniGameKit";
 import { costIcon, costLabel, useMiniGames, type MiniGameProps } from "./useMiniGames";
 import styles from "./MiniGames.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 const GAME_ART: Record<MiniGameId, ReactNode> = {
-  scratch: <Image src="/assets/njambo/tickets/ticket-bronze-128.webp" alt="" width={56} height={56} />,
-  cauris: <Image src="/assets/njambo/economy/cauri-128.webp" alt="" width={56} height={56} />,
+  scratch: <Image src={sysAsset("/assets/njambo/tickets/ticket-bronze-128.webp")} alt="" width={56} height={56} />,
+  cauris: <Image src={sysAsset("/assets/njambo/economy/cauri-128.webp")} alt="" width={56} height={56} />,
   dice: (
     <span className={styles.artDice} aria-hidden="true">
       <i /><i /><i /><i /><i />
     </span>
   ),
   hilo: <span className={styles.artHiLo} aria-hidden="true"><b>7</b><span>▲▼</span></span>,
-  pick: <Image src="/assets/njambo/books/card-back-128.webp" alt="" width={44} height={60} />,
-  chests: <Image src="/assets/njambo/economy/cauris-pouch-128.webp" alt="" width={56} height={56} />,
-  memory: <Image src="/assets/njambo/economy/energy-flask-128.webp" alt="" width={56} height={56} />,
-  coinrain: <Image src="/assets/njambo/economy/nkap-128.webp" alt="" width={56} height={56} />,
+  pick: <Image src={sysAsset("/assets/njambo/books/card-back-128.webp")} alt="" width={44} height={60} />,
+  chests: <Image src={sysAsset("/assets/njambo/economy/cauris-pouch-128.webp")} alt="" width={56} height={56} />,
+  memory: <Image src={sysAsset("/assets/njambo/economy/energy-flask-128.webp")} alt="" width={56} height={56} />,
+  coinrain: <Image src={sysAsset("/assets/njambo/economy/nkap-128.webp")} alt="" width={56} height={56} />,
 };
 
 function GameCard({ id, onOpen }: { id: MiniGameId; onOpen: () => void }) {
@@ -118,9 +119,9 @@ export function MiniGamesScreen() {
           <h1 className={styles.hudTitle}>{openGame ? openGame.title : "Mini-jeux"}</h1>
         </div>
         <div className={styles.wallet} aria-label="Tes ressources">
-          <span><Image src="/assets/njambo/economy/nkap-stack-64.webp" alt="" width={16} height={16} />{mg.guest ? "–" : (mg.economy?.nkap ?? 0).toLocaleString("fr-FR")}</span>
-          <span><Image src="/assets/njambo/economy/cauris-pouch-64.webp" alt="" width={16} height={16} />{mg.guest ? "–" : mg.economy?.cauris ?? 0}</span>
-          <span><Image src="/assets/njambo/tickets/ticket-bronze-64.webp" alt="" width={16} height={16} />{mg.guest ? "–" : Number(mg.inventory.tickets?.bronze ?? 0)}</span>
+          <span><Image src={sysAsset("/assets/njambo/economy/nkap-stack-64.webp")} alt="" width={16} height={16} />{mg.guest ? "–" : (mg.economy?.nkap ?? 0).toLocaleString("fr-FR")}</span>
+          <span><Image src={sysAsset("/assets/njambo/economy/cauris-pouch-64.webp")} alt="" width={16} height={16} />{mg.guest ? "–" : mg.economy?.cauris ?? 0}</span>
+          <span><Image src={sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp")} alt="" width={16} height={16} />{mg.guest ? "–" : Number(mg.inventory.tickets?.bronze ?? 0)}</span>
         </div>
       </header>
 
@@ -142,7 +143,7 @@ export function MiniGamesScreen() {
             onClick={() => { requestShopTab("wheel"); navigateTo("shop"); }}
           >
             {!mg.guest && spins > 0 && <span className={`${styles.cardBadge} ${styles.badgeFree}`}>{spins} lancer{spins > 1 ? "s" : ""}</span>}
-            <span className={styles.cardArt}><Image src="/assets/njambo/economy/loyalty-wheel-128.webp" alt="" width={56} height={56} /></span>
+            <span className={styles.cardArt}><Image src={sysAsset("/assets/njambo/economy/loyalty-wheel-128.webp")} alt="" width={56} height={56} /></span>
             <span className={styles.cardCopy}>
               <strong>Roue des retrouvailles</strong>
               <small>7 connexions = 1 lancer</small>

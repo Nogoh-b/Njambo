@@ -12,8 +12,9 @@ import { GameModal } from "@/components/ui/GameModal";
 import { GameShell } from "@/components/ui/GameShell";
 import { SocialActions } from "@/components/social/SocialActions";
 import styles from "./LobbyScreen.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
-const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
+const NKAP_COIN_SRC = sysAsset("/assets/njambo/economy/nkap-64.webp");
 
 interface LobbyScreenProps {
   onGameStart: () => void;

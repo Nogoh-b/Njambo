@@ -126,7 +126,7 @@ export function blankPowerCard(id: string) {
   return {
     def: {
       id, name: "Nouveau pouvoir", category: "tactical" as const, icon: "sparkle", tone: "gold" as const, rarity: "rare" as const,
-      targetMode: "opponent" as const, art: "/assets/power-cards/oeil_sorcier.webp", activationTitle: "POUVOIR",
+      targetMode: "opponent" as const, art: "/assets/power-cards/v2/oeil_sorcier.webp", activationTitle: "POUVOIR",
       activationText: "Effet déclenché", description: "Décris ici ce que fait la carte.", costCauris: 30, costNkap: 500,
       animTags: [] as PowerCardDef["animTags"], boosterTier: "notable" as const,
     },

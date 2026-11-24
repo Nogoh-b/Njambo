@@ -10,7 +10,7 @@ export const caurisChanceux: PowerModule = {
     tone: "gold",
     rarity: "common",
     targetMode: "self",
-    art: "/assets/power-cards/cauris_chanceux.webp",
+    art: "/assets/power-cards/v2/cauris_chanceux.webp",
     activationTitle: "CHANCE",
     activationText: "Remboursement si tu perds",
     description: "Récupère 50% de ta mise si tu perds la manche.",

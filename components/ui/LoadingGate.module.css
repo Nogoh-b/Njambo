@@ -47,7 +47,7 @@
   border-radius: 7px;
   border: 1.5px solid rgba(255, 212, 92, 0.56);
   background:
-    var(--nj-card-back, url("/assets/njambo/books/card-back-128.webp")) center / cover no-repeat,
+    var(--nj-card-back, var(--nj-sys-card-back-128, url("/assets/njambo/books/card-back-128.webp"))) center / cover no-repeat,
     #3a2412;
   box-shadow: 0 8px 18px rgba(0, 0, 0, 0.5);
   transform-origin: 50% 112%;

@@ -42,6 +42,7 @@ import { FortuneWheel, type FortuneWheelHandle } from "@/components/shop/Fortune
 import { WHEEL_TICK_SOUND, WHEEL_WIN_SOUND } from "@/lib/gxeSfx";
 import { consumeShopTab } from "@/lib/shopDeepLink";
 import styles from "./ShopScreen.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 type ShopTab = "offers" | "boosters" | "grid" | "wheel";
 type OfferCategory = "featured" | OfferDefinition["type"];
@@ -473,7 +474,7 @@ export function ShopScreen() {
             className={`${styles.walletPill} ${styles.pillGold}${walletPulse ? ` ${styles.walletPop}` : ""}`}
             onClick={() => navigateTo("wallet")}
           >
-            <Image src="/assets/njambo/economy/nkap-stack-64.webp" alt="" width={19} height={19} />
+            <Image src={sysAsset("/assets/njambo/economy/nkap-stack-64.webp")} alt="" width={19} height={19} />
             <strong>{economy?.nkap.toLocaleString("fr-FR") ?? "—"}</strong>
           </button>
           <button
@@ -482,7 +483,7 @@ export function ShopScreen() {
             className={`${styles.walletPill} ${styles.pillPink}${walletPulse ? ` ${styles.walletPop}` : ""}`}
             onClick={() => navigateTo("wallet")}
           >
-            <Image src="/assets/njambo/economy/cauris-pouch-64.webp" alt="" width={19} height={19} />
+            <Image src={sysAsset("/assets/njambo/economy/cauris-pouch-64.webp")} alt="" width={19} height={19} />
             <strong>{economy?.cauris ?? "—"}</strong>
           </button>
         </div>
@@ -888,7 +889,7 @@ export function ShopScreen() {
                           className={`${styles.pickCardBtn}${busy === `slot-${pos}` ? ` ${styles.cardCharging}` : ""}`}
                           onClick={() => void revealBoosterCard(pos)}
                         >
-                          <Image src="/assets/njambo/books/card-back-256.webp" alt="Carte cachée" fill sizes="120px" />
+                          <Image src={sysAsset("/assets/njambo/books/card-back-256.webp")} alt="Carte cachée" fill sizes="120px" />
                           <span className={styles.cardGlint} aria-hidden="true" />
                           <span className={styles.pickOrb}>{busy === `slot-${pos}` ? "✦" : "?"}</span>
                         </motion.button>
@@ -933,7 +934,7 @@ export function ShopScreen() {
                       className={gridPayment === "cauris" ? styles.payActive : ""}
                       onClick={() => setGridPayment("cauris")}
                     >
-                      <Image src="/assets/njambo/economy/cauri-64.webp" alt="" width={15} height={15} />
+                      <Image src={sysAsset("/assets/njambo/economy/cauri-64.webp")} alt="" width={15} height={15} />
                       <span>15 cauris</span>
                     </button>
                     <button
@@ -1041,7 +1042,7 @@ export function ShopScreen() {
                           onClick={() => void purchaseDailyGridCard(position, gridPayment)}
                           aria-label={`Révéler la case ${position + 1}`}
                         >
-                          <Image src="/assets/njambo/books/card-back-256.webp" alt="" fill sizes="120px" className={styles.gridBackImg} />
+                          <Image src={sysAsset("/assets/njambo/books/card-back-256.webp")} alt="" fill sizes="120px" className={styles.gridBackImg} />
                           <span className={styles.cardGlint} aria-hidden="true" />
                           <span className={styles.gridQuestion}>{selecting ? "✦" : "?"}</span>
                           <span className={styles.gridPriceBadge}>

@@ -11,7 +11,7 @@ export const eclairMfoundi: PowerModule = {
     tone: "teal",
     rarity: "epic",
     targetMode: "self",
-    art: "/assets/power-cards/eclair_mfoundi.webp",
+    art: "/assets/power-cards/v2/eclair_mfoundi.webp",
     activationTitle: "ÉCLAIR DU MFOUNDI",
     activationText: "Ta prochaine carte frappe +2",
     activationTextOthers: "{activator} charge un éclair",

@@ -11,6 +11,7 @@ import { rewardIconSrc, rewardLabel } from "@/lib/shopVisuals";
 import { GameStage, PlayButton } from "../MiniGameKit";
 import { miniGameError, type MiniGameProps } from "../useMiniGames";
 import styles from "../MiniGames.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 function Chest({ open }: { open: boolean }) {
   return (
@@ -92,7 +93,7 @@ export function PickGame({ mg, onReward, onError, onAuth, onOdds, variant }: Min
             >
               {variant === "pick" ? (
                 <span className={styles.pickCard}>
-                  <span className={styles.pickBack}><Image src="/assets/njambo/books/card-back-256.webp" alt="" fill sizes="110px" /></span>
+                  <span className={styles.pickBack}><Image src={sysAsset("/assets/njambo/books/card-back-256.webp")} alt="" fill sizes="110px" /></span>
                   <span className={styles.pickFront}>
                     {reward && <><Image src={rewardIconSrc(reward)} alt="" width={52} height={52} /><strong>{rewardLabel(reward)}</strong></>}
                   </span>

@@ -11,7 +11,7 @@ export const pagneChangeant: PowerModule = {
     tone: "cobalt",
     rarity: "legendary",
     targetMode: "self",
-    art: "/assets/power-cards/pagne_changeant.webp",
+    art: "/assets/power-cards/v2/pagne_changeant.webp",
     activationTitle: "PAGNE CHANGEANT",
     activationText: "Ta prochaine carte prend la couleur demandée",
     activationTextOthers: "{activator} change de pagne",

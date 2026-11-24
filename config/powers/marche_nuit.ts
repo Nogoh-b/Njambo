@@ -11,7 +11,7 @@ export const marcheNuit: PowerModule = {
     tone: "cobalt",
     rarity: "epic",
     targetMode: "self",
-    art: "/assets/power-cards/marche_nuit.webp",
+    art: "/assets/power-cards/v2/marche_nuit.webp",
     activationTitle: "MARCHÉ DE NUIT",
     activationText: "Ta plus faible carte contre le meilleur de l'étal",
     activationTextOthers: "{activator} fait son marché",

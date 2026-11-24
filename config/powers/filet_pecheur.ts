@@ -11,7 +11,7 @@ export const filetPecheur: PowerModule = {
     tone: "teal",
     rarity: "rare",
     targetMode: "opponent",
-    art: "/assets/power-cards/filet_pecheur.webp",
+    art: "/assets/power-cards/v2/filet_pecheur.webp",
     activationTitle: "FILET DU PÊCHEUR",
     activationText: "La cible jouera sa carte la plus forte à son prochain tour",
     activationTextOthers: "{activator} jette son filet sur {target}",

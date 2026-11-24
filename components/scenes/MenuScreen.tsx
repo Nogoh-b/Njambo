@@ -35,6 +35,7 @@ import { eventArt } from "@/lib/eventArt";
 import { eventCountdown } from "@/lib/eventCountdown";
 import { requestShopTab } from "@/lib/shopDeepLink";
 import styles from "./MenuScreen.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 type SocialCounts = { notifications: number; messages: number; requests: number };
 
@@ -553,7 +554,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
         <section className={styles.resourceBar} aria-label="Ressources">
           <ResourcePillButton
             kind="energy"
-            asset="/assets/njambo/economy/energy-flask-64.webp"
+            asset={sysAsset("/assets/njambo/economy/energy-flask-64.webp")}
             label={t("economy.energy")}
             value={economyPending || isGuest ? "—" : energyValue}
             numericValue={economyPending || isGuest || economy?.energy.unlimited ? undefined : economy?.energy.available}
@@ -564,7 +565,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           />
           <ResourcePillButton
             kind="nkap"
-            asset="/assets/njambo/economy/nkap-stack-64.webp"
+            asset={sysAsset("/assets/njambo/economy/nkap-stack-64.webp")}
             label={t("economy.nkap")}
             value={economyPending || isGuest ? "—" : formatRibbonAmount(displayProfile.balance)}
             numericValue={economyPending || isGuest ? undefined : displayProfile.balance}
@@ -576,7 +577,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           />
           <ResourcePillButton
             kind="cauris"
-            asset="/assets/njambo/economy/cauris-pouch-64.webp"
+            asset={sysAsset("/assets/njambo/economy/cauris-pouch-64.webp")}
             label={t("economy.cauris")}
             value={economyPending || isGuest ? "—" : formatRibbonAmount(displayProfile.cauris)}
             numericValue={economyPending || isGuest ? undefined : displayProfile.cauris}
@@ -659,7 +660,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           >
             <span className={styles.tileGleam} aria-hidden="true" />
             <span className={`${styles.tileIconWrap} ${styles.wheelIconWrap}`} aria-hidden="true">
-              <Image src="/assets/njambo/economy/loyalty-wheel-128.webp" alt="" width={30} height={30} />
+              <Image src={sysAsset("/assets/njambo/economy/loyalty-wheel-128.webp")} alt="" width={30} height={30} />
             </span>
             <span className={styles.tileMeta}>
               <strong>Cadeau</strong>
@@ -678,7 +679,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           >
             <span className={styles.tileGleam} aria-hidden="true" />
             <span className={styles.tileIconWrap} aria-hidden="true">
-              <Image src="/assets/njambo/economy/cauri-64.webp" alt="" width={28} height={28} />
+              <Image src={sysAsset("/assets/njambo/economy/cauri-64.webp")} alt="" width={28} height={28} />
             </span>
             <span className={styles.tileMeta}>
               <strong>Jeux</strong>
@@ -711,10 +712,10 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
 
             {/* Jetons & cauris 2,5D posés sur le rebord de table */}
             <span className={styles.tablePropLeft}>
-              <Image src="/assets/njambo/economy/nkap-64.webp" alt="" width={28} height={28} />
+              <Image src={sysAsset("/assets/njambo/economy/nkap-64.webp")} alt="" width={28} height={28} />
             </span>
             <span className={styles.tablePropRight}>
-              <Image src="/assets/njambo/economy/cauri-64.webp" alt="" width={26} height={26} />
+              <Image src={sysAsset("/assets/njambo/economy/cauri-64.webp")} alt="" width={26} height={26} />
             </span>
           </div>
 
@@ -959,7 +960,7 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
           <div className={styles.dailyHeroRow}>
             <span className={styles.wheelMedallion} aria-hidden="true">
               <span className={styles.wheelMedallionRays} />
-              <Image src="/assets/njambo/economy/loyalty-wheel-128.webp" alt="" width={68} height={68} />
+              <Image src={sysAsset("/assets/njambo/economy/loyalty-wheel-128.webp")} alt="" width={68} height={68} />
             </span>
             <div className={styles.dailyHeroCopy}>
               <strong className={styles.dailyRewardAmount}>+100 Nkap</strong>

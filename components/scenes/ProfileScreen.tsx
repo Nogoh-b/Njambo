@@ -22,6 +22,7 @@ import type { PlayerStats, PowerCardId, PublicPlayerProfile } from "@/types/game
 import { CosmeticCollection } from "./CosmeticCollection";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import styles from "./ProfileScreen.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 const AVATARS = [
   "you-nogoh",
@@ -171,7 +172,7 @@ export function ProfileScreen() {
             onClick={() => navigateTo("wallet")}
             aria-label={`Ouvrir mon portefeuille : ${shownBalance.toLocaleString("fr-FR")} Nkap`}
           >
-            <Image src="/assets/njambo/economy/nkap-stack-64.webp" alt="" width={18} height={18} />
+            <Image src={sysAsset("/assets/njambo/economy/nkap-stack-64.webp")} alt="" width={18} height={18} />
             <strong>{shownBalance.toLocaleString("fr-FR")}</strong>
           </button>
         </div>
@@ -461,7 +462,7 @@ export function ProfileScreen() {
                     id: "nkap",
                     label: "Nkap",
                     value: NKAP(shownBalance),
-                    img: "/assets/njambo/economy/nkap-stack-64.webp",
+                    img: sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
                     tone: styles.stGold,
                     onClick: () => navigateTo("wallet"),
                   },
@@ -469,7 +470,7 @@ export function ProfileScreen() {
                     id: "cauris",
                     label: "Cauris",
                     value: shownCauris.toLocaleString("fr-FR"),
-                    img: "/assets/njambo/economy/cauris-pouch-64.webp",
+                    img: sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
                     tone: styles.stPink,
                     onClick: () => navigateTo("wallet"),
                   },
@@ -477,7 +478,7 @@ export function ProfileScreen() {
                     id: "energy",
                     label: "Énergie",
                     value: economy?.energy.unlimited ? "∞" : `${energyAvail}/100`,
-                    img: "/assets/njambo/economy/energy-flask-64.webp",
+                    img: sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
                     tone: styles.stTeal,
                     progress: energyPct,
                     onClick: () => navigateTo("wallet"),

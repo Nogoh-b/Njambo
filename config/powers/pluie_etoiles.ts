@@ -11,7 +11,7 @@ export const pluieEtoiles: PowerModule = {
     tone: "gold",
     rarity: "rare",
     targetMode: "none",
-    art: "/assets/power-cards/pluie_etoiles.webp",
+    art: "/assets/power-cards/v2/pluie_etoiles.webp",
     activationTitle: "PLUIE D'OR",
     activationText: "+200 Nkap au pot si tu gagnes la manche",
     description: "+200 Nkap au pot si tu gagnes la manche.",

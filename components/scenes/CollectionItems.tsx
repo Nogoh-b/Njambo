@@ -32,6 +32,7 @@ import {
 } from "@/lib/shopVisuals";
 import type { PowerCardId } from "@/types/game";
 import styles from "./CollectionItems.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 type ItemFilter = "all" | "packs" | "books" | "energy" | "tickets";
 
@@ -519,7 +520,7 @@ export function CollectionItems({ compact = false, onNavigateAway }: CollectionI
                     </div>
                     <div className={styles.artWrap}>
                       <span className={styles.artHalo} aria-hidden="true" />
-                      <Image src="/assets/njambo/economy/energy-flask-256.webp" alt="" width={74} height={74} className={styles.artImg} />
+                      <Image src={sysAsset("/assets/njambo/economy/energy-flask-256.webp")} alt="" width={74} height={74} className={styles.artImg} />
                       <span className={styles.artPedestal} aria-hidden="true" />
                     </div>
                     <strong className={styles.itemTitle}>Énergie {formatEnergyDuration(durationMinutes)}</strong>
@@ -865,7 +866,7 @@ export function CollectionItems({ compact = false, onNavigateAway }: CollectionI
                 className={styles.heroVisualWrap}
               >
                 <Image
-                  src="/assets/njambo/economy/energy-flask-256.webp"
+                  src={sysAsset("/assets/njambo/economy/energy-flask-256.webp")}
                   alt=""
                   width={116}
                   height={116}
@@ -1005,7 +1006,7 @@ export function CollectionItems({ compact = false, onNavigateAway }: CollectionI
                     className={`${styles.pickCardBtn}${busy === `pick:${pos}` ? ` ${styles.cardCharging}` : ""}`}
                     onClick={() => void handleChooseBookCard(pos)}
                   >
-                    <Image src="/assets/njambo/books/card-back-256.webp" alt="Carte cachée" fill sizes="110px" />
+                    <Image src={sysAsset("/assets/njambo/books/card-back-256.webp")} alt="Carte cachée" fill sizes="110px" />
                     <span className={styles.pickGlint} aria-hidden="true" />
                     <span className={styles.pickOrb}>{busy === `pick:${pos}` ? "✦" : "?"}</span>
                   </motion.button>
@@ -1210,7 +1211,7 @@ export function CollectionItems({ compact = false, onNavigateAway }: CollectionI
                 transition={{ type: "spring", stiffness: 250, damping: 16 }}
                 className={styles.energyWinOrb}
               >
-                <Image src="/assets/njambo/economy/energy-flask-256.webp" alt="" width={96} height={96} className={styles.heroLevitate} />
+                <Image src={sysAsset("/assets/njambo/economy/energy-flask-256.webp")} alt="" width={96} height={96} className={styles.heroLevitate} />
               </motion.div>
             </div>
             <strong className={styles.energyWinDuration}>+{formatEnergyDuration(energyActivated.durationMinutes)}</strong>

@@ -12,6 +12,7 @@ import { eventArt } from "../eventArt";
 import { rewardVisual } from "../eventRewards";
 import type { Reward } from "../../domain";
 import { audioAsset, imageAsset, type AssetRef } from "./AssetLoader";
+import { sysAsset } from "@/lib/assetPack";
 
 export interface AssetManifest { critical: AssetRef[]; background: AssetRef[] }
 
@@ -48,7 +49,7 @@ function catalogPowerAssets(): AssetRef[] {
   });
 }
 
-export const DEFAULT_CARD_BACK_ASSET = "/assets/njambo/table/card-back-default.svg";
+export const DEFAULT_CARD_BACK_ASSET = "/assets/njambo/table/card-backs/cauri-soleil.webp";
 export const DEFAULT_HAND_ARC_ASSET = "/assets/njambo/table/hand-arc-default.svg";
 
 type CosmeticsLike = {
@@ -79,30 +80,30 @@ export interface TableAssetGroups {
 const TABLE_UI_CRITICAL = [
   DEFAULT_CARD_BACK_ASSET,
   DEFAULT_HAND_ARC_ASSET,
-  "/assets/njambo/books/card-back-128.webp",
+  sysAsset("/assets/njambo/books/card-back-128.webp"),
   "/assets/njambo/ui/brand/njambo-mark-64.webp",
   "/assets/njambo/ui/brand/njambo-mark-128.webp",
-  "/assets/njambo/economy/nkap-64.webp",
-  "/assets/njambo/economy/nkap-stack-64.webp",
-  "/assets/njambo/ui/icons/cards-64.webp",
-  "/assets/njambo/ui/icons/cards-128.webp",
-  "/assets/njambo/ui/icons/crown-64.webp",
-  "/assets/njambo/ui/icons/crown-128.webp",
-  "/assets/njambo/ui/icons/trophy-64.webp",
-  "/assets/njambo/ui/icons/trophy-128.webp",
-  "/assets/njambo/ui/icons/coin-64.webp",
-  "/assets/njambo/ui/icons/coin-128.webp",
-  "/assets/njambo/ui/icons/check-64.webp",
-  "/assets/njambo/ui/icons/sparkle-64.webp",
-  "/assets/njambo/ui/icons/home-64.webp",
+  sysAsset("/assets/njambo/economy/nkap-64.webp"),
+  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/cards-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/cards-128.webp"),
+  sysAsset("/assets/njambo/ui/icons/crown-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/crown-128.webp"),
+  sysAsset("/assets/njambo/ui/icons/trophy-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/trophy-128.webp"),
+  sysAsset("/assets/njambo/ui/icons/coin-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/coin-128.webp"),
+  sysAsset("/assets/njambo/ui/icons/check-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/sparkle-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/home-64.webp"),
 ] as const;
 
 const TABLE_UI_BACKGROUND = [
-  "/assets/njambo/ui/icons/hourglass-64.webp",
-  "/assets/njambo/ui/buttons/gold-frame.webp",
-  "/assets/njambo/ui/buttons/teal-frame.webp",
-  "/assets/njambo/ui/buttons/pink-frame.webp",
-  "/assets/njambo/ui/buttons/dark-frame.webp",
+  sysAsset("/assets/njambo/ui/icons/hourglass-64.webp"),
+  sysAsset("/assets/njambo/ui/buttons/gold-frame.webp"),
+  sysAsset("/assets/njambo/ui/buttons/teal-frame.webp"),
+  sysAsset("/assets/njambo/ui/buttons/pink-frame.webp"),
+  sysAsset("/assets/njambo/ui/buttons/dark-frame.webp"),
 ] as const;
 
 /**
@@ -225,39 +226,39 @@ export function menuManifest(): AssetManifest {
 }
 
 const SHOP_STATIC = [
-  "/assets/njambo/economy/pack-mboa-256.webp",
-  "/assets/njambo/economy/pack-quartier-256.webp",
-  "/assets/njambo/economy/pack-chefferie-256.webp",
-  "/assets/njambo/economy/cauris-pouch-256.webp",
-  "/assets/njambo/economy/nkap-stack-256.webp",
-  "/assets/njambo/economy/energy-flask-256.webp",
-  "/assets/njambo/tickets/ticket-bronze-256.webp",
-  "/assets/njambo/tickets/ticket-argent-256.webp",
-  "/assets/njambo/tickets/ticket-or-256.webp",
-  "/assets/njambo/books/book-normal-256.webp",
-  "/assets/njambo/books/book-rare-256.webp",
-  "/assets/njambo/books/book-exceptionnel-256.webp",
-  "/assets/njambo/books/card-back-256.webp",
-  "/assets/njambo/economy/nkap-stack-64.webp",
-  "/assets/njambo/economy/cauris-pouch-64.webp",
-  "/assets/njambo/economy/cauri-64.webp",
-  "/assets/njambo/economy/energy-flask-64.webp",
-  "/assets/njambo/tickets/ticket-bronze-64.webp",
-  "/assets/njambo/tickets/ticket-argent-64.webp",
-  "/assets/njambo/tickets/ticket-or-64.webp",
-  "/assets/njambo/ui/icons/coin-64.webp",
-  "/assets/njambo/ui/icons/cards-64.webp",
-  "/assets/njambo/ui/icons/sparkle-64.webp",
-  "/assets/njambo/ui/icons/trophy-64.webp",
+  sysAsset("/assets/njambo/economy/pack-mboa-256.webp"),
+  sysAsset("/assets/njambo/economy/pack-quartier-256.webp"),
+  sysAsset("/assets/njambo/economy/pack-chefferie-256.webp"),
+  sysAsset("/assets/njambo/economy/cauris-pouch-256.webp"),
+  sysAsset("/assets/njambo/economy/nkap-stack-256.webp"),
+  sysAsset("/assets/njambo/economy/energy-flask-256.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-bronze-256.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-argent-256.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-or-256.webp"),
+  sysAsset("/assets/njambo/books/book-normal-256.webp"),
+  sysAsset("/assets/njambo/books/book-rare-256.webp"),
+  sysAsset("/assets/njambo/books/book-exceptionnel-256.webp"),
+  sysAsset("/assets/njambo/books/card-back-256.webp"),
+  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
+  sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
+  sysAsset("/assets/njambo/economy/cauri-64.webp"),
+  sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/coin-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/cards-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/sparkle-64.webp"),
+  sysAsset("/assets/njambo/ui/icons/trophy-64.webp"),
 ] as const;
 
 const EVENTS_STATIC = [
-  "/assets/njambo/tickets/ticket-bronze-64.webp",
-  "/assets/njambo/tickets/ticket-argent-64.webp",
-  "/assets/njambo/tickets/ticket-or-64.webp",
-  "/assets/njambo/economy/nkap-stack-64.webp",
-  "/assets/njambo/economy/cauris-pouch-64.webp",
-  "/assets/njambo/economy/energy-flask-64.webp",
+  sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
+  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
+  sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
+  sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
   "/assets/njambo/events/defi-du-mboa-480.webp",
   "/assets/njambo/events/tournoi-du-ter-480.webp",
   "/assets/njambo/events/event-fallback.webp",

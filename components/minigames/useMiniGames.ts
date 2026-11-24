@@ -19,6 +19,7 @@ import {
   type MiniGameSession,
   type Reward,
 } from "@/domain";
+import { sysAsset } from "@/lib/assetPack";
 
 export interface InstantResult {
   reward: Reward;
@@ -34,9 +35,9 @@ export function costLabel(cost: MiniGameCost): string {
 }
 
 export function costIcon(cost: MiniGameCost): string | null {
-  if (cost.type === "nkap") return "/assets/njambo/economy/nkap-stack-64.webp";
-  if (cost.type === "cauris") return "/assets/njambo/economy/cauris-pouch-64.webp";
-  if (cost.type === "ticket") return "/assets/njambo/tickets/ticket-bronze-64.webp";
+  if (cost.type === "nkap") return sysAsset("/assets/njambo/economy/nkap-stack-64.webp");
+  if (cost.type === "cauris") return sysAsset("/assets/njambo/economy/cauris-pouch-64.webp");
+  if (cost.type === "ticket") return sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp");
   return null;
 }
 

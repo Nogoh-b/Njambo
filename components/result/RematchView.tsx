@@ -7,8 +7,9 @@ import { NKAP } from "@/data/mock";
 import type { MotionProfile } from "@/lib/motion";
 import type { GameMode, Player, RoomDoc } from "@/types/game";
 import styles from "./RematchView.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
-const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
+const NKAP_COIN_SRC = sysAsset("/assets/njambo/economy/nkap-64.webp");
 
 export interface RematchViewProps {
   room: RoomDoc | null;

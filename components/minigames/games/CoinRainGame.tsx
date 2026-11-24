@@ -10,6 +10,7 @@ import { COINRAIN_DURATION_MS, COINRAIN_MAX_COINS, MINI_GAMES_BY_ID, coinRainRew
 import { GameStage, PlayButton } from "../MiniGameKit";
 import { miniGameError, type MiniGameProps } from "../useMiniGames";
 import styles from "../MiniGames.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 const game = MINI_GAMES_BY_ID.coinrain;
 
@@ -118,10 +119,10 @@ export function CoinRainGame({ mg, onReward, onError, onAuth, onOdds }: MiniGame
             onPointerDown={() => catchCoin(coin.id)}
             aria-label="Pièce de Nkap"
           >
-            <Image src="/assets/njambo/economy/nkap-64.webp" alt="" width={56} height={56} />
+            <Image src={sysAsset("/assets/njambo/economy/nkap-64.webp")} alt="" width={56} height={56} />
           </button>
         ))}
-        {!running && <span className={styles.rainIdle} aria-hidden="true"><Image src="/assets/njambo/economy/nkap-stack-128.webp" alt="" width={96} height={96} /></span>}
+        {!running && <span className={styles.rainIdle} aria-hidden="true"><Image src={sysAsset("/assets/njambo/economy/nkap-stack-128.webp")} alt="" width={96} height={96} /></span>}
       </div>
     </GameStage>
   );

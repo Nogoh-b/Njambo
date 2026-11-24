@@ -57,3 +57,5 @@ next-env.d.ts
 
 # local security working notes
 firestore-audit.local.md
+
+__pycache__/

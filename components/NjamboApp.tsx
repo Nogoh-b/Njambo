@@ -8,6 +8,7 @@ import { GameProvider, useGame } from "@/contexts/GameContext";
 import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepLink";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import { usePowerCatalogLoader, usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
+import { useAssetPackSync } from "@/hooks/useAssetPackSync";
 import { useMomentPreviewFromUrl, useMotifCatalogLoader, useStylePreviewFromUrl } from "@/hooks/useMotifCatalog";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
@@ -122,6 +123,8 @@ function SceneRouter() {
   useStylePreviewFromUrl();
   usePowerCatalogLoader();
   usePowerCatalogRevision();
+  // Pack d'assets système choisi dans l'admin (monnaies, tickets, livres, rangs).
+  useAssetPackSync();
 
   /* État partagé entre MatchLoadingScreen, TableScreen et ResultScreen */
   const [gameResult, setGameResult] = useState<Result | null>(null);

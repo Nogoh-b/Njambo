@@ -256,7 +256,7 @@
   height: 54px;
   border-radius: 7px;
   border: 1px solid rgba(255, 212, 92, 0.55);
-  background: url("/assets/njambo/books/card-back-128.webp") center / cover no-repeat;
+  background: var(--nj-sys-card-back-128, url("/assets/njambo/books/card-back-128.webp")) center / cover no-repeat;
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.48);
   opacity: 0.78;
 }

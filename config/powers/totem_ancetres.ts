@@ -10,7 +10,7 @@ export const totemAncetres: PowerModule = {
     tone: "gold",
     rarity: "legendary",
     targetMode: "self",
-    art: "/assets/power-cards/totem_ancetres.webp",
+    art: "/assets/power-cards/v2/totem_ancetres.webp",
     activationTitle: "ANCESTRES",
     activationText: "Double pénalité protégée",
     description: "Protège du malus double si tu perds cette manche.",

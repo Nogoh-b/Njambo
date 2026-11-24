@@ -4,6 +4,7 @@ import Image from "@/components/ui/GameImage";
 import { type CSSProperties, type MouseEventHandler, type ReactNode } from "react";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import styles from "./GamePrimitives.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 export type GameTone = "gold" | "teal" | "pink" | "cobalt";
 
@@ -135,10 +136,10 @@ const RESOURCE_META: Record<
   ResourceType,
   { label: string; asset: string; tone: GameTone }
 > = {
-  energy: { label: "Énergie", asset: "/assets/njambo/economy/energy-flask-64.webp", tone: "teal" },
-  nkap: { label: "Nkap", asset: "/assets/njambo/economy/nkap-64.webp", tone: "gold" },
-  cauris: { label: "Cauris", asset: "/assets/njambo/economy/cauri-64.webp", tone: "cobalt" },
-  crowns: { label: "Couronnes", asset: "/assets/njambo/ranks/rank-mboa-64.webp", tone: "pink" },
+  energy: { label: "Énergie", asset: sysAsset("/assets/njambo/economy/energy-flask-64.webp"), tone: "teal" },
+  nkap: { label: "Nkap", asset: sysAsset("/assets/njambo/economy/nkap-64.webp"), tone: "gold" },
+  cauris: { label: "Cauris", asset: sysAsset("/assets/njambo/economy/cauri-64.webp"), tone: "cobalt" },
+  crowns: { label: "Couronnes", asset: sysAsset("/assets/njambo/ranks/rank-mboa-64.webp"), tone: "pink" },
 };
 
 export interface ResourcePillProps {
@@ -247,7 +248,7 @@ export function RankBadge({ label, crowns, level, compact = false, className }: 
     <div className={cx(styles.rankBadge, compact && styles.rankBadgeCompact, className)}>
       <span className={styles.rankIcon} aria-hidden="true">
         <Image
-          src={`/assets/njambo/ranks/${rankAsset(label)}-${compact ? 64 : 128}.webp`}
+          src={sysAsset(`/assets/njambo/ranks/${rankAsset(label)}-${compact ? 64 : 128}.webp`)}
           alt=""
           width={compact ? 34 : 43}
           height={compact ? 34 : 43}
@@ -288,7 +289,7 @@ export function TicketBadge({ kind, count, label, compact = false, className }: 
       <span className={styles.ticketNotch} aria-hidden="true" />
       <Image
         className={styles.ticketArt}
-        src={`/assets/njambo/tickets/ticket-${assetKind}-64.webp`}
+        src={sysAsset(`/assets/njambo/tickets/ticket-${assetKind}-64.webp`)}
         alt=""
         width={compact ? 24 : 29}
         height={compact ? 24 : 29}

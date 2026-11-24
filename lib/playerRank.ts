@@ -1,4 +1,5 @@
 import { RANK_TIERS, rankTier } from "@/domain";
+import { sysAsset } from "@/lib/assetPack";
 
 /**
  * Source unique pour le palier de rang et son visuel.
@@ -26,7 +27,7 @@ export function rankAssetId(tier: RankTier): string {
 }
 
 export function rankAssetSrc(tier: RankTier, size: 64 | 128 | 256 = 64): string {
-  return `/assets/njambo/ranks/rank-${rankAssetId(tier)}-${size}.webp`;
+  return sysAsset(`/assets/njambo/ranks/rank-${rankAssetId(tier)}-${size}.webp`);
 }
 
 /** Palier + visuel pour un total de couronnes. Sans couronnes, on retombe sur « Joueur du Mboa ». */

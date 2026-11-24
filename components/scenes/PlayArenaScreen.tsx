@@ -18,6 +18,7 @@ import { GameModal } from "@/components/ui/GameModal";
 import { GameShell } from "@/components/ui/GameShell";
 import type { BotDifficulty, Card, PowerCardId, PublicPlayerProfile } from "@/types/game";
 import styles from "./PlayArenaScreen.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 export type PlayArenaMode = "bot" | "online" | "friends";
 
@@ -84,9 +85,9 @@ const TABLE_SIZES = [
 ] as const;
 
 const STAKE_ART = [
-  { src: "/assets/njambo/economy/nkap-64.webp", count: 1 },
-  { src: "/assets/njambo/economy/nkap-stack-64.webp", count: 1 },
-  { src: "/assets/njambo/economy/nkap-stack-64.webp", count: 2 },
+  { src: sysAsset("/assets/njambo/economy/nkap-64.webp"), count: 1 },
+  { src: sysAsset("/assets/njambo/economy/nkap-stack-64.webp"), count: 1 },
+  { src: sysAsset("/assets/njambo/economy/nkap-stack-64.webp"), count: 2 },
 ] as const;
 
 const ONLINE_SEAT_SEEDS = ["avatar-douala", "avatar-bamoun", "avatar-beti"] as const;
@@ -389,7 +390,7 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
             onClick={() => navigateTo("wallet")}
             aria-label={`Énergie : ${energyText}`}
           >
-            <Image src="/assets/njambo/economy/energy-flask-64.webp" alt="" width={18} height={18} />
+            <Image src={sysAsset("/assets/njambo/economy/energy-flask-64.webp")} alt="" width={18} height={18} />
             <strong>{energyText}</strong>
           </button>
           <button
@@ -399,7 +400,7 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
             onClick={() => navigateTo("wallet")}
             aria-label={`Nkap : ${nkapText}`}
           >
-            <Image src="/assets/njambo/economy/nkap-stack-64.webp" alt="" width={18} height={18} />
+            <Image src={sysAsset("/assets/njambo/economy/nkap-stack-64.webp")} alt="" width={18} height={18} />
             <strong>{nkapText}</strong>
           </button>
         </div>

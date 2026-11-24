@@ -22,6 +22,7 @@ import { t } from "@/lib/i18n";
 import styles from "./EventsScreen.module.css";
 import { prefetchAssets } from "@/lib/assets/AssetLoader";
 import { eventDetailManifest, eventsManifest } from "@/lib/assets/manifests";
+import { sysAsset } from "@/lib/assetPack";
 
 const TER_SPARKS: Array<{ x: string; size: string; dur: string; delay: string; sway: string; color: string }> = [
   { x: "9%", size: "4px", dur: "8.4s", delay: "-1.2s", sway: "18px", color: "#ffcf40" },
@@ -45,21 +46,21 @@ const EVENT_STATES: Record<EventState, { label: string; className: string }> = {
 };
 
 const TICKET_ART: Record<"bronze" | "argent" | "or", string> = {
-  bronze: "/assets/njambo/tickets/ticket-bronze-64.webp",
-  argent: "/assets/njambo/tickets/ticket-argent-64.webp",
-  or: "/assets/njambo/tickets/ticket-or-64.webp",
+  bronze: sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
+  argent: sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
+  or: sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
 };
 
 function rewardVisual(reward: Reward): { src: string; label: string } {
   if (reward.type === "nkap") {
     return {
-      src: "/assets/njambo/economy/nkap-stack-64.webp",
+      src: sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
       label: `${reward.amount.toLocaleString("fr-FR")} Nkap`,
     };
   }
   if (reward.type === "cauris") {
     return {
-      src: "/assets/njambo/economy/cauris-pouch-64.webp",
+      src: sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
       label: `${reward.amount} cauris`,
     };
   }
@@ -68,7 +69,7 @@ function rewardVisual(reward: Reward): { src: string; label: string } {
       ? reward.boosterId
       : "normal";
     return {
-      src: `/assets/njambo/books/book-${bookId}-128.webp`,
+      src: sysAsset(`/assets/njambo/books/book-${bookId}-128.webp`),
       label: `Livre ${reward.boosterId}`,
     };
   }
@@ -80,12 +81,12 @@ function rewardVisual(reward: Reward): { src: string; label: string } {
   }
   if (reward.type === "energy_pass") {
     return {
-      src: "/assets/njambo/economy/energy-flask-64.webp",
+      src: sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
       label: `Énergie ${reward.durationMinutes / 60}h`,
     };
   }
   return {
-    src: "/assets/njambo/books/card-back-128.webp",
+    src: sysAsset("/assets/njambo/books/card-back-128.webp"),
     label: `Carte ${reward.rarity}`,
   };
 }

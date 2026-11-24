@@ -22,6 +22,7 @@ import {
 } from "@/domain";
 import { DEFAULT_CARD_BACK_ASSET, DEFAULT_HAND_ARC_ASSET } from "@/lib/assets/manifests";
 import { adminApi, adminErrorText, loadCosmeticCatalog } from "./adminApi";
+import { AssetPackPanel } from "./AssetPackPanel";
 import { AnimStyleEditor } from "./anim/AnimStyleEditor";
 import { ImageField } from "./ImageField";
 import styles from "./AdminConsole.module.css";
@@ -252,6 +253,9 @@ export function CosmeticsAdmin() {
         </div>
       </div>
       {notice && <div className={`${styles.notice} ${styles[notice.kind]}`}>{notice.text}</div>}
+
+      {/* Pack d'assets système (monnaies, tickets, livres, rangs) utilisé dans tout le jeu */}
+      <AssetPackPanel />
 
       {/* Visuels par défaut configurables pour tous les joueurs sans cosmétique équipé */}
       <section className={styles.panel}>

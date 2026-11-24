@@ -11,7 +11,7 @@ export const benedictionChef: PowerModule = {
     tone: "gold",
     rarity: "epic",
     targetMode: "none",
-    art: "/assets/power-cards/benediction_chef.webp",
+    art: "/assets/power-cards/v2/benediction_chef.webp",
     activationTitle: "BÉNÉDICTION",
     activationText: "Pot ×2 si tu gagnes la manche",
     description: "Double le pot si tu gagnes la manche.",

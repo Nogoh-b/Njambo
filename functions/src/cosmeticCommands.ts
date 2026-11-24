@@ -4,6 +4,10 @@
 
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import {
+  ASSET_PACK_DOC,
+  ASSET_PACK_FIELD,
+  isAssetPackId,
+  isAssetPackScope,
   COSMETIC_DEFAULTS_DOC,
   COSMETIC_RARITIES,
   COSMETIC_SLOT,
@@ -101,6 +105,22 @@ export async function saveCosmeticDefaultsHandler(request: CallableRequest<unkno
       createdAt: now,
     });
     return { defaults: next };
+  });
+}
+
+/** Pack d'assets actif pour tout le jeu : « system » (monnaies, tickets, livres, rangs) ou « interface » (icônes, boutons, modes). */
+export async function saveAssetPackHandler(request: CallableRequest<unknown>) {
+  const uid = requireAdmin(request);
+  const data = asObject(request.data);
+  const pack = data.pack;
+  const scope = data.scope ?? "system";
+  if (!isAssetPackId(pack)) throw new HttpsError("invalid-argument", "ASSET_PACK_UNKNOWN");
+  if (!isAssetPackScope(scope)) throw new HttpsError("invalid-argument", "ASSET_PACK_SCOPE_UNKNOWN");
+  const field = ASSET_PACK_FIELD[scope];
+  return runIdempotent(uid, "saveAssetPack", data.idempotencyKey, async (transaction, now) => {
+    transaction.set(db.doc(`runtime_config/${ASSET_PACK_DOC}`), { [field]: pack, updatedAt: now, updatedBy: uid }, { merge: true });
+    transaction.create(db.collection("admin_audit").doc(), { uid, action: "asset_pack_update", scope, pack, createdAt: now });
+    return { pack, scope };
   });
 }
 

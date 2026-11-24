@@ -10,7 +10,7 @@ export const mainGriot: PowerModule = {
     tone: "teal",
     rarity: "rare",
     targetMode: "self",
-    art: "/assets/power-cards/main_griot.webp",
+    art: "/assets/power-cards/v2/main_griot.webp",
     activationTitle: "LE GRIOT CONSEILLE",
     activationText: "Écoute la sagesse des anciens",
     activationTextOthers: "{activator} consulte le griot",
