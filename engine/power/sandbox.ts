@@ -15,7 +15,12 @@ import { canActivatePower } from "./canActivate";
 import { interpretPowerScript, type ResolvedOp } from "./interpret";
 import { selectInHand } from "./selectors";
 import { resolvePlayerRef, resolveTargets } from "./targets";
-import type { PowerChoices, PowerResolved, PowerScript } from "./types";
+import type { PowerChoices, PowerResolved, PowerScript, PowerScriptTag } from "./types";
+
+/** Ce que bloque un bouclier, en clair (le moteur ne dépend pas des libellés de l'admin). */
+const SHIELD_TAG_TEXT: Record<PowerScriptTag, string> = {
+  targeted: "attaques ciblées", reveal: "révélations", restrict: "restrictions", timer_attack: "attaques du minuteur",
+};
 
 export const SANDBOX_NAMES = ["Toi", "Tonton Rene", "Mado Biyem", "Ya Pauline"];
 const EMOJIS = ["🎴", "🥁", "🎺", "🐘"];
@@ -172,7 +177,7 @@ function describe(op: ResolvedOp, before: SandboxTable): string {
     case "boostNextCard": return `${name(op.seat)} : prochaine carte${op.valueBonus ? ` +${op.valueBonus}` : ""}${op.suitOverride ? ", prend la couleur demandée" : ""}.`;
     case "potBonus": return `Pot +${op.amount} Nkap${op.when === "winTrick" ? " si le pli est gagné" : op.when === "winRound" ? " si la manche est gagnée" : ""}.`;
     case "potMultiplier": return `Pot ×${op.factor} si ${op.when === "winRound" ? "la manche" : "le pli"} est gagné${op.when === "winRound" ? "e" : ""}.`;
-    case "grantShield": return `${name(op.seat)} protégé (bloque : ${op.blocks.join(", ") || "tout"}).`;
+    case "grantShield": return `${name(op.seat)} protégé (bloque : ${op.blocks.map((tag) => SHIELD_TAG_TEXT[tag] ?? tag).join(", ") || "tout"}).`;
     case "refundOnLoss": return `${name(op.seat)} : ${Math.round(op.ratio * 100)} % de la mise remboursés en cas de défaite.`;
     case "preventDoublePenalty": return `${name(op.seat)} : pas de double pénalité.`;
     default: return "Opération.";

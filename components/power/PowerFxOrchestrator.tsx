@@ -25,7 +25,7 @@ import { getPowerModule } from "@/config/powers";
 import { FUNCTIONAL_CUES, fillCardPlaceholders, swapDelta, type ChoreoViewer } from "@/engine/power/choreography";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
-import { moveSourceUi, playChoreography, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
+import { moveSourceUi, playChoreography, playShieldBlock, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
 import { playAnimV2, type AnimV2Move } from "@/components/power/choreo/playAnimV2";
 import type { PoseZone } from "@/components/table/zones/zonePose";
 import { getAnimV2 } from "@/engine/anim/v2/registry";
@@ -46,6 +46,8 @@ import type { Card, GameState, PowerCardActivation, PowerCardId } from "@/types/
 const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
 
 type PowerTone = PowerFxTone;
+/** Couleur du dôme qui éclate au blocage, selon le ton de la carte protectrice. */
+const BLOCK_COLORS: Record<string, string> = { gold: "#f2bb45", teal: "#1de4be", pink: "#ff5b82", cobalt: "#6fa8ff" };
 type ReactionTone = "gold" | "teal" | "pink";
 
 const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -218,13 +220,31 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         .replace("{activator}", (activatorUi != null ? d.getPlayers()[activatorUi]?.name : undefined) ?? "Un joueur")
         .replace("{target}", targetUi === 0 ? "toi" : (targetUi != null ? d.getPlayers()[targetUi]?.name : undefined) ?? "un joueur")
       : undefined;
-    showOverlay(activation.cardId, blocked, noEffect, othersText, activatorUi != null ? d.powerSlotRect?.(activation.cardId, activatorUi) : null);
+    // Bloquée : qui a protégé qui (« Bloqué par ton Bouclier du Village », « … le Bouclier du Village de X »).
+    const blocker = blocked && activation.blockedByCardId ? POWER_CARDS_BY_ID[activation.blockedByCardId] : undefined;
+    const blockedText = blocker
+      ? targetUi === 0 ? `Bloqué par ton ${blocker.name}` : `Bloqué par le ${blocker.name} de ${(targetUi != null ? d.getPlayers()[targetUi]?.name : undefined) ?? "la cible"}`
+      : undefined;
+    showOverlay(activation.cardId, blocked, noEffect, blocked ? blockedText : othersText,activatorUi != null ? d.powerSlotRect?.(activation.cardId, activatorUi) : null);
 
-    // Bloquée → l'aura de protection de la cible est consommée.
+    // Bloquée → l'attaque s'écrase sur le dôme de la cible, qui éclate ; aura et badge de protection consommés.
     if (blocked) {
-      if (targetUi != null && auraSeatsRef.current.has(targetUi)) {
-        d.registry.timer(targetUi)?.showAura(null);
-        auraSeatsRef.current.delete(targetUi);
+      setCharges((current) => current.filter((charge) => !(charge.ui === targetUi && charge.key.endsWith("-shield"))));
+      const host = choreoLayerRef.current?.container();
+      const from = activatorUi != null ? d.registry.timer(activatorUi)?.getRect() : null;
+      const to = targetUi != null ? d.registry.timer(targetUi)?.getRect() : null;
+      const dropAura = () => {
+        if (targetUi != null && auraSeatsRef.current.has(targetUi)) {
+          d.registry.timer(targetUi)?.showAura(null);
+          auraSeatsRef.current.delete(targetUi);
+        }
+      };
+      if (d.motionEnabled && host && from && to) {
+        const color = BLOCK_COLORS[blocker?.tone ?? "teal"] ?? BLOCK_COLORS.teal;
+        const timer = setTimeout(() => { void playShieldBlock(host, from, to, color).finally(dropAura); }, Math.round(d.overlayMs * 0.6));
+        burstTimersRef.current.push(timer);
+      } else {
+        dropAura();
       }
       return;
     }
@@ -348,12 +368,26 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
       });
     }
-    // Cauris et Totem sur le même joueur : deux badges distincts (un genre chacun).
-    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.insured ? (charge.key.endsWith("-totem") ? "totem" : "insured") : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
+    // Bouclier (blocage des attaques ciblées) : badge jusqu'au blocage (retiré ci-dessus) ou à la fin de la manche.
+    const shieldOp = ops.find((op) => op.op === "grantShield");
+    if (shieldOp && shieldOp.op === "grantShield" && shieldOp.blocks.includes("targeted") && activatorUi != null) {
+      pendingCharges.push({
+        key: `${activation.playId}-shield`,
+        ui: activatorUi,
+        insured: true,
+        handTag: "",
+        avatarTag: "🛡 Bouclier",
+        landing: "spark",
+        tone: def.tone,
+        depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
+      });
+    }
+    // Cauris, Totem et Bouclier sur le même joueur : badges distincts (un genre chacun).
+    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.insured ? (charge.key.endsWith("-totem") ? "totem" : charge.key.endsWith("-shield") ? "shield" : "insured") : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
     const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && kindOf(a) === kindOf(b);
     // Chaque charge prend le relais au bon moment : carte imposée dès la fin de l'annonce (son projecteur fait partie
     // de la mise en scène), carte scellée à la fin de l'animation du sceau (1,9 s), renfort après la sienne.
-    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" || kindOf(charge) === "insured" || kindOf(charge) === "totem" ? 1800 : 1100));
+    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" || kindOf(charge) === "insured" || kindOf(charge) === "totem" || kindOf(charge) === "shield" ? 1800 : 1100));
     for (const charge of pendingCharges) {
       const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => !sameKind(item, charge)), charge]), delayOf(charge));
       burstTimersRef.current.push(timer);
@@ -592,8 +626,12 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
 
       for (const step of script.steps) {
         for (const cue of step.anim ?? []) {
-          // Étape chorégraphiée : seuls les cues FONCTIONNELS restent joués ici.
-          if (step.choreo && !(FUNCTIONAL_CUES as readonly string[]).includes(cue.cue)) continue;
+          // Étape chorégraphiée : seuls les cues FONCTIONNELS restent joués ici. L'aura posée par la chorégraphie
+          // (cauris, totem, bouclier) est quand même retenue pour être retirée en fin de manche ou au blocage.
+          if (step.choreo && !(FUNCTIONAL_CUES as readonly string[]).includes(cue.cue)) {
+            if (cue.cue === "avatarAura") for (const ui of resolveRefUi(cue.player)) auraSeatsRef.current.add(ui);
+            continue;
+          }
           switch (cue.cue) {
           case "flyCards": {
             // Cosmétique — uniquement avec animations actives.
@@ -905,7 +943,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
             </strong>
             <span>
               {overlay.blocked
-                ? "Protection activée"
+                ? overlay.text ?? "Protection activée"
                 : overlay.noEffect
                   ? "Rien à améliorer — carte non consommée"
                   : overlay.text ?? POWER_CARDS_BY_ID[overlay.cardId].activationText}

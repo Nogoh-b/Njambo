@@ -1025,6 +1025,133 @@ async function playAvatarTotem(ctx: ChoreoContext, ui: number, durationMs: numbe
   tag?.remove();
 }
 
+/** Bouclier de village (bois, cuir, motifs peints), dessiné en SVG. */
+const VILLAGE_SHIELD_SVG = `<svg viewBox="0 0 60 60" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 4px 6px rgba(0,0,0,.55))">
+  <circle cx="30" cy="30" r="28" fill="#6b3a1c" stroke="#2b1408" stroke-width="2"/>
+  <circle cx="30" cy="30" r="24.5" fill="#9a5a2a" stroke="#e8c48a" stroke-width="1.4" stroke-dasharray="3 2.2"/>
+  <path d="M30 7 L35 17 L25 17 Z M30 53 L25 43 L35 43 Z M7 30 L17 25 L17 35 Z M53 30 L43 35 L43 25 Z" fill="#f2d79b"/>
+  <path d="M14 14 L20 20 M46 14 L40 20 M14 46 L20 40 M46 46 L40 40" stroke="#2b1408" stroke-width="2.2" stroke-linecap="round"/>
+  <circle cx="30" cy="30" r="8" fill="#c99a52" stroke="#2b1408" stroke-width="1.6"/>
+  <circle cx="30" cy="30" r="3" fill="#f7e7bd"/>
+</svg>`;
+
+/** Bouclier du village : un bouclier se dresse devant l'avatar en pivotant, puis s'ouvre en dôme translucide qui recouvre
+ *  l'avatar ; l'aura « bouclier » prend le relais et `label` (« Protégé ») s'affiche. */
+async function playAvatarShield(ctx: ChoreoContext, ui: number, durationMs: number, color: string, label?: string) {
+  const timer = ctx.registry.timer(ui);
+  const rect = timer?.getRect();
+  const host = ctx.layer.container();
+  if (!timer || !rect || !host) return;
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const size = Math.max(40, Math.min(70, rect.width * 1.15));
+  const shield = document.createElement("div");
+  shield.setAttribute("data-choreo-fx", "shield");
+  Object.assign(shield.style, { position: "absolute", left: `${cx - size / 2}px`, top: `${cy - size / 2}px`, width: `${size}px`, height: `${size}px`, pointerEvents: "none" });
+  shield.innerHTML = VILLAGE_SHIELD_SVG;
+  host.appendChild(shield);
+  const raiseMs = Math.min(650, durationMs * 0.35);
+  // Le bouclier monte de sous l'avatar en pivotant pour présenter sa face.
+  await finished(shield.animate([
+    { transform: `translateY(${rect.height * 0.6}px) perspective(300px) rotateY(85deg) scale(.5)`, opacity: 0 },
+    { transform: `translateY(${rect.height * 0.15}px) perspective(300px) rotateY(30deg) scale(.9)`, opacity: 1, offset: 0.55 },
+    { transform: "translateY(0) perspective(300px) rotateY(0deg) scale(1.08)", offset: 0.85 },
+    { transform: "translateY(0) perspective(300px) rotateY(0deg) scale(1)" },
+  ], { duration: raiseMs, easing: "cubic-bezier(.3,.9,.4,1)", fill: "forwards" }));
+  ctx.impactShake(1);
+  // Le dôme s'ouvre depuis le bouclier et recouvre l'avatar.
+  const r = rect.width * 0.95;
+  const dome = document.createElement("div");
+  Object.assign(dome.style, {
+    position: "absolute", left: `${cx - r}px`, top: `${cy - r}px`, width: `${r * 2}px`, height: `${r * 2}px`, borderRadius: "50%", pointerEvents: "none",
+    border: `2px solid ${color}`, boxShadow: `0 0 20px ${color}, inset 0 0 26px ${color}`,
+    background: `radial-gradient(circle at 35% 28%, rgba(255,255,255,.35), ${color}22 45%, ${color}11 65%, transparent 72%)`,
+  });
+  host.appendChild(dome);
+  void shield.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.6)" }], { duration: 380, fill: "forwards" });
+  await finished(dome.animate([{ transform: "scale(.3)", opacity: 0 }, { transform: "scale(1.08)", opacity: 1, offset: 0.6 }, { transform: "scale(1)", opacity: 1 }], { duration: 480, easing: "ease-out", fill: "forwards" }));
+  timer.showAura("shield");
+  ctx.burst("mystic", rect, ctx.defaultTone, "standard", 800);
+  const tag = label ? document.createElement("span") : null;
+  if (tag) {
+    tag.textContent = label ?? "";
+    Object.assign(tag.style, {
+      position: "absolute", left: `${cx}px`, top: `${cy + r + 2}px`, transform: "translateX(-50%)", padding: "2px 8px", borderRadius: "999px",
+      background: "rgba(6,20,22,.86)", border: `1px solid ${color}`, color: "#c9fff3", font: "800 11px/1.3 system-ui, sans-serif", whiteSpace: "nowrap", pointerEvents: "none",
+    });
+    host.appendChild(tag);
+    void tag.animate([{ opacity: 0, translate: "0 6px" }, { opacity: 1, translate: "0 0" }], { duration: 260, fill: "forwards" });
+  }
+  await sleep(Math.max(300, durationMs - raiseMs - 480 - 350));
+  // Le dôme se fond dans l'aura ; le badge « Bouclier » prend le relais (PowerChargeLayer).
+  await Promise.all([dome, ...(tag ? [tag] : [])].map((el) => finished(el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: "forwards" }))));
+  shield.remove();
+  dome.remove();
+  tag?.remove();
+}
+
+/** Blocage par un bouclier : un trait d'énergie part de l'attaquant et s'écrase sur un dôme autour de la cible ; le dôme
+ *  flashe, se fissure puis éclate en morceaux. Jouée hors chorégraphie (l'activation bloquée n'en a pas). */
+export async function playShieldBlock(host: HTMLElement, from: DOMRect, to: DOMRect, color: string): Promise<void> {
+  const sx = from.left + from.width / 2, sy = from.top + from.height / 2;
+  const cx = to.left + to.width / 2, cy = to.top + to.height / 2;
+  const r = to.width * 0.95;
+  const angle = Math.atan2(cy - sy, cx - sx);
+  // Point d'impact : le bord du dôme, côté attaquant.
+  const ix = cx - Math.cos(angle) * r, iy = cy - Math.sin(angle) * r;
+  const orb = document.createElement("div");
+  orb.setAttribute("data-choreo-fx", "shield-hit");
+  Object.assign(orb.style, {
+    position: "absolute", left: `${sx - 9}px`, top: `${sy - 9}px`, width: "18px", height: "18px", borderRadius: "50%", pointerEvents: "none",
+    background: "radial-gradient(circle, #fff 0 30%, #ff9a6a 55%, transparent 72%)", boxShadow: "0 0 16px #ff6a3d, 0 0 32px #ff6a3d",
+  });
+  host.appendChild(orb);
+  await finished(orb.animate([
+    { transform: "translate(0, 0) scale(.6)", opacity: 0 },
+    { transform: `translate(${(ix - sx) * 0.15}px, ${(iy - sy) * 0.15}px) scale(1)`, opacity: 1, offset: 0.15 },
+    { transform: `translate(${ix - sx}px, ${iy - sy}px) scale(1.3)`, opacity: 1 },
+  ], { duration: 520, easing: "cubic-bezier(.5,0,.9,.6)", fill: "forwards" }));
+  orb.remove();
+  // Le dôme apparaît sous le choc, flashe et se fissure depuis le point d'impact.
+  const dome = document.createElement("div");
+  Object.assign(dome.style, {
+    position: "absolute", left: `${cx - r}px`, top: `${cy - r}px`, width: `${r * 2}px`, height: `${r * 2}px`, borderRadius: "50%", pointerEvents: "none",
+    border: `2px solid ${color}`, boxShadow: `0 0 22px ${color}, inset 0 0 28px ${color}`,
+    background: `radial-gradient(circle at 35% 28%, rgba(255,255,255,.4), ${color}33 50%, transparent 72%)`,
+  });
+  const lx = ix - (cx - r), ly = iy - (cy - r);
+  const cracks = Array.from({ length: 6 }, (_, index) => {
+    const a = angle + Math.PI + (index - 2.5) * 0.42;
+    const len = r * (0.7 + (index % 3) * 0.25);
+    const mx = lx + Math.cos(a) * len * 0.5 + Math.sin(a) * 6, my = ly + Math.sin(a) * len * 0.5 - Math.cos(a) * 6;
+    return `<path d="M${lx} ${ly} L${mx} ${my} L${lx + Math.cos(a) * len} ${ly + Math.sin(a) * len}" />`;
+  }).join("");
+  dome.innerHTML = `<svg viewBox="0 0 ${r * 2} ${r * 2}" width="100%" height="100%" style="overflow:visible"><g stroke="#ffffff" stroke-width="1.8" fill="none" stroke-linecap="round" style="filter:drop-shadow(0 0 3px ${color})">${cracks}</g></svg>`;
+  host.appendChild(dome);
+  const cracksEl = dome.querySelector("g");
+  if (cracksEl) cracksEl.style.opacity = "0";
+  await finished(dome.animate([{ opacity: 0, filter: "brightness(1)" }, { opacity: 1, filter: "brightness(2.2)", offset: 0.3 }, { opacity: 1, filter: "brightness(1)" }], { duration: 260, fill: "forwards" }));
+  if (cracksEl) await finished(cracksEl.animate([{ opacity: 0 }, { opacity: 1 }], { duration: 200, fill: "forwards" }));
+  await sleep(220);
+  // Éclatement : des morceaux du dôme partent dans tous les sens.
+  const shards = Array.from({ length: 12 }, (_, index) => {
+    const a = (Math.PI * 2 * index) / 12 + (index % 2) * 0.2;
+    const shard = document.createElement("span");
+    const s = 8 + (index % 3) * 4;
+    Object.assign(shard.style, {
+      position: "absolute", left: `${cx + Math.cos(a) * r * 0.85 - s / 2}px`, top: `${cy + Math.sin(a) * r * 0.85 - s / 2}px`, width: `${s}px`, height: `${s}px`, pointerEvents: "none",
+      clipPath: "polygon(50% 0, 100% 80%, 0 100%)", background: `linear-gradient(135deg, #ffffff, ${color})`, boxShadow: `0 0 6px ${color}`,
+    });
+    host.appendChild(shard);
+    return finished(shard.animate([
+      { transform: "translate(0, 0) rotate(0deg)", opacity: 1 },
+      { transform: `translate(${Math.cos(a) * r * 0.9}px, ${Math.sin(a) * r * 0.9 + 18}px) rotate(${200 + index * 30}deg)`, opacity: 0 },
+    ], { duration: 650, easing: "cubic-bezier(.2,.7,.4,1)", fill: "forwards" })).then(() => shard.remove());
+  });
+  void dome.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(1.15)" }], { duration: 260, fill: "forwards" });
+  await Promise.all(shards);
+  dome.remove();
+}
+
 /** Halo sur le pot : un anneau doré se forme au-dessus de l'avatar du lanceur, vole jusqu'au pot en tournant et s'y pose ;
  *  le pot enfle et rayonne, `label` (« ×2 ») s'affiche sur lui. */
 async function playPotBless(ctx: ChoreoContext, durationMs: number, color: string, label?: string) {
@@ -1119,6 +1246,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
     // Cauris porte-bonheur (Cauris Chanceux) : il tombe sur l'avatar, bulle d'assurance, voir playAvatarCowrie.
     if (target.element === "avatar" && effect === "cowrie" && hit.ui !== undefined) {
       jobs.push(playAvatarCowrie(ctx, hit.ui, track.durationMs, color, track.label));
+      continue;
+    }
+    // Bouclier du village : il se dresse devant l'avatar puis s'ouvre en dôme, voir playAvatarShield.
+    if (target.element === "avatar" && effect === "villageShield" && hit.ui !== undefined) {
+      jobs.push(playAvatarShield(ctx, hit.ui, track.durationMs, color, track.label));
       continue;
     }
     // Totem des ancêtres : il sort de terre à côté de l'avatar, cercle de pierres levées, voir playAvatarTotem.

@@ -41,8 +41,8 @@ export interface PowerCharge {
   /** Bonus de pot « si tu gagnes la manche » (Bénédiction du Chef ×2, Pluie d'Étoiles +200) : badge près du pot pour tous
    *  jusqu'au dernier pli ; il éclate sur le pot si son joueur le rafle, s'éteint (« perdu ») sinon. */
   pot?: { factor?: number; amount?: number; owner: string };
-  /** Protection jusqu'à la fin de la manche (Cauris Chanceux, Totem des Ancêtres) : badge sous l'avatar de son joueur,
-   *  pour tous, jusqu'au dernier pli. */
+  /** Protection jusqu'à la fin de la manche (Cauris Chanceux, Totem des Ancêtres, Bouclier du Village) : badge sous
+   *  l'avatar de son joueur, pour tous, jusqu'au dernier pli (le bouclier tombe aussi au blocage). */
   insured?: boolean;
   /** Bandeau au-dessus de ma main, badge sous l'avatar d'un autre joueur. */
   handTag: string;
@@ -157,8 +157,8 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
             continue;
           }
           const rect = registry.timer(charge.ui)?.getRect();
-          // Totem sous le badge Cauris s'ils sont tous les deux actifs sur ce joueur.
-          const below = charge.key.endsWith("-totem") && charges.some((other) => other.insured && other.ui === charge.ui && !other.key.endsWith("-totem") && !done.has(other.key)) ? 22 : 0;
+          // Plusieurs protections sur ce joueur (Cauris, Totem, Bouclier) : badges empilés sous son avatar.
+          const below = 22 * charges.filter((other) => other.insured && other.ui === charge.ui && !done.has(other.key)).indexOf(charge);
           if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height + below, kind: "avatar", text: charge.avatarTag, color, crackle: false });
           continue;
         }

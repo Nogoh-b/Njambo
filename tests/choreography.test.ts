@@ -319,6 +319,15 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(choreographyDuration(card.script.steps[0].choreo!)).toBeLessThanOrEqual(3_500);
     expect(card.script.steps[0].choreo!.tracks.some((track) => track.kind === "element" && track.effect === "totem")).toBe(true);
   });
+
+  it("Bouclier du Village : bouclier et dôme sur l'avatar du lanceur, bloque les attaques ciblées", () => {
+    const card = CODE_POWER_MODULES.bouclier_village;
+    expect(validatePowerCard({ def: card.def, script: card.script } as never)).toEqual([]);
+    expect(card.script.steps[0].ops).toEqual([{ op: "grantShield", player: "self", blocks: ["targeted"] }]);
+    expect(card.def.activationTextOthers).toContain("{activator}");
+    expect(choreographyDuration(card.script.steps[0].choreo!)).toBeLessThanOrEqual(3_500);
+    expect(card.script.steps[0].choreo!.tracks.some((track) => track.kind === "element" && track.effect === "villageShield")).toBe(true);
+  });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;
     expect(validatePowerCard({ def: pacte.def, script: pacte.script } as never)).toEqual([]);
