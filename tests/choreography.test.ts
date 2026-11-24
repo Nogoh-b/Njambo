@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { CODE_POWER_MODULES } from "../config/powers";
-import { choreographyDuration, choreographyFromCues, fillCardPlaceholders, swapDelta, validateChoreography, type Choreography } from "../engine/power/choreography";
+import { V2_PRESENT_RISE_MS, audienceSees, choreographyDuration, choreographyFromCues, fillCardPlaceholders, swapDelta, validateChoreography, type Choreography, type V2Track } from "../engine/power/choreography";
 import { validatePowerCard } from "../engine/power/validate";
 
 const paths = (choreo: unknown) => validateChoreography(choreo, "c").map((issue) => issue.path);
@@ -160,5 +160,39 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(choreo.tracks.filter((track) => track.kind === "text").map((track) => (track as { audience?: string }).audience)).toEqual(["activator", "others"]);
     // Vrais déplacements en V2, sans réorganisation (échange en place).
     expect(choreo.tracks.filter((track) => track.kind === "v2").map((track) => [track.id, (track as { reflow?: boolean }).reflow])).toEqual([["depart", false], ["tirage", false]]);
+  });
+  it("plusieurs cartes : listes, somme des écarts et nombre de cartes", () => {
+    expect(fillCardPlaceholders("{outgoing} → {incoming} {delta}", [card("3", 3), card("5", 5)], [card("9", 9, "♦"), card("10", 10, "♦")])).toBe("3♥ 5♥ → 9♦ 10♦ +11");
+    expect(fillCardPlaceholders("X t'a pris {cards}", null, null, 2)).toBe("X t'a pris 2 cartes");
+    expect(fillCardPlaceholders("X t'a pris {cards}", null, null, 1)).toBe("X t'a pris 1 carte");
+    expect(swapDelta([card("3", 3)], [])).toBeNull();
+  });
+  it("publics : la cible et les autres joueurs se distinguent", () => {
+    expect(audienceSees("others", "target")).toBe(true);
+    expect(audienceSees("others", "bystander")).toBe(true);
+    expect(audienceSees("target", "bystander")).toBe(false);
+    expect(audienceSees("bystanders", "target")).toBe(false);
+    expect(audienceSees("activator", "target")).toBe(false);
+    const text = (audience: string) => ({ tracks: [{ id: "t", kind: "text", startMs: 0, durationMs: 800, text: "x", at: { kind: "screen", at: "center" }, audience }] });
+    expect(paths(text("target"))).toEqual([]);
+    expect(paths(text("bystanders"))).toEqual([]);
+  });
+  it("piste V2 : présentation au centre de la table et échange en place validés", () => {
+    const v2 = (extra: object) => ({ tracks: [{ id: "t", kind: "v2", startMs: 0, durationMs: 690, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "hand", player: "target" }, ...extra }] });
+    expect(paths(v2({ present: { holdMs: 900, at: "tableCenter" }, inPlace: true }))).toEqual([]);
+    expect(paths(v2({ present: { holdMs: 900, at: "plafond" }, inPlace: "oui" }))).toEqual(["c.tracks.0.present.at", "c.tracks.0.inPlace"]);
+  });
+  it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
+    const pacte = CODE_POWER_MODULES.pacte_mains;
+    expect(validatePowerCard({ def: pacte.def, script: pacte.script } as never)).toEqual([]);
+    expect(pacte.def.activationTextOthers).toContain("{target}");
+    const choreo = pacte.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(5_000);
+    const v2 = choreo.tracks.filter((track) => track.kind === "v2") as V2Track[];
+    expect(v2.map((track) => [track.id, track.present?.at, track.inPlace])).toEqual([["offrande", "tableCenter", true], ["tribut", "tableCenter", true]]);
+    // Les deux rangées repartent du centre au même moment : elles se croisent.
+    const leaves = v2.map((track) => track.startMs + V2_PRESENT_RISE_MS + track.present!.holdMs);
+    expect(leaves[0]).toBe(leaves[1]);
+    expect(new Set(choreo.tracks.flatMap((track) => (track.kind === "text" ? [track.audience] : [])))).toEqual(new Set(["activator", "target", "bystanders"]));
   });
 });

@@ -1,0 +1,165 @@
+/* Choix de cible sur la table — voile, cadres de visée, bulle d'aide. */
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  pointer-events: none;
+}
+
+.veil {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  animation: veilIn 260ms ease-out both;
+}
+
+/* ── Cadre de visée d'un joueur ── */
+.frame {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 22px;
+  background: transparent;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: left 160ms ease-out, top 160ms ease-out, width 160ms ease-out, height 160ms ease-out, opacity 200ms ease-out, transform 200ms ease-out;
+  animation: frameIn 380ms cubic-bezier(.2, 1.4, .4, 1) both;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Anneau runique : bordure en dégradé conique qui tourne. */
+.ring {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2.5px;
+  background: conic-gradient(from var(--ring-angle, 0deg), transparent 0deg, var(--target-color) 70deg, #fff7dc 110deg, var(--target-color) 150deg, transparent 220deg, var(--target-color) 300deg, transparent 360deg);
+  -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0);
+  animation: ringSpin 2.4s linear infinite;
+}
+
+@property --ring-angle {
+  syntax: "<angle>";
+  inherits: false;
+  initial-value: 0deg;
+}
+
+/* Halo qui respire autour du joueur. */
+.glow {
+  position: absolute;
+  inset: -2px;
+  border-radius: inherit;
+  box-shadow: 0 0 18px 2px color-mix(in srgb, var(--target-color) 70%, transparent), inset 0 0 26px color-mix(in srgb, var(--target-color) 35%, transparent);
+  animation: breathe 1.4s ease-in-out infinite;
+}
+
+/* Viseur : quatre coins qui se resserrent sur la cible. */
+.corner {
+  position: absolute;
+  width: 18px;
+  height: 18px;
+  border: 3px solid #fff7dc;
+  filter: drop-shadow(0 0 6px var(--target-color));
+  animation: aim 1.4s ease-in-out infinite;
+}
+.tl { left: -8px; top: -8px; border-right: 0; border-bottom: 0; border-top-left-radius: 10px; --aim-x: -6px; --aim-y: -6px; }
+.tr { right: -8px; top: -8px; border-left: 0; border-bottom: 0; border-top-right-radius: 10px; --aim-x: 6px; --aim-y: -6px; }
+.bl { left: -8px; bottom: -8px; border-right: 0; border-top: 0; border-bottom-left-radius: 10px; --aim-x: -6px; --aim-y: 6px; }
+.br { right: -8px; bottom: -8px; border-left: 0; border-top: 0; border-bottom-right-radius: 10px; --aim-x: 6px; --aim-y: 6px; }
+
+.tag {
+  position: absolute;
+  left: 50%;
+  top: -14px;
+  transform: translate(-50%, -100%);
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px 5px 9px;
+  border: 1.5px solid var(--target-color);
+  border-radius: 999px;
+  background: linear-gradient(180deg, rgba(28, 22, 12, .96), rgba(10, 8, 5, .96));
+  color: #fff7dc;
+  font: 900 13px/1 var(--font-display, sans-serif);
+  letter-spacing: .02em;
+  white-space: nowrap;
+  box-shadow: 0 6px 16px rgba(0, 0, 0, .5), 0 0 14px color-mix(in srgb, var(--target-color) 45%, transparent);
+}
+.tagBelow { top: auto; bottom: -14px; transform: translate(-50%, 100%); }
+.tagIcon { color: var(--target-color); font-size: 15px; }
+
+.frame:hover .glow,
+.frame:focus-visible .glow { box-shadow: 0 0 30px 6px var(--target-color), inset 0 0 36px color-mix(in srgb, var(--target-color) 55%, transparent); }
+.frame:hover .corner,
+.frame:focus-visible .corner { animation-duration: .7s; }
+.frame:focus-visible { outline: none; }
+
+/* Choix fait : la cible se verrouille, les autres s'effacent. */
+.locked { transform: scale(1.04); }
+.locked .glow { animation: lockFlash 280ms ease-out both; }
+.locked .corner { animation: lockCorners 280ms ease-in both; }
+.dropped { opacity: 0; transform: scale(.94); }
+
+/* ── Bulle d'aide, au centre de la table ── */
+.hint {
+  position: absolute;
+  left: 50%;
+  top: 46%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 18px 10px;
+  border: 1.5px solid color-mix(in srgb, var(--target-color) 65%, transparent);
+  border-radius: 18px;
+  background: radial-gradient(ellipse 90% 60% at 50% 0%, color-mix(in srgb, var(--target-color) 22%, transparent), transparent 70%), rgba(8, 12, 10, .92);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, .6);
+  pointer-events: auto;
+  animation: hintIn 320ms cubic-bezier(.2, 1.3, .4, 1) 80ms both;
+}
+.hintCard {
+  color: var(--target-color);
+  font: 900 11px/1 var(--font-display, sans-serif);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+}
+.hintText { color: #fff7dc; font: 900 15px/1.2 var(--font-display, sans-serif); }
+.cancel {
+  margin-top: 2px;
+  padding: 5px 14px;
+  border: 1px solid rgba(255, 248, 232, .22);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .06);
+  color: rgba(255, 248, 232, .8);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+/* Animations coupées : cadres fixes, toujours lisibles. */
+.still .veil, .still .frame, .still .ring, .still .glow, .still .corner, .still .hint { animation: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .veil, .frame, .ring, .glow, .corner, .hint { animation: none; }
+}
+
+@keyframes veilIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes frameIn { from { opacity: 0; transform: scale(1.18); } to { opacity: 1; transform: scale(1); } }
+@keyframes ringSpin { to { --ring-angle: 360deg; } }
+@keyframes breathe { 0%, 100% { opacity: .65; } 50% { opacity: 1; } }
+@keyframes aim {
+  0%, 100% { transform: translate(var(--aim-x), var(--aim-y)); }
+  50% { transform: translate(0, 0); }
+}
+@keyframes lockFlash {
+  0% { box-shadow: 0 0 20px 4px var(--target-color); background: transparent; }
+  40% { box-shadow: 0 0 48px 16px var(--target-color); background: color-mix(in srgb, var(--target-color) 22%, transparent); }
+  100% { box-shadow: 0 0 26px 6px var(--target-color); background: transparent; }
+}
+@keyframes lockCorners { to { transform: translate(calc(var(--aim-x) * -1.4), calc(var(--aim-y) * -1.4)); } }
+@keyframes hintIn { from { opacity: 0; transform: translate(-50%, -40%) scale(.9); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }

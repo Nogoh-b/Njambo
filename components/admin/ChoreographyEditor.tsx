@@ -9,7 +9,7 @@ import { useRef, useState, type PointerEvent as ReactPointerEvent, type ReactNod
 import { ChoreoDemoStage, type ChoreoDemoHandle } from "@/components/power/choreo/ChoreoDemoStage";
 import {
   CHOREO_LIMITS, DEFAULT_V2_MODEL, EASINGS, ELEMENT_EFFECTS, SCREEN_ANCHORS, choreographyDuration,
-  type Anchor, type ChoreoTrack, type Choreography, type ElementKind, type V2ZoneAnchor, type Waypoint,
+  type Anchor, type ChoreoTrack, type Choreography, type ElementKind, type TextAudience, type V2ZoneAnchor, type Waypoint,
 } from "@/engine/power/choreography";
 import { getAnimV2, listAnimsV2 } from "@/engine/anim/v2/registry";
 import type { PlayerRef, PowerFxTone } from "@/engine/power/types";
@@ -242,11 +242,23 @@ function TrackForm({ track, tracks, onChange, errorFor, path }: { track: ChoreoT
               <option value="yes">Oui</option><option value="no">Non (échange : la carte reprend la place vide)</option>
             </select>
           </F>
+          <F label="Échange en place" error={e("inPlace")}>
+            <select value={track.inPlace ? "yes" : "no"} onChange={(ev) => onChange({ ...track, inPlace: ev.target.value === "yes" ? true : undefined })}>
+              <option value="no">Non</option><option value="yes">Oui : chaque carte prend la place de celle qu’elle remplace</option>
+            </select>
+          </F>
           <F label="Présentation au départ">
             <select value={present ? "yes" : "no"} onChange={(ev) => onChange({ ...track, present: ev.target.value === "yes" ? { holdMs: 600, dy: -14, scale: 1.4 } : undefined })}>
               <option value="no">Non : vol direct</option><option value="yes">Oui : se lève, se retourne, attend</option>
             </select>
           </F>
+          {present && (
+            <F label="Où" error={e("present.at")}>
+              <select value={present.at ?? "from"} onChange={(ev) => setPresent({ at: ev.target.value === "tableCenter" ? "tableCenter" : undefined })}>
+                <option value="from">Au-dessus du départ</option><option value="tableCenter">Au centre de la table</option>
+              </select>
+            </F>
+          )}
           {present && <F label="Pause (s)" error={e("present.holdMs")}><input type="number" min={0} max={3} step={0.1} value={seconds(present.holdMs)} onChange={(ev) => setPresent({ holdMs: ms(ev.target.value) })} /></F>}
           {present && <F label="Hauteur (% de l'écran)" error={e("present.dy")}><input type="number" min={-50} max={50} step={1} value={present.dy ?? 0} onChange={(ev) => setPresent({ dy: Number(ev.target.value) || undefined })} /></F>}
           {present && <F label="Taille" error={e("present.scale")}><input type="number" min={0.5} max={3} step={0.1} value={present.scale ?? 1} onChange={(ev) => setPresent({ scale: Number(ev.target.value) || undefined })} /></F>}
@@ -353,7 +365,16 @@ function TrackForm({ track, tracks, onChange, errorFor, path }: { track: ChoreoT
       return (
         <div className={styles.grid3}>
           {timing}
-          <F label="Texte ({activator}, {target})" error={e("text")}><input value={track.text} maxLength={60} onChange={(ev) => onChange({ ...track, text: ev.target.value })} /></F>
+          <F label="Texte ({activator}, {target}, {outgoing}, {incoming}, {delta}, {cards})" error={e("text")}><input value={track.text} maxLength={60} onChange={(ev) => onChange({ ...track, text: ev.target.value })} /></F>
+          <F label="Vu par" error={e("audience")}>
+            <select value={track.audience ?? "all"} onChange={(ev) => onChange({ ...track, audience: ev.target.value === "all" ? undefined : ev.target.value as TextAudience })}>
+              <option value="all">Tout le monde</option>
+              <option value="activator">Le lanceur</option>
+              <option value="others">Tous sauf le lanceur</option>
+              <option value="target">La cible</option>
+              <option value="bystanders">Ni le lanceur ni la cible</option>
+            </select>
+          </F>
           <F label="Taille"><select value={track.size ?? "m"} onChange={(ev) => onChange({ ...track, size: ev.target.value as "s" | "m" | "l" })}><option value="s">Petit</option><option value="m">Moyen</option><option value="l">Grand</option></select></F>
           <F label="Teinte"><ToneSelect value={track.tone} onChange={(tone) => onChange({ ...track, tone })} /></F>
           <div className={styles.full}><AnchorField label="Position" value={track.at} errorFor={errorFor} path={`${path}.at`} onChange={(at) => onChange({ ...track, at })} /></div>

@@ -1,0 +1,164 @@
+/* Choix de cartes d'une carte pouvoir — barre au-dessus des cartes, pastilles sur les cartes choisies. */
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 540;
+  pointer-events: none;
+}
+
+/* ── Barre ── */
+.bar {
+  position: absolute;
+  left: 50%;
+  bottom: max(150px, calc(env(safe-area-inset-bottom) + 130px));
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: calc(100vw - 16px);
+  padding: 8px 10px 10px 8px;
+  border: 1.5px solid color-mix(in srgb, var(--choice-color) 55%, transparent);
+  border-radius: 18px;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse 70% 120% at 0% 0%, color-mix(in srgb, var(--choice-color) 20%, transparent), transparent 70%),
+    linear-gradient(180deg, rgba(22, 20, 30, .94), rgba(8, 8, 14, .96));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, .55), 0 0 22px color-mix(in srgb, var(--choice-color) 22%, transparent);
+  transform: translateX(-50%);
+  transition: bottom 180ms cubic-bezier(.22, 1, .36, 1);
+  pointer-events: auto;
+  animation: barIn 300ms cubic-bezier(.2, 1.3, .4, 1) both;
+}
+
+.close {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border: 1px solid rgba(255, 248, 232, .2);
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .06);
+  color: rgba(255, 248, 232, .75);
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.copy { display: grid; gap: 2px; min-width: 0; }
+.title {
+  color: var(--choice-color);
+  font: 900 10px/1 var(--font-display, sans-serif);
+  letter-spacing: .14em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+.instruction { color: #fff7dc; font: 900 13px/1.15 var(--font-display, sans-serif); white-space: nowrap; }
+
+/* Une case par carte possible ; les cases facultatives sont en pointillés. */
+.slots { display: flex; gap: 5px; }
+.slot {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 36px;
+  border: 1.5px solid color-mix(in srgb, var(--choice-color) 60%, transparent);
+  border-radius: 6px;
+  background: rgba(255, 255, 255, .04);
+}
+.optional { border-style: dashed; opacity: .6; }
+.filled { border-color: transparent; background: transparent; }
+.slotCard {
+  display: grid;
+  place-items: center;
+  width: 100%;
+  height: 100%;
+  border-radius: 6px;
+  background: linear-gradient(180deg, #fffaf0, #efe4cc);
+  box-shadow: 0 0 0 1.5px var(--choice-color), 0 0 10px color-mix(in srgb, var(--choice-color) 60%, transparent);
+  font: 900 12px/1 var(--font-display, sans-serif);
+  animation: slotIn 260ms cubic-bezier(.2, 1.6, .4, 1) both;
+}
+.slotCard small { font-size: 11px; line-height: 1; }
+
+.confirm {
+  flex: none;
+  padding: 8px 14px;
+  border: 1px solid rgba(255, 248, 232, .16);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .06);
+  color: rgba(255, 248, 232, .5);
+  font: 900 13px/1 var(--font-display, sans-serif);
+  cursor: default;
+  transition: background 180ms ease-out, color 180ms ease-out, box-shadow 180ms ease-out;
+}
+.ready {
+  border-color: color-mix(in srgb, var(--choice-color) 80%, #fff);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--choice-color) 85%, #fff), var(--choice-color));
+  color: #120d06;
+  cursor: pointer;
+  box-shadow: 0 0 16px color-mix(in srgb, var(--choice-color) 70%, transparent);
+  animation: readyPulse 1.2s ease-in-out infinite;
+}
+
+/* Fil du temps restant, en bas de la barre. */
+.timer {
+  position: absolute;
+  left: 10px;
+  right: 10px;
+  bottom: 3px;
+  height: 3px;
+  border-radius: 3px;
+  background: var(--choice-color);
+  box-shadow: 0 0 6px var(--choice-color);
+  transform-origin: left center;
+}
+
+/* ── Cartes choisies ── */
+.marks {
+  position: fixed;
+  inset: 0;
+  z-index: 1500;
+  pointer-events: none;
+}
+.mark {
+  position: absolute;
+  border-radius: 9px;
+  box-shadow: 0 0 0 2.5px var(--choice-color), 0 0 18px color-mix(in srgb, var(--choice-color) 75%, transparent);
+  transition: left 140ms ease-out, top 140ms ease-out, transform 140ms ease-out;
+  animation: markIn 220ms ease-out both;
+}
+.badge {
+  position: absolute;
+  left: 50%;
+  top: -11px;
+  display: grid;
+  place-items: center;
+  width: 22px;
+  height: 22px;
+  border: 2px solid #fff7dc;
+  border-radius: 50%;
+  background: var(--choice-color);
+  color: #120d06;
+  font: 900 12px/1 var(--font-display, sans-serif);
+  transform: translateX(-50%);
+  box-shadow: 0 3px 8px rgba(0, 0, 0, .45);
+  animation: badgeIn 260ms cubic-bezier(.2, 1.8, .4, 1) both;
+}
+
+@media (max-width: 420px) {
+  .bar { gap: 7px; padding: 7px 8px 9px 7px; }
+  .title { display: none; }
+  .instruction { font-size: 12px; }
+  .slot { width: 22px; height: 31px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bar, .slotCard, .ready, .mark, .badge { animation: none; }
+}
+
+@keyframes barIn { from { opacity: 0; transform: translate(-50%, 12px) scale(.96); } to { opacity: 1; transform: translate(-50%, 0) scale(1); } }
+@keyframes slotIn { from { opacity: 0; transform: translateY(-8px) scale(.6); } to { opacity: 1; transform: none; } }
+@keyframes readyPulse { 0%, 100% { box-shadow: 0 0 10px color-mix(in srgb, var(--choice-color) 55%, transparent); } 50% { box-shadow: 0 0 22px var(--choice-color); } }
+@keyframes markIn { from { opacity: 0; } to { opacity: 1; } }
+@keyframes badgeIn { from { transform: translateX(-50%) scale(0); } to { transform: translateX(-50%) scale(1); } }

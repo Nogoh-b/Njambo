@@ -16,8 +16,8 @@ Ordre par famille : la première carte d'une famille construit ce que les suivan
 ### 1. Main et pioche
 - [ ] Vent du Nord — **en cours** : publiée (rév. 4 en base de dev) et vérifiée en partie ; reste ton avis visuel et le commit
 - [ ] Marché de Nuit — **en cours** : publiée (rév. 2 en base de dev), vérifiée en partie ; reste ton avis visuel et le commit
-- [ ] Troc Ciblé
-- [ ] Pacte des Mains
+- [ ] Troc Ciblé — carte de test (`dev: true`), jamais en boutique : passée
+- [ ] Pacte des Mains — **en cours** : publiée (rév. 2 en base de dev), essayée en partie ; reste ton avis visuel et le commit
 - [ ] Main du Griot
 
 ### 2. Valeur
@@ -85,6 +85,20 @@ Briques réutilisables ajoutées : texte de piste réservé au lanceur ou aux au
 3. L'étal : quatre cartes de dos s'ouvrent en éventail au-dessus de la pioche ; la carte choisie se lève au milieu, plus grande, se retourne (présentation V2, 1,1 s), pluie dorée, « Le meilleur de l'étal » (les autres : « {activator} choisit sa carte ») ; les cartes de dos retournent dans la pioche.
 4. La carte choisie rejoint la place vide (V2) ; verdict « 3♥ → 8♦ +5 », toujours vert.
 
+### Pacte des Mains (`config/powers/pacte_mains.ts`)
+
+**Règle gardée** : légendaire, 85 cauris / 1 400 Nkap, vise un adversaire. Tu choisis 1 à 3 cartes de ta main ; elles sont échangées contre autant de cartes au hasard de sa main, chacune à la place de l'autre.
+
+**Avant** : deux vols simples, annonce « Les mains échangent leurs secrets » pour tous ; la cible ne voyait jamais ce qu'elle perdait, et sa nouvelle main pouvait s'afficher avant l'animation (parties serveur).
+
+**Mise en scène (V2 dans la chorégraphie)** :
+1. Annonce « PACTE SCELLÉ — Tes cartes contre autant des siennes, à l'aveugle » ; les autres lisent « {activator} scelle un pacte avec {target} », la cible « … avec toi ».
+2. Tes cartes se lèvent au centre de la table, les siennes juste au-dessus. Chacun voit ses propres cartes de face, celles de l'autre de dos ; les autres joueurs voient tout de dos. « Le pacte est scellé » (lanceur) / « {activator} prend 1 carte » (cible).
+3. Les deux rangées se croisent (éclat au centre) ; chaque carte prend la place de celle qu'elle remplace.
+4. Verdict « 3♠ 5♥ → 9♦ 10♣ +11 » chez le lanceur ; « {activator} t'a pris 2 cartes » chez la cible ; « X et Y ont échangé 2 cartes » chez les autres.
+
+Briques ajoutées : publics de texte « la cible » et « ni le lanceur ni la cible », repère `{cards}`, verdict sur plusieurs cartes, piste V2 présentée au centre de la table et échange en place, bac à sable « vu par la cible ». Parties serveur : la cible d'un échange garde sa main affichée jusqu'à l'animation (`AuthoritativeGameSync` retient la main échangée reçue avant l'activation).
+
 ## Journal
 
 - 2026-11-23 — Fichier créé. Méthode et ordre par famille fixés. Fiche de Vent du Nord rédigée, en attente des choix de règle.
@@ -97,3 +111,6 @@ Briques réutilisables ajoutées : texte de piste réservé au lanceur ou aux au
 - 2026-11-23 — Commit 7566694 (Vent du Nord, lancement, chorégraphies, sync, admin).
 - 2026-11-23 — Piste « Modèle V2 » dans les chorégraphies (la piste V2 prévue « plus tard » en V2-5) : vrai déplacement par un modèle V2 (celui de la carte, sinon « Fluide »), présentation facultative au-dessus de la zone de départ, réorganisation des mains réglable ; éditeur admin. Vent du Nord passé en V2 (départ et tirage). Marché de Nuit mis en scène (étal, choix, verdict). Bac à sable : Marché de Nuit joue l'étal, le choix et « 3♥ → 8♦ +5 ». Types (front, functions, server), lint et tests OK. Reste : publier les deux cartes et essayer en partie.
 - 2026-11-23 — Publiées en base de dev : Marché de Nuit rév. 2, Vent du Nord rév. 5 (pistes V2), identiques au code. Partie contre l'IA, Marché de Nuit : annonce, 6♠ vers la pioche, étal de 4 cartes de dos, 8♥ levé et retourné au milieu avec « Le meilleur de l'étal », cartes de dos rentrées, 8♥ posé à la place du 6♠, « 6♠ → 8♥ +2 » en vert ; main inchangée jusqu'à la fin (9,6 s). Vent du Nord rév. 5 pas rejouée en partie (même piste V2, vérifiée via Marché de Nuit).
+- 2026-11-24 — Troc Ciblé passée (carte de test, jamais en boutique). Pacte des Mains mise en scène (voir sa fiche) et vérifiée dans le bac à sable sans enregistrer (version du code chargée dans l'éditeur) : vu par le lanceur, les deux cartes montent au centre (la mienne dessous, la sienne dessus), se croisent et se posent chacune dans la place de l'autre ; « 7♥ → 8♥ +1 ». Vu par la cible : son 8♥ de face au centre, la carte du lanceur de dos, « Le lanceur prend 1 carte » puis « Le lanceur t'a pris 1 carte ». Vu par un autre joueur : cartes de dos, « … ont échangé 1 carte ». Types (front, functions, server), lint et 338 tests OK. Reste : publier en base de dev (accord), essai en partie (dont la main de la cible retenue), commit.
+- 2026-11-24 — Pacte des Mains publiée en base de dev (rév. 2 = version du code). Partie contre l'IA : annonce « PACTE SCELLÉ — Tes cartes contre autant des siennes, à l'aveugle », « Le pacte est scellé », verdict « 9♠ → 9♥ = », carte reçue posée à la place de la carte donnée, table propre ensuite. Essais avec une seule carte (le choix dure 8 s, trop court pour le navigateur de test) ; le croisement au centre a été vu dans le bac à sable, pas filmé en partie (navigateur en arrière-plan). Au passage, Vent du Nord rév. 5 (V2) vue en partie : 4♠ vers la pioche, 3♥ présenté au-dessus puis rangé, « 4♠ → 3♥ −1 ». Main de la cible retenue : pas testable contre l'IA. Animations du navigateur remises comme avant. Reste : ton avis visuel et le commit.
+- 2026-11-24 — Commun à toutes les cartes : choix de cible SUR LA TABLE (`PowerTargetPicker`, remplace la fenêtre « Choisis une cible ») : la table s'assombrit, les joueurs visables restent dans la lumière, leurs mains s'avancent, cadre de visée animé à la couleur de la carte (anneau tournant, coins de viseur, halo, nom), verrouillage au choix ; bulle « Touche le joueur à viser » + Annuler au centre. Choix de cartes (`PowerChoiceBar`, remplace la barre « N/3 sélectionnée(s) ») : barre posée au-dessus des cartes et de la rangée avatar / Mon deck, nom de la carte, consigne, une case par carte possible remplie par la carte choisie (« 9♥ 5♥ »), Valider qui s'allume au minimum atteint, fil du temps restant ; pastille numérotée et contour sur chaque carte choisie (sans l'agrandir) ; délai porté à 15 s pour un choix de plusieurs cartes (8 s pour une seule). Vérifié en partie à 4 joueurs : 3 cibles éclairées, choix de Massa, barre au-dessus des cartes, 2 cartes choisies avec pastilles 1 et 2 alignées. Validation de l'échange à 2 cartes pas vue (fenêtre du navigateur masquée). Types, lint, 338 tests OK.

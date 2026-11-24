@@ -19,7 +19,8 @@ import { motifSchedule } from "@/engine/anim/sample";
 import type { AnimStyle } from "@/engine/anim/style";
 import { useMotifCatalogRevision } from "@/hooks/useMotifCatalog";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
-import { PowerTargetModal } from "@/components/power/PowerTargetModal";
+import { PowerTargetPicker } from "@/components/power/PowerTargetPicker";
+import { PowerChoiceBar, type PowerChoiceState } from "@/components/power/PowerChoiceBar";
 import { Avatar, type OpponentPowerSlot } from "@/components/table/Avatar";
 import { DepositZone } from "@/components/table/DepositZone";
 import { Fan } from "@/components/table/Fan";
@@ -539,13 +540,7 @@ export function TableScreen({
   const [goldFlash, setGoldFlash] = useState(false);
   const [screenEffect] = useState<"win" | "lose" | null>(null);
   const [banner, setBanner] = useState("");
-  const [powerChoiceConfirm, setPowerChoiceConfirm] = useState<{
-    selected: number;
-    min: number;
-    max: number;
-    onConfirm: () => void;
-    onCancel: () => void;
-  } | null>(null);
+  const [powerChoiceConfirm, setPowerChoiceConfirm] = useState<PowerChoiceState | null>(null);
   /* Confirmation avant de quitter une partie EN COURS (abandon + retour menu). */
   const [confirmQuit, setConfirmQuit] = useState(false);
   /* Aide rapide en cours de manche & aperçu tactile des cartes pouvoir */
@@ -1806,30 +1801,41 @@ export function TableScreen({
   const requestCardChoice = useCallback((
     choice: ChoiceRequest,
     targetIdx?: number,
+    cardId?: PowerCardId,
   ): Promise<PowerCardChoice | PowerCardChoice[] | null> => {
     return new Promise((resolve) => {
       const registry = registryRef.current;
-      // Défaut confortable : le joueur doit lire le bandeau PUIS choisir.
-      const timeoutMs = choice.timeoutMs ?? Math.max(8000, TABLE_READABILITY_MS * 2);
       let cancelSelection: (() => void) | null = null;
       let done = false;
       const selected = new Map<number, PowerCardChoice>();
       const min = Math.max(1, choice.count?.min ?? 1);
       const max = Math.max(min, choice.count?.max ?? 1);
+      // Défaut confortable : le joueur doit lire la barre PUIS choisir (plus long pour plusieurs cartes).
+      const timeoutMs = choice.timeoutMs ?? (max > 1 ? 15_000 : Math.max(8000, TABLE_READABILITY_MS * 2));
+      const deadline = Date.now() + timeoutMs;
+      const depositUi = choice.player === "target" && targetIdx !== undefined ? targetIdx : 0;
+      const zone: PowerChoiceState["zone"] = choice.surface === "deposit" ? { kind: "deposit", ui: depositUi } : { kind: "hand", ui: 0 };
+      const powerDef = cardId ? POWER_CARDS_BY_ID[cardId] : undefined;
       const finish = (value: PowerCardChoice | PowerCardChoice[] | null) => {
         if (done) return;
         done = true;
         cancelSelection?.();
-        registry?.hand(0)?.highlightCards({ cardIds: [], style: "boosted", durationMs: 1 });
-        setBanner("");
         setPowerChoiceConfirm(null);
         resolve(value);
       };
       const updateConfirm = () => {
+        const picked = [...selected.keys()];
+        const source = zone.kind === "hand" ? playersRef.current[0]?.hand ?? [] : playersRef.current[depositUi]?.deposit ?? [];
         setPowerChoiceConfirm({
-          selected: selected.size,
+          title: powerDef?.name,
+          tone: powerDef?.tone,
+          zone,
+          selectedIdx: picked,
+          selectedCards: picked.flatMap((index) => (source[index] ? [source[index] as Card] : [])),
           min,
           max,
+          deadline,
+          timeoutMs,
           onConfirm: () => {
             const values = [...selected.values()];
             if (values.length < min) return;
@@ -1845,11 +1851,7 @@ export function TableScreen({
           finish([...selected.values()][0]);
           return;
         }
-        registry?.hand(0)?.highlightCards({
-          cardIds: [...selected.values()].map((item) => item.cardId),
-          style: "boosted",
-          durationMs: timeoutMs,
-        });
+        // Cartes choisies : pastilles et contours de PowerChoiceBar (sans agrandir la carte, qui cacherait ses voisines).
         updateConfirm();
       };
 
@@ -1859,7 +1861,6 @@ export function TableScreen({
         const allowed = choice.filter && state
           ? new Set(selectInHand(hand, choice.filter, { state, seat: 0 }))
           : null;
-        setBanner(max > 1 ? `Choisis entre ${min} et ${max} cartes` : "Choisis une carte de ta main");
         cancelSelection = registry.hand(0)?.beginSelection(
           (_card, cardIdx) => (allowed ? allowed.has(cardIdx) : true),
           (cardIdx) => {
@@ -1868,8 +1869,6 @@ export function TableScreen({
           },
         ) ?? null;
       } else if (choice.surface === "deposit" && registry) {
-        const depositUi = choice.player === "target" && targetIdx !== undefined ? targetIdx : 0;
-        setBanner("Choisis une carte du dépôt");
         cancelSelection = registry.deposit(depositUi)?.beginSelection(
           () => true,
           (cardIdx) => {
@@ -1883,7 +1882,7 @@ export function TableScreen({
         finish(null);
         return;
       }
-      if (max > 1) updateConfirm();
+      updateConfirm();
       const timer = setTimeout(() => finish(null), timeoutMs);
       burstTimersRef.current.push(timer);
     });
@@ -1900,7 +1899,7 @@ export function TableScreen({
     let choices: PowerChoices | undefined;
     for (const step of script.steps) {
       if (!step.choice) continue;
-      const picked = await requestCardChoice(step.choice, targetIdx);
+      const picked = await requestCardChoice(step.choice, targetIdx, cardId);
       if (!picked) {
         if (step.choice.onTimeout === "cancel") return; // annulé, carte non consommée
         continue; // "auto" : le moteur retombe sur son sélecteur
@@ -2330,19 +2329,7 @@ export function TableScreen({
         </div>
       )}
 
-      {powerChoiceConfirm && (
-        <div className="nj-power-choice-confirm">
-          <span>{powerChoiceConfirm.selected}/{powerChoiceConfirm.max} sélectionnée(s)</span>
-          <button data-nj-skin="ghost" type="button" onClick={powerChoiceConfirm.onCancel}>Annuler</button>
-          <button data-nj-skin="teal"
-            type="button"
-            disabled={powerChoiceConfirm.selected < powerChoiceConfirm.min}
-            onClick={powerChoiceConfirm.onConfirm}
-          >
-            Valider
-          </button>
-        </div>
-      )}
+      {powerChoiceConfirm && <PowerChoiceBar state={powerChoiceConfirm} registry={zoneRegistry} />}
 
       {/* Confirmation de sortie — Salon Royal */}
       {confirmQuit && (
@@ -2672,13 +2659,14 @@ export function TableScreen({
         </div>
       )}
 
-      {/* Sélection de cible pour une carte pouvoir (pilotée par TargetSpec) */}
+      {/* Sélection de cible pour une carte pouvoir (pilotée par TargetSpec) : directement sur la table */}
       {targetingCard && (
-        <PowerTargetModal
+        <PowerTargetPicker
           cardId={targetingCard}
           players={players}
-          turnSeconds={turnSeconds}
+          registry={zoneRegistry}
           allowSelf={powerScriptOf(targetingCard).target.allowSelf}
+          motion={motionEnabled}
           onPick={(i) => void handleUsePower(targetingCard, i)}
           onCancel={() => setTargetingCard(null)}
         />

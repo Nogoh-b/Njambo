@@ -13,7 +13,7 @@ import { launchStyle } from "@/components/power/powerLaunch";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { ChoreoDemoStage, demoV2MovesForCue, type ChoreoDemoHandle } from "@/components/power/choreo/ChoreoDemoStage";
 import { getAnimV2 } from "@/engine/anim/v2/registry";
-import { choreographyFromCues, type Choreography } from "@/engine/power/choreography";
+import { choreographyFromCues, type ChoreoViewer, type Choreography } from "@/engine/power/choreography";
 import { createSandboxTable, runSandboxActivation, SANDBOX_NAMES, type SandboxOutcome } from "@/engine/power/sandbox";
 import type { AnimCue, PowerModule, PowerScript } from "@/engine/power/types";
 import { playPowerSound } from "@/lib/powerSounds";
@@ -77,7 +77,7 @@ export function PowerSandbox({ card, hasIssues }: { card: EditedCard; hasIssues:
   const [shield, setShield] = useState(false);
   const [outcome, setOutcome] = useState<SandboxOutcome | null>(null);
   const [crash, setCrash] = useState<string | null>(null);
-  const [viewer, setViewer] = useState<"activator" | "others">("activator");
+  const [viewer, setViewer] = useState<ChoreoViewer>("activator");
   const [announce, setAnnounce] = useState<{ text: string; launch: CSSProperties | null } | null>(null);
   const frameRef = useRef<HTMLDivElement>(null);
   const slotRef = useRef<HTMLDivElement>(null);
@@ -92,7 +92,9 @@ export function PowerSandbox({ card, hasIssues }: { card: EditedCard; hasIssues:
     // Annonce (overlay d'activation du jeu) : affichée ici le temps qu'elle dure en partie.
     const frame = frameRef.current?.getBoundingClientRect();
     setAnnounce({
-      text: viewer === "others" && card.def.activationTextOthers ? card.def.activationTextOthers.replace("{activator}", "Le lanceur") : card.def.activationText,
+      text: viewer !== "activator" && card.def.activationTextOthers
+        ? card.def.activationTextOthers.replace("{activator}", "Le lanceur").replace("{target}", viewer === "target" ? "toi" : "la cible")
+        : card.def.activationText,
       launch: frame ? launchStyle(slotRef.current?.getBoundingClientRect(), { cx: frame.left + frame.width / 2, cy: frame.top + frame.height / 2, width: LAUNCH_WIDTH }) : null,
     });
     await new Promise((resolve) => setTimeout(resolve, GAME_CONFIG.anim.powerMax));
@@ -206,9 +208,10 @@ export function PowerSandbox({ card, hasIssues }: { card: EditedCard; hasIssues:
         <div style={{ flex: "0 0 auto" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
             <span className={styles.hint}>Animation et son, vue par</span>
-            <select data-testid="sandbox-viewer" value={viewer} onChange={(e) => setViewer(e.target.value as "activator" | "others")}>
+            <select data-testid="sandbox-viewer" value={viewer} onChange={(e) => setViewer(e.target.value as ChoreoViewer)}>
               <option value="activator">le lanceur</option>
-              <option value="others">un adversaire</option>
+              {targeted && <option value="target">la cible</option>}
+              <option value="bystander">un autre joueur</option>
             </select>
           </div>
           <div ref={frameRef} style={{ marginTop: 6, position: "relative" }}>

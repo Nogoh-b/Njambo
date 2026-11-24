@@ -112,6 +112,12 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private powerPending = false;
   /** Main reçue par le canal privé pendant mon activation de pouvoir (voir le listener de main). */
   private heldPowerHand: Card[] | null = null;
+  /** Main échangée par le pouvoir d'un adversaire (Pacte des Mains…) arrivée avant son animation : retenue
+   *  jusqu'à ce que l'activation soit jouée (sécurité : relâchée si elle ne vient pas). */
+  private heldSwapHand: Card[] | null = null;
+  private heldSwapTimer: ReturnType<typeof setTimeout> | null = null;
+  /** Activation qui échange ma main déjà jouée, sa nouvelle main pas encore reçue. */
+  private swapPowerShown = false;
   /* ── Séquenceur de replay ── */
   private replayQueue: ReplayStep[] = [];
   private replayTimer: ReturnType<typeof setTimeout> | null = null;
@@ -359,6 +365,11 @@ export class AuthoritativeGameSync implements GameSyncActions {
       // la réponse HTTP qui porte l'activation. La montrer tout de suite gâcherait l'animation :
       // elle est retenue, et la réponse (activation, puis état) prend le relais.
       if (this.powerPending) { this.heldPowerHand = hand; return; }
+      // Même nombre de cartes, cartes différentes : le pouvoir d'un adversaire a échangé ma main. Son activation
+      // (canal du match) n'est peut-être pas encore jouée : la nouvelle main attend son animation.
+      const swapped = hand.length > 0 && hand.length === this.hand.length && hand.some((card) => !this.hand.some((mine) => mine.id === card.id));
+      if (swapped && !this.swapPowerShown) { this.holdSwapHand(hand); return; }
+      this.swapPowerShown = false;
       this.hand = hand;
       this.equippedPowers = (snapshot.get("equippedPowers") ?? this.equippedPowers) as PowerCardId[];
       // Éviter un repaint intermédiaire pendant qu'un coup optimiste est encore en vol.
@@ -407,6 +418,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
       this.match = null;
       this.displayMatch = null;
       this.hand = this.roundHands.get(match.series!.round) ?? [];
+      this.heldSwapHand = null; this.swapPowerShown = false;
       this.emittedActions.clear(); this.emittedPowerIds.clear();
       this.simTrickPlays = [];
       this.beginDealingWindow(match, true);
@@ -564,6 +576,11 @@ export class AuthoritativeGameSync implements GameSyncActions {
       // Déjà dédupliquée à l'enfilage — émission directe aux listeners, puis
       // un beat de lecture avant l'événement suivant.
       this.powerListeners.forEach((listener) => listener(step.activation));
+      // Ma main échangée par ce pouvoir : montrée maintenant (la table la retient jusqu'à la fin de l'animation).
+      if (step.activation.targetUid === this.opts.uid && step.activation.used) {
+        if (this.heldSwapHand) this.releaseSwapHand();
+        else this.swapPowerShown = true;
+      }
       this.replayTimer = setTimeout(() => this.pump(), GAME_CONFIG.anim.powerBeat);
       return;
     }
@@ -663,6 +680,28 @@ export class AuthoritativeGameSync implements GameSyncActions {
     display.trickPlays = [];
     display.trickNumber += 1;
     if (winnerServerIdx >= 0) { display.leaderIndex = winnerServerIdx; display.turnIndex = winnerServerIdx; }
+  }
+
+  private holdSwapHand(hand: Card[]) {
+    this.heldSwapHand = hand;
+    if (this.heldSwapTimer) clearTimeout(this.heldSwapTimer);
+    const check = () => {
+      // L'activation attend encore dans la file (derrière d'autres coups) : on patiente.
+      const queued = this.replayQueue.some((step) => step.kind === "power" && step.activation.targetUid === this.opts.uid);
+      if (queued && !this.destroyed) { this.heldSwapTimer = setTimeout(check, 1_000); return; }
+      this.releaseSwapHand();
+    };
+    this.heldSwapTimer = setTimeout(check, 4_000);
+  }
+
+  private releaseSwapHand() {
+    if (this.heldSwapTimer) clearTimeout(this.heldSwapTimer);
+    this.heldSwapTimer = null;
+    const hand = this.heldSwapHand;
+    this.heldSwapHand = null;
+    if (!hand || this.destroyed) return;
+    this.hand = hand;
+    if (!this.optimisticCardId) this.emitState();
   }
 
   private stopReplay() {
@@ -983,6 +1022,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
   destroy = () => {
     // Nettoyage technique uniquement : l'abandon est une action explicite.
     this.destroyed = true;
+    if (this.heldSwapTimer) clearTimeout(this.heldSwapTimer);
     this.stopSnapshots();
     this.stopDealing();
     this.stopReplay();

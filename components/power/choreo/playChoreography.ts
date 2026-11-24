@@ -11,7 +11,7 @@ import { zonePoseOf, type ZoneRef } from "@/components/table/zones/zonePose";
 import { DEFAULT_ANIMS_V2 } from "@/engine/anim/v2/defaults";
 import type { ZonePose } from "@/engine/anim/v2/pose";
 import { getAnimV2 } from "@/engine/anim/v2/registry";
-import { DEFAULT_V2_MODEL, V2_PRESENT_RISE_MS, motifOfTrack, type Anchor, type ChoreoTrack, type Choreography, type ElementTarget, type Easing, type MotifTrack, type V2Track, type V2ZoneAnchor, type Waypoint } from "@/engine/power/choreography";
+import { DEFAULT_V2_MODEL, V2_PRESENT_RISE_MS, audienceSees, motifOfTrack, type Anchor, type ChoreoViewer, type ChoreoTrack, type Choreography, type ElementTarget, type Easing, type MotifTrack, type V2Track, type V2ZoneAnchor, type Waypoint } from "@/engine/power/choreography";
 import type { PlayerRef, PowerFxIntensity, PowerFxPreset, PowerFxTone } from "@/engine/power/types";
 import type { Card } from "@/types/game";
 import type { ChoreoLayerHandle } from "./ChoreoLayer";
@@ -52,8 +52,8 @@ export interface ChoreoContext {
   /** Appelé quand une piste « move » démarre / se termine (masquage de la source, voir `moveSourceUi`). */
   onMoveStart?(track: MovingTrack, cards: ChoreoCards): void;
   onMoveEnd?(track: MovingTrack): void;
-  /** Qui regarde : le lanceur ou un autre joueur (textes réservés à l'un ou l'autre). Défaut : le lanceur. */
-  viewer?: "activator" | "others";
+  /** Qui regarde : le lanceur, la cible ou un autre joueur (textes réservés). Défaut : le lanceur. */
+  viewer?: ChoreoViewer;
   /** Écart de valeur de l'échange (carte reçue − carte donnée), pour les textes « verdict ». */
   verdict?: number | null;
   /** Modèle V2 de la carte (onglet Animation) : celui des pistes V2 qui n'en choisissent pas. */
@@ -430,9 +430,7 @@ async function playScreen(ctx: ChoreoContext, track: ChoreoTrack & { kind: "scre
 async function playText(ctx: ChoreoContext, track: ChoreoTrack & { kind: "text" }, fill: (text: string) => string) {
   const host = ctx.layer.container();
   if (!host) return;
-  const audience = track.audience ?? "all";
-  const viewer = ctx.viewer ?? "activator";
-  if (audience !== "all" && audience !== viewer) return;
+  if (!audienceSees(track.audience ?? "all", ctx.viewer ?? "activator")) return;
   const text = fill(track.text);
   if (!text) return;
   const point = anchorPoint(ctx, track.at);
@@ -484,9 +482,12 @@ async function playV2Track(ctx: ChoreoContext, track: V2Track, pendingHand: Map<
     const from = refOf(track.from);
     const to = refOf(track.to);
     const countOf = (ui: number) => pendingHand.get(ui) ?? ctx.registry.hand(ui)?.cardCount?.() ?? 0;
-    if (from.zone === "hand" && from.ui != null) pendingHand.set(from.ui, countOf(from.ui) - cards.ids.length);
-    if (to.zone === "hand" && to.ui != null) pendingHand.set(to.ui, countOf(to.ui) + cards.ids.length);
-    const finalCount = to.zone === "hand" && to.ui != null ? pendingHand.get(to.ui) : undefined;
+    // Échange en place : les mains gardent leur nombre de cartes.
+    if (!track.inPlace) {
+      if (from.zone === "hand" && from.ui != null) pendingHand.set(from.ui, countOf(from.ui) - cards.ids.length);
+      if (to.zone === "hand" && to.ui != null) pendingHand.set(to.ui, countOf(to.ui) + cards.ids.length);
+    }
+    const finalCount = to.zone === "hand" && to.ui != null ? countOf(to.ui) : undefined;
     const moves: AnimV2Move[] = cards.ids.map((cardId, index) => ({
       card: ctx.visibleCard(cardId, index, cards),
       from: { ...from, index: from.zone === "hand" ? cards.fromIndexes[index] ?? 0 : 0 },
@@ -499,19 +500,22 @@ async function playV2Track(ctx: ChoreoContext, track: V2Track, pendingHand: Map<
       await playAnimV2(ctx, { id, model, moves, reflow });
       return;
     }
-    // Présentation : la carte monte au-dessus de sa zone de départ (et se retourne si on a le droit de la voir), attend,
-    // puis repart de ce point vers sa destination. Même modèle, vitesse de montée fixe.
+    // Présentation : la carte monte au-dessus de sa zone de départ ou au centre de la table (et se retourne si on a
+    // le droit de la voir), attend, puis repart de ce point vers sa destination. Même modèle, vitesse de montée fixe.
+    // Plusieurs cartes se rangent côte à côte.
     const view = viewportOf(ctx);
     const present = track.present;
-    const lifted = moves.map((move): ZonePose | null => {
+    const center = present.at === "tableCenter" ? anchorPoint(ctx, { kind: "screen", at: "tableCenter" }) : null;
+    const lifted = moves.map((move, index): ZonePose | null => {
       const base = zonePoseOf(ctx.registry, move.from, move.from.index);
       if (!base) return null;
       const dest = zonePoseOf(ctx.registry, move.to, move.to.index, move.to.count);
+      const width = Math.max(base.width, dest?.width ?? 0) * (present.scale ?? 1);
       return {
         ...base,
-        x: base.x + ((present.dx ?? 0) / 100) * view.width,
-        y: base.y + ((present.dy ?? 0) / 100) * view.height,
-        width: Math.max(base.width, dest?.width ?? 0) * (present.scale ?? 1),
+        x: (center?.x ?? base.x) + ((present.dx ?? 0) / 100) * view.width + (index - (moves.length - 1) / 2) * width * 1.08,
+        y: (center?.y ?? base.y) + ((present.dy ?? 0) / 100) * view.height,
+        width,
         rotate: 0,
         face: move.card ? 0 : 180,
         z: 999,

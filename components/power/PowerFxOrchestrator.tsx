@@ -20,7 +20,7 @@ import {
   type PowerParticleBurst,
 } from "@/components/power/PowerParticleLayer";
 import { getPowerModule } from "@/config/powers";
-import { FUNCTIONAL_CUES, fillCardPlaceholders, swapDelta } from "@/engine/power/choreography";
+import { FUNCTIONAL_CUES, fillCardPlaceholders, swapDelta, type ChoreoViewer } from "@/engine/power/choreography";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
 import { moveSourceUi, playChoreography, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
@@ -201,14 +201,16 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     else d.playSfx();
     triggerFx((def.tone as PowerTone) ?? "gold");
     const activatorUi = d.uiIndexFromUid(activation.activatedByUid);
+    const targetUi = d.uiIndexFromUid(activation.targetUid);
     const othersText = !mine && def.activationTextOthers
-      ? def.activationTextOthers.replace("{activator}", (activatorUi != null ? d.getPlayers()[activatorUi]?.name : undefined) ?? "Un joueur")
+      ? def.activationTextOthers
+        .replace("{activator}", (activatorUi != null ? d.getPlayers()[activatorUi]?.name : undefined) ?? "Un joueur")
+        .replace("{target}", targetUi === 0 ? "toi" : (targetUi != null ? d.getPlayers()[targetUi]?.name : undefined) ?? "un joueur")
       : undefined;
     showOverlay(activation.cardId, blocked, noEffect, othersText, activatorUi != null ? d.powerSlotRect?.(activation.cardId, activatorUi) : null);
 
     // Bloquée → l'aura de protection de la cible est consommée.
     if (blocked) {
-      const targetUi = d.uiIndexFromUid(activation.targetUid);
       if (targetUi != null && auraSeatsRef.current.has(targetUi)) {
         d.registry.timer(targetUi)?.showAura(null);
         auraSeatsRef.current.delete(targetUi);
@@ -284,8 +286,11 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         .replace("{target}", players[targetsUi[0]]?.name ?? "L'adversaire")
         .replace("{activator}", players[activatorUi]?.name ?? "Le joueur");
     // Cartes de l'échange (repères {outgoing}/{incoming}/{delta}) : connues du lanceur seulement.
-    const swapOutgoing = resolved?.moves?.find((move) => move.key === "outgoing")?.cardSnapshots?.[0] ?? null;
-    const swapIncoming = resolved?.moves?.find((move) => move.key === "incoming")?.cardSnapshots?.[0] ?? null;
+    const swapOutgoing = resolved?.moves?.find((move) => move.key === "outgoing")?.cardSnapshots ?? null;
+    const swapIncoming = resolved?.moves?.find((move) => move.key === "incoming")?.cardSnapshots ?? null;
+    const swapCount = resolved?.moves?.find((move) => move.key === "outgoing")?.cardIds.length;
+    // Qui regarde : le lanceur, la cible (elle connaît ses propres cartes) ou un autre joueur.
+    const viewer: ChoreoViewer = mine ? "activator" : targetsUi.includes(0) ? "target" : "bystander";
 
     const fxOf = (cue: AnimCue): {
       preset: PowerFxPreset;
@@ -621,15 +626,24 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         }
         if (step.choreo && choreoLayerRef.current) {
           const layer = choreoLayerRef.current;
-          const asCards = (ref: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight"): ChoreoCards => cardsOf(ref);
+          /* Cartes d'une piste. Hors lanceur, seules les cartes qui quittent MA main (la cible d'un échange)
+             sont connues : lues dans ma main encore affichée (l'état réel n'arrive qu'à la fin). */
+          const asCards = (ref: "resolved:outgoing" | "resolved:incoming" | "resolved:highlight"): ChoreoCards => {
+            const cards = cardsOf(ref);
+            if (mine) return cards;
+            const move = resolved?.moves?.find((candidate) => `resolved:${candidate.key}` === ref);
+            const fromMyHand = move?.from.zone === "hand" && "player" in move.from && resolveRefUi(move.from.player as PlayerRef)[0] === 0;
+            const myHand = players[0]?.hand ?? [];
+            return { ...cards, snapshots: fromMyHand ? cards.fromIndexes.flatMap((index) => (myHand[index] ? [myHand[index]] : [])) : [] };
+          };
           const choreoCtx: ChoreoContext = {
             registry: d.registry,
             layer,
             resolveRefUi,
             cardsOf: asCards,
             visibleCard: (cardId, index, cards) => {
-              // Identité visible seulement si la carte concerne MA main et que j'ai lancé le pouvoir.
-              if (!mine) return null;
+              // Lanceur : cartes de l'échange. Autres : seulement les cartes qui quittent ma main (voir asCards).
+              if (!mine) return cards.snapshots[index] ?? null;
               return cards.snapshots[index] ?? players[0]?.hand.find((candidate) => candidate.id === cardId) ?? null;
             },
             handCardRect: (ui, index) => d.registry.hand(ui)?.getCardRect(index) ?? null,
@@ -655,11 +669,11 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
               }
             },
             onMoveEnd: () => { movingCuesDone += 1; },
-            viewer: mine ? "activator" : "others",
+            viewer,
             animV2: def.animV2,
             verdict: mine ? swapDelta(swapOutgoing, swapIncoming) : null,
           };
-          await playChoreography(choreoCtx, step.choreo, (text) => fillCardPlaceholders(fillPlaceholders(text), mine ? swapOutgoing : null, mine ? swapIncoming : null));
+          await playChoreography(choreoCtx, step.choreo, (text) => fillCardPlaceholders(fillPlaceholders(text), mine ? swapOutgoing : null, mine ? swapIncoming : null, swapCount));
           if (movingCuesDone >= movingCueCount) await commitTransition();
         }
         if (beats.stepGapMs) await sleep(beats.stepGapMs);

@@ -118,12 +118,13 @@ export type ChoreoTrack =
     })
   | (TrackBase & {
       kind: "text";
-      /** Repères remplacés à la lecture : {activator}, {target}, {outgoing}, {incoming}, {delta} (voir `fillCardPlaceholders`). */
+      /** Repères remplacés à la lecture : {activator}, {target}, {outgoing}, {incoming}, {delta}, {cards} (voir `fillCardPlaceholders`). */
       text: string;
       at: Anchor;
       tone?: PowerFxTone;
       size?: "s" | "m" | "l";
-      /** Qui voit ce texte : tout le monde (défaut), le lanceur seul, ou les autres joueurs seuls. */
+      /** Qui voit ce texte : tout le monde (défaut), le lanceur seul, les autres joueurs, la cible seule,
+       *  ou les joueurs ni lanceur ni cible. */
       audience?: TextAudience;
       /** Teinte selon le verdict de l'échange : vert si la carte reçue est plus forte, rose si plus faible. */
       verdictTone?: boolean;
@@ -145,10 +146,14 @@ export type ChoreoTrack =
       /** Modèle V2 ; absent = celui de la carte (onglet Animation), sinon « Fluide ». */
       model?: string;
       /** Présentation avant le vol : la carte se lève au-dessus de sa zone de départ (décalage en % de l'écran),
-       *  se retourne si le joueur a le droit de la voir, et attend `holdMs`. */
-      present?: { holdMs: number; dx?: number; dy?: number; scale?: number };
+       *  ou au centre de la table (`at: "tableCenter"`), se retourne si le joueur a le droit de la voir, et attend `holdMs`.
+       *  Plusieurs cartes se rangent côte à côte. */
+      present?: { holdMs: number; at?: "tableCenter"; dx?: number; dy?: number; scale?: number };
       /** Réorganiser les mains (défaut : oui). Non pour un échange : la nouvelle carte se pose dans la place laissée vide. */
       reflow?: boolean;
+      /** Échange en place (mains → mains) : chaque carte prend la place de celle qu'elle remplace,
+       *  les mains gardent leur nombre de cartes. */
+      inPlace?: boolean;
     })
   | (TrackBase & {
       /** Modèle de l'atelier d'animations (phase G). `durationMs` = durée du vol d'UNE carte. */
@@ -173,23 +178,45 @@ export const V2_PRESENT_RISE_MS = 420;
 /** Modèle V2 utilisé quand ni la piste ni la carte n'en choisissent un. */
 export const DEFAULT_V2_MODEL = "v2_fluide";
 
-export const TEXT_AUDIENCES = ["all", "activator", "others"] as const;
+/** « others » = tous sauf le lanceur (cible comprise) ; « bystanders » = ni le lanceur ni la cible. */
+export const TEXT_AUDIENCES = ["all", "activator", "others", "target", "bystanders"] as const;
 export type TextAudience = (typeof TEXT_AUDIENCES)[number];
+/** Qui regarde la chorégraphie. */
+export type ChoreoViewer = "activator" | "target" | "bystander";
+
+/** Ce spectateur voit-il un texte réservé à ce public ? */
+export function audienceSees(audience: TextAudience, viewer: ChoreoViewer): boolean {
+  switch (audience) {
+    case "all": return true;
+    case "activator": return viewer === "activator";
+    case "others": return viewer !== "activator";
+    case "target": return viewer === "target";
+    case "bystanders": return viewer === "bystander";
+  }
+}
 
 const cardLabel = (card: Card) => `${card.rank}${card.suit}`;
 
-/** Écart de valeur entre la carte reçue et la carte donnée (null si l'une manque). */
-export function swapDelta(outgoing?: Card | null, incoming?: Card | null): number | null {
-  return outgoing && incoming ? incoming.value - outgoing.value : null;
+type SwapCards = Card | readonly Card[] | null | undefined;
+const asList = (cards: SwapCards): readonly Card[] => (cards == null ? [] : Array.isArray(cards) ? cards : [cards as Card]);
+
+/** Écart de valeur entre les cartes reçues et les cartes données (sommes ; null si l'un des côtés manque). */
+export function swapDelta(outgoing?: SwapCards, incoming?: SwapCards): number | null {
+  const out = asList(outgoing), inc = asList(incoming);
+  if (out.length === 0 || inc.length === 0) return null;
+  return inc.reduce((sum, card) => sum + card.value, 0) - out.reduce((sum, card) => sum + card.value, 0);
 }
 
-/** Remplace {outgoing}, {incoming} et {delta} par les cartes de l'échange (« 3♥ », « 8♦ », « +5 »).
+/** Remplace {outgoing}, {incoming} et {delta} par les cartes de l'échange (« 3♥ », « 8♦ », « +5 » ;
+ *  plusieurs cartes : « 3♠ 5♥ »), et {cards} par leur nombre (« 2 cartes »).
  *  Cartes inconnues (adversaire qui regarde) : repères effacés plutôt que trahis. */
-export function fillCardPlaceholders(text: string, outgoing?: Card | null, incoming?: Card | null): string {
+export function fillCardPlaceholders(text: string, outgoing?: SwapCards, incoming?: SwapCards, count?: number): string {
   const delta = swapDelta(outgoing, incoming);
+  const n = count ?? Math.max(asList(outgoing).length, asList(incoming).length);
   return text
-    .replace(/\{outgoing\}/g, outgoing ? cardLabel(outgoing) : "")
-    .replace(/\{incoming\}/g, incoming ? cardLabel(incoming) : "")
+    .replace(/\{outgoing\}/g, asList(outgoing).map(cardLabel).join(" "))
+    .replace(/\{incoming\}/g, asList(incoming).map(cardLabel).join(" "))
+    .replace(/\{cards\}/g, n > 0 ? `${n} carte${n > 1 ? "s" : ""}` : "")
     .replace(/\{delta\}/g,delta == null ? "" : delta > 0 ? `+${delta}` : delta < 0 ? `−${-delta}` : "=")
     .replace(/\s{2,}/g, " ")
     .trim();
@@ -322,10 +349,12 @@ export function validateChoreography(value: unknown, base: string): ChoreoIssue[
         if (track.present !== undefined) {
           const present = obj(track.present);
           if (!isInt(present.holdMs, 0, 3000)) issues.push({ path: `${path}.present.holdMs`, message: "Pause : 0 à 3 s." });
+          if (present.at !== undefined && present.at !== "tableCenter") issues.push({ path: `${path}.present.at`, message: "Présentation : au-dessus du départ ou au centre de la table." });
           for (const key of ["dx", "dy"]) if (present[key] !== undefined && !isNum(present[key], -CHOREO_LIMITS.offset, CHOREO_LIMITS.offset)) issues.push({ path: `${path}.present.${key}`, message: "Décalage : −50 à 50 %." });
           if (present.scale !== undefined && !isNum(present.scale, 0.5, 3)) issues.push({ path: `${path}.present.scale`, message: "Échelle : 0,5 à 3." });
         }
         if (track.reflow !== undefined && typeof track.reflow !== "boolean") issues.push({ path: `${path}.reflow`, message: "Réorganiser les mains : oui ou non." });
+        if (track.inPlace !== undefined && typeof track.inPlace !== "boolean") issues.push({ path: `${path}.inPlace`, message: "Échange en place : oui ou non." });
         break;
       }
       case "motif": {
