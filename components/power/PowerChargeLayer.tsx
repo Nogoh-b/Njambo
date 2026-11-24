@@ -121,7 +121,7 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
         }
         if (charge.ui !== 0) {
           const rect = registry.timer(charge.ui)?.getRect();
-          if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "avatar", text: charge.avatarTag, color, crackle: !charge.force && charge.lockedIndex === undefined });
+          if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "avatar", text: charge.avatarTag, color, crackle: !!charge.valueBonus || !!charge.suit });
           // Carte scellée chez un autre joueur : chaînes et cadenas restent sur sa carte de dos, tout le tour.
           if (charge.lockedIndex !== undefined) {
             const pose = registry.hand(charge.ui)?.poseOf?.(charge.lockedIndex);
@@ -135,7 +135,7 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
           continue;
         }
         const rect = registry.hand(0)?.getRect();
-        if (rect) nextFrames.push({ key: charge.key, ui: 0, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "hand", text: charge.handTag, color, crackle: !charge.force && !charge.lockedCardId });
+        if (rect) nextFrames.push({ key: charge.key, ui: 0, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "hand", text: charge.handTag, color, crackle: !!charge.valueBonus || !!charge.suit });
         const hand = players[0]?.hand ?? [];
         // Carte scellée : elle seule s'éteint (les autres restent jouables), contour et « 🔒 Scellée ».
         if (charge.lockedCardId) {

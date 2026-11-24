@@ -263,6 +263,15 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(cue.delayMs).toBeGreaterThan(0);
     expect(sceau.script.steps[0].ops).toEqual([{ op: "blockNextLegalCard", player: "target", select: { kind: "random" }, minLegalChoices: 2 }]);
   });
+  it("Sable du Temps : −6 s au prochain tour de la cible (plus de gel), sablier sur son minuteur", () => {
+    const sable = CODE_POWER_MODULES.sable_temps;
+    expect(validatePowerCard({ def: sable.def, script: sable.script } as never)).toEqual([]);
+    expect(sable.script.steps[0].ops).toEqual([{ op: "timerDelta", player: "target", seconds: -6 }]);
+    const choreo = sable.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(3_500);
+    expect(choreo.tracks.some((track) => track.kind === "element" && track.effect === "drain" && "player" in track.target && track.target.player === "target")).toBe(true);
+    expect(new Set(choreo.tracks.flatMap((track) => (track.kind === "text" ? [track.audience] : [])))).toEqual(new Set(["activator", "target", "bystanders"]));
+  });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;
     expect(validatePowerCard({ def: pacte.def, script: pacte.script } as never)).toEqual([]);

@@ -707,6 +707,84 @@ async function playHandStamp(ctx: ChoreoContext, ui: number, durationMs: number,
   canvas.remove();
 }
 
+/** Sablier : un sablier de verre apparaît au-dessus de l'avatar, se retourne, et son sable coule en filet dans l'anneau du
+ *  minuteur, qui pâlit par à-coups ; à la fin, `label` (« −6 s ») s'envole de l'avatar. */
+async function playTimerDrain(ctx: ChoreoContext, ui: number, durationMs: number, color: string, label?: string) {
+  const timer = ctx.registry.timer(ui);
+  const rect = timer?.getRect();
+  const host = ctx.layer.container();
+  if (!timer || !rect || !host) return;
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const size = Math.max(26, Math.min(44, rect.width * 0.7));
+  // Le sablier se place au-dessus de l'avatar, ou en dessous s'il n'y a pas la place.
+  const above = rect.top > size * 1.6;
+  const gy = above ? rect.top - size * 0.95 : rect.bottom + size * 0.95;
+  const glass = document.createElement("div");
+  glass.setAttribute("data-choreo-fx", "drain");
+  Object.assign(glass.style, { position: "absolute", left: `${cx - size / 2}px`, top: `${gy - size * 0.7}px`, width: `${size}px`, height: `${size * 1.4}px`, pointerEvents: "none" });
+  // Verre, sable du haut (qui baisse) et du bas (qui monte), cadre en bois.
+  glass.innerHTML = `<svg viewBox="0 0 40 56" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 0 8px ${color})">
+    <rect x="4" y="1" width="32" height="5" rx="2" fill="#8a5a2b"/><rect x="4" y="50" width="32" height="5" rx="2" fill="#8a5a2b"/>
+    <path d="M9 6 C9 20 18 24 19 28 C18 32 9 36 9 50 L31 50 C31 36 22 32 21 28 C22 24 31 20 31 6 Z" fill="rgba(220,245,255,.18)" stroke="#e9f6ff" stroke-width="1.6"/>
+    <clipPath id="sand-top"><path d="M10 7 C10 20 18 24 19.5 28 L20.5 28 C22 24 30 20 30 7 Z"/></clipPath>
+    <clipPath id="sand-bottom"><path d="M19.5 28 C18 32 10 36 10 49 L30 49 C30 36 22 32 20.5 28 Z"/></clipPath>
+    <rect class="top" clip-path="url(#sand-top)" x="8" y="10" width="24" height="18" fill="#f2c46b"/>
+    <rect class="bottom" clip-path="url(#sand-bottom)" x="8" y="49" width="24" height="0" fill="#f2c46b"/>
+    <rect class="stream" x="19.4" y="27" width="1.2" height="22" fill="#f2c46b" opacity="0"/>
+  </svg>`;
+  host.appendChild(glass);
+  const top = glass.querySelector<SVGRectElement>(".top");
+  const bottom = glass.querySelector<SVGRectElement>(".bottom");
+  const stream = glass.querySelector<SVGRectElement>(".stream");
+  // Apparition, puis le sablier se retourne (rotation 180°) avant que le sable coule.
+  const flipMs = Math.min(520, durationMs * 0.28);
+  await finished(glass.animate([
+    { transform: "scale(.4) rotate(180deg)", opacity: 0 },
+    { transform: "scale(1.1) rotate(180deg)", opacity: 1, offset: 0.35 },
+    { transform: "scale(1) rotate(0deg)", opacity: 1 },
+  ], { duration: flipMs, easing: "cubic-bezier(.3,.7,.3,1)", fill: "forwards" }));
+  // Le sable coule : haut qui baisse, bas qui monte, filet de sable et grains vers l'anneau du minuteur.
+  const flowMs = durationMs - flipMs - 260;
+  stream?.setAttribute("opacity", "1");
+  const grains = document.createElement("div");
+  Object.assign(grains.style, { position: "absolute", left: "0", top: "0", width: "100vw", height: "100vh", pointerEvents: "none" });
+  host.appendChild(grains);
+  const dropFrom = { x: cx, y: above ? gy + size * 0.7 : gy - size * 0.7 };
+  const ringEl = timer.getElement?.();
+  const fade = ringEl && !ctx.lite
+    ? ringEl.animate([{ filter: "none" }, { filter: `saturate(.4) brightness(.7) drop-shadow(0 0 10px ${color})`, offset: 0.6 }, { filter: "none" }], { duration: flowMs + 260 })
+    : null;
+  const start = performance.now();
+  await new Promise<void>((resolve) => {
+    let lastGrain = 0;
+    const tick = (now: number) => {
+      const p = Math.min(1, (now - start) / flowMs);
+      top?.setAttribute("y", String(10 + 18 * p));
+      top?.setAttribute("height", String(18 * (1 - p)));
+      bottom?.setAttribute("y", String(49 - 18 * p));
+      bottom?.setAttribute("height", String(18 * p));
+      // Un grain toutes les ~45 ms, du bas du sablier jusqu'au centre de l'avatar.
+      if (!ctx.lite && now - lastGrain > 45 && p < 0.95) {
+        lastGrain = now;
+        const grain = document.createElement("i");
+        Object.assign(grain.style, { position: "absolute", left: `${dropFrom.x - 1.5 + (Math.random() - 0.5) * 4}px`, top: `${dropFrom.y}px`, width: "3px", height: "3px", borderRadius: "50%", background: "#f2c46b", boxShadow: `0 0 4px ${color}` });
+        grains.appendChild(grain);
+        void grain.animate([{ transform: "translateY(0)", opacity: 1 }, { transform: `translateY(${cy - dropFrom.y}px) scale(.6)`, opacity: 0.2 }], { duration: 380, easing: "cubic-bezier(.5,0,.9,.6)" }).finished.then(() => grain.remove(), () => grain.remove());
+      }
+      if (p < 1) requestAnimationFrame(tick); else resolve();
+    };
+    requestAnimationFrame(tick);
+  });
+  stream?.setAttribute("opacity", "0");
+  // Le temps perdu s'envole de l'avatar.
+  const seconds = Number.parseInt(String(label ?? "").replace("−", "-"), 10);
+  if (Number.isFinite(seconds)) timer.showDelta(seconds);
+  ctx.burst("time", rect, ctx.defaultTone, "standard", 800);
+  await Promise.all([finished(glass.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.7)" }], { duration: 260, fill: "forwards" })), fade ? finished(fade) : Promise.resolve()]);
+  glass.remove();
+  grains.remove();
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -743,6 +821,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
       continue;
     }
     // Effets « métier » délégués aux zones (rendu propre déjà existant).
+    // Sablier qui se vide dans le minuteur (Sable du Temps) : rendu propre, voir playTimerDrain.
+    if (target.element === "timer" && effect === "drain" && hit.ui !== undefined) {
+      jobs.push(playTimerDrain(ctx, hit.ui, track.durationMs, color, track.label));
+      continue;
+    }
     if (target.element === "timer" || target.element === "avatar") {
       const timer = hit.ui !== undefined ? ctx.registry.timer(hit.ui) : null;
       if (effect === "freeze") timer?.showFreeze(track.durationMs);

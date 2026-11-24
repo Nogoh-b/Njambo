@@ -281,11 +281,26 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         depositLen: d.getPlayers()[sealedUi]?.deposit.length ?? 0,
       });
     }
-    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.key.endsWith("-seal") ? "seal" : "boost");
+    // Secondes retirées à la cible pour son prochain tour (Sable du Temps) : « ⏳ −6 s » jusqu'à sa carte, pour tous.
+    const sand = ops.find((op) => op.op === "timerDelta" && op.player === "target" && op.seconds < 0);
+    const sandUi = d.uiIndexFromUid(activation.targetUid);
+    if (sand && sand.op === "timerDelta" && sandUi != null) {
+      const lost = `−${Math.abs(sand.seconds)} s`;
+      pendingCharges.push({
+        key: `${activation.playId}-sand`,
+        ui: sandUi,
+        handTag: `⏳ ${def.name} : ${lost} à ton prochain tour`,
+        avatarTag: `⏳ ${lost}`,
+        landing: "spark",
+        tone: def.tone,
+        depositLen: d.getPlayers()[sandUi]?.deposit.length ?? 0,
+      });
+    }
+    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
     const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && kindOf(a) === kindOf(b);
     // Chaque charge prend le relais au bon moment : carte imposée dès la fin de l'annonce (son projecteur fait partie
     // de la mise en scène), carte scellée à la fin de l'animation du sceau (1,9 s), renfort après la sienne.
-    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" ? 1850 : 1100));
+    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" ? 1800 : 1100));
     for (const charge of pendingCharges) {
       const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => !sameKind(item, charge)), charge]), delayOf(charge));
       burstTimersRef.current.push(timer);
