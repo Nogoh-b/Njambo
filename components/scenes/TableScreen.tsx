@@ -2373,7 +2373,7 @@ export function TableScreen({
         const isSeatTargetable = targetingCard != null && (!p.isYou || powerScriptOf(targetingCard).target.allowSelf === true);
         const isSeatExpanded = p.isYou
           ? isSeatSpotlight || phase === "dealing" || Boolean(powerChoiceConfirm) || isSeatTargetable
-          : isSeatSpotlight || isSeatTargetable;
+          : isSeatSpotlight || isSeatTargetable || orchestrator.heldSeats.includes(i);
         const dy = p.isYou
           ? isSeatExpanded ? 0 : playerHandTuckY
           : edge === "top"

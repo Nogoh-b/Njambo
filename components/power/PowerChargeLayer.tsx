@@ -34,8 +34,10 @@ export interface PowerCharge {
   suit?: string;
   /** Carte imposée : la plus faible ou la plus forte carte jouable (Coupe-Circuit, Filet). */
   force?: "weakest" | "strongest";
-  /** Carte scellée de MA main (Sceau d'Entrave), par son id : elle s'éteint et porte « Scellée ». */
+  /** Carte scellée de MA main (Sceau d'Entrave), par son id : elle s'éteint, chaînes et cadenas posés dessus. */
   lockedCardId?: string;
+  /** Place de la carte scellée dans la main d'un AUTRE joueur : chaînes et cadenas sur sa carte de dos, pour tous. */
+  lockedIndex?: number;
   /** Bandeau au-dessus de ma main, badge sous l'avatar d'un autre joueur. */
   handTag: string;
   avatarTag: string;
@@ -52,7 +54,7 @@ interface Spot { x: number; y: number; h: number; dark: number; beam: number; co
 const SPOT_MS = 1500;
 /** Contour de la carte imposée. */
 interface Veil { key: string; x: number; y: number; w: number; h: number; rotate: number; color: string; sealed?: boolean }
-interface Frame { key: string; ui: number; x: number; y: number; w: number; h: number; kind: "hand" | "avatar"; text: string; color: string; crackle: boolean }
+interface Frame { key: string; ui: number; x: number; y: number; w: number; h: number; kind: "hand" | "avatar" | "glow"; text: string; color: string; crackle: boolean }
 interface Strike { key: string; x: number; y: number; w: number; h: number; color: string; landing: PowerCharge["landing"] }
 
 /** Index de la carte imposée : même calcul que le serveur (plus faible / plus forte carte légale). */
@@ -119,7 +121,17 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
         }
         if (charge.ui !== 0) {
           const rect = registry.timer(charge.ui)?.getRect();
-          if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "avatar", text: charge.avatarTag, color, crackle: !charge.force && !charge.lockedCardId });
+          if (rect) nextFrames.push({ key: charge.key, ui: charge.ui, x: rect.left, y: rect.top, w: rect.width, h: rect.height, kind: "avatar", text: charge.avatarTag, color, crackle: !charge.force && charge.lockedIndex === undefined });
+          // Carte scellée chez un autre joueur : chaînes et cadenas restent sur sa carte de dos, tout le tour.
+          if (charge.lockedIndex !== undefined) {
+            const pose = registry.hand(charge.ui)?.poseOf?.(charge.lockedIndex);
+            if (pose) nextVeils.push({ key: `${charge.key}-sealed`, x: pose.x, y: pose.y, w: pose.width, h: pose.width * 1.45, rotate: pose.rotate, color, sealed: true });
+          }
+          // Carte imposée chez un autre joueur : on ne sait pas laquelle (main de dos) ; sa main garde une lueur.
+          if (charge.force) {
+            const hand = registry.hand(charge.ui)?.getRect();
+            if (hand) nextFrames.push({ key: `${charge.key}-glow`, ui: charge.ui, x: hand.left, y: hand.top, w: hand.width, h: hand.height, kind: "glow", text: "", color, crackle: false });
+          }
           continue;
         }
         const rect = registry.hand(0)?.getRect();
@@ -214,6 +226,8 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
           </>}
           <span className={styles.handTag}>{frame.text}</span>
         </div>
+      ) : frame.kind === "glow" ? (
+        <div key={frame.key} className={styles.handGlow} style={{ left: frame.x - 8, top: frame.y - 8, width: frame.w + 16, height: frame.h + 16, "--charge-color": frame.color } as CSSProperties} />
       ) : (
         <span key={frame.key} className={styles.avatarTag} style={{ left: `clamp(80px, ${frame.x + frame.w / 2}px, calc(100vw - 80px))`, top: frame.y + frame.h, "--charge-color": frame.color } as CSSProperties}>{frame.text}</span>
       ))}

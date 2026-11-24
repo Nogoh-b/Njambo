@@ -114,6 +114,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
   run(activation: PowerCardActivation): void;
   clearAuras(): void;
   fxActive: boolean;
+  /** Joueurs (index UI, hors moi) dont une carte est scellée ou imposée : leur main reste avancée, bien visible. */
+  heldSeats: number[];
   element: ReactNode;
 } {
   const [powerFx, setPowerFx] = useState<PowerFxState | null>(null);
@@ -270,6 +272,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         key: `${activation.playId}-seal`,
         ui: sealedUi,
         lockedCardId: sealedUi === 0 ? d.getPlayers()[0]?.hand[sealedIdx]?.id : undefined,
+        // Chez les autres : la place de la carte (de dos) porte chaînes et cadenas, tout le tour.
+        lockedIndex: sealedUi === 0 ? undefined : sealedIdx,
         handTag: `🔒 ${def.name} : une de tes cartes est scellée`,
         avatarTag: "🔒 1 carte scellée",
         landing: "spark",
@@ -844,5 +848,6 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     </>
   );
 
-  return { run, clearAuras, fxActive: !!powerFx || !!overlay, element };
+  const heldSeats = charges.filter((charge) => charge.ui !== 0 && (charge.force || charge.lockedIndex !== undefined)).map((charge) => charge.ui);
+  return { run, clearAuras, fxActive: !!powerFx || !!overlay, heldSeats, element };
 }

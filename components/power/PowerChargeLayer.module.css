@@ -79,6 +79,14 @@
   mix-blend-mode: screen;
 }
 
+/* Main d'un autre joueur sous carte imposée : lueur qui respire, tout le tour. */
+.handGlow {
+  position: absolute;
+  border-radius: 20px;
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--charge-color) 70%, transparent), 0 0 24px color-mix(in srgb, var(--charge-color) 55%, transparent);
+  animation: forcedPulse 1.4s ease-in-out infinite;
+}
+
 /* Carte scellée : chaînes et cadenas posés sur la carte (dessinés sur un canvas un peu plus grand qu'elle). */
 .sealed { position: absolute; }
 .sealedArt { position: absolute; left: -12px; top: -12px; pointer-events: none; }
