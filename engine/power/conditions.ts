@@ -36,5 +36,10 @@ function checkCondition(condition: PowerCondition, ctx: PowerRunContext): string
         ? "Tu as déjà la tendance en main."
         : null;
     }
+    case "notLastTrick":
+      // Activation à son tour, avant de jouer : une seule carte en main = dernier pli.
+      return (state.players[activatedBy]?.hand.length ?? 0) >= 2
+        ? null
+        : "Trop tard : cette carte se joue avant le dernier pli.";
   }
 }

@@ -28,7 +28,7 @@ export const POWER_ANIM_TAGS = [
 export const PLAYER_REFS = ["self", "target", "each_target", "all_opponents", "all"] as const;
 export const TARGET_COUNTS = ["none", "one", "many", "all_opponents", "random_opponent"] as const;
 export const SELECTOR_KINDS = ["weakest", "strongest", "all", "bySuit", "byValue", "topOfDeck", "random", "byId", "firstBetterThanWeakest", "bestLegal", "chosen"] as const;
-export const CONDITION_KINDS = ["deckNotEmpty", "isTrickLeader", "ledSuitKnown", "activatorLacksLedSuit"] as const;
+export const CONDITION_KINDS = ["deckNotEmpty", "isTrickLeader", "ledSuitKnown", "activatorLacksLedSuit", "notLastTrick"] as const;
 export const SHIELD_TAGS = ["targeted", "reveal", "restrict", "timer_attack"] as const;
 export const OP_KINDS = [
   "moveCards", "revealHand", "highlightCard", "exchangeCards", "blockNextLegalCard", "restrictNextPlay",

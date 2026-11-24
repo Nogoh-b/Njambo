@@ -13,6 +13,7 @@ import type { ZonePose } from "@/engine/anim/v2/pose";
 import { getAnimV2 } from "@/engine/anim/v2/registry";
 import { DEFAULT_V2_MODEL, V2_PRESENT_RISE_MS, audienceSees, motifOfTrack, type Anchor, type ChoreoViewer, type ChoreoTrack, type Choreography, type ElementTarget, type Easing, type MotifTrack, type V2Track, type V2ZoneAnchor, type Waypoint } from "@/engine/power/choreography";
 import type { PlayerRef, PowerFxIntensity, PowerFxPreset, PowerFxTone } from "@/engine/power/types";
+import { sysAsset } from "@/lib/assetPack";
 import type { Card } from "@/types/game";
 import type { ChoreoLayerHandle } from "./ChoreoLayer";
 import { motifPlayersUi, playMotif } from "./playMotif";
@@ -879,6 +880,72 @@ async function playTimerDrum(ctx: ChoreoContext, ui: number, durationMs: number,
   drum.remove();
 }
 
+/** Cauris porte-bonheur : un cauris tombe en tournoyant sur l'avatar, rebondit et se pose devant lui ; une bulle dorée
+ *  enveloppe l'avatar (assurance), l'aura « chance » s'allume et `label` (« Assuré ») s'affiche sous le cauris. */
+async function playAvatarCowrie(ctx: ChoreoContext, ui: number, durationMs: number, color: string, label?: string) {
+  const timer = ctx.registry.timer(ui);
+  const rect = timer?.getRect();
+  const host = ctx.layer.container();
+  if (!timer || !rect || !host) return;
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const size = Math.max(28, Math.min(46, rect.width * 0.62));
+  const restY = rect.bottom - size * 0.35;
+  const shell = document.createElement("img");
+  shell.setAttribute("data-choreo-fx", "cowrie");
+  shell.src = sysAsset("/assets/njambo/economy/cauri-128.webp");
+  shell.alt = "";
+  Object.assign(shell.style, {
+    position: "absolute", left: `${cx - size / 2}px`, top: `${restY - size / 2}px`, width: `${size}px`, height: `${size}px`,
+    pointerEvents: "none", objectFit: "contain", filter: `drop-shadow(0 3px 4px rgba(0,0,0,.55)) drop-shadow(0 0 8px ${color})`,
+  });
+  host.appendChild(shell);
+  const fallMs = Math.min(700, durationMs * 0.4);
+  const drop = Math.min(rect.top + size, 160);
+  // Chute en tournoyant, rebond, puis le cauris se pose devant l'avatar.
+  await finished(shell.animate([
+    { transform: `translateY(${-drop}px) rotate(-200deg) scale(.7)`, opacity: 0 },
+    { transform: `translateY(${-drop * 0.7}px) rotate(-140deg) scale(.8)`, opacity: 1, offset: 0.15 },
+    { transform: "translateY(0) rotate(0deg) scale(1.05)", offset: 0.62 },
+    { transform: `translateY(${-size * 0.45}px) rotate(18deg) scale(1)`, offset: 0.8 },
+    { transform: "translateY(0) rotate(0deg) scale(1)" },
+  ], { duration: fallMs, easing: "cubic-bezier(.45,0,.6,1)", fill: "forwards" }));
+  ctx.impactShake(1);
+  timer.showAura("lucky");
+  // Bulle d'assurance : elle enveloppe l'avatar, puis se fond dans son aura.
+  const bubble = document.createElement("div");
+  const r = rect.width * 0.85;
+  Object.assign(bubble.style, {
+    position: "absolute", left: `${cx - r}px`, top: `${cy - r}px`, width: `${r * 2}px`, height: `${r * 2}px`, borderRadius: "50%",
+    border: `2px solid ${color}`, boxShadow: `0 0 18px ${color}, inset 0 0 22px ${color}`, pointerEvents: "none",
+    background: "radial-gradient(circle at 35% 30%, rgba(255,245,210,.35), rgba(255,215,120,.08) 55%, transparent 70%)",
+  });
+  host.appendChild(bubble);
+  const tag = label ? document.createElement("span") : null;
+  if (tag) {
+    tag.textContent = label ?? "";
+    Object.assign(tag.style, {
+      position: "absolute", left: `${cx}px`, top: `${restY + size * 0.55}px`, transform: "translateX(-50%)", padding: "2px 8px", borderRadius: "999px",
+      background: "rgba(24,16,6,.86)", border: `1px solid ${color}`, color: "#ffe6a6", font: "800 11px/1.3 system-ui, sans-serif", whiteSpace: "nowrap", pointerEvents: "none",
+    });
+    host.appendChild(tag);
+    void tag.animate([{ opacity: 0, translate: "0 6px" }, { opacity: 1, translate: "0 0" }], { duration: 260, fill: "forwards" });
+  }
+  ctx.burst("goldRain", rect, ctx.defaultTone, "standard", 800);
+  const holdMs = Math.max(500, durationMs - fallMs);
+  void shell.animate([{ filter: `drop-shadow(0 3px 4px rgba(0,0,0,.55)) drop-shadow(0 0 6px ${color})` }, { filter: `drop-shadow(0 3px 4px rgba(0,0,0,.55)) drop-shadow(0 0 16px ${color}) brightness(1.25)` }, { filter: `drop-shadow(0 3px 4px rgba(0,0,0,.55)) drop-shadow(0 0 6px ${color})` }], { duration: holdMs * 0.5, iterations: 2 });
+  await finished(bubble.animate([
+    { transform: "scale(.4)", opacity: 0 },
+    { transform: "scale(1.06)", opacity: 1, offset: 0.3 },
+    { transform: "scale(1)", opacity: 0.9, offset: 0.7 },
+    { transform: "scale(1.12)", opacity: 0 },
+  ], { duration: holdMs, easing: "ease-out", fill: "forwards" }));
+  bubble.remove();
+  // Le cauris et l'étiquette laissent la place au badge d'assurance (PowerChargeLayer).
+  await Promise.all([shell, tag].filter((el): el is HTMLImageElement | HTMLSpanElement => !!el).map((el) => finished(el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 300, fill: "forwards" }))));
+  shell.remove();
+  tag?.remove();
+}
+
 /** Halo sur le pot : un anneau doré se forme au-dessus de l'avatar du lanceur, vole jusqu'au pot en tournant et s'y pose ;
  *  le pot enfle et rayonne, `label` (« ×2 ») s'affiche sur lui. */
 async function playPotBless(ctx: ChoreoContext, durationMs: number, color: string, label?: string) {
@@ -968,6 +1035,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
     // Halo sur le pot (Bénédiction du Chef), voir playPotBless.
     if (target.element === "pot" && effect === "bless") {
       jobs.push(playPotBless(ctx, track.durationMs, color, track.label));
+      continue;
+    }
+    // Cauris porte-bonheur (Cauris Chanceux) : il tombe sur l'avatar, bulle d'assurance, voir playAvatarCowrie.
+    if (target.element === "avatar" && effect === "cowrie" && hit.ui !== undefined) {
+      jobs.push(playAvatarCowrie(ctx, hit.ui, track.durationMs, color, track.label));
       continue;
     }
     // Tambour (Tambour d'Appel) : trois coups de djembé qui rechargent le minuteur, voir playTimerDrum.

@@ -32,6 +32,7 @@ export const CONDITION_LABELS = {
   isTrickLeader: "Le lanceur ouvre le pli (avant toute carte)",
   ledSuitKnown: "La couleur du pli est connue",
   activatorLacksLedSuit: "Le lanceur n'a pas la couleur demandée",
+  notLastTrick: "Avant le dernier pli (issue encore inconnue)",
 } as const;
 
 export const SELECTOR_LABELS: Record<CardSelector["kind"], string> = {

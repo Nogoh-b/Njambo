@@ -57,6 +57,8 @@ export interface MatchSettlementEntry {
   contributed: number;
   /** Solde net de la manche : gain du pot moins la mise, remboursements inclus. */
   nkapDelta: number;
+  /** Remboursement Cauris Chanceux déjà compris dans nkapDelta (affiché à part au résultat). */
+  refund?: number;
   crownsBefore?: number;
   crownsDelta?: number;
 }
@@ -754,7 +756,7 @@ export async function performGameAction(
         transaction.set(db.doc(`economies/${participant.uid}`), loserEconomy, { merge: false });
         ledger(transaction, participant.uid, stableId(participant.uid, "power-refund", matchId), "powerRefund", { nkap: amount }, loserEconomy, now, { matchId });
         const settled = settlementByUid.get(participant.uid);
-        if (settled) settled.nkapDelta += amount;
+        if (settled) { settled.nkapDelta += amount; settled.refund = amount; }
       });
     }
 

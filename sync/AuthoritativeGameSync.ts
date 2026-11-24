@@ -41,7 +41,7 @@ interface ServerMatch {
   result: null | {
     winnerUid: string; winnerName: string; winnerIsBot: boolean; type: "lastTrick"; crownGain?: number;
     /** Règlement par joueur calculé au serveur (cf. matchCommands, settle). */
-    settlement?: Array<{ uid: string; bot?: boolean; contributed: number; nkapDelta: number; crownsBefore?: number; crownsDelta?: number }>;
+    settlement?: Array<{ uid: string; bot?: boolean; contributed: number; nkapDelta: number; refund?: number; crownsBefore?: number; crownsDelta?: number }>;
   };
   recentActions?: ServerAction[];
   /** Activations de pouvoir diffusées à tous les participants (version
@@ -920,6 +920,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
     const result: Result = {
       type: "lastTrick", winnerIdx, winner: players[winnerIdx], doubles: false, lastCard,
       gain: match.potNkap, playersCount: players.length, players, settlement,
+      // Remboursement Cauris Chanceux (déjà compris dans mon nkapDelta) : ligne dédiée à l'écran de résultat.
+      refund: match.result.settlement?.find((entry) => entry.uid === this.opts.uid)?.refund || undefined,
       series: match.series ? { total: match.series.total, scores: this.localOrder().map((index) => match.series!.winners.filter((uid) => uid === match.participants[index].uid).length) } : undefined,
     };
     this.roundListeners.forEach((listener) => listener(result));

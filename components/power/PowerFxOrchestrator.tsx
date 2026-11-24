@@ -321,11 +321,25 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
       });
     }
-    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
+    // Assurance (Cauris Chanceux) : badge sous l'avatar du lanceur, pour tous, jusqu'au dernier pli.
+    const refundOp = ops.find((op) => op.op === "refundOnLoss");
+    if (refundOp && activatorUi != null) {
+      pendingCharges.push({
+        key: `${activation.playId}-insured`,
+        ui: activatorUi,
+        insured: true,
+        handTag: "",
+        avatarTag: `🐚 Assuré · ${Math.round(refundOp.ratio * 100)} % si défaite`,
+        landing: "spark",
+        tone: def.tone,
+        depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
+      });
+    }
+    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.insured ? "insured" :charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
     const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && kindOf(a) === kindOf(b);
     // Chaque charge prend le relais au bon moment : carte imposée dès la fin de l'annonce (son projecteur fait partie
     // de la mise en scène), carte scellée à la fin de l'animation du sceau (1,9 s), renfort après la sienne.
-    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" ? 1800 : 1100));
+    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" || kindOf(charge) === "insured" ? 1800 : 1100));
     for (const charge of pendingCharges) {
       const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => !sameKind(item, charge)), charge]), delayOf(charge));
       burstTimersRef.current.push(timer);

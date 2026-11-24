@@ -41,7 +41,7 @@ const ELEMENT_LABELS: Record<ElementKind, string> ={ card: "Carte en vol", hand:
 const EFFECT_LABELS: Record<string, string> = {
   lift: "Se soulever", pulse: "Pulser", glow: "Briller", shake: "Trembler", flip: "Se retourner", crack: "Se fendre", dissolve: "Se dissoudre",
   burn: "S'enflammer", freeze: "Geler", shrink: "Rétrécir", grow: "Grandir", fanOpen: "S'ouvrir en éventail", tighten: "Se resserrer",
-  veil: "Se voiler", ripple: "Vague lumineuse", read: "Lecture de la main", advise: "Carte conseillée", strike: "Foudre", dye: "Pagne", cut: "Coupure", net: "Filet", stamp: "Sceau sur la carte", drain: "Sablier qui se vide", shout: "Cri vers les adversaires", drum: "Tambour qui recharge", bless: "Halo sur le pot", suck: "Aspirer", eject: "Éjecter", seal: "Se sceller", shuffle: "Se mélanger",
+  veil: "Se voiler", ripple: "Vague lumineuse", read: "Lecture de la main", advise: "Carte conseillée", strike: "Foudre", dye: "Pagne", cut: "Coupure", net: "Filet", stamp: "Sceau sur la carte", drain: "Sablier qui se vide", shout: "Cri vers les adversaires", drum: "Tambour qui recharge", bless: "Halo sur le pot", cowrie: "Cauris porte-bonheur", suck: "Aspirer", eject: "Éjecter", seal: "Se sceller", shuffle: "Se mélanger",
   spit: "Cracher une carte", speedUp: "Accélérer", rewind: "Reculer", blink: "Clignoter", tint: "Changer de couleur",
   delta: "± secondes", auraShield: "Aura bouclier", auraMask: "Aura masque", auraTotem: "Aura totem", auraLucky: "Aura chance",
   halo: "Halo", bounce: "Rebondir", flash: "Éclat", coinRain: "Pluie de pièces", label: "Afficher un montant",

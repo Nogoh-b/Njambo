@@ -73,7 +73,9 @@ export type PowerCondition =
   | { kind: "deckNotEmpty" }
   | { kind: "isTrickLeader"; beforeAnyPlay: true }
   | { kind: "ledSuitKnown" }
-  | { kind: "activatorLacksLedSuit" };
+  | { kind: "activatorLacksLedSuit" }
+  /** Il reste au moins 2 plis : interdit au dernier pli, quand l'issue de la manche est déjà connue (Cauris Chanceux). */
+  | { kind: "notLastTrick" };
 
 /**
  * Tags DÉRIVÉS automatiquement d'un script (jamais écrits à la main) :
