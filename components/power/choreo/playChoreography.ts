@@ -573,6 +573,58 @@ async function playHandCut(ctx: ChoreoContext, ui: number, durationMs: number, c
   svg.remove();
 }
 
+/** Filet : lancé roulé depuis l'avatar du lanceur, il s'ouvre en vol, tombe sur la main visée, se resserre
+ *  (la main tremble, prise), puis s'efface. */
+async function playHandNet(ctx: ChoreoContext, ui: number, durationMs: number, color: string, intensity: number) {
+  const hand = ctx.registry.hand(ui);
+  const rect = hand?.getRect();
+  const source = ctx.registry.timer(ctx.resolveRefUi("self")[0])?.getRect();
+  const host = ctx.layer.container();
+  if (!hand || !rect || !source || !host) return;
+  const pad = Math.max(16, rect.width * 0.08);
+  const w = rect.width + pad * 2, h = rect.height + pad * 2;
+  const net = document.createElement("div");
+  net.setAttribute("data-choreo-fx", "net");
+  // Mailles en losange (deux trames de cordes), bord en corde épaisse, petits flotteurs aux coins.
+  const rope = "rgba(236, 214, 170, .9)";
+  Object.assign(net.style, {
+    position: "absolute", left: `${rect.left - pad}px`, top: `${rect.top - pad}px`, width: `${w}px`, height: `${h}px`,
+    borderRadius: "18px", pointerEvents: "none", transformOrigin: "50% 50%",
+    background: `repeating-linear-gradient(45deg, transparent 0 13px, ${rope} 13px 15px), repeating-linear-gradient(-45deg, transparent 0 13px, ${rope} 13px 15px)`,
+    border: `3px solid ${rope}`,
+    boxShadow: `0 0 0 1px rgba(0,0,0,.35), 0 0 18px ${color}`,
+    filter: "drop-shadow(0 4px 6px rgba(0,0,0,.45))",
+  });
+  for (const [x, y] of [[0, 0], [1, 0], [0, 1], [1, 1]]) {
+    const float = document.createElement("i");
+    Object.assign(float.style, { position: "absolute", left: `calc(${x * 100}% - 7px)`, top: `calc(${y * 100}% - 7px)`, width: "14px", height: "14px", borderRadius: "50%", background: color, boxShadow: `0 0 8px ${color}` });
+    net.appendChild(float);
+  }
+  host.appendChild(net);
+  // Vol : du centre de l'avatar (filet roulé, petit) jusqu'à la main (ouvert), puis il se resserre.
+  const dx = source.left + source.width / 2 - (rect.left + rect.width / 2);
+  const dy = source.top + source.height / 2 - (rect.top + rect.height / 2);
+  const flyMs = durationMs * 0.45;
+  const throwNet = net.animate([
+    { transform: `translate(${dx}px, ${dy}px) scale(.08) rotate(-40deg)`, opacity: 0.6 },
+    { transform: `translate(${dx * 0.4}px, ${dy * 0.4 - 40}px) scale(.55) rotate(-12deg)`, opacity: 1, offset: 0.5 },
+    { transform: "translate(0, 0) scale(1.08) rotate(0deg)", opacity: 1 },
+  ], { duration: flyMs, easing: "cubic-bezier(.3,.6,.4,1)", fill: "forwards" });
+  await finished(throwNet);
+  ctx.impactShake(intensity);
+  ctx.burst("lock", rect, ctx.defaultTone, intensity >= 3 ? "spectacular" : "standard", 900);
+  const el = hand.getElement?.();
+  const caught = el && !ctx.lite ? el.animate([0, -4, 4, -3, 3, 0].map((s, i, all) => ({ transform: `translateX(${s * intensity}px)`, offset: i / (all.length - 1) })), { duration: 420 }) : null;
+  const tighten = net.animate([
+    { transform: "scale(1.08)", opacity: 1 },
+    { transform: "scale(.94)", opacity: 1, offset: 0.35 },
+    { transform: "scale(.97)", opacity: 1, offset: 0.7 },
+    { transform: "scale(.97)", opacity: 0 },
+  ], { duration: Math.max(400, durationMs - flyMs), easing: "ease-out", fill: "forwards" });
+  await Promise.all([finished(tighten), caught ? finished(caught) : Promise.resolve()]);
+  net.remove();
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -598,12 +650,13 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
   const jobs: Promise<void>[] = [];
   for (const hit of hits) {
     // Lecture de la main / carte conseillée (Main du Griot) : rendus propres, voir plus bas.
-    if (target.element === "hand" && hit.ui !== undefined && ["read", "advise", "strike", "dye", "cut"].includes(effect)) {
+    if (target.element === "hand" && hit.ui !== undefined && ["read", "advise", "strike", "dye", "cut", "net"].includes(effect)) {
       jobs.push(effect === "read" ? playHandRead(ctx, hit.ui, track.durationMs, color)
         : effect === "advise" ? playHandAdvice(ctx, hit.ui, track.durationMs, color)
           : effect === "strike" ? playHandStrike(ctx, hit.ui, track.durationMs, color, intensity)
             : effect === "dye" ? playHandDye(ctx, hit.ui, track.durationMs, color)
-              : playHandCut(ctx, hit.ui, track.durationMs, color, intensity));
+              : effect === "cut" ? playHandCut(ctx, hit.ui, track.durationMs, color, intensity)
+                : playHandNet(ctx, hit.ui, track.durationMs, color, intensity));
       continue;
     }
     // Effets « métier » délégués aux zones (rendu propre déjà existant).
