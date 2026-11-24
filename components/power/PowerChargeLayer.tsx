@@ -38,6 +38,9 @@ export interface PowerCharge {
   lockedCardId?: string;
   /** Place de la carte scellée dans la main d'un AUTRE joueur : chaînes et cadenas sur sa carte de dos, pour tous. */
   lockedIndex?: number;
+  /** Bonus de pot « si tu gagnes la manche » (Bénédiction du Chef ×2, Pluie d'Étoiles +200) : badge près du pot pour tous
+   *  jusqu'au dernier pli ; il éclate sur le pot si son joueur le rafle, s'éteint (« perdu ») sinon. */
+  pot?: { factor?: number; amount?: number; owner: string };
   /** Bandeau au-dessus de ma main, badge sous l'avatar d'un autre joueur. */
   handTag: string;
   avatarTag: string;
@@ -54,8 +57,11 @@ interface Spot { x: number; y: number; h: number; dark: number; beam: number; co
 const SPOT_MS = 1500;
 /** Contour de la carte imposée. */
 interface Veil { key: string; x: number; y: number; w: number; h: number; rotate: number; color: string; sealed?: boolean }
-interface Frame { key: string; ui: number; x: number; y: number; w: number; h: number; kind: "hand" | "avatar" | "glow"; text: string; color: string; crackle: boolean }
-interface Strike { key: string; x: number; y: number; w: number; h: number; color: string; landing: PowerCharge["landing"] }
+interface Frame { key: string; ui: number; x: number; y: number; w: number; h: number; kind: "hand" | "avatar" | "glow" | "pot"; text: string; color: string; crackle: boolean }
+interface Strike { key: string; x: number; y: number; w: number; h: number; color: string; landing: PowerCharge["landing"] | "potWin" | "potLost"; text?: string }
+const NKAP = (value: number) => Math.round(value).toLocaleString("fr-FR");
+/** Délai d'attente du pot réglé après le dernier pli (le nouveau montant peut arriver un peu après les mains vides). */
+const POT_SETTLE_MS = 1600;
 
 /** Index de la carte imposée : même calcul que le serveur (plus faible / plus forte carte légale). */
 function forcedIndex(hand: Card[], ledSuit: string | null, force: "weakest" | "strongest"): number | null {
@@ -65,11 +71,12 @@ function forcedIndex(hand: Card[], ledSuit: string | null, force: "weakest" | "s
   return (force === "strongest" ? sorted[sorted.length - 1] : sorted[0]) ?? null;
 }
 
-export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, registry, getPlayers, getLedSuit, maxValue, motion, onConsumed }: {
+export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, registry, getPlayers, getLedSuit, getPot, maxValue, motion, onConsumed }: {
   charges: PowerCharge[];
   registry: ZoneRegistry;
   getPlayers(): GameState["players"];
   getLedSuit?(): string | null;
+  getPot?(): number;
   maxValue: number;
   motion: boolean;
   onConsumed(key: string): void;
@@ -85,7 +92,11 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
   const consumedRef = useRef(onConsumed);
   const getPlayersRef = useRef(getPlayers);
   const getLedSuitRef = useRef(getLedSuit);
-  useEffect(() => { consumedRef.current = onConsumed; getPlayersRef.current = getPlayers; getLedSuitRef.current = getLedSuit; }, [onConsumed, getPlayers, getLedSuit]);
+  const getPotRef = useRef(getPot);
+  /* Bonus de pot : montant du pot avant le dernier pli, et moment où les mains se sont vidées. */
+  const potBeforeRef = useRef(new Map<string, number>());
+  const potEndRef = useRef(new Map<string, number>());
+  useEffect(() => { consumedRef.current = onConsumed; getPlayersRef.current = getPlayers; getLedSuitRef.current = getLedSuit; getPotRef.current = getPot; }, [onConsumed, getPlayers, getLedSuit, getPot]);
 
   useEffect(() => {
     if (charges.length === 0) return;
@@ -104,6 +115,37 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
       for (const charge of charges) {
         if (done.has(charge.key)) continue;
         const color = TONE_COLORS[charge.tone ?? "teal"] ?? TONE_COLORS.teal;
+        // Bonus de pot jusqu'à la fin de la manche : badge près du pot, montant visé ; au dernier pli, le pot dit l'issue.
+        if (charge.pot) {
+          const potRect = registry.pot()?.getRect();
+          const potNow = getPotRef.current?.() ?? 0;
+          const handsEmpty = players.length > 0 && players.every((player) => player.hand.length === 0);
+          if (!handsEmpty) {
+            potBeforeRef.current.set(charge.key, potNow);
+            potEndRef.current.delete(charge.key);
+            const target = charge.pot.amount ? potNow + charge.pot.amount : potNow * (charge.pot.factor ?? 1);
+            const what = charge.pot.amount ? `+${NKAP(charge.pot.amount)}` : `×${charge.pot.factor}`;
+            if (potRect) nextFrames.push({ key: charge.key, ui: charge.ui, x: potRect.left, y: potRect.top, w: potRect.width, h: potRect.height, kind: "pot", text: `⭐ ${what} pour ${charge.pot.owner} · ${NKAP(potNow)} → ${NKAP(target)}`, color, crackle: false });
+            continue;
+          }
+          const before = potBeforeRef.current.get(charge.key) ?? potNow;
+          const target = charge.pot.amount ? before + charge.pot.amount : before * (charge.pot.factor ?? 1);
+          const endedAt = potEndRef.current.get(charge.key) ?? performance.now();
+          potEndRef.current.set(charge.key, endedAt);
+          const won = potNow >= target - 0.5;
+          if (!won && performance.now() - endedAt < POT_SETTLE_MS) {
+            if (potRect) nextFrames.push({ key: charge.key, ui: charge.ui, x: potRect.left, y: potRect.top, w: potRect.width, h: potRect.height, kind: "pot", text: `⭐ ${charge.pot.amount ? `+${NKAP(charge.pot.amount)}` : `×${charge.pot.factor}`} pour ${charge.pot.owner}`, color, crackle: false });
+            continue;
+          }
+          done.add(charge.key);
+          if (potRect && motion) {
+            const strike: Strike = { key: charge.key, x: potRect.left, y: potRect.top, w: potRect.width, h: potRect.height, color, landing: won ? "potWin" : "potLost", text: won ? `${NKAP(before)} → ${NKAP(potNow)}` : "Bonus perdu" };
+            setStrikes((current) => [...current, strike]);
+            setTimeout(() => setStrikes((current) => current.filter((item) => item.key !== strike.key)), won ? 1800 : 1400);
+          }
+          consumedRef.current(charge.key);
+          continue;
+        }
         const deposit = players[charge.ui]?.deposit ?? [];
         // Carte jouée (ou nouvelle manche) : la charge est consommée ; effet sur la carte posée.
         if (deposit.length !== charge.depositLen) {
@@ -228,13 +270,20 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
         </div>
       ) : frame.kind === "glow" ? (
         <div key={frame.key} className={styles.handGlow} style={{ left: frame.x - 8, top: frame.y - 8, width: frame.w + 16, height: frame.h + 16, "--charge-color": frame.color } as CSSProperties} />
+      ) : frame.kind === "pot" ? (
+        <span key={frame.key} className={styles.potTag} style={{ left: `clamp(110px, ${frame.x + frame.w / 2}px, calc(100vw - 110px))`, top: frame.y + frame.h, "--charge-color": frame.color } as CSSProperties}>{frame.text}</span>
       ) : (
         <span key={frame.key} className={styles.avatarTag} style={{ left: `clamp(80px, ${frame.x + frame.w / 2}px, calc(100vw - 80px))`, top: frame.y + frame.h, "--charge-color": frame.color } as CSSProperties}>{frame.text}</span>
       ))}
       {live && badges.map((badge) => (
         <span key={badge.key} className={styles.value} style={{ left: badge.x, top: badge.y, transform: `translate(-50%, -50%) rotate(${badge.rotate}deg)` }}>{badge.text}</span>
       ))}
-      {strikes.map((strike) => (
+      {strikes.map((strike) => strike.landing === "potWin" || strike.landing === "potLost" ? (
+        <div key={strike.key} className={`${styles.potEnd} ${strike.landing === "potWin" ? styles.potWin : styles.potLost}`} style={{ left: strike.x, top: strike.y, width: strike.w, height: strike.h, "--charge-color": strike.color } as CSSProperties}>
+          {strike.landing === "potWin" && <span className={styles.potBurst} />}
+          <span className={styles.potText}>{strike.text}</span>
+        </div>
+      ) : (
         <div key={strike.key} className={`${styles.strike} ${strike.landing === "dye" ? styles.dye : ""}`} style={{ left: strike.x, top: strike.y, width: strike.w, height: strike.h, "--charge-color": strike.color } as CSSProperties}>
           {strike.landing === "bolt" && <svg className={styles.bolt} viewBox="0 0 40 200" preserveAspectRatio="none"><path d="M24 0 L10 86 L22 90 L8 200 L34 72 L22 68 L32 0 Z" /></svg>}
           <span className={styles.flash} />

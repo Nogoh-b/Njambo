@@ -1280,6 +1280,7 @@ export function TableScreen({
     uiIndexFromSeat,
     getPlayers: () => playersRef.current,
     getLedSuit: () => ledSuit,
+    getPot: () => pot,
     playSfx: () => gxeSfxRef.current.playChime(DOMINANCE_SOUND), // migré vers GXE
     impactShake,
     showTableReaction,

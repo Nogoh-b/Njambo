@@ -68,6 +68,8 @@ export interface OrchestratorDeps {
   getPlayers(): GameState["players"];
   /** Couleur demandée du pli en cours (Pagne Changeant : la prochaine carte la prend). */
   getLedSuit?(): string | null;
+  /** Montant actuel du pot (bonus « si tu gagnes la manche » : montant visé, issue de la manche). */
+  getPot?(): number;
   /** Son d'activation. */
   playSfx(): void;
   /** Secousse d'impact table. */
@@ -301,11 +303,29 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         });
       }
     }
-    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
+    // Bonus de pot « si tu gagnes la manche » (Bénédiction du Chef, Pluie d'Étoiles) : badge près du pot jusqu'au dernier pli.
+    const potOp = ops.find((op) => (op.op === "potMultiplier" || op.op === "potBonus") && op.when === "winRound");
+    if (potOp && activatorUi != null) {
+      pendingCharges.push({
+        key: `${activation.playId}-pot`,
+        ui: activatorUi,
+        pot: {
+          ...(potOp.op === "potMultiplier" ? { factor: potOp.factor } : {}),
+          ...(potOp.op === "potBonus" ? { amount: potOp.amount } : {}),
+          owner: activatorUi === 0 ? "toi" : d.getPlayers()[activatorUi]?.name ?? "le lanceur",
+        },
+        handTag: "",
+        avatarTag: "",
+        landing: "spark",
+        tone: def.tone,
+        depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
+      });
+    }
+    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
     const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && kindOf(a) === kindOf(b);
     // Chaque charge prend le relais au bon moment : carte imposée dès la fin de l'annonce (son projecteur fait partie
     // de la mise en scène), carte scellée à la fin de l'animation du sceau (1,9 s), renfort après la sienne.
-    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" ? 1800 : 1100));
+    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" ? 1800 : 1100));
     for (const charge of pendingCharges) {
       const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => !sameKind(item, charge)), charge]), delayOf(charge));
       burstTimersRef.current.push(timer);
@@ -798,7 +818,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
   const element: ReactNode = (
     <>
       <ChoreoLayer ref={choreoLayerRef} />
-      <PowerChargeLayer charges={charges} registry={deps.registry} getPlayers={deps.getPlayers} getLedSuit={deps.getLedSuit} maxValue={GAME_CONFIG.ranks.max} motion={deps.motionEnabled} onConsumed={dropCharge} />
+      <PowerChargeLayer charges={charges} registry={deps.registry} getPlayers={deps.getPlayers} getLedSuit={deps.getLedSuit} getPot={deps.getPot} maxValue={GAME_CONFIG.ranks.max} motion={deps.motionEnabled} onConsumed={dropCharge} />
       {deps.motionEnabled && bursts.length > 0 && (
         <PowerParticleLayer
           bursts={bursts}

@@ -879,6 +879,46 @@ async function playTimerDrum(ctx: ChoreoContext, ui: number, durationMs: number,
   drum.remove();
 }
 
+/** Halo sur le pot : un anneau doré se forme au-dessus de l'avatar du lanceur, vole jusqu'au pot en tournant et s'y pose ;
+ *  le pot enfle et rayonne, `label` (« ×2 ») s'affiche sur lui. */
+async function playPotBless(ctx: ChoreoContext, durationMs: number, color: string, label?: string) {
+  const pot = ctx.registry.pot();
+  const potRect = pot?.getRect();
+  const sourceRect = ctx.registry.timer(ctx.resolveRefUi("self")[0])?.getRect();
+  const host = ctx.layer.container();
+  if (!pot || !potRect || !sourceRect || !host) return;
+  const size = Math.max(44, Math.min(90, potRect.width * 1.15));
+  const sx = sourceRect.left + sourceRect.width / 2, sy = sourceRect.top - size * 0.2;
+  const px = potRect.left + potRect.width / 2, py = potRect.top + potRect.height / 2;
+  const halo = document.createElement("div");
+  halo.setAttribute("data-choreo-fx", "bless");
+  Object.assign(halo.style, {
+    position: "absolute", left: `${px - size / 2}px`, top: `${py - size / 2}px`, width: `${size}px`, height: `${size}px`, borderRadius: "50%",
+    border: `4px solid ${color}`, boxShadow: `0 0 18px ${color}, inset 0 0 14px ${color}`, pointerEvents: "none",
+    background: "radial-gradient(circle, rgba(255,240,190,.25), transparent 62%)",
+  });
+  host.appendChild(halo);
+  const flyMs = durationMs * 0.5;
+  // L'anneau apparaît au-dessus du lanceur (petit, en perspective), puis rejoint le pot en tournant.
+  await finished(halo.animate([
+    { transform: `translate(${sx - px}px, ${sy - py}px) scale(.3) rotateX(70deg)`, opacity: 0 },
+    { transform: `translate(${sx - px}px, ${sy - py}px) scale(.55) rotateX(70deg)`, opacity: 1, offset: 0.2 },
+    { transform: `translate(${(sx - px) * 0.4}px, ${(sy - py) * 0.4 - 30}px) scale(.85) rotateX(55deg) rotateZ(180deg)`, opacity: 1, offset: 0.65 },
+    { transform: "translate(0, 0) scale(1.15) rotateX(60deg) rotateZ(360deg)", opacity: 1 },
+  ], { duration: flyMs, easing: "cubic-bezier(.4,0,.3,1)", fill: "forwards" }));
+  // Le halo se pose : le pot enfle et rayonne, éclat doré, montant du bonus.
+  const potEl = pot.getElement?.();
+  if (potEl && !ctx.lite) void potEl.animate([{ scale: "1", filter: "none" }, { scale: "1.16", filter: `brightness(1.35) drop-shadow(0 0 16px ${color})`, offset: 0.3 }, { scale: "1", filter: "none" }], { duration: 700, easing: "ease-out" });
+  ctx.burst("goldRain", potRect, ctx.defaultTone, "spectacular", 1100);
+  if (label) pot.flash(label);
+  await finished(halo.animate([
+    { transform: "scale(1.15) rotateX(60deg)", opacity: 1 },
+    { transform: "scale(.9) rotateX(60deg)", opacity: 1, offset: 0.4 },
+    { transform: "scale(1.4) rotateX(60deg)", opacity: 0 },
+  ], { duration: Math.max(400, durationMs - flyMs), easing: "ease-out", fill: "forwards" }));
+  halo.remove();
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -923,6 +963,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
     // Cri (Cri du Chef) : ondes depuis cet avatar jusqu'au minuteur de chaque adversaire, voir playTimerShout.
     if (target.element === "timer" && effect === "shout" && hit.ui !== undefined) {
       jobs.push(playTimerShout(ctx, hit.ui, track.durationMs, color, intensity, track.label));
+      continue;
+    }
+    // Halo sur le pot (Bénédiction du Chef), voir playPotBless.
+    if (target.element === "pot" && effect === "bless") {
+      jobs.push(playPotBless(ctx, track.durationMs, color, track.label));
       continue;
     }
     // Tambour (Tambour d'Appel) : trois coups de djembé qui rechargent le minuteur, voir playTimerDrum.

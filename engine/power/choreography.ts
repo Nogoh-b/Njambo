@@ -57,7 +57,8 @@ export const ELEMENT_EFFECTS = {
      drum : un djembé bat trois coups près de l'avatar, chaque coup recharge l'anneau du minuteur (`label` à la fin). */
   timer: ["freeze", "speedUp", "rewind", "crack", "blink", "tint", "delta", "drain", "shout", "drum"],
   avatar: ["auraShield", "auraMask", "auraTotem", "auraLucky", "shake", "halo", "bounce"],
-  pot: ["flash", "coinRain", "grow", "label"],
+  /* bless : un halo doré part de l'avatar du lanceur et se pose sur le pot, qui enfle et rayonne. */
+  pot: ["flash", "coinRain", "grow", "label", "bless"],
 } as const;
 
 export type ElementKind = keyof typeof ELEMENT_EFFECTS;

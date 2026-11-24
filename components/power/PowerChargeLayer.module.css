@@ -79,6 +79,40 @@
   mix-blend-mode: screen;
 }
 
+/* ── Bonus de pot jusqu'à la fin de la manche (Bénédiction du Chef, Pluie d'Étoiles) ── */
+.potTag {
+  position: absolute;
+  transform: translate(-50%, 6px);
+  padding: 4px 10px;
+  border: 1.5px solid var(--charge-color);
+  border-radius: 999px;
+  background: rgba(24, 16, 4, .92);
+  color: #fff3d6;
+  font: 900 11px/1 var(--font-display, sans-serif);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--charge-color) 60%, transparent);
+  animation: crackle 2.2s ease-in-out infinite;
+}
+.potEnd { position: absolute; display: grid; place-items: center; }
+.potBurst {
+  position: absolute;
+  inset: -60%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff7d6 0%, color-mix(in srgb, var(--charge-color) 80%, transparent) 30%, transparent 68%);
+  animation: flash 1200ms ease-out both;
+}
+.potText {
+  position: relative;
+  padding: 4px 11px;
+  border-radius: 999px;
+  font: 900 13px/1 var(--font-display, sans-serif);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+.potWin .potText { background: var(--charge-color); color: #1c1204; box-shadow: 0 0 18px var(--charge-color); animation: potRise 1800ms ease-out both; }
+.potLost .potText { background: rgba(24, 16, 4, .9); color: rgba(255, 243, 214, .75); border: 1px solid rgba(255, 243, 214, .3); animation: potFade 1400ms ease-in both; }
+
 /* Main d'un autre joueur sous carte imposée : lueur qui respire, tout le tour. */
 .handGlow {
   position: absolute;
@@ -163,6 +197,16 @@
   30% { opacity: 1; clip-path: inset(0 0 0 0); }
   60% { opacity: 1; }
   100% { opacity: 0; }
+}
+@keyframes potRise {
+  0% { opacity: 0; transform: translateY(6px) scale(.7); }
+  20% { opacity: 1; transform: translateY(0) scale(1.12); }
+  75% { opacity: 1; transform: translateY(-10px) scale(1); }
+  100% { opacity: 0; transform: translateY(-22px) scale(1); }
+}
+@keyframes potFade {
+  0% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(8px) scale(.9); filter: grayscale(1); }
 }
 @keyframes forcedPulse {
   0%, 100% { opacity: .75; }
