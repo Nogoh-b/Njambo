@@ -210,6 +210,17 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(cue.delayMs).toBe(1400);
     expect(choreo.tracks.some((track) => track.kind === "text" && track.text === "{reason}" && track.audience === "activator")).toBe(true);
   });
+  it("Éclair du Mfoundi : foudre sur la main, textes du lanceur et des autres ; script valide", () => {
+    const eclair = CODE_POWER_MODULES.eclair_mfoundi;
+    expect(validatePowerCard({ def: eclair.def, script: eclair.script } as never)).toEqual([]);
+    expect(eclair.def.activationTextOthers).toContain("{activator}");
+    const choreo = eclair.script.steps[0].choreo!;
+    expect(choreographyDuration(choreo)).toBeLessThanOrEqual(3_000);
+    expect(choreo.tracks.some((track) => track.kind === "element" && track.effect === "strike" && "player" in track.target && track.target.player === "self")).toBe(true);
+    expect(new Set(choreo.tracks.flatMap((track) => (track.kind === "text" ? [track.audience] : [])))).toEqual(new Set(["activator", "others"]));
+    // La règle reste : +2 sur la prochaine carte.
+    expect(eclair.script.steps[0].ops).toEqual([{ op: "boostNextCard", player: "self", valueBonus: 2 }]);
+  });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;
     expect(validatePowerCard({ def: pacte.def, script: pacte.script } as never)).toEqual([]);

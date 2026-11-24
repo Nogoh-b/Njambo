@@ -178,7 +178,7 @@ export const DepositZone = memo(forwardRef<HTMLDivElement, DepositZoneProps>(fun
                   <NjamboIcon name="spark" tone="gold" size={10} />
                   <span>
                     {c.effectiveValue != null && c.effectiveValue !== c.value
-                      ? c.effectiveValue
+                      ? `${c.value}→${c.effectiveValue}`
                       : (c.effectiveSuit ?? "")}
                   </span>
                 </div>

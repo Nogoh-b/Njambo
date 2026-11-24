@@ -13,6 +13,8 @@
 
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { launchStyle, screenLaunchTarget } from "@/components/power/powerLaunch";
+import { PowerChargeLayer, type PowerCharge } from "@/components/power/PowerChargeLayer";
+import { GAME_CONFIG } from "@/config/gameConfig";
 import dynamic from "next/dynamic";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import {
@@ -122,6 +124,9 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
   const depsRef = useRef(deps);
   depsRef.current = deps;
   const choreoLayerRef = useRef<ChoreoLayerHandle | null>(null);
+  /** « Prochaine carte » chargée (Éclair du Mfoundi…) : visible jusqu'à ce que le joueur pose une carte. */
+  const [charges, setCharges] = useState<PowerCharge[]>([]);
+  const dropCharge = useCallback((key: string) => setCharges((current) => current.filter((charge) => charge.key !== key)), []);
 
   useEffect(() => () => {
     burstTimersRef.current.forEach((timer) => clearTimeout(timer));
@@ -218,6 +223,20 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
       return;
     }
     if (!activation.used) return; // sans effet → pas de cues
+
+    // Prochaine carte renforcée : la charge s'affiche après l'annonce et la mise en scène d'activation.
+    const boost = powerModule.script.steps.flatMap((step) => step.ops ?? []).find((op) => op.op === "boostNextCard" && op.player === "self" && op.valueBonus);
+    if (boost && boost.op === "boostNextCard" && activatorUi != null) {
+      const charge: PowerCharge = {
+        key: activation.playId,
+        ui: activatorUi,
+        valueBonus: boost.valueBonus ?? 0,
+        tone: def.tone,
+        depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
+      };
+      const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => item.ui !== charge.ui), charge]), d.motionEnabled ? d.overlayMs + 1100 : 0);
+      burstTimersRef.current.push(timer);
+    }
 
     const hasStatefulFlight = powerModule.script.steps.some((step) => step.choreo
       ? step.choreo.tracks.some((track) => track.kind === "v2" || ((track.kind === "cardPath" || track.kind === "motif") && track.mode === "move"))
@@ -704,6 +723,7 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
   const element: ReactNode = (
     <>
       <ChoreoLayer ref={choreoLayerRef} />
+      <PowerChargeLayer charges={charges} registry={deps.registry} getPlayers={deps.getPlayers} maxValue={GAME_CONFIG.ranks.max} motion={deps.motionEnabled} onConsumed={dropCharge} />
       {deps.motionEnabled && bursts.length > 0 && (
         <PowerParticleLayer
           bursts={bursts}

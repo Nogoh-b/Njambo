@@ -1,0 +1,126 @@
+/* Prochaine carte chargée : main qui crépite, valeurs renforcées, badge d'avatar, foudre à la pose. */
+
+.root {
+  position: fixed;
+  inset: 0;
+  z-index: 1400;
+  pointer-events: none;
+}
+
+/* ── Ma main chargée ── */
+.hand {
+  position: absolute;
+  border-radius: 22px;
+  box-shadow: 0 0 0 1.5px color-mix(in srgb, var(--charge-color) 55%, transparent), 0 0 26px color-mix(in srgb, var(--charge-color) 40%, transparent), inset 0 0 22px color-mix(in srgb, var(--charge-color) 22%, transparent);
+  animation: crackle 1.6s ease-in-out infinite;
+}
+
+/* Étincelles : petits éclairs qui jaillissent du haut de la main. */
+.spark {
+  position: absolute;
+  top: -6px;
+  width: 3px;
+  height: 18px;
+  border-radius: 2px;
+  background: linear-gradient(180deg, #fff, var(--charge-color));
+  box-shadow: 0 0 8px var(--charge-color);
+  transform-origin: bottom center;
+  opacity: 0;
+  animation: spark 1.3s ease-out infinite;
+}
+
+.handTag {
+  position: absolute;
+  left: 50%;
+  top: -12px;
+  transform: translate(-50%, -100%);
+  padding: 4px 11px;
+  border: 1.5px solid var(--charge-color);
+  border-radius: 999px;
+  background: rgba(6, 16, 14, .92);
+  color: #eafffb;
+  font: 900 12px/1 var(--font-display, sans-serif);
+  letter-spacing: .02em;
+  white-space: nowrap;
+  box-shadow: 0 0 14px color-mix(in srgb, var(--charge-color) 55%, transparent);
+}
+
+/* Valeur renforcée sur chaque carte de ma main. */
+.value {
+  position: absolute;
+  padding: 2px 6px;
+  border-radius: 999px;
+  background: linear-gradient(180deg, #2af5d0, #10a98e);
+  color: #04221c;
+  font: 900 11px/1.1 var(--font-display, sans-serif);
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .45), 0 0 8px rgba(29, 228, 190, .6);
+}
+
+/* ── Joueur chargé (adversaire) ── */
+.avatarTag {
+  position: absolute;
+  transform: translate(-50%, 4px);
+  padding: 3px 8px;
+  border: 1.5px solid var(--charge-color);
+  border-radius: 999px;
+  background: rgba(6, 16, 14, .92);
+  color: #eafffb;
+  font: 900 11px/1 var(--font-display, sans-serif);
+  white-space: nowrap;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--charge-color) 60%, transparent);
+  animation: crackle 1.6s ease-in-out infinite;
+}
+
+/* ── Foudre sur la carte posée ── */
+.strike { position: absolute; }
+.bolt {
+  position: absolute;
+  left: 50%;
+  bottom: 40%;
+  width: 34px;
+  height: 100vh;
+  transform: translateX(-50%);
+  fill: #fff;
+  filter: drop-shadow(0 0 6px var(--charge-color)) drop-shadow(0 0 16px var(--charge-color));
+  animation: bolt 420ms ease-out both;
+}
+.flash {
+  position: absolute;
+  inset: -30%;
+  border-radius: 50%;
+  background: radial-gradient(circle, #fff 0%, color-mix(in srgb, var(--charge-color) 70%, transparent) 35%, transparent 70%);
+  animation: flash 900ms ease-out both;
+}
+
+.still .hand, .still .avatarTag { animation: none; }
+.still .spark { display: none; }
+
+@media (prefers-reduced-motion: reduce) {
+  .hand, .avatarTag, .bolt, .flash { animation: none; }
+  .spark { display: none; }
+}
+
+@keyframes crackle {
+  0%, 100% { filter: brightness(1); }
+  45% { filter: brightness(1.35); }
+  50% { filter: brightness(.9); }
+  55% { filter: brightness(1.3); }
+}
+@keyframes spark {
+  0% { opacity: 0; transform: translateY(0) scaleY(.3) rotate(-8deg); }
+  15% { opacity: 1; transform: translateY(-10px) scaleY(1) rotate(6deg); }
+  35% { opacity: 0; transform: translateY(-22px) scaleY(.6) rotate(-4deg); }
+  100% { opacity: 0; }
+}
+@keyframes bolt {
+  0% { opacity: 0; clip-path: inset(0 0 100% 0); }
+  30% { opacity: 1; clip-path: inset(0 0 0 0); }
+  60% { opacity: 1; }
+  100% { opacity: 0; }
+}
+@keyframes flash {
+  0%, 25% { opacity: 0; transform: scale(.4); }
+  40% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.4); }
+}

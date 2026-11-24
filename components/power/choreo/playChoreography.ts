@@ -449,6 +449,55 @@ async function playHandAdvice(ctx: ChoreoContext, ui: number, durationMs: number
   node.remove();
 }
 
+/** Foudre sur une main : un éclair zigzague du haut de l'écran jusqu'au centre de la main (flash, secousse),
+ *  puis des arcs électriques courent d'une carte à l'autre. */
+async function playHandStrike(ctx: ChoreoContext, ui: number, durationMs: number, color: string, intensity: number) {
+  const hand = ctx.registry.hand(ui);
+  const rect = hand?.getRect();
+  const host = ctx.layer.container();
+  if (!hand || !rect || !host) return;
+  const view = viewportOf(ctx);
+  const tx = rect.left + rect.width / 2;
+  const ty = rect.top + rect.height * 0.35;
+  const sx = tx + (Math.random() - 0.5) * view.width * 0.25;
+  const sy = view.top - 20;
+  // Tracé en zigzag : segments de plus en plus courts vers l'impact.
+  const points: string[] = [];
+  const steps = 9;
+  for (let k = 0; k <= steps; k += 1) {
+    const t = k / steps;
+    const jitter = k === 0 || k === steps ? 0 : (k % 2 ? 1 : -1) * (18 + Math.random() * 22) * (1 - t * 0.6);
+    points.push(`${(sx + (tx - sx) * t + jitter).toFixed(1)},${(sy + (ty - sy) * t).toFixed(1)}`);
+  }
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("data-choreo-fx", "strike");
+  Object.assign(svg.style, { position: "absolute", left: "0", top: "0", width: "100vw", height: "100vh", overflow: "visible", pointerEvents: "none" });
+  svg.innerHTML = `<polyline points="${points.join(" ")}" fill="none" stroke="${color}" stroke-width="${6 + intensity * 2}" stroke-linejoin="bevel" opacity=".55" style="filter:blur(4px)"/>`
+    + `<polyline points="${points.join(" ")}" fill="none" stroke="#fff" stroke-width="${2 + intensity}" stroke-linejoin="bevel" style="filter:drop-shadow(0 0 6px ${color})"/>`;
+  host.appendChild(svg);
+  const flash = document.createElement("div");
+  flash.setAttribute("data-choreo-fx", "strike-flash");
+  Object.assign(flash.style, { position: "absolute", left: `${view.left}px`, top: `${view.top}px`, width: `${view.width}px`, height: `${view.height}px`, background: "#fff", pointerEvents: "none", mixBlendMode: "screen" });
+  host.appendChild(flash);
+
+  const boltMs = Math.min(520, durationMs * 0.45);
+  const bolt = svg.animate([{ opacity: 0 }, { opacity: 1, offset: 0.1 }, { opacity: 0.35, offset: 0.3 }, { opacity: 1, offset: 0.45 }, { opacity: 0 }], { duration: boltMs, fill: "forwards" });
+  const flashAnim = flash.animate([{ opacity: 0 }, { opacity: 0.18 + intensity * 0.08, offset: 0.12 }, { opacity: 0 }], { duration: boltMs * 0.9, fill: "forwards" });
+  setTimeout(() => {
+    ctx.impactShake(intensity * 2);
+    ctx.burst("boost", new DOMRect(tx - 40, ty - 40, 80, 80), ctx.defaultTone, intensity >= 3 ? "spectacular" : "standard", 900);
+  }, boltMs * 0.12);
+
+  // Arcs électriques sur la main, après l'impact.
+  const el = hand.getElement?.();
+  const arcs = el && !ctx.lite
+    ? el.animate([{ filter: "brightness(1)" }, { filter: `brightness(1.6) drop-shadow(0 0 10px ${color})`, offset: 0.15 }, { filter: "brightness(1.1)", offset: 0.3 }, { filter: `brightness(1.45) drop-shadow(0 0 8px ${color})`, offset: 0.45 }, { filter: "brightness(1)" }], { duration: Math.max(300, durationMs - boltMs * 0.3), delay: boltMs * 0.3 })
+    : null;
+  await Promise.all([finished(bolt), finished(flashAnim), arcs ? finished(arcs) : Promise.resolve()]);
+  svg.remove();
+  flash.remove();
+}
+
 async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "element" }, spriteEls: Map<string, HTMLElement[]>) {
   const intensity = track.intensity ?? 2;
   const tone = track.tone ?? ctx.defaultTone;
@@ -474,8 +523,10 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
   const jobs: Promise<void>[] = [];
   for (const hit of hits) {
     // Lecture de la main / carte conseillée (Main du Griot) : rendus propres, voir plus bas.
-    if (target.element === "hand" && hit.ui !== undefined && (effect === "read" || effect === "advise")) {
-      jobs.push(effect === "read" ? playHandRead(ctx, hit.ui, track.durationMs, color) : playHandAdvice(ctx, hit.ui, track.durationMs, color));
+    if (target.element === "hand" && hit.ui !== undefined && (effect === "read" || effect === "advise" || effect === "strike")) {
+      jobs.push(effect === "read" ? playHandRead(ctx, hit.ui, track.durationMs, color)
+        : effect === "advise" ? playHandAdvice(ctx, hit.ui, track.durationMs, color)
+          : playHandStrike(ctx, hit.ui, track.durationMs, color, intensity));
       continue;
     }
     // Effets « métier » délégués aux zones (rendu propre déjà existant).
