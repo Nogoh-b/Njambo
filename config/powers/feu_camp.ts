@@ -10,7 +10,7 @@ export const feuCamp: PowerModule = {
     tone: "gold",
     rarity: "common",
     targetMode: "none",
-    art: "/assets/power-cards/feu_camp.webp",
+    art: "/assets/power-cards/v2/feu_camp.webp",
     activationTitle: "FEU ALLUMÉ",
     activationText: "+100 Nkap au pot",
     description: "+100 Nkap au pot si tu domines ce pli.",

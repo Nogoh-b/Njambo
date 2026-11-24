@@ -10,7 +10,7 @@ export const pluieEtoiles: PowerModule = {
     tone: "gold",
     rarity: "rare",
     targetMode: "none",
-    art: "/assets/power-cards/pluie_etoiles.webp",
+    art: "/assets/power-cards/v2/pluie_etoiles.webp",
     activationTitle: "PLUIE D'OR",
     activationText: "+200 Nkap dans le pot",
     description: "+200 Nkap bonus au pot si tu remportes ce pli.",

@@ -10,7 +10,7 @@ export const criChef: PowerModule = {
     tone: "pink",
     rarity: "rare",
     targetMode: "none",
-    art: "/assets/power-cards/cri_chef.webp",
+    art: "/assets/power-cards/v2/cri_chef.webp",
     activationTitle: "CRI DU CHEF",
     activationText: "Tous tes adversaires perdent 3 secondes",
     activationTextOthers: "{activator} pousse le cri du chef",

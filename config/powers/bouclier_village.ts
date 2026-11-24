@@ -10,7 +10,7 @@ export const bouclierVillage: PowerModule = {
     tone: "teal",
     rarity: "epic",
     targetMode: "self",
-    art: "/assets/power-cards/bouclier_village.webp",
+    art: "/assets/power-cards/v2/bouclier_village.webp",
     activationTitle: "BOUCLIER",
     activationText: "La prochaine attaque ciblée est bloquée",
     description: "Bloque la prochaine carte offensive ciblée contre toi.",

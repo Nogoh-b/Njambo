@@ -11,7 +11,7 @@ export const coupeCircuit: PowerModule = {
     tone: "pink",
     rarity: "rare",
     targetMode: "opponent",
-    art: "/assets/power-cards/coupe_circuit.webp",
+    art: "/assets/power-cards/v2/coupe_circuit.webp",
     activationTitle: "COUPÉ !",
     activationText: "La cible jouera sa carte la plus faible à son prochain tour",
     activationTextOthers: "{activator} coupe le courant de {target}",

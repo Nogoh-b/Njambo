@@ -19,6 +19,19 @@ function current(): Map<PowerCardId, PowerModule> {
   return modules;
 }
 
+/* Illustrations intégrées : les nouvelles versions vivent dans /assets/power-cards/v2/
+   (nouvelle URL = caches navigateur, service worker et /_next/image contournés).
+   Un catalogue publié avant ce changement pointe encore sur l'ancien chemin :
+   on le redirige vers la version actuelle du même fichier. */
+const LEGACY_ART = /^\/assets\/power-cards\/([a-z0-9_]+\.webp)$/;
+let builtinArt: Set<string> | null = null;
+export function upgradeBuiltinArt(art: string): string {
+  const match = LEGACY_ART.exec(art ?? "");
+  if (!match) return art;
+  builtinArt ??= new Set(Object.values(CODE_POWER_MODULES).map((module) => module.def.art.split("/").pop() ?? ""));
+  return builtinArt.has(match[1]) ? `/assets/power-cards/v2/${match[1]}` : art;
+}
+
 /** Remplace le catalogue (liste ordonnée). Une liste vide est ignorée (repli sur le code). */
 export function setPowerCatalog(cards: PowerModule[], catalogRevision?: number): boolean {
   if (!Array.isArray(cards) || cards.length === 0) return false;
@@ -26,7 +39,9 @@ export function setPowerCatalog(cards: PowerModule[], catalogRevision?: number):
   for (const card of cards) {
     if (!card?.def?.id || !card.script) continue;
     const code = CODE_POWER_MODULES[card.def.id];
-    next.set(card.def.id, { ...card, ...(code?.renderOverlay ? { renderOverlay: code.renderOverlay } : {}) });
+    const art = upgradeBuiltinArt(card.def.art);
+    const def = art === card.def.art ? card.def : { ...card.def, art };
+    next.set(card.def.id, { ...card, def, ...(code?.renderOverlay ? { renderOverlay: code.renderOverlay } : {}) });
   }
   if (next.size === 0) return false;
   modules = next;

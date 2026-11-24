@@ -10,7 +10,7 @@ export const masqueBluffeur: PowerModule = {
     tone: "pink",
     rarity: "rare",
     targetMode: "self",
-    art: "/assets/power-cards/masque_bluffeur.webp",
+    art: "/assets/power-cards/v2/masque_bluffeur.webp",
     activationTitle: "BLUFF",
     activationText: "La prochaine lecture est annulée",
     description: "Annule la prochaine révélation ou lecture adverse contre toi.",

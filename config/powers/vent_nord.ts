@@ -10,7 +10,7 @@ export const ventNord: PowerModule = {
     tone: "teal",
     rarity: "common",
     targetMode: "none",
-    art: "/assets/power-cards/vent_nord.webp",
+    art: "/assets/power-cards/v2/vent_nord.webp",
     activationTitle: "VENT LEVÉ",
     activationText: "Ta plus faible carte part au vent… la pioche décide",
     activationTextOthers: "{activator} lève le vent",

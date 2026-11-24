@@ -10,7 +10,7 @@ export const oeilSorcier: PowerModule = {
     tone: "pink",
     rarity: "rare",
     targetMode: "opponent",
-    art: "/assets/power-cards/oeil_sorcier.webp",
+    art: "/assets/power-cards/v2/oeil_sorcier.webp",
     activationTitle: "VISION",
     activationText: "Main adverse révélée",
     description: "Vois la main d'un adversaire pendant 5 secondes.",

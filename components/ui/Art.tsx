@@ -106,7 +106,7 @@ export function NjamboIcon({ name, size = 28, tone = "gold", priority = false }:
   return (
     <span className={`njambo-asset-icon njambo-asset-icon--${tone}`} style={style} aria-hidden="true">
       <Image
-        src={`/assets/njambo/ui/icons/${ICON_ASSETS[name]}-${sourceSize}.webp`}
+        src={`/assets/njambo/ui/icons/${ICON_ASSETS[name] ?? "spark"}-${sourceSize}.webp`}
         alt=""
         width={size}
         height={size}

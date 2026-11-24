@@ -13,7 +13,7 @@ export const trocCible: PowerModule = {
     tone: "cobalt",
     rarity: "epic",
     targetMode: "self",
-    art: "/assets/power-cards/troc_cible.webp",
+    art: "/assets/power-cards/v2/troc_cible.webp",
     activationTitle: "TROC",
     activationText: "La carte de TON choix est échangée",
     description: "Choisis une carte de ta main : elle est échangée contre le dessus de la pioche.",

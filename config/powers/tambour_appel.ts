@@ -10,7 +10,7 @@ export const tambourAppel: PowerModule = {
     tone: "gold",
     rarity: "common",
     targetMode: "self",
-    art: "/assets/power-cards/tambour_appel.webp",
+    art: "/assets/power-cards/v2/tambour_appel.webp",
     activationTitle: "TAMBOUR D'APPEL",
     activationText: "+8 secondes pour ce tour",
     activationTextOthers: "{activator} bat le tambour",

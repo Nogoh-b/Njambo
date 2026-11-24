@@ -10,7 +10,7 @@ export const benedictionChef: PowerModule = {
     tone: "gold",
     rarity: "epic",
     targetMode: "none",
-    art: "/assets/power-cards/benediction_chef.webp",
+    art: "/assets/power-cards/v2/benediction_chef.webp",
     activationTitle: "BÉNÉDICTION",
     activationText: "Gain du pli x2",
     description: "Double le gain si tu remportes ce pli.",

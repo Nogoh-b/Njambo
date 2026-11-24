@@ -10,7 +10,7 @@ export const pacteMains: PowerModule = {
     tone: "cobalt",
     rarity: "legendary",
     targetMode: "opponent",
-    art: "/assets/power-cards/pacte_mains.webp",
+    art: "/assets/power-cards/v2/pacte_mains.webp",
     activationTitle: "PACTE SCELLÉ",
     activationText: "Tes cartes contre autant des siennes, à l'aveugle",
     activationTextOthers: "{activator} scelle un pacte avec {target}",

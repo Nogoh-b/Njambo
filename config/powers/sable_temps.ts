@@ -11,7 +11,7 @@ export const sableTemps: PowerModule = {
     tone: "teal",
     rarity: "rare",
     targetMode: "opponent",
-    art: "/assets/power-cards/sable_temps.webp",
+    art: "/assets/power-cards/v2/sable_temps.webp",
     activationTitle: "SABLE DU TEMPS",
     activationText: "Ta cible perd 6 secondes à son prochain tour",
     activationTextOthers: "{activator} vide le sablier de {target}",
