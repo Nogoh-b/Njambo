@@ -12,6 +12,7 @@ import { rankAssetSrc } from "@/lib/playerRank";
 import { GameShell } from "@/components/ui/GameShell";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import styles from "./WalletScreen.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 type LedgerFilter = "all" | "nkap" | "cauris";
 type FirestoreDate = number | { seconds?: number; toMillis?: () => number };
@@ -160,7 +161,7 @@ export function WalletScreen() {
       {/* ═══ COFFRE ROYAL : 4 DEVISES EN 1 BANDEAU UNIFIÉ ═══ */}
       <section className={styles.vaultStrip} aria-label="Soldes du coffre">
         <article className={`${styles.vaultCell} ${styles.cellGold}`}>
-          <Image src="/assets/njambo/economy/nkap-stack-64.webp" alt="" width={34} height={34} />
+          <Image src={sysAsset("/assets/njambo/economy/nkap-stack-64.webp")} alt="" width={34} height={34} />
           <div className={styles.cellMeta}>
             <small>Nkap</small>
             <strong>{isGuest ? "—" : (economy?.nkap ?? 0).toLocaleString("fr-FR")}</strong>
@@ -169,7 +170,7 @@ export function WalletScreen() {
         </article>
 
         <article className={`${styles.vaultCell} ${styles.cellPink}`}>
-          <Image src="/assets/njambo/economy/cauris-pouch-64.webp" alt="" width={34} height={34} />
+          <Image src={sysAsset("/assets/njambo/economy/cauris-pouch-64.webp")} alt="" width={34} height={34} />
           <div className={styles.cellMeta}>
             <small>Cauris</small>
             <strong>{isGuest ? "—" : (economy?.cauris ?? 0).toLocaleString("fr-FR")}</strong>
@@ -178,7 +179,7 @@ export function WalletScreen() {
         </article>
 
         <article className={`${styles.vaultCell} ${styles.cellTeal}`}>
-          <Image src="/assets/njambo/economy/energy-flask-64.webp" alt="" width={34} height={34} />
+          <Image src={sysAsset("/assets/njambo/economy/energy-flask-64.webp")} alt="" width={34} height={34} />
           <div className={styles.cellMeta}>
             <small>Énergie</small>
             <strong>{energyText}</strong>

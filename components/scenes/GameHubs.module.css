@@ -1750,7 +1750,7 @@
 
 .wheelImage {
   background:
-    url("/assets/njambo/economy/loyalty-wheel.webp") center / contain no-repeat,
+    var(--nj-sys-loyalty-wheel, url("/assets/njambo/economy/loyalty-wheel.webp")) center / contain no-repeat,
     conic-gradient(from 15deg, #d14e72, #f0b64b, #37b9aa, #577edf, #d14e72, #f0b64b, #37b9aa, #577edf, #d14e72);
   border: 8px solid #8a5229;
   border-radius: 50%;

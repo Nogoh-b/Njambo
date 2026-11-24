@@ -1,5 +1,6 @@
 import { loadGsap } from "@/lib/motion";
 import { IDLE_PREFETCH_SCENES, preloadScene } from "@/lib/scenePreload";
+import { sysAsset } from "@/lib/assetPack";
 
 type IdleTask = () => void | Promise<unknown>;
 
@@ -7,7 +8,7 @@ let started = false;
 
 /** Assets lourds réutilisés hors du home (dos de carte : pluie de fond + jeu). */
 const WARM_IMAGES = [
-  "/assets/njambo/books/card-back-128.webp",
+  sysAsset("/assets/njambo/books/card-back-128.webp"),
 ];
 
 function warmImage(src: string): void {

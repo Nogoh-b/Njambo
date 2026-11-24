@@ -12,6 +12,7 @@ import { eventArt } from "../eventArt";
 import { rewardVisual } from "../eventRewards";
 import type { Reward } from "../../domain";
 import { audioAsset, imageAsset, type AssetRef } from "./AssetLoader";
+import { sysAsset } from "@/lib/assetPack";
 
 export interface AssetManifest { critical: AssetRef[]; background: AssetRef[] }
 
@@ -79,10 +80,10 @@ export interface TableAssetGroups {
 const TABLE_UI_CRITICAL = [
   DEFAULT_CARD_BACK_ASSET,
   DEFAULT_HAND_ARC_ASSET,
-  "/assets/njambo/books/card-back-128.webp",
+  sysAsset("/assets/njambo/books/card-back-128.webp"),
   "/assets/njambo/ui/brand/njambo-mark-128.webp",
-  "/assets/njambo/economy/nkap-64.webp",
-  "/assets/njambo/economy/nkap-stack-64.webp",
+  sysAsset("/assets/njambo/economy/nkap-64.webp"),
+  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
   "/assets/njambo/ui/icons/cards-64.webp",
   "/assets/njambo/ui/icons/crown-64.webp",
   "/assets/njambo/ui/icons/trophy-64.webp",
@@ -157,21 +158,21 @@ export function tableManifest(input: TableManifestInput = {}): AssetManifest {
 }
 
 const SHOP_STATIC = [
-  "/assets/njambo/books/book-normal-256.webp",
-  "/assets/njambo/books/book-rare-256.webp",
-  "/assets/njambo/books/book-exceptionnel-256.webp",
-  "/assets/njambo/books/card-back-256.webp",
-  "/assets/njambo/economy/nkap-stack-64.webp",
-  "/assets/njambo/economy/cauris-pouch-64.webp",
+  sysAsset("/assets/njambo/books/book-normal-256.webp"),
+  sysAsset("/assets/njambo/books/book-rare-256.webp"),
+  sysAsset("/assets/njambo/books/book-exceptionnel-256.webp"),
+  sysAsset("/assets/njambo/books/card-back-256.webp"),
+  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
+  sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
 ];
 
 const EVENTS_STATIC = [
-  "/assets/njambo/tickets/ticket-bronze-64.webp",
-  "/assets/njambo/tickets/ticket-argent-64.webp",
-  "/assets/njambo/tickets/ticket-or-64.webp",
-  "/assets/njambo/economy/nkap-stack-64.webp",
-  "/assets/njambo/economy/cauris-pouch-64.webp",
-  "/assets/njambo/economy/energy-flask-64.webp",
+  sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
+  sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
+  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
+  sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
+  sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
 ];
 
 /** Collection : les 12 premiers visuels (premier écran) bloquent, le reste suit. */

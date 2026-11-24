@@ -18,11 +18,12 @@ import { listenFriends, sendFriendRequest } from "@/lib/socialData";
 import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
 import type { GameMode, Result, ResultSettlementEntry } from "@/types/game";
 import styles from "./ResultScreen.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 /* Particules tsparticles chargées en lazy, client uniquement (jamais au SSR). */
 const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
 
-const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
+const NKAP_COIN_SRC = sysAsset("/assets/njambo/economy/nkap-64.webp");
 
 export interface ResultScreenProps {
   result: Result;

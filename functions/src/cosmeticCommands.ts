@@ -4,6 +4,8 @@
 
 import { HttpsError, type CallableRequest } from "firebase-functions/v2/https";
 import {
+  ASSET_PACK_DOC,
+  isAssetPackId,
   COSMETIC_DEFAULTS_DOC,
   COSMETIC_RARITIES,
   COSMETIC_SLOT,
@@ -101,6 +103,19 @@ export async function saveCosmeticDefaultsHandler(request: CallableRequest<unkno
       createdAt: now,
     });
     return { defaults: next };
+  });
+}
+
+/** Pack d'assets système actif pour tout le jeu (monnaies, tickets, livres, rangs). */
+export async function saveAssetPackHandler(request: CallableRequest<unknown>) {
+  const uid = requireAdmin(request);
+  const data = asObject(request.data);
+  const pack = data.pack;
+  if (!isAssetPackId(pack)) throw new HttpsError("invalid-argument", "ASSET_PACK_UNKNOWN");
+  return runIdempotent(uid, "saveAssetPack", data.idempotencyKey, async (transaction, now) => {
+    transaction.set(db.doc(`runtime_config/${ASSET_PACK_DOC}`), { pack, updatedAt: now, updatedBy: uid }, { merge: false });
+    transaction.create(db.collection("admin_audit").doc(), { uid, action: "asset_pack_update", pack, createdAt: now });
+    return { pack };
   });
 }
 

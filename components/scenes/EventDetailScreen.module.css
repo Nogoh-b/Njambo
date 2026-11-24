@@ -549,7 +549,7 @@
   height: 17px;
   border-radius: 2.5px;
   border: 1px solid rgba(255, 214, 96, 0.65);
-  background: url("/assets/njambo/books/card-back-64.webp") center / cover no-repeat;
+  background: var(--nj-sys-card-back-64, url("/assets/njambo/books/card-back-64.webp")) center / cover no-repeat;
 }
 .miniCardChip:first-child { transform: rotate(-14deg); }
 .miniCardChip:last-child { transform: rotate(14deg); }

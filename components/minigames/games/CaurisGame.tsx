@@ -10,6 +10,7 @@ import { CAURIS_TIERS, MINI_GAMES_BY_ID, type Reward } from "@/domain";
 import { GameStage, PlayButton } from "../MiniGameKit";
 import { miniGameError, type MiniGameProps } from "../useMiniGames";
 import styles from "../MiniGames.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 const game = MINI_GAMES_BY_ID.cauris;
 
@@ -85,7 +86,7 @@ export function CaurisGame({ mg, onReward, onError, onAuth, onOdds }: MiniGamePr
           <span className={styles.calabashRim} />
           {phase !== "thrown" && [0, 1, 2, 3, 4, 5].map((i) => (
             <span key={i} className={styles.bowlShell} style={{ left: `${22 + (i % 3) * 22}%`, top: `${30 + Math.floor(i / 3) * 26}%`, transform: `rotate(${i * 47}deg)` }}>
-              <Image src="/assets/njambo/economy/cauri-64.webp" alt="" width={30} height={30} />
+              <Image src={sysAsset("/assets/njambo/economy/cauri-64.webp")} alt="" width={30} height={30} />
             </span>
           ))}
         </div>
@@ -98,7 +99,7 @@ export function CaurisGame({ mg, onReward, onError, onAuth, onOdds }: MiniGamePr
             aria-label={faces[i] ? "Cauri ouvert" : "Cauri fermé"}
           >
             {faces[i]
-              ? <Image src="/assets/njambo/economy/cauri-128.webp" alt="" width={54} height={54} />
+              ? <Image src={sysAsset("/assets/njambo/economy/cauri-128.webp")} alt="" width={54} height={54} />
               : <span className={styles.shellBack} />}
           </span>
         ))}

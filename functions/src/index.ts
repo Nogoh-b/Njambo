@@ -65,6 +65,7 @@ import {
   listCosmeticsHandler,
   saveCosmeticHandler,
   saveCosmeticDefaultsHandler,
+  saveAssetPackHandler,
   getCosmeticCollectionHandler,
   equipCosmeticHandler,
 } from "./cosmeticCommands";
@@ -196,6 +197,7 @@ export const getSeasonStats = onCall(callable, getSeasonStatsHandler);
 export const listCosmetics = onCall(callable, listCosmeticsHandler);
 export const saveCosmetic = onCall(callable, saveCosmeticHandler);
 export const saveCosmeticDefaults = onCall(callable, saveCosmeticDefaultsHandler);
+export const saveAssetPack = onCall(callable, saveAssetPackHandler);
 export const getCosmeticCollection = onCall(callable, getCosmeticCollectionHandler);
 export const equipCosmetic = onCall(callable, equipCosmeticHandler);
 export const listCampaigns = onCall(callable, listCampaignsHandler);

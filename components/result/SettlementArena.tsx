@@ -8,6 +8,7 @@ import { COIN_SOUND, CROWN_SOUND } from "@/lib/gxeSfx";
 import { useGsapTimeline, type MotionProfile } from "@/lib/motion";
 import type { Player, ResultSettlementEntry } from "@/types/game";
 import styles from "./SettlementArena.module.css";
+import { sysAsset } from "@/lib/assetPack";
 
 interface SettlementArenaProps {
   players: Player[];
@@ -36,8 +37,8 @@ export interface Seat {
   y: string;
 }
 
-const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
-const NKAP_STACK_SRC = "/assets/njambo/economy/nkap-stack-64.webp";
+const NKAP_COIN_SRC = sysAsset("/assets/njambo/economy/nkap-64.webp");
+const NKAP_STACK_SRC = sysAsset("/assets/njambo/economy/nkap-stack-64.webp");
 
 /** Budget de pièces Nkap en vol vers le vainqueur selon le profil de fluidité.
  *  Le transfert Nkap joue sur TOUS les profils actifs (seul « mouvement réduit »

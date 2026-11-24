@@ -61,6 +61,7 @@ import {
   listCosmeticsHandler,
   saveCosmeticHandler,
   saveCosmeticDefaultsHandler,
+  saveAssetPackHandler,
   getCosmeticCollectionHandler,
   equipCosmeticHandler,
 } from "../../functions/src/cosmeticCommands";
@@ -203,6 +204,7 @@ export const commands: Record<string, Handler> = {
   listCosmetics: listCosmeticsHandler,
   saveCosmetic: saveCosmeticHandler,
   saveCosmeticDefaults: saveCosmeticDefaultsHandler,
+  saveAssetPack: saveAssetPackHandler,
   getCosmeticCollection: getCosmeticCollectionHandler,
   equipCosmetic: equipCosmeticHandler,
   listCampaigns: listCampaignsHandler,

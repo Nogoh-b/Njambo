@@ -671,7 +671,7 @@
   height: 66px;
   border-radius: 7px;
   border: 1.5px solid color-mix(in srgb, var(--s-tone) 66%, #fff0b8);
-  background: url("/assets/njambo/books/card-back-128.webp") center / cover no-repeat;
+  background: var(--nj-sys-card-back-128, url("/assets/njambo/books/card-back-128.webp")) center / cover no-repeat;
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.55);
   opacity: 0.82;
   transition: transform 240ms ease;

@@ -6,6 +6,7 @@ import {
   type Reward,
   type TicketTier,
 } from "@/domain";
+import { sysAsset } from "@/lib/assetPack";
 
 export const BOOSTER_RARITY_LABELS: Record<string, string> = {
   village: "Village",
@@ -27,28 +28,28 @@ export const TICKET_TIERS_META: Record<TicketTier, { label: string; shortLabel: 
     label: "Ticket Bronze",
     shortLabel: "Bronze",
     description: "Donne accès à un événement du Ter compatible au palier Bronze (1 ticket = 1 parcours complet).",
-    art64: "/assets/njambo/tickets/ticket-bronze-64.webp",
-    art256: "/assets/njambo/tickets/ticket-bronze-256.webp",
+    art64: sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
+    art256: sysAsset("/assets/njambo/tickets/ticket-bronze-256.webp"),
   },
   argent: {
     label: "Ticket Argent",
     shortLabel: "Argent",
     description: "Donne accès à un événement du Ter compatible au palier Argent avec récompenses relevées.",
-    art64: "/assets/njambo/tickets/ticket-argent-64.webp",
-    art256: "/assets/njambo/tickets/ticket-argent-256.webp",
+    art64: sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
+    art256: sysAsset("/assets/njambo/tickets/ticket-argent-256.webp"),
   },
   or: {
     label: "Ticket Or",
     shortLabel: "Or",
     description: "Donne accès aux grands tournois et événements prestigieux du Ter au palier Or.",
-    art64: "/assets/njambo/tickets/ticket-or-64.webp",
-    art256: "/assets/njambo/tickets/ticket-or-256.webp",
+    art64: sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
+    art256: sysAsset("/assets/njambo/tickets/ticket-or-256.webp"),
   },
 };
 
 export function boosterBookArt(boosterId: string, size: 64 | 128 | 256 = 256): string {
   const safeId = ["normal", "rare", "exceptionnel"].includes(boosterId) ? boosterId : "normal";
-  return `/assets/njambo/books/book-${safeId}-${size}.webp`;
+  return sysAsset(`/assets/njambo/books/book-${safeId}-${size}.webp`);
 }
 
 export function boosterBookTitle(boosterId: string, boosters?: BoosterDefinition[]): string {
@@ -62,19 +63,19 @@ export function boosterBookTitle(boosterId: string, boosters?: BoosterDefinition
 
 export function packArt(offerId: string, size: 64 | 128 | 256 = 256): string {
   if (offerId === "pack_quartier" || offerId === "pack_mboa" || offerId === "pack_chefferie") {
-    return `/assets/njambo/economy/${offerId.replaceAll("_", "-")}-${size}.webp`;
+    return sysAsset(`/assets/njambo/economy/${offerId.replaceAll("_", "-")}-${size}.webp`);
   }
-  return `/assets/njambo/economy/pack-mboa-${size}.webp`;
+  return sysAsset(`/assets/njambo/economy/pack-mboa-${size}.webp`);
 }
 
 export function offerArt(offer: Pick<OfferDefinition, "id" | "type">, size: 64 | 128 | 256 = 256): string {
-  if (offer.type === "cauris_pack") return `/assets/njambo/economy/cauris-pouch-${size}.webp`;
-  if (offer.type === "nkap_conversion") return `/assets/njambo/economy/nkap-stack-${size}.webp`;
-  if (offer.type === "energy_pass") return `/assets/njambo/economy/energy-flask-${size}.webp`;
+  if (offer.type === "cauris_pack") return sysAsset(`/assets/njambo/economy/cauris-pouch-${size}.webp`);
+  if (offer.type === "nkap_conversion") return sysAsset(`/assets/njambo/economy/nkap-stack-${size}.webp`);
+  if (offer.type === "energy_pass") return sysAsset(`/assets/njambo/economy/energy-flask-${size}.webp`);
   if (offer.type === "ticket") {
     const tier = offer.id.replace("ticket_", "") as TicketTier;
     const safeTier: TicketTier = tier === "argent" || tier === "or" ? tier : "bronze";
-    return `/assets/njambo/tickets/ticket-${safeTier}-${size}.webp`;
+    return sysAsset(`/assets/njambo/tickets/ticket-${safeTier}-${size}.webp`);
   }
   if (offer.id.startsWith("booster_")) {
     const id = offer.id.replace("booster_", "").replace("_xaf", "");
@@ -83,7 +84,7 @@ export function offerArt(offer: Pick<OfferDefinition, "id" | "type">, size: 64 |
   if (offer.id.startsWith("pack_")) {
     return packArt(offer.id, size);
   }
-  return `/assets/njambo/books/card-back-${size}.webp`;
+  return sysAsset(`/assets/njambo/books/card-back-${size}.webp`);
 }
 
 export function rewardLabel(reward: Reward): string {
@@ -103,13 +104,13 @@ export function rewardLabel(reward: Reward): string {
 }
 
 export function rewardIconSrc(reward: Reward): string {
-  if (reward.type === "nkap") return "/assets/njambo/economy/nkap-stack-64.webp";
-  if (reward.type === "cauris") return "/assets/njambo/economy/cauris-pouch-64.webp";
+  if (reward.type === "nkap") return sysAsset("/assets/njambo/economy/nkap-stack-64.webp");
+  if (reward.type === "cauris") return sysAsset("/assets/njambo/economy/cauris-pouch-64.webp");
   if (reward.type === "ticket") return TICKET_TIERS_META[reward.tier]?.art64 ?? TICKET_TIERS_META.bronze.art64;
-  if (reward.type === "energy_pass") return "/assets/njambo/economy/energy-flask-64.webp";
+  if (reward.type === "energy_pass") return sysAsset("/assets/njambo/economy/energy-flask-64.webp");
   if (reward.type === "booster_book") return boosterBookArt(reward.boosterId, 128);
   if (reward.type === "cosmetic" && reward.imageUrl) return reward.imageUrl;
-  return "/assets/njambo/books/card-back-128.webp";
+  return sysAsset("/assets/njambo/books/card-back-128.webp");
 }
 
 export function rewardDeliveryNote(reward: Reward): string {
