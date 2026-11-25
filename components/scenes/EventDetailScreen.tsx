@@ -25,6 +25,7 @@ import { useEventLeaderboard } from "@/hooks/useEventLeaderboard";
 import { EventLeaderboardPanel } from "./EventLeaderboardPanel";
 import { EventBossIntro } from "./EventBossIntro";
 import { EventChallenges, useEventChallenges } from "./EventChallenges";
+import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import { LOSE_SOUND, WIN_SOUND } from "@/lib/gxeSfx";
 import { EventOutcomeOverlay, resolveEventOutcome, type EventOutcome } from "./EventOutcomeOverlay";
 import styles from "./EventDetailScreen.module.css";
@@ -174,7 +175,10 @@ export function EventDetailScreen({
       if (result.kind === "life_lost" || result.kind === "eliminated") {
         setBreakingLifeIndex(Math.max(0, event.allowedLosses - result.losses));
       }
-      gxeSfx.playChime(result.kind === "advance" || result.kind === "completed" ? WIN_SOUND : LOSE_SOUND);
+      playGameSound(result.kind === "advance" || result.kind === "completed" ? "event_advance" : "event_fail");
+      void gxeSfx;
+      void WIN_SOUND;
+      void LOSE_SOUND;
       return;
     }
     if (outcomeTimerRef.current === null) {

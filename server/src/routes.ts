@@ -1,5 +1,6 @@
 import type { CallableRequest } from "firebase-functions/v2/https";
 import { saveGameplayConfigHandler } from "../../functions/src/gameplayCommands";
+import { saveAudioConfigHandler } from "../../functions/src/audioCommands";
 import {
   buyBoosterBookHandler,
   buyDailyGridSlotHandler,
@@ -131,6 +132,7 @@ type Handler = (request: CallableRequest<unknown>) => Promise<unknown>;
 
 export const commands: Record<string, Handler> = {
   saveGameplayConfig: saveGameplayConfigHandler,
+  saveAudioConfig: saveAudioConfigHandler,
   // Assistant IA de la console admin (serveur seulement : clés des fournisseurs dans server/.env)
   aiAssistantConfig: aiAssistantConfigHandler,
   aiAssistantConversations: aiAssistantConversationsHandler,

@@ -11,3 +11,4 @@ export * from "./eventChallenges";
 export * from "./changelog";
 export * from "./minigames";
 export * from "./assetPacks";
+export * from "./audioCatalog";

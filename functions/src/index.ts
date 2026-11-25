@@ -1,6 +1,7 @@
 import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall } from "firebase-functions/v2/https";
 import { saveGameplayConfigHandler } from "./gameplayCommands";
+import { saveAudioConfigHandler } from "./audioCommands";
 
 setGlobalOptions({ region: "africa-south1", maxInstances: 20, memory: "256MiB", timeoutSeconds: 60 });
 
@@ -149,6 +150,7 @@ export const startSkillGame = onCall(callable, startSkillGameHandler);
 export const finishSkillGame = onCall(callable, finishSkillGameHandler);
 export const equipPowerCards = onCall(callable, equipPowerCardsHandler);
 export const saveGameplayConfig = onCall(callable, saveGameplayConfigHandler);
+export const saveAudioConfig = onCall(callable, saveAudioConfigHandler);
 export const advanceMatchRound = onCall(callable, advanceMatchRoundHandler);
 export const joinEvent = onCall(callable, joinEventHandler);
 export const leaveEvent = onCall(callable, leaveEventHandler);

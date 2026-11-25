@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
-import { ASSET_PACKS, DEFAULT_ASSET_PACK, assetPackUrl, readAssetPack, readAssetPacks, resolveAssetUrl, crispAssetUrl } from "@/domain/assetPacks";
+import sharp from "sharp";
+import { assetPacksForScope, DEFAULT_ASSET_PACK, assetPackUrl, readAssetPack, readAssetPacks, resolveAssetUrl, crispAssetUrl } from "@/domain/assetPacks";
 
 const SYSTEM_ASSETS = [
   "economy/nkap", "economy/nkap-stack", "economy/cauri", "economy/cauris-pouch", "economy/energy-flask", "economy/loyalty-wheel",
@@ -29,7 +31,7 @@ describe("packs d'assets système", () => {
 
   it("fournit chaque asset système dans toutes les tailles pour chaque pack", () => {
     const missing: string[] = [];
-    for (const pack of ASSET_PACKS) {
+    for (const pack of assetPacksForScope("system")) {
       for (const asset of SYSTEM_ASSETS) {
         for (const suffix of ["", "-64", "-128", "-256"]) {
           const url = assetPackUrl(`/assets/njambo/${asset}${suffix}.webp`, pack.id);
@@ -45,7 +47,7 @@ describe("packs d'assets système", () => {
     expect(resolveAssetUrl("/assets/njambo/economy/nkap-64.webp", selection)).toBe("/assets/njambo/packs/wax/economy/nkap-64.webp");
     expect(resolveAssetUrl("/assets/njambo/ui/icons/home-64.webp", selection)).toBe("/assets/njambo/packs/cristal/ui/icons/home-64.webp");
     expect(resolveAssetUrl("/assets/njambo/ui/brand/njambo-mark-128.webp", selection)).toBe("/assets/njambo/ui/brand/njambo-mark-128.webp");
-    expect(readAssetPacks({ pack: "wax", uiPack: "soleil" })).toEqual({ system: "wax", interface: "soleil" });
+    expect(readAssetPacks({ pack: "wax", uiPack: "soleil" })).toEqual({ system: "wax", interface: "soleil", powers: "classique" });
   });
 
   it("fournit chaque asset d'interface pour chaque pack", () => {
@@ -59,7 +61,7 @@ describe("packs d'assets système", () => {
       ...["mode-online", "mode-ai", "mode-friends"].flatMap((mode) => [`menu/${mode}.webp`, `menu/${mode}-480.webp`]),
     ];
     const missing: string[] = [];
-    for (const pack of ASSET_PACKS) {
+    for (const pack of assetPacksForScope("system")) {
       for (const path of paths) {
         const url = assetPackUrl(`/assets/njambo/${path}`, pack.id, "interface");
         if (!existsSync(join(process.cwd(), "public", url))) missing.push(url);
@@ -73,5 +75,43 @@ describe("packs d'assets système", () => {
     expect(crispAssetUrl("/assets/njambo/packs/wax/ranks/rank-mboa-128.webp")).toBe("/assets/njambo/packs/wax/ranks/rank-mboa-256.webp");
     expect(crispAssetUrl("/assets/njambo/ui/icons/coin-64.webp")).toBe("/assets/njambo/ui/icons/coin-128.webp");
     expect(crispAssetUrl("/assets/njambo/economy/loyalty-wheel.webp")).toBe("/assets/njambo/economy/loyalty-wheel.webp");
+  });
+
+  it("livre les nouveaux packs avec des images nettes et un vrai fond transparent", async () => {
+    const packs = assetPacksForScope("system").filter((pack) => !["classique", "soleil", "wax", "cristal"].includes(pack.id));
+    for (const pack of packs) {
+      for (const asset of SYSTEM_ASSETS) {
+        const file = join(process.cwd(), "public", assetPackUrl("/assets/njambo/" + asset + "-256.webp", pack.id));
+        const metadata = await sharp(file).metadata();
+        expect([metadata.width, metadata.height, metadata.hasAlpha], file).toEqual([256, 256, true]);
+        const { data, info } = await sharp(file).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+        // Opaque presentation-board backgrounds must never become item sprites.
+        const corners = [0, info.width - 1, (info.height - 1) * info.width, info.width * info.height - 1];
+        expect(corners.every((pixel) => data[pixel * 4 + 3] === 0), file).toBe(true);
+        expect(data.some((value, index) => index % 4 === 3 && value > 200), file).toBe(true);
+      }
+      for (const name of ["home", "trophy", "settings", "friends", "star"]) {
+        const file = join(process.cwd(), "public/assets/njambo/packs", pack.id, "ui/icons", name + "-128.webp");
+        const metadata = await sharp(file).metadata();
+        expect([metadata.width, metadata.height, metadata.hasAlpha], file).toEqual([128, 128, true]);
+      }
+    }
+  }, 30_000);
+
+  it("distingue visuellement les paliers de tickets, de livres et de rangs", () => {
+    const groups = [
+      ["tickets/ticket-bronze", "tickets/ticket-argent", "tickets/ticket-or"],
+      ["books/book-normal", "books/book-rare", "books/book-exceptionnel"],
+      SYSTEM_ASSETS.filter((asset) => asset.startsWith("ranks/")),
+    ];
+    for (const pack of assetPacksForScope("system")) {
+      for (const assets of groups) {
+        const hashes = assets.map((asset) => {
+          const file = join(process.cwd(), "public", assetPackUrl("/assets/njambo/" + asset + "-128.webp", pack.id));
+          return createHash("sha256").update(readFileSync(file)).digest("hex");
+        });
+        expect(new Set(hashes).size, pack.id + ": " + assets.join(", ")).toBe(assets.length);
+      }
+    }
   });
 });

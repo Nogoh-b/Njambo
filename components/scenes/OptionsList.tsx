@@ -4,9 +4,11 @@
    Tient sur un seul écran mobile, sans défilement. */
 
 import { useState } from "react";
+import { useSfx } from "@gxe/react";
 import { useGame } from "@/contexts/GameContext";
 import { useSettings, type MotionQualityPreference } from "@/contexts/SettingsContext";
 import { NjamboIcon, type NjamboIconName, type NjamboIconTone } from "@/components/ui/Art";
+import { UI_CLICK_SOUND } from "@/lib/gxeSfx";
 import { useEventAlerts } from "./EventAlertsToggle";
 import styles from "./OptionsList.module.css";
 
@@ -24,13 +26,17 @@ const QUALITY: Array<{ id: MotionQualityPreference; label: string; hint: string 
 ];
 
 function useOptionsModel() {
-  const { navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn } = useGame();
+  const {
+    navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn,
+    musicVolume, setMusicVolume, sfxVolume, setSfxVolume,
+  } = useGame();
   const { animationsOn, setAnimationsOn, motionQuality, setMotionQuality } = useSettings();
   const alerts = useEventAlerts();
   const [language, setLanguage] = useState("Français");
   const qualityHint = QUALITY.find((q) => q.id === motionQuality)?.hint ?? "";
   return {
-    navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn, animationsOn, setAnimationsOn,
+    navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn, musicVolume, setMusicVolume,
+    sfxVolume, setSfxVolume, animationsOn, setAnimationsOn,
     motionQuality, setMotionQuality, alerts, language, setLanguage, qualityHint,
   };
 }
@@ -83,14 +89,42 @@ function Row({ icon, tone, label, caption, on, onToggle, disabled }: {
   );
 }
 
+function VolumeSlider({
+  label, value, disabled, onChange, onCommit,
+}: { label: string; value: number; disabled?: boolean; onChange: (v: number) => void; onCommit?: () => void }) {
+  const pct = Math.round(value * 100);
+  return (
+    <div className={`${styles.volumeRow}${disabled ? ` ${styles.dimmed}` : ""}`}>
+      <span className={styles.volumeLabel}>{label}</span>
+      <input
+        type="range"
+        min={0}
+        max={100}
+        step={5}
+        value={pct}
+        disabled={disabled}
+        aria-label={label}
+        className={styles.volumeSlider}
+        onChange={(e) => onChange(Number(e.target.value) / 100)}
+        onPointerUp={onCommit}
+        onKeyUp={onCommit}
+      />
+      <span className={styles.volumePct}>{pct}%</span>
+    </div>
+  );
+}
+
 export function OptionsList() {
   const m = useOptionsModel();
+  const sfx = useSfx();
   return (
     <div className={styles.listBoard}>
       <section className={styles.group} aria-label="Son et alertes">
         <h2 className={styles.groupTitle}>Son &amp; alertes</h2>
-        <Row icon="music" tone="gold" label="Musique" caption="Ambiance légère de table" on={m.musicOn} onToggle={() => m.setMusicOn(!m.musicOn)} />
-        <Row icon="sound" tone="gold" label="Effets sonores" caption="Cartes, timer et victoires" on={m.sfxOn} onToggle={() => m.setSfxOn(!m.sfxOn)} />
+        <Row icon="music" tone="gold" label="Musique" caption="Ambiance Afro-Lounge Royal & table" on={m.musicOn} onToggle={() => m.setMusicOn(!m.musicOn)} />
+        <VolumeSlider label="Volume musique" value={m.musicVolume} disabled={!m.musicOn} onChange={m.setMusicVolume} />
+        <Row icon="sound" tone="gold" label="Effets sonores" caption="Cartes, pouvoirs, pièces et victoires" on={m.sfxOn} onToggle={() => { const next = !m.sfxOn; m.setSfxOn(next); if (next) setTimeout(() => sfx.play(UI_CLICK_SOUND), 40); }} />
+        <VolumeSlider label="Volume effets" value={m.sfxVolume} disabled={!m.sfxOn} onChange={m.setSfxVolume} onCommit={() => sfx.play(UI_CLICK_SOUND)} />
         <Row icon="notification" tone="gold" label="Alertes d’événements" caption={m.alerts.caption} on={m.alerts.on} disabled={m.alerts.guest} onToggle={() => m.alerts.setOn(!m.alerts.on)} />
       </section>
 

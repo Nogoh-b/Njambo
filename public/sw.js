@@ -1,10 +1,11 @@
 const STATIC_CACHE = "njambo-static-v2";
 const NOTIFICATION_ICON = "/assets/njambo/card-back.webp";
 const IMAGE_CACHE = "njambo-images-v3";
+const AUDIO_CACHE = "njambo-audio-v1";
 const PAGE_CACHE = "njambo-pages-v2";
 // Images et sons uploadés depuis l'admin (VPS, /uploads/<uuid>.<ext> : noms immuables).
 const UPLOAD_CACHE = "njambo-uploads-v1";
-const CACHES = [STATIC_CACHE, IMAGE_CACHE, PAGE_CACHE, UPLOAD_CACHE];
+const CACHES = [STATIC_CACHE, IMAGE_CACHE, AUDIO_CACHE, PAGE_CACHE, UPLOAD_CACHE];
 const SHELL = ["/", "/manifest.webmanifest"];
 
 async function trim(cacheName, maxEntries) {
@@ -52,6 +53,20 @@ self.addEventListener("fetch", (event) => {
       if (response.ok) {
         await cache.put(event.request, response.clone());
         void trim(STATIC_CACHE, 120);
+      }
+      return response;
+    }));
+    return;
+  }
+
+  if (/\.(?:mp3|ogg|wav|m4a)$/i.test(url.pathname)) {
+    event.respondWith(caches.open(AUDIO_CACHE).then(async (cache) => {
+      const cached = await cache.match(event.request);
+      if (cached) return cached;
+      const response = await fetch(event.request);
+      if (response.ok) {
+        await cache.put(event.request, response.clone());
+        void trim(AUDIO_CACHE, 80);
       }
       return response;
     }));

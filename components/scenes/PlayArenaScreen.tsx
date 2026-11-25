@@ -85,9 +85,9 @@ const TABLE_SIZES = [
 ] as const;
 
 const STAKE_ART = [
-  { src: sysAsset("/assets/njambo/economy/nkap-64.webp"), count: 1 },
-  { src: sysAsset("/assets/njambo/economy/nkap-stack-64.webp"), count: 1 },
-  { src: sysAsset("/assets/njambo/economy/nkap-stack-64.webp"), count: 2 },
+  { get src() { return sysAsset("/assets/njambo/economy/nkap-64.webp"); }, count: 1 },
+  { get src() { return sysAsset("/assets/njambo/economy/nkap-stack-64.webp"); }, count: 1 },
+  { get src() { return sysAsset("/assets/njambo/economy/nkap-stack-64.webp"); }, count: 2 },
 ] as const;
 
 const ONLINE_SEAT_SEEDS = ["avatar-douala", "avatar-bamoun", "avatar-beti"] as const;

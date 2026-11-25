@@ -1,12 +1,12 @@
 "use client";
 
-/* Choix des packs d'assets utilisés dans tout le jeu, en deux réglages
+/* Choix des packs d'assets utilisés dans tout le jeu, en trois réglages
    indépendants : assets système (monnaies, énergie, roue, packs boutique,
    tickets, livres, rangs) et interface (icônes, navigation, cadres de boutons,
-   cartes de modes de jeu). Les autres packs restent installés. */
+   cartes de modes de jeu), et illustrations des cartes Pouvoir. */
 
 import { useState } from "react";
-import { ASSET_PACKS, assetPackUrl, type AssetPackId, type AssetPackScope } from "@/domain/assetPacks";
+import { ASSET_PACKS, assetPackUrl, assetPacksForScope, isPortraitPowerPack, type AssetPackId, type AssetPackScope } from "@/domain/assetPacks";
 import { setAssetPacks, useAssetPacks } from "@/lib/assetPack";
 import { useAssetPackSync } from "@/hooks/useAssetPackSync";
 import { adminApi, adminErrorText } from "./adminApi";
@@ -37,6 +37,18 @@ const SECTIONS: Record<AssetPackScope, { title: string; hint: string; preview: s
       "/assets/njambo/ui/buttons/icon-plate-128.webp",
     ],
   },
+  powers: {
+    title: "Pack de cartes Pouvoir",
+    hint: "Illustrations des 21 cartes Pouvoir intégrées. Les images personnalisées restent prioritaires.",
+    preview: [
+      "/assets/power-cards/v2/oeil_sorcier.webp",
+      "/assets/power-cards/v2/tambour_appel.webp",
+      "/assets/power-cards/v2/bouclier_village.webp",
+      "/assets/power-cards/v2/masque_bluffeur.webp",
+      "/assets/power-cards/v2/cauris_chanceux.webp",
+      "/assets/power-cards/v2/totem_ancetres.webp",
+    ],
+  },
 };
 
 function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPackId }) {
@@ -51,7 +63,7 @@ function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPa
       await adminApi.saveAssetPack(pack, scope);
       setAssetPacks({ [scope]: pack });
       const name = ASSET_PACKS.find((item) => item.id === pack)?.name ?? pack;
-      setMessage({ kind: "ok", text: `« ${name} » activé pour tous les joueurs. Il s'affiche au fil des écrans, et partout au prochain lancement du jeu.` });
+      setMessage({ kind: "ok", text: `« ${name} » activé pour tous les joueurs. Il s'affiche tout de suite sur tous les écrans, sans relancer le jeu.` });
     } catch (error) {
       setMessage({ kind: "error", text: `Activation impossible : ${adminErrorText(error)}` });
     } finally {
@@ -67,7 +79,7 @@ function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPa
       </p>
       {message && <div className={`${styles.notice} ${styles[message.kind]}`}>{message.text}</div>}
       <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(230px, 1fr))", gap: 12 }}>
-        {ASSET_PACKS.map((pack) => {
+        {assetPacksForScope(scope).map((pack) => {
           const isActive = pack.id === active;
           return (
             <div
@@ -78,10 +90,14 @@ function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPa
               }}
             >
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, background: "#0c0906", borderRadius: 8, padding: 6 }}>
-                {section.preview.map((path) => (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img key={path} src={assetPackUrl(path, pack.id, scope)} alt="" width={64} height={64} style={{ width: "100%", height: "auto" }} />
-                ))}
+                {section.preview.map((path) => {
+                  const url = assetPackUrl(path, pack.id, scope);
+                  const thumbnail = scope === "powers" && pack.id !== "classique" ? url.replace(/\.webp$/, "-256.webp") : url;
+                  return (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img key={path} src={thumbnail} alt="" loading="lazy" width={64} height={isPortraitPowerPack(pack.id) ? 96 : 64} style={{ width: "100%", height: "auto" }} />
+                  );
+                })}
               </div>
               <div>
                 <strong>{pack.name}</strong>{isActive && <span style={{ color: "#f2bb45", marginLeft: 8 }}>● actif</span>}
@@ -110,6 +126,14 @@ export function AssetPackPanel() {
     <>
       <PackSection scope="system" active={active.system} />
       <PackSection scope="interface" active={active.interface} />
+      <PackSection scope="powers" active={active.powers} />
     </>
   );
+}
+
+/** Même sélecteur dans la section Cartes de pouvoir. */
+export function PowerArtPackPanel() {
+  useAssetPackSync();
+  const active = useAssetPacks();
+  return <PackSection scope="powers" active={active.powers} />;
 }

@@ -14,7 +14,7 @@ import { SocialActions } from "@/components/social/SocialActions";
 import styles from "./LobbyScreen.module.css";
 import { sysAsset } from "@/lib/assetPack";
 
-const NKAP_COIN_SRC = sysAsset("/assets/njambo/economy/nkap-64.webp");
+const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
 
 interface LobbyScreenProps {
   onGameStart: () => void;
@@ -159,7 +159,7 @@ export function LobbyScreen({ onGameStart, onBack, onBackRequestRef }: LobbyScre
         <div className={styles.stakeCard}>
           <span className={styles.cardKicker}>Mise par manche</span>
           <div className={styles.stakeValueRow}>
-            <img src={NKAP_COIN_SRC} alt="" className={styles.stakeCoin} draggable={false} />
+            <img src={sysAsset(NKAP_COIN_SRC)} alt="" className={styles.stakeCoin} draggable={false} />
             <span className={styles.stakeValue}>
               {stake > 0 ? NKAP(stake) : "Amicale"}
             </span>

@@ -15,6 +15,7 @@ export type ChangelogAdminSection =
   | "cosmetics"
   | "powers"
   | "animations"
+  | "audio"
   | "assistant"
   | "notifications"
   | "players"

@@ -36,7 +36,7 @@ export const GAME_MODE_CATALOG: ReadonlyArray<GameModeCatalogEntry> = [
     homeDescription: "Affronte le Ter et fais monter ton rang",
     icon: "online",
     tone: "teal",
-    art: sysAsset("/assets/njambo/menu/mode-online.webp"),
+    get art() { return sysAsset("/assets/njambo/menu/mode-online.webp"); },
     primary: true,
     guestAllowed: false,
     chips: [
@@ -55,7 +55,7 @@ export const GAME_MODE_CATALOG: ReadonlyArray<GameModeCatalogEntry> = [
     homeDescription: "Entraîne ton jeu à ton rythme",
     icon: "bot",
     tone: "gold",
-    art: sysAsset("/assets/njambo/menu/mode-ai.webp"),
+    get art() { return sysAsset("/assets/njambo/menu/mode-ai.webp"); },
     guestAllowed: true,
     chips: [
       { label: "5 énergie", icon: "spark" },
@@ -73,7 +73,7 @@ export const GAME_MODE_CATALOG: ReadonlyArray<GameModeCatalogEntry> = [
     homeDescription: "Invite ta bande autour de la table",
     icon: "friends",
     tone: "pink",
-    art: sysAsset("/assets/njambo/menu/mode-friends.webp"),
+    get art() { return sysAsset("/assets/njambo/menu/mode-friends.webp"); },
     guestAllowed: false,
     chips: [
       { label: "10 énergie", icon: "spark" },

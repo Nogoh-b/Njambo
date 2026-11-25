@@ -37,8 +37,8 @@ export interface Seat {
   y: string;
 }
 
-const NKAP_COIN_SRC = sysAsset("/assets/njambo/economy/nkap-64.webp");
-const NKAP_STACK_SRC = sysAsset("/assets/njambo/economy/nkap-stack-64.webp");
+const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
+const NKAP_STACK_SRC = "/assets/njambo/economy/nkap-stack-64.webp";
 
 /** Budget de pièces Nkap en vol vers le vainqueur selon le profil de fluidité.
  *  Le transfert Nkap joue sur TOUS les profils actifs (seul « mouvement réduit »
@@ -238,7 +238,7 @@ export function SettlementArena({
           token.textContent = "♛";
         } else {
           const img = document.createElement("img");
-          img.src = NKAP_COIN_SRC;
+          img.src = sysAsset(NKAP_COIN_SRC);
           img.alt = "";
           img.draggable = false;
           img.className = styles.nkapCoinImg;
@@ -513,7 +513,7 @@ export function SettlementArena({
           {potTotal > 0 ? (
             <>
               <img
-                src={NKAP_STACK_SRC}
+                src={sysAsset(NKAP_STACK_SRC)}
                 alt=""
                 className={styles.potCoinImg}
                 draggable={false}
@@ -582,7 +582,7 @@ export function SettlementArena({
                   }`}
                   aria-hidden="true"
                 >
-                  <img src={NKAP_COIN_SRC} alt="" className={styles.nkapMiniIcon} draggable={false} />
+                  <img src={sysAsset(NKAP_COIN_SRC)} alt="" className={styles.nkapMiniIcon} draggable={false} />
                   <span ref={(node) => { if (node) deltaRefs.current.set(seat.playerIdx, node); }}>
                     {signedNkap(displayDelta)}
                   </span>

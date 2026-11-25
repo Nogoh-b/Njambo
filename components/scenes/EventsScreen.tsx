@@ -46,9 +46,9 @@ const EVENT_STATES: Record<EventState, { label: string; className: string }> = {
 };
 
 const TICKET_ART: Record<"bronze" | "argent" | "or", string> = {
-  bronze: sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
-  argent: sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
-  or: sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
+  get bronze() { return sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"); },
+  get argent() { return sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"); },
+  get or() { return sysAsset("/assets/njambo/tickets/ticket-or-64.webp"); },
 };
 
 function rewardVisual(reward: Reward): { src: string; label: string } {

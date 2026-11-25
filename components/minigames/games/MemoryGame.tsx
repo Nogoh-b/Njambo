@@ -14,12 +14,12 @@ import { sysAsset } from "@/lib/assetPack";
 
 const game = MINI_GAMES_BY_ID.memory;
 const SYMBOLS = [
-  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
-  sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
-  sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
-  sysAsset("/assets/njambo/books/book-normal-64.webp"),
-  sysAsset("/assets/njambo/economy/cauri-64.webp"),
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/economy/cauris-pouch-64.webp",
+  "/assets/njambo/economy/energy-flask-64.webp",
+  "/assets/njambo/tickets/ticket-bronze-64.webp",
+  "/assets/njambo/books/book-normal-64.webp",
+  "/assets/njambo/economy/cauri-64.webp",
 ];
 
 function shuffled(): number[] {
@@ -132,7 +132,7 @@ export function MemoryGame({ mg, onReward, onError, onAuth, onOdds }: MiniGamePr
             >
               <span className={styles.memoryInner}>
                 <span className={styles.memoryBack} />
-                <span className={styles.memoryFront}><Image src={SYMBOLS[symbol]} alt="" width={40} height={40} /></span>
+                <span className={styles.memoryFront}><Image src={sysAsset(SYMBOLS[symbol])} alt="" width={40} height={40} /></span>
               </span>
             </button>
           );

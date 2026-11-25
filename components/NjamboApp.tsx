@@ -9,6 +9,7 @@ import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepL
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import { usePowerCatalogLoader, usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
 import { useAssetPackSync } from "@/hooks/useAssetPackSync";
+import { useAudioCatalogSync } from "@/hooks/useAudioCatalogSync";
 import { useMomentPreviewFromUrl, useMotifCatalogLoader, useStylePreviewFromUrl } from "@/hooks/useMotifCatalog";
 import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
@@ -123,8 +124,9 @@ function SceneRouter() {
   useStylePreviewFromUrl();
   usePowerCatalogLoader();
   usePowerCatalogRevision();
-  // Pack d'assets système choisi dans l'admin (monnaies, tickets, livres, rangs).
+  // Pack d'assets système + catalogue audio global choisis dans l'admin.
   useAssetPackSync();
+  useAudioCatalogSync();
 
   /* État partagé entre MatchLoadingScreen, TableScreen et ResultScreen */
   const [gameResult, setGameResult] = useState<Result | null>(null);

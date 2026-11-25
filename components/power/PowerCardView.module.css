@@ -68,6 +68,48 @@
   object-position: center 22%;
 }
 
+/* Les packs illustrés mettent leur sujet au premier plan ; les motifs de type
+   restent un décor discret et les noms conservent leur contraste. */
+.packedArt .artMask {
+  inset: 0 0 14%;
+  -webkit-mask-image: linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+  mask-image: linear-gradient(180deg, #000 0%, #000 64%, transparent 100%);
+}
+
+.packedArt .motifSvg {
+  opacity: 0.1;
+}
+
+.packedArt .artImg {
+  object-fit: contain;
+  object-position: center top;
+}
+
+.packedArt .bottomInfo {
+  background: linear-gradient(0deg, var(--c-bot, #090a12), transparent);
+}
+
+.card.portraitArt {
+  aspect-ratio: 2 / 3;
+}
+
+.portraitArt .artMask {
+  inset: 0;
+  mask-image: none;
+  -webkit-mask-image: none;
+}
+
+/* Les cartes portrait se lisent par leur illustration. Conserver le nom,
+   le type et la rareté pour les lecteurs d’écran. */
+.portraitArt .bottomInfo {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+}
+
 /* Grand motif Ndop plein-cadre coloré par type + rareté */
 .motifSvg {
   position: absolute;

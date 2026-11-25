@@ -13,6 +13,8 @@ import { rewardVisual } from "../eventRewards";
 import type { Reward } from "../../domain";
 import { audioAsset, imageAsset, type AssetRef } from "./AssetLoader";
 import { sysAsset } from "@/lib/assetPack";
+import { MENU_SFX_URLS, TABLE_SFX_URLS } from "@/lib/gxeSfx";
+import { defaultPowerSoundRef, resolvePowerSoundUrl } from "@/lib/powerSounds";
 
 export interface AssetManifest { critical: AssetRef[]; background: AssetRef[] }
 
@@ -30,14 +32,15 @@ export function cssVarUrl(name: string): string | null {
 export function powerCardAssets(cardId: PowerCardId): { images: AssetRef[]; sounds: AssetRef[] } {
   const entry = getPowerModule(cardId);
   if (!entry) return { images: [], sounds: [] };
-  const sounds: Array<AssetRef | null> = [audioAsset(entry.def.sound?.ref)];
+  const primaryRef = entry.def.sound?.ref ?? defaultPowerSoundRef(entry.def.id);
+  const sounds: Array<AssetRef | null> = [audioAsset(resolvePowerSoundUrl(primaryRef))];
   for (const step of entry.script?.steps ?? []) {
     for (const track of step.choreo?.tracks ?? []) {
-      if (track.kind === "sound") sounds.push(audioAsset(track.sound));
+      if (track.kind === "sound") sounds.push(audioAsset(resolvePowerSoundUrl(track.sound)));
     }
   }
   return {
-    images: [imageAsset(entry.def.art)].filter(Boolean) as AssetRef[],
+    images: [imageAsset(sysAsset(entry.def.art))].filter(Boolean) as AssetRef[],
     sounds: sounds.filter(Boolean) as AssetRef[],
   };
 }
@@ -116,7 +119,9 @@ export function tableAssetGroups(input: TableManifestInput = {}): TableAssetGrou
     imageAsset(cssVarUrl("--nj-hand-arc") ?? DEFAULT_HAND_ARC_ASSET),
     ...TABLE_UI_CRITICAL.map((url) => imageAsset(url)),
   ];
-  const powersRaw: Array<AssetRef | null> = [];
+  const powersRaw: Array<AssetRef | null> = [
+    ...TABLE_SFX_URLS.map((url) => audioAsset(url)),
+  ];
   for (const cardId of input.myPowers ?? []) {
     const assets = powerCardAssets(cardId);
     powersRaw.push(...assets.images, ...assets.sounds);
@@ -217,7 +222,10 @@ const MENU_BACKGROUND = [
 export function menuManifest(): AssetManifest {
   return {
     critical: MENU_CRITICAL.map((url) => imageAsset(url)!),
-    background: MENU_BACKGROUND.map((url) => imageAsset(url)!),
+    background: [
+      ...MENU_BACKGROUND.map((url) => imageAsset(url)!),
+      ...MENU_SFX_URLS.map((url) => audioAsset(url)!),
+    ],
   };
 }
 
@@ -311,7 +319,7 @@ const PROFILE_STATIC = [
 function powerCollectionManifest(): AssetManifest {
   const arts = listPowerModules()
     .filter((entry) => !entry.dev && !entry.def.archived)
-    .map((entry) => imageAsset(entry.def.art))
+    .map((entry) => imageAsset(sysAsset(entry.def.art)))
     .filter(Boolean) as AssetRef[];
   return {
     critical: arts.slice(0, 24),

@@ -52,6 +52,7 @@ export interface AdminEventStats {
 export interface AdminUpload {
   id: string;
   kind: string;
+  audioRole?: "sfx" | "music";
   path: string;
   url: string;
   width: number;
@@ -170,7 +171,9 @@ export const adminApi = {
   saveCosmetic: (cosmetic: CosmeticDefinition) => call<{ cosmetic: CosmeticDefinition }>("saveCosmetic", { cosmetic }),
   saveCosmeticDefaults: (defaults: { cardBack?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null; handArc?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null }) =>
     call<{ defaults: DefaultCosmeticsConfig }>("saveCosmeticDefaults", { defaults }),
-  saveAssetPack: (pack: string, scope: "system" | "interface") => call<{ pack: string; scope: string }>("saveAssetPack", { pack, scope }),
+  saveAssetPack: (pack: string, scope: "system" | "interface" | "powers") => call<{ pack: string; scope: string }>("saveAssetPack", { pack, scope }),
+  saveAudioConfig: (config: import("@/domain/audioCatalog").AudioCatalogConfig) =>
+    call<{ config: import("@/domain/audioCatalog").AudioCatalogConfig }>("saveAudioConfig", { config }),
   seasons: () => call<{ seasons: SeasonDefinition[]; now: number }>("listSeasons"),
   saveSeason: (season: SeasonDefinition) => call<{ season: SeasonDefinition }>("saveSeason", { season }),
   seasonStats: (seasonId: string) => call<{ players: number; premium: number; premiumRevenueXaf: number; averagePoints: number; tiers: Array<{ points: number; reached: number; claimedFree: number; claimedPremium: number }> }>("getSeasonStats", { seasonId }),
@@ -288,18 +291,20 @@ export async function uploadImage(file: File, kind: "event" | "boss" | "cosmetic
   return body as { url: string; path: string; width: number; height: number; bytes: number };
 }
 
-export async function uploadAudio(file: File) {
+export async function uploadAudio(file: File, role: "sfx" | "music" = "sfx") {
   const user = auth.currentUser;
   if (!user) throw new BackendError("unauthenticated", "AUTH_REQUIRED");
-  if (file.size > 500 * 1024) throw new BackendError("invalid-argument", "FILE_TOO_LARGE");
-  const response = await fetch(`${BACKEND_URL}/admin/upload-audio`, {
+  const maxBytes = role === "music" ? 6 * 1024 * 1024 : 500 * 1024;
+  if (file.size > maxBytes) throw new BackendError("invalid-argument", "FILE_TOO_LARGE");
+  const query = role === "music" ? "?kind=music" : "";
+  const response = await fetch(`${BACKEND_URL}/admin/upload-audio${query}`, {
     method: "POST",
     headers: { Authorization: `Bearer ${await user.getIdToken()}`, "Content-Type": file.type || "audio/mpeg" },
     body: file,
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new BackendError(body.code ?? "internal", body.message ?? `HTTP_${response.status}`);
-  return body as { url: string; path: string; durationMs: number | null; bytes: number; converted: boolean };
+  return body as { url: string; path: string; durationMs: number | null; bytes: number; converted: boolean; role?: "sfx" | "music" };
 }
 
 const ERROR_LABELS: Record<string, string> = {
@@ -330,10 +335,11 @@ const ERROR_LABELS: Record<string, string> = {
   EVENT_ID_TAKEN: "Cet identifiant est déjà utilisé.",
   NOTHING_SCHEDULED: "Aucune publication programmée.",
   ADMIN_REQUIRED: "Droits admin requis.",
-  FILE_TOO_LARGE: "Fichier trop lourd (image : 2 Mo, son : 500 Ko).",
+  FILE_TOO_LARGE: "Fichier trop lourd (image : 2 Mo, SFX : 500 Ko, musique : 6 Mo).",
+  INVALID_AUDIO_CONFIG: "La configuration audio contient une valeur invalide.",
   NOT_AN_AUDIO_FILE: "Ce fichier n’est pas un son MP3, OGG, WAV ou M4A.",
   UNREADABLE_AUDIO: "Son illisible.",
-  AUDIO_TOO_LONG: "Son trop long (60 s maximum avant découpe à 5 s).",
+  AUDIO_TOO_LONG: "Son trop long (SFX : 60 s max avant découpe à 5 s ; musique : 4 min max).",
   NOT_AN_IMAGE: "Ce fichier n'est pas une image PNG, JPEG ou WebP.",
   UNSUPPORTED_TYPE: "Format accepté : PNG, JPEG ou WebP.",
   UNREADABLE_IMAGE: "Image illisible.",

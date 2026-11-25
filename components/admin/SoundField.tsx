@@ -1,6 +1,6 @@
 "use client";
 
-/* Choix d'un son : préréglage de synthèse (aucun fichier) ou son uploadé
+/* Choix d'un son : préréglage studio IA (public/assets/njambo/audio/powers) ou son uploadé
    (MP3 / OGG / WAV / M4A ≤ 500 Ko → MP3 normalisé, 5 s max), bibliothèque,
    écoute et volume. Valeur : « preset:<nom> » ou URL. */
 
@@ -53,7 +53,7 @@ export function SoundField({ label, value, volume = 1, onChange, onVolume, error
       <span>{label}</span>
       <div className={styles.row}>
         <select className={styles.inlineSelect} value={presetValue} onChange={(e) => onChange(e.target.value || (allowNone ? undefined : "preset:pouvoir"))}>
-          {allowNone ? <option value="">{fileName ? `Fichier : ${fileName}` : "Son par défaut du jeu"}</option> : fileName ? <option value="">{`Fichier : ${fileName}`}</option> : null}
+          {allowNone ? <option value="">{fileName ? `Fichier : ${fileName}` : "Son commun de lancement (Sons & Audio)"}</option> : fileName ? <option value="">{`Fichier : ${fileName}`}</option> : null}
           {Object.entries(POWER_SOUND_PRESETS).map(([key, preset]) => <option key={key} value={`preset:${key}`}>♪ {preset.label}</option>)}
         </select>
         <button type="button" className={`${styles.btn} ${styles.small}`} disabled={!value} onClick={() => playPowerSound(value, volume)}>▶ Écouter</button>

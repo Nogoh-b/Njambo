@@ -20,6 +20,7 @@ import { CATEGORY_MOTIF_PALETTE } from "@/components/power/PowerCardMotif";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import { GameModal } from "@/components/ui/GameModal";
 import { NjamboIcon } from "@/components/ui/Art";
+import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import {
   BOOSTER_RARITY_LABELS,
   TICKET_TIERS_META,
@@ -197,6 +198,7 @@ export function CollectionItems({ compact = false, onNavigateAway }: CollectionI
     setBusy(`pack:${pack.packInstanceId}`);
     setOpeningCharge("pack");
     setNotice(null);
+    playGameSound("pack_open");
     try {
       const [result] = await Promise.all([
         command<{ title: string; rewards: Reward[] }>("openPack", {
@@ -230,6 +232,7 @@ export function CollectionItems({ compact = false, onNavigateAway }: CollectionI
     setBusy(`book:${boosterId}`);
     setOpeningCharge("book");
     setNotice(null);
+    playGameSound("booster_open");
     try {
       const [result] = await Promise.all([
         command<{ openingId: string; positions: number[] }>("openBoosterBook", {
@@ -272,12 +275,14 @@ export function CollectionItems({ compact = false, onNavigateAway }: CollectionI
         waitMs(motionProfile.enabled ? 360 : 0),
       ]);
       setBookOpening(null);
+      playGameSound("card_reveal");
       setCardReveal({
         cardId: result.reward.cardId,
         rarity: result.reward.rarity,
         duplicateCompensation: Number(result.duplicateCompensation ?? 0),
       });
     } catch {
+      playGameSound("ui_error");
       setNotice({ kind: "error", text: "Impossible de révéler cette carte. Réessaie." });
     } finally {
       setBusy(null);
@@ -288,6 +293,7 @@ export function CollectionItems({ compact = false, onNavigateAway }: CollectionI
     setBusy(`energy:${durationMinutes}`);
     setOpeningCharge("energy");
     setNotice(null);
+    playGameSound("energy_use");
     try {
       const [result] = await Promise.all([
         command<{ durationMinutes: number; unlimitedUntil: number }>("useEnergyPass", { durationMinutes }),

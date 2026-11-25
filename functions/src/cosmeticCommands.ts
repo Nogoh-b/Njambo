@@ -7,6 +7,7 @@ import {
   ASSET_PACK_DOC,
   ASSET_PACK_FIELD,
   isAssetPackId,
+  isAssetPackForScope,
   isAssetPackScope,
   COSMETIC_DEFAULTS_DOC,
   COSMETIC_RARITIES,
@@ -108,7 +109,7 @@ export async function saveCosmeticDefaultsHandler(request: CallableRequest<unkno
   });
 }
 
-/** Pack d'assets actif pour tout le jeu : « system » (monnaies, tickets, livres, rangs) ou « interface » (icônes, boutons, modes). */
+/** Pack actif pour un réglage : système, interface ou illustrations des cartes Pouvoir. */
 export async function saveAssetPackHandler(request: CallableRequest<unknown>) {
   const uid = requireAdmin(request);
   const data = asObject(request.data);
@@ -116,6 +117,7 @@ export async function saveAssetPackHandler(request: CallableRequest<unknown>) {
   const scope = data.scope ?? "system";
   if (!isAssetPackId(pack)) throw new HttpsError("invalid-argument", "ASSET_PACK_UNKNOWN");
   if (!isAssetPackScope(scope)) throw new HttpsError("invalid-argument", "ASSET_PACK_SCOPE_UNKNOWN");
+  if (!isAssetPackForScope(pack, scope)) throw new HttpsError("invalid-argument", "ASSET_PACK_SCOPE_MISMATCH");
   const field = ASSET_PACK_FIELD[scope];
   return runIdempotent(uid, "saveAssetPack", data.idempotencyKey, async (transaction, now) => {
     transaction.set(db.doc(`runtime_config/${ASSET_PACK_DOC}`), { [field]: pack, updatedAt: now, updatedBy: uid }, { merge: true });

@@ -8,6 +8,7 @@
    l'assistant écrit son brouillon. */
 
 import { PowerSandbox } from "./PowerSandbox";
+import { PowerArtPackPanel } from "./AssetPackPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangelogAdminSection } from "@/domain";
 import { PowerCardView } from "@/components/power/PowerCardView";
@@ -140,6 +141,7 @@ export function PowerCardsAdmin({ onOpenSection }: { onOpenSection?(section: Cha
         </div>
       </div>
       {notice && <div className={`${styles.notice} ${styles[notice.kind]}`}>{notice.text}</div>}
+      <PowerArtPackPanel />
       {!seeded && (
         <section className={styles.panel}>
           <h2>Première mise en route</h2>

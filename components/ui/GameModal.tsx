@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "motion/react";
 import { useMotionProfile } from "@/lib/motion";
 import { registerModalBackHandler } from "@/lib/navigation";
+import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import styles from "./GameModal.module.css";
 
 export type GameModalTone = "gold" | "teal" | "pink" | "palm";
@@ -65,7 +66,17 @@ export function GameModal({
   const titleId = `game-modal-${useId().replaceAll(":", "")}`;
   const motionProfile = useMotionProfile();
   const onCloseRef = useRef(onClose);
+  const wasOpenRef = useRef(false);
   onCloseRef.current = onClose;
+
+  useEffect(() => {
+    if (open && !wasOpenRef.current) {
+      playGameSound("ui_modal_open");
+    } else if (!open && wasOpenRef.current) {
+      playGameSound("ui_modal_close");
+    }
+    wasOpenRef.current = open;
+  }, [open]);
 
   useEffect(() => {
     if (!open) return;
@@ -138,6 +149,7 @@ export function GameModal({
               </div>
               <button
                 data-nj-skin="none"
+                data-sound="off"
                 type="button"
                 className={styles.closeBtn}
                 onClick={onClose}

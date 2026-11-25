@@ -28,22 +28,22 @@ export const TICKET_TIERS_META: Record<TicketTier, { label: string; shortLabel: 
     label: "Ticket Bronze",
     shortLabel: "Bronze",
     description: "Donne accès à un événement du Ter compatible au palier Bronze (1 ticket = 1 parcours complet).",
-    art64: sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
-    art256: sysAsset("/assets/njambo/tickets/ticket-bronze-256.webp"),
+    get art64() { return sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"); },
+    get art256() { return sysAsset("/assets/njambo/tickets/ticket-bronze-256.webp"); },
   },
   argent: {
     label: "Ticket Argent",
     shortLabel: "Argent",
     description: "Donne accès à un événement du Ter compatible au palier Argent avec récompenses relevées.",
-    art64: sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
-    art256: sysAsset("/assets/njambo/tickets/ticket-argent-256.webp"),
+    get art64() { return sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"); },
+    get art256() { return sysAsset("/assets/njambo/tickets/ticket-argent-256.webp"); },
   },
   or: {
     label: "Ticket Or",
     shortLabel: "Or",
     description: "Donne accès aux grands tournois et événements prestigieux du Ter au palier Or.",
-    art64: sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
-    art256: sysAsset("/assets/njambo/tickets/ticket-or-256.webp"),
+    get art64() { return sysAsset("/assets/njambo/tickets/ticket-or-64.webp"); },
+    get art256() { return sysAsset("/assets/njambo/tickets/ticket-or-256.webp"); },
   },
 };
 

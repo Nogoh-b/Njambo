@@ -1,41 +1,112 @@
 /* ═══════════════ Sons des cartes pouvoir ═══════════════
-   Référence de son : « preset:<nom> » (synthèse, aucun fichier) ou URL
-   d'un fichier uploadé depuis l'admin (MP3 sur le VPS). Partagé par
-   l'orchestrateur (son d'activation), les chorégraphies (pistes son),
-   l'admin (écoute) et le chargeur d'assets (préchargement). */
+   Référence de son : « preset:<nom> » (fichiers audio studio dans
+   `public/assets/njambo/audio/powers/<nom>.mp3`, harmonisés sur le pack
+   NJAMBO 96 BPM Cmaj9/Am9) ou URL d'un fichier uploadé depuis l'admin
+   (MP3 sur le VPS). Partagé par l'orchestrateur (son d'activation), les
+   chorégraphies (pistes son), l'admin (écoute) et le chargeur d'assets. */
 
-import { playAudioSample, playChimeNow, preloadAudioSample, type ChimeSpec } from "./gxe/react";
+import { playAudioSample, preloadAudioSample, type ChimeSpec } from "./gxe/react";
 
-const n = (frequencyHz: number, durationMs: number, type: OscillatorType, gain: number, delayMs = 0) => ({ frequencyHz, durationMs, type, gain, delayMs });
+export interface PowerSoundPreset {
+  label: string;
+  sampleUrl: string;
+  duckMusicMs: number;
+  /** Conservé pour rétrocompatibilité de type avec les anciens consommateurs. */
+  spec: ChimeSpec;
+}
 
-export const POWER_SOUND_PRESETS: Record<string, { label: string; spec: ChimeSpec }> = {
-  pouvoir: { label: "Pouvoir (son par défaut)", spec: { notes: [n(523, 120, "triangle", 0.07), n(659, 120, "triangle", 0.07, 90), n(784, 220, "triangle", 0.08, 180)] } },
-  tambour: { label: "Tambour", spec: { notes: [n(90, 140, "sine", 0.22), n(70, 160, "sine", 0.2, 160), n(110, 120, "sine", 0.18, 300)] } },
-  eclair: { label: "Éclair", spec: { notes: [n(1400, 60, "sawtooth", 0.05), n(220, 300, "square", 0.06, 50), n(110, 400, "sawtooth", 0.05, 120)] } },
-  vent: { label: "Vent", spec: { notes: [n(300, 500, "sine", 0.04), n(420, 500, "sine", 0.03, 150), n(360, 600, "sine", 0.03, 320)] } },
-  givre: { label: "Givre", spec: { notes: [n(1760, 90, "sine", 0.05), n(2093, 90, "sine", 0.05, 70), n(2637, 160, "sine", 0.05, 140), n(3136, 260, "sine", 0.04, 220)] } },
-  gong: { label: "Gong", spec: { notes: [n(196, 900, "sine", 0.12), n(392, 700, "sine", 0.05, 10), n(588, 500, "sine", 0.03, 20)] } },
-  pieces: { label: "Pièces", spec: { notes: [n(1318, 70, "square", 0.04), n(1568, 70, "square", 0.04, 80), n(2093, 120, "square", 0.04, 160)] } },
-  magie: { label: "Magie", spec: { notes: [n(659, 150, "sine", 0.06), n(880, 150, "sine", 0.06, 100), n(1175, 150, "sine", 0.06, 200), n(1568, 300, "sine", 0.06, 300)] } },
-  alarme: { label: "Alarme", spec: { notes: [n(880, 120, "square", 0.05), n(660, 120, "square", 0.05, 150), n(880, 120, "square", 0.05, 300), n(660, 120, "square", 0.05, 450)] } },
-  sceau: { label: "Sceau", spec: { notes: [n(150, 80, "square", 0.12), n(100, 220, "triangle", 0.12, 60)] } },
-  souffle: { label: "Souffle du temps", spec: { notes: [n(523, 400, "sine", 0.05), n(392, 400, "sine", 0.05, 200), n(262, 600, "sine", 0.05, 400)] } },
+const POWER_AUDIO_BASE = "/assets/njambo/audio/powers";
+
+function preset(key: string, label: string, duckMusicMs = 1350): PowerSoundPreset {
+  const sampleUrl = `${POWER_AUDIO_BASE}/${key}.mp3`;
+  return {
+    label,
+    sampleUrl,
+    duckMusicMs,
+    spec: { sampleUrl, volume: 1, duckMusicMs, duckDepth: 0.35, notes: [] },
+  };
+}
+
+/** Les 11 préréglages validés (`engine/power/validate.ts` → `SOUND_PRESET_NAMES`). */
+export const POWER_SOUND_PRESETS: Record<string, PowerSoundPreset> = {
+  pouvoir: preset("pouvoir", "Pouvoir royal (défaut)", 1350),
+  tambour: preset("tambour", "Tambour djembé", 1450),
+  eclair: preset("eclair", "Éclair & tonnerre", 1500),
+  vent: preset("vent", "Vent & cartes", 1450),
+  givre: preset("givre", "Éclat cristallin", 1350),
+  gong: preset("gong", "Gong de bronze", 1700),
+  pieces: preset("pieces", "Pluie de pièces & cauris", 1350),
+  magie: preset("magie", "Sortilège mystique", 1450),
+  alarme: preset("alarme", "Corne d'alerte", 1400),
+  sceau: preset("sceau", "Sceau & verrou", 1250),
+  souffle: preset("souffle", "Sablier du temps", 1450),
+};
+
+/** Attribution sonore par défaut pour chacune des 21 cartes pouvoir du jeu.
+ *  Si une carte a un son personnalisé défini dans l'admin (`def.sound`), celui-ci
+ *  a toujours priorité. */
+export const DEFAULT_CARD_POWER_SOUNDS: Record<string, string> = {
+  tambour_appel: "preset:tambour",
+  cri_chef: "preset:alarme",
+  eclair_mfoundi: "preset:eclair",
+  coupe_circuit: "preset:eclair",
+  vent_nord: "preset:vent",
+  pagne_changeant: "preset:vent",
+  troc_cible: "preset:vent",
+  pluie_etoiles: "preset:givre",
+  main_griot: "preset:magie",
+  bouclier_village: "preset:gong",
+  totem_ancetres: "preset:gong",
+  cauris_chanceux: "preset:pieces",
+  benediction_chef: "preset:pieces",
+  feu_camp: "preset:pouvoir",
+  oeil_sorcier: "preset:magie",
+  marche_nuit: "preset:magie",
+  masque_bluffeur: "preset:magie",
+  pacte_mains: "preset:magie",
+  filet_pecheur: "preset:alarme",
+  sceau_entrave: "preset:sceau",
+  sable_temps: "preset:souffle",
 };
 
 export const isPresetSound = (ref: string) => ref.startsWith("preset:");
 
+/** Retourne le préréglage sonore par défaut adapté à l'identifiant d'une carte pouvoir. */
+export function defaultPowerSoundRef(cardId: string): string {
+  return DEFAULT_CARD_POWER_SOUNDS[cardId] ?? "preset:pouvoir";
+}
+
+/** Résout une référence (`preset:<nom>` ou URL directe) en URL audio réelle. */
+export function resolvePowerSoundUrl(ref: string | null | undefined): string | null {
+  if (!ref) return null;
+  if (isPresetSound(ref)) {
+    return POWER_SOUND_PRESETS[ref.slice("preset:".length)]?.sampleUrl ?? null;
+  }
+  return ref;
+}
+
 export function playPowerSound(ref: string | null | undefined, volume = 1) {
   if (!ref) return;
   if (isPresetSound(ref)) {
-    const preset = POWER_SOUND_PRESETS[ref.slice("preset:".length)];
-    if (preset) playChimeNow(preset.spec, volume);
+    const entry = POWER_SOUND_PRESETS[ref.slice("preset:".length)];
+    if (!entry) return;
+    playAudioSample(entry.sampleUrl, volume, {
+      duckMusicMs: entry.duckMusicMs,
+      duckDepth: 0.35,
+      maxPolyphony: 3,
+    });
     return;
   }
-  playAudioSample(ref, volume);
+  playAudioSample(ref, volume, {
+    duckMusicMs: 1400,
+    duckDepth: 0.35,
+    maxPolyphony: 3,
+  });
 }
 
-/** Préchargement (chargeur d'assets) : rien à faire pour un son de synthèse. */
+/** Préchargement (chargeur d'assets) : décode aussi les préréglages IA pour 0 ms de latence. */
 export function preloadPowerSound(ref: string | null | undefined): Promise<boolean> {
-  if (!ref || isPresetSound(ref)) return Promise.resolve(true);
-  return preloadAudioSample(ref);
+  const url = resolvePowerSoundUrl(ref);
+  if (!url) return Promise.resolve(true);
+  return preloadAudioSample(url);
 }

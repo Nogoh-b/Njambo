@@ -10,8 +10,14 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { useAudioMute, useMusic } from "@gxe/react";
-import { AMBIENT_PENTA } from "@/lib/gxeSfx";
+import { useAudioMute, useAudioVolume, useMusic } from "@gxe/react";
+import { resolveMusicTrack, useAudioCatalogConfig } from "@/lib/audio/audioCatalogStore";
+import {
+  DEFAULT_AUDIO_SETTINGS,
+  loadAudioSettings,
+  saveAudioSettings,
+  type StoredAudioSettings,
+} from "@/lib/audio/audioSettings";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import { useGameplayConfig } from "@/hooks/useGameplayConfig";
 import { STARTING_CAURIS } from "@/config/powerCards";
@@ -105,12 +111,16 @@ interface GameContextValue {
   profile: Profile;
   setProfile: (p: Profile | ((prev: Profile) => Profile)) => void;
 
-  /* Audio — `sfxOn`/`musicOn` pilotent les bus `sfx`/`music` de GXE via
-     `useAudioMute`. */
+  /* Audio — `sfxOn`/`musicOn` et volumes pilotent les bus `sfx`/`music` de GXE
+     (`useAudioMute` / `useAudioVolume`), persistés en localStorage. */
   musicOn: boolean;
   setMusicOn: (v: boolean) => void;
   sfxOn: boolean;
   setSfxOn: (v: boolean) => void;
+  musicVolume: number;
+  setMusicVolume: (v: number) => void;
+  sfxVolume: number;
+  setSfxVolume: (v: number) => void;
 
   /* Config (shortcut) */
   cfg: typeof GAME_CONFIG;
@@ -229,8 +239,24 @@ export function GameProvider({ children }: { children: ReactNode }) {
     canGoBack: initial.index > 0,
     previousScene: initial.index > 0 ? initial.entries[initial.index - 1].scene : null,
   }));
-  const [musicOn, setMusicOn] = useState(false);
-  const [sfxOn, setSfxOn] = useState(true);
+  const [audioPrefs, setAudioPrefs] = useState<StoredAudioSettings>(DEFAULT_AUDIO_SETTINGS);
+  useEffect(() => {
+    setAudioPrefs(loadAudioSettings());
+  }, []);
+
+  const updateAudioPrefs = useCallback((patch: Partial<StoredAudioSettings>) => {
+    setAudioPrefs((prev) => {
+      const next: StoredAudioSettings = { ...prev, ...patch };
+      saveAudioSettings(next);
+      return next;
+    });
+  }, []);
+
+  const { musicOn, sfxOn, musicVolume, sfxVolume } = audioPrefs;
+  const setMusicOn = useCallback((v: boolean) => updateAudioPrefs({ musicOn: v }), [updateAudioPrefs]);
+  const setSfxOn = useCallback((v: boolean) => updateAudioPrefs({ sfxOn: v }), [updateAudioPrefs]);
+  const setMusicVolume = useCallback((v: number) => updateAudioPrefs({ musicVolume: Math.max(0, Math.min(1, v)) }), [updateAudioPrefs]);
+  const setSfxVolume = useCallback((v: number) => updateAudioPrefs({ sfxVolume: Math.max(0, Math.min(1, v)) }), [updateAudioPrefs]);
 
   const stackRef = useRef<NavEntry[]>(initial.entries);
   const stackIndexRef = useRef<number>(initial.index);
@@ -310,15 +336,32 @@ export function GameProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const audioCatalog = useAudioCatalogConfig();
   const gxeMusic = useMusic();
   useEffect(() => {
-    if (musicOn) gxeMusic.start(AMBIENT_PENTA);
-    else gxeMusic.stop();
-    return () => gxeMusic.stop();
-  }, [musicOn, gxeMusic]);
+    if (!musicOn) {
+      gxeMusic.stop();
+      return;
+    }
+    const trackId = scene === "table" || scene === "result" ? "music_table" : "music_salon";
+    const resolved = resolveMusicTrack(trackId, audioCatalog);
+    if (!resolved.enabled || !resolved.trackUrl) {
+      gxeMusic.stop();
+      return;
+    }
+    gxeMusic.start({
+      trackUrl: resolved.trackUrl,
+      volume: resolved.volume,
+      crossfadeMs: resolved.crossfadeMs,
+    });
+  }, [musicOn, scene, audioCatalog, gxeMusic]);
+
+  useEffect(() => () => gxeMusic.stop(), [gxeMusic]);
 
   useAudioMute("sfx", !sfxOn);
   useAudioMute("music", !musicOn);
+  useAudioVolume("sfx", sfxVolume);
+  useAudioVolume("music", musicVolume);
 
   const registerBackInterceptor = useCallback((interceptor: BackInterceptor | null) => {
     backInterceptorRef.current = interceptor;
@@ -711,6 +754,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setMusicOn,
     sfxOn,
     setSfxOn,
+    musicVolume,
+    setMusicVolume,
+    sfxVolume,
+    setSfxVolume,
     cfg,
   }), [
     scene,
@@ -735,7 +782,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
     profile,
     setProfile,
     musicOn,
+    setMusicOn,
     sfxOn,
+    setSfxOn,
+    musicVolume,
+    setMusicVolume,
+    sfxVolume,
+    setSfxVolume,
     cfg,
   ]);
 

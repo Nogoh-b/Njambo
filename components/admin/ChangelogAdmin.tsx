@@ -29,6 +29,7 @@ const SECTION_LABELS: Record<ChangelogAdminSection, string> = {
   cosmetics: "Cosmétiques",
   powers: "Cartes de pouvoir",
   animations: "Animations",
+  audio: "Sons & Audio",
   assistant: "Assistant IA",
   notifications: "Notifications",
   players: "Joueurs",

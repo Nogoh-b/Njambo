@@ -23,6 +23,7 @@ import {
 } from "@/components/power/PowerParticleLayer";
 import { getPowerModule } from "@/config/powers";
 import { FUNCTIONAL_CUES, fillCardPlaceholders, swapDelta, type ChoreoViewer } from "@/engine/power/choreography";
+import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
 import { moveSourceUi, openSorcererEye, playChoreography, playMaskBluff, playShieldBlock, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
@@ -230,9 +231,11 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     const noEffect = mine && !activation.used && !blocked;
 
     /* ── Intro commune (toutes cartes) ── */
-    // Son d'activation réglé dans l'admin (fichier ou préréglage), sinon son par défaut.
+    // Si la carte possède son propre son d'activation (Admin → Cartes de pouvoir), on le joue ;
+    // sinon on joue le seul son commun de lancement d'une carte pouvoir (Admin → Sons & Audio → power_play).
+    // Les effets multi-sons propres à la carte vivent dans les pistes son de sa chorégraphie.
     if (def.sound?.ref) playPowerSound(def.sound.ref, def.sound.volume ?? 1);
-    else d.playSfx();
+    else playGameSound("power_play");
     triggerFx((def.tone as PowerTone) ?? "gold");
     const activatorUi = d.uiIndexFromUid(activation.activatedByUid);
     const targetUi = d.uiIndexFromUid(activation.targetUid);

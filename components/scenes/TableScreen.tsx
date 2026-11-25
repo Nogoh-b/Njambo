@@ -71,6 +71,7 @@ import {
   TICK_SOUND,
   TURN_START_SOUND,
 } from "@/lib/gxeSfx";
+import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import { loadGsap, requestMotionProbe, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
 import { markPerformance } from "@/lib/performanceMetrics";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
@@ -1173,6 +1174,15 @@ export function TableScreen({
       }
       if (!pausedRef.current && dealMoves.length > 0) {
         void runMomentV2Ref.current(dealV2, dealMoves, { actorUi: 0, reflow: false });
+        // Sortie des cartes du deck : quelques déclenchements rythmés (limités par minGapMs).
+        const step = Math.max(1, Math.floor(dealMoves.length / 5));
+        for (let i = 0; i < dealMoves.length; i += step) {
+          const delay = dealMoves[i]!.delayMs ?? 0;
+          const timer = setTimeout(() => {
+            if (!pausedRef.current) playGameSound("card_draw");
+          }, delay);
+          burstTimersRef.current.push(timer);
+        }
       }
       return;
     }
@@ -1678,6 +1688,7 @@ export function TableScreen({
       if (!collect || deposits.length === 0 || deposits.some((deposit) => deposit.length === 0)) return;
       const collectTimer = setTimeout(() => {
         if (pausedRef.current) return;
+        playGameSound("trick_collect");
         const tops = deposits.map((deposit) => deposit[deposit.length - 1]);
         void runMomentRef.current(collect, {
           actorUi: winnerIdx, winnerUi: winnerIdx, mode: "display", release: "end",
@@ -1942,6 +1953,7 @@ export function TableScreen({
   /* ----- Jouer une carte (clic humain) ----- */
   const handleCardClick = useCallback((cardIdx: number) => {
     if (pausedRef.current || !syncRef.current || animatingRef.current || !isYourTurnReadyRef.current) return;
+    playGameSound("card_select");
     syncRef.current.playCard(cardIdx);
   }, []);
 

@@ -16,6 +16,7 @@ import { NjamboIcon, NjamboMark, type NjamboIconName } from "@/components/ui/Art
 import type { BotDifficulty, GameMode, PowerCardId } from "@/types/game";
 import styles from "./MatchLoadingScreen.module.css";
 import { sysAsset } from "@/lib/assetPack";
+import { playGameSound } from "@/lib/audio/audioCatalogStore";
 
 const MODE_META: Record<GameMode, { label: string; tone: "gold" | "teal" | "palm" | "pink"; icon: NjamboIconName; title: string }> = {
   bot: {
@@ -309,6 +310,7 @@ export function MatchLoadingScreen({
     const startedAt = performance.now();
     startedAtRef.current = startedAt;
     markPerformance("gate:table:start");
+    playGameSound("match_loading");
 
     let revealStartTimer: number | null = null;
     let minHoldTimer: number | null = null;
@@ -360,7 +362,10 @@ export function MatchLoadingScreen({
 
       const holdAt100Ms = effectiveMinMs === 0 ? 0 : 180;
       revealStartTimer = window.setTimeout(() => {
-        if (!cancelled) setOpeningScene(true);
+        if (!cancelled) {
+          playGameSound("match_ready");
+          setOpeningScene(true);
+        }
       }, holdAt100Ms);
     };
 

@@ -1,7 +1,7 @@
 "use client";
 
 /* Suit les packs d'assets choisis dans l'admin (runtime_config/asset_pack) :
-   assets système et interface. À monter une seule fois, à la racine de l'application. */
+   assets système, interface et cartes Pouvoir. À monter à la racine de l'application. */
 
 import { useEffect } from "react";
 import { ASSET_PACK_DOC, readAssetPacks } from "@/domain/assetPacks";

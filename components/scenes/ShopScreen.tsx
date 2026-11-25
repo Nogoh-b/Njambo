@@ -40,6 +40,7 @@ import {
 import type { PowerCardDef, PowerCardId } from "@/types/game";
 import { FortuneWheel, type FortuneWheelHandle } from "@/components/shop/FortuneWheel";
 import { WHEEL_TICK_SOUND, WHEEL_WIN_SOUND } from "@/lib/gxeSfx";
+import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import { consumeShopTab } from "@/lib/shopDeepLink";
 import styles from "./ShopScreen.module.css";
 import { sysAsset } from "@/lib/assetPack";
@@ -263,6 +264,7 @@ export function ShopScreen() {
     const delivery = offerDeliverySummary(offer);
     if (offer.prices.some((price) => price.currency === "cauris")) {
       await command("purchaseOffer", { offerId });
+      playGameSound("shop_purchase");
       setSelectedOffer(null);
       return {
         text: delivery.storedInCollection
@@ -273,6 +275,7 @@ export function ShopScreen() {
     }
     const intent = await command<{ orderId: string }>("createPaymentIntent", { offerId, provider: "simulated" });
     await command("verifyStorePurchase", { orderId: intent.orderId, simulationOutcome: "success" });
+    playGameSound("shop_purchase");
     setSelectedOffer(null);
     return {
       text: delivery.storedInCollection
@@ -284,6 +287,7 @@ export function ShopScreen() {
 
   const buyBookWithCauris = async (booster: BoosterDefinition): Promise<{ text: string; openCollection?: boolean }> => {
     await command("buyBoosterBook", { boosterId: booster.id });
+    playGameSound("shop_purchase");
     setSelectedBooster(null);
     return {
       text: `${booster.title} ajouté à Ma collection ! Ouvre-le quand tu veux.`,
@@ -306,6 +310,7 @@ export function ShopScreen() {
         openingId: opening.openingId,
         position,
       });
+      playGameSound("card_reveal");
       setCardReveal({
         source: "booster",
         cardId: result.reward.cardId,
@@ -315,6 +320,7 @@ export function ShopScreen() {
       setOpening(null);
       triggerWalletPulse();
     } catch (cause) {
+      playGameSound("ui_error");
       const reason = cause instanceof Error ? cause.message : "";
       setMessage({ severity: "error", text: reason || "Impossible de révéler cette carte." });
     } finally {
@@ -368,6 +374,7 @@ export function ShopScreen() {
     }
     // La roue part tout de suite ; le serveur tire le lot pendant qu'elle tourne,
     // puis elle ralentit et s'arrête exactement sur la case gagnée.
+    playGameSound("wheel_spin");
     wheelRef.current?.start();
     let landed = false;
     await run("wheel", async () => {
@@ -597,6 +604,7 @@ export function ShopScreen() {
                       <motion.article
                         key={`${offerCategory}-${offer.id}`}
                         role="button"
+                        data-sound="shop_item_click"
                         tabIndex={0}
                         onClick={() => setSelectedOffer(offer)}
                         onKeyDown={(e) => {
@@ -735,6 +743,7 @@ export function ShopScreen() {
                         <motion.article
                           key={booster.id}
                           role="button"
+                          data-sound="shop_item_click"
                           tabIndex={0}
                           onClick={() => setSelectedBooster(booster)}
                           onKeyDown={(e) => {
@@ -984,6 +993,7 @@ export function ShopScreen() {
                           <motion.div
                             key={`rev-${position}`}
                             role="button"
+                            data-sound="shop_item_click"
                             tabIndex={0}
                             onClick={() => setSelectedGridCard(powerCard)}
                             onKeyDown={(e) => {

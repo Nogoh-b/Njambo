@@ -23,7 +23,7 @@ import { sysAsset } from "@/lib/assetPack";
 /* Particules tsparticles chargées en lazy, client uniquement (jamais au SSR). */
 const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
 
-const NKAP_COIN_SRC = sysAsset("/assets/njambo/economy/nkap-64.webp");
+const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
 
 export interface ResultScreenProps {
   result: Result;
@@ -274,14 +274,14 @@ export function ResultScreen({
         <div className={styles.arenaSlot}>{arena}</div>
       ) : (
         <div className={styles.fallbackSlot}>
-          <img src={NKAP_COIN_SRC} alt="" className={styles.fallbackCoin} draggable={false} />
+          <img src={sysAsset(NKAP_COIN_SRC)} alt="" className={styles.fallbackCoin} draggable={false} />
         </div>
       )}
 
       <div className={styles.summaryStrip}>
         {totalGain > 0 && (
           <div className={`${styles.nkapBanner}${win.isYou ? ` ${styles.nkapBannerWin}` : ""}`}>
-            <img src={NKAP_COIN_SRC} alt="" className={styles.nkapBannerCoin} draggable={false} />
+            <img src={sysAsset(NKAP_COIN_SRC)} alt="" className={styles.nkapBannerCoin} draggable={false} />
             <span ref={gainRef} className={styles.nkapBannerValue}>
               {win.isYou ? `+ ${NKAP(totalGain)}` : `Pot · ${NKAP(totalGain)}`}
             </span>
@@ -297,7 +297,7 @@ export function ResultScreen({
 
         {!win.isYou && (result.refund ?? 0) > 0 && (
           <div className={styles.refund}>
-            <img src={NKAP_COIN_SRC} alt="" className={styles.refundCoin} draggable={false} />
+            <img src={sysAsset(NKAP_COIN_SRC)} alt="" className={styles.refundCoin} draggable={false} />
             <span>Remboursement Cauris : + {NKAP(result.refund ?? 0)}</span>
           </div>
         )}

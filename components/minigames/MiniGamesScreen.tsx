@@ -23,8 +23,10 @@ import { OddsModal, RewardModal } from "./MiniGameKit";
 import { costIcon, costLabel, useMiniGames, type MiniGameProps } from "./useMiniGames";
 import styles from "./MiniGames.module.css";
 import { sysAsset } from "@/lib/assetPack";
+import { playGameSound } from "@/lib/audio/audioCatalogStore";
 
-const GAME_ART: Record<MiniGameId, ReactNode> = {
+/* Fonction : les images suivent le pack d'assets actif à chaque affichage. */
+const gameArt = (): Record<MiniGameId, ReactNode> => ({
   scratch: <Image src={sysAsset("/assets/njambo/tickets/ticket-bronze-128.webp")} alt="" width={56} height={56} />,
   cauris: <Image src={sysAsset("/assets/njambo/economy/cauri-128.webp")} alt="" width={56} height={56} />,
   dice: (
@@ -37,7 +39,7 @@ const GAME_ART: Record<MiniGameId, ReactNode> = {
   chests: <Image src={sysAsset("/assets/njambo/economy/cauris-pouch-128.webp")} alt="" width={56} height={56} />,
   memory: <Image src={sysAsset("/assets/njambo/economy/energy-flask-128.webp")} alt="" width={56} height={56} />,
   coinrain: <Image src={sysAsset("/assets/njambo/economy/nkap-128.webp")} alt="" width={56} height={56} />,
-};
+});
 
 function GameCard({ id, onOpen }: { id: MiniGameId; onOpen: () => void }) {
   const mg = useMiniGames();
@@ -53,7 +55,7 @@ function GameCard({ id, onOpen }: { id: MiniGameId; onOpen: () => void }) {
   return (
     <button data-nj-skin="none" type="button" className={`${styles.gameCard} ${styles[`tone_${game.tone}`]}`} onClick={onOpen}>
       {badge}
-      <span className={styles.cardArt}>{GAME_ART[id]}</span>
+      <span className={styles.cardArt}>{gameArt()[id]}</span>
       <span className={styles.cardCopy}>
         <strong>{game.title}</strong>
         <small>{game.tagline}</small>
@@ -79,8 +81,14 @@ export function MiniGamesScreen() {
   const spins = mg.economy?.daily.availableSpins ?? 0;
   const props: MiniGameProps = {
     mg,
-    onReward: setReward,
-    onError: setError,
+    onReward: (nextReward) => {
+      if (nextReward) playGameSound("minigame_win");
+      setReward(nextReward);
+    },
+    onError: (msg) => {
+      if (msg) playGameSound("ui_error");
+      setError(msg);
+    },
     onAuth: () => setAuthOpen(true),
     onOdds: () => setOddsOpen(true),
   };

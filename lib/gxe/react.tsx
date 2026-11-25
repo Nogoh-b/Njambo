@@ -8,22 +8,56 @@ import {
   useRef,
   type ReactNode,
 } from "react";
+import { audioEngine, type AudioBus, type SfxPlayOptions } from "../audio/AudioEngine";
+import { playGameSound } from "../audio/audioCatalogStore";
+import { isGameSoundId, type GameSoundId } from "@/domain/audioCatalog";
 
 export interface ToneSpec {
+  /** Emplacement du catalogue audio global (prioritaire, éditable dans Admin → Sons & Audio). */
+  soundId?: GameSoundId;
   frequencyHz: number;
   durationMs: number;
   type?: OscillatorType;
   gain?: number;
   delayMs?: number;
+  /** Fichier audio pro (prioritaire sur la synthèse de secours). */
+  sampleUrl?: string;
+  /** Pool de variantes pro (rotation anti-répétition). */
+  samplePool?: readonly string[];
+  volume?: number;
+  pitchJitter?: number;
+  pan?: number;
+  minGapMs?: number;
+  maxPolyphony?: number;
+  duckMusicMs?: number;
+  duckDepth?: number;
 }
 
 export interface ChimeSpec {
+  /** Emplacement du catalogue audio global (prioritaire, éditable dans Admin → Sons & Audio). */
+  soundId?: GameSoundId;
   notes: readonly ToneSpec[];
+  /** Fichier audio pro (prioritaire sur la synthèse de secours). */
+  sampleUrl?: string;
+  /** Pool de variantes pro (rotation anti-répétition). */
+  samplePool?: readonly string[];
+  volume?: number;
+  pitchJitter?: number;
+  pan?: number;
+  minGapMs?: number;
+  maxPolyphony?: number;
+  duckMusicMs?: number;
+  duckDepth?: number;
 }
 
 export interface AmbientLoopSpec {
-  notes: readonly number[];
-  intervalMs: number;
+  /** Piste musicale stéréo en boucle sans couture (remplace les notes MIDI). */
+  trackUrl?: string;
+  volume?: number;
+  crossfadeMs?: number;
+  /** Champs hérités conservés uniquement pour rétrocompatibilité de type. */
+  notes?: readonly number[];
+  intervalMs?: number;
   durationMs?: number;
   type?: OscillatorType;
   gain?: number;
@@ -41,6 +75,8 @@ export interface GxeDelegateOptions {
 interface GxeRuntimeState {
   sfxMuted: boolean;
   musicMuted: boolean;
+  sfxVolume: number;
+  musicVolume: number;
   audioCtx: AudioContext | null;
   canvas: HTMLCanvasElement | null;
 }
@@ -48,34 +84,19 @@ interface GxeRuntimeState {
 const runtimeState: GxeRuntimeState = {
   sfxMuted: false,
   musicMuted: false,
+  sfxVolume: 0.9,
+  musicVolume: 0.55,
   audioCtx: null,
   canvas: null,
 };
 
-function getAudioContext(): AudioContext | null {
-  if (typeof window === "undefined") return null;
-  if (!runtimeState.audioCtx) {
-    const Ctor =
-      window.AudioContext ||
-      (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
-    if (!Ctor) return null;
-    try {
-      runtimeState.audioCtx = new Ctor();
-    } catch {
-      return null;
-    }
-  }
-  if (runtimeState.audioCtx.state === "suspended") {
-    void runtimeState.audioCtx.resume().catch(() => {});
-  }
-  return runtimeState.audioCtx;
-}
-
-function playSingleTone(spec: ToneSpec, bus: "sfx" | "music" = "sfx") {
-  if (bus === "sfx" && runtimeState.sfxMuted) return;
-  if (bus === "music" && runtimeState.musicMuted) return;
-  const ctx = getAudioContext();
-  if (!ctx) return;
+/** Synthèse de dernier recours (utilisée uniquement si aucun fichier audio n'est fourni ou en échec réseau). */
+function playFallbackTone(spec: ToneSpec, bus: AudioBus = "sfx") {
+  if (audioEngine.isMuted(bus)) return;
+  const target = bus === "sfx" ? audioEngine.getSfxOutput() : audioEngine.getMusicOutput();
+  if (!target) return;
+  const { ctx, bus: outputBus } = target;
+  runtimeState.audioCtx = ctx;
 
   try {
     const now = ctx.currentTime + (spec.delayMs ?? 0) / 1000;
@@ -93,7 +114,7 @@ function playSingleTone(spec: ToneSpec, bus: "sfx" | "music" = "sfx") {
     gain.gain.linearRampToValueAtTime(0.0001, now + durationSec);
 
     osc.connect(gain);
-    gain.connect(ctx.destination);
+    gain.connect(outputBus);
     osc.start(now);
     osc.stop(now + durationSec + 0.01);
   } catch {
@@ -101,99 +122,133 @@ function playSingleTone(spec: ToneSpec, bus: "sfx" | "music" = "sfx") {
   }
 }
 
+function playSpecSample(
+  sampleUrl: string,
+  meta: {
+    samplePool?: readonly string[];
+    volume?: number;
+    pitchJitter?: number;
+    pan?: number;
+    minGapMs?: number;
+    maxPolyphony?: number;
+    duckMusicMs?: number;
+    duckDepth?: number;
+  },
+  fallback?: () => void,
+) {
+  void audioEngine
+    .playSfx({
+      url: sampleUrl,
+      pool: meta.samplePool,
+      volume: meta.volume ?? 1,
+      pitchJitter: meta.pitchJitter,
+      pan: meta.pan,
+      minGapMs: meta.minGapMs,
+      maxPolyphony: meta.maxPolyphony,
+      duckMusicMs: meta.duckMusicMs,
+      duckDepth: meta.duckDepth,
+    })
+    .then((played) => {
+      if (!played && fallback && !audioEngine.isMuted("sfx")) {
+        // Ne joue pas de secours si c'était simplement bloqué par minGapMs (anti-spam)
+        if (!meta.minGapMs) fallback();
+      }
+    });
+}
+
 const sfxApi = {
   play(spec: ToneSpec) {
-    playSingleTone(spec, "sfx");
+    if (audioEngine.isMuted("sfx")) return;
+    if (spec.soundId) {
+      playGameSound(spec.soundId);
+      return;
+    }
+    if (spec.sampleUrl) {
+      playSpecSample(spec.sampleUrl, spec);
+      return;
+    }
+    playFallbackTone(spec, "sfx");
   },
   playChime(spec: ChimeSpec) {
-    if (runtimeState.sfxMuted) return;
-    for (const note of spec.notes) {
-      playSingleTone(note, "sfx");
+    if (audioEngine.isMuted("sfx")) return;
+    if (spec.soundId) {
+      playGameSound(spec.soundId);
+      return;
     }
+    if (spec.sampleUrl) {
+      playSpecSample(spec.sampleUrl, spec);
+      return;
+    }
+    for (const note of spec.notes) {
+      playFallbackTone(note, "sfx");
+    }
+  },
+  playSample(options: SfxPlayOptions) {
+    void audioEngine.playSfx(options);
+  },
+  playSlot(id: GameSoundId) {
+    playGameSound(id);
   },
 };
 
-/* ── Échantillons audio (sons uploadés depuis l'admin) ──
-   Téléchargés + décodés une fois (cache), joués sur le bus « sfx » (donc
-   coupés avec les effets sonores). Sans contexte audio (avant le premier
-   geste, navigateur sans WebAudio) : silence, jamais d'erreur. */
-const sampleCache = new Map<string, Promise<AudioBuffer | null>>();
+/* ── Échantillons audio (sons IA du jeu + sons uploadés depuis l'admin) ── */
 
 /** Précharge (télécharge + décode) un son ; renvoie true s'il est prêt. */
-export async function preloadAudioSample(url: string): Promise<boolean> {
-  if (typeof window === "undefined" || !url) return false;
-  let pending = sampleCache.get(url);
-  if (!pending) {
-    pending = (async () => {
-      try {
-        const response = await fetch(url, { mode: "cors", credentials: "omit" });
-        if (!response.ok) return null;
-        const data = await response.arrayBuffer();
-        const ctx = getAudioContext();
-        if (!ctx) return null;
-        return await ctx.decodeAudioData(data);
-      } catch {
-        return null;
-      }
-    })();
-    sampleCache.set(url, pending);
-    void pending.then((buffer) => { if (!buffer) sampleCache.delete(url); });
-  }
-  return Boolean(await pending);
+export function preloadAudioSample(url: string): Promise<boolean> {
+  return audioEngine.preloadSample(url);
 }
 
 /** Joue un son préchargé (ou le charge puis le joue). Volume 0-1. */
-export function playAudioSample(url: string, volume = 1) {
-  if (runtimeState.sfxMuted || !url) return;
-  void preloadAudioSample(url).then(() => sampleCache.get(url)).then((buffer) => {
-    if (!buffer || runtimeState.sfxMuted) return;
-    const ctx = getAudioContext();
-    if (!ctx) return;
-    try {
-      const source = ctx.createBufferSource();
-      const gain = ctx.createGain();
-      gain.gain.value = Math.max(0, Math.min(1, volume));
-      source.buffer = buffer;
-      source.connect(gain);
-      gain.connect(ctx.destination);
-      source.start();
-    } catch {
-      // contexte audio pas encore autorisé : silence
-    }
-  });
+export function playAudioSample(
+  url: string,
+  volume = 1,
+  options: Omit<SfxPlayOptions, "url" | "volume"> = {},
+) {
+  if (!url || audioEngine.isMuted("sfx")) return;
+  void audioEngine.playSfx({ url, volume, ...options });
 }
 
-/** Joue un carillon de synthèse hors des hooks React (cartes pouvoir). */
+/** Abaisse temporairement la musique de fond pour laisser ressortir un événement fort. */
+export function duckMusic(durationMs: number, depth?: number) {
+  audioEngine.duckMusic(durationMs, depth);
+}
+
+/** Joue un carillon (sample pro prioritaire, sinon synthèse de secours) hors React. */
 export function playChimeNow(spec: ChimeSpec, volume = 1) {
-  if (runtimeState.sfxMuted) return;
-  for (const note of spec.notes) playSingleTone({ ...note, gain: (note.gain ?? 0.05) * Math.max(0, Math.min(1, volume)) }, "sfx");
+  if (audioEngine.isMuted("sfx")) return;
+  const scaled = Math.max(0, Math.min(1.5, volume));
+  if (spec.sampleUrl) {
+    void audioEngine.playSfx({
+      url: spec.sampleUrl,
+      volume: (spec.volume ?? 1) * scaled,
+      pitchJitter: spec.pitchJitter,
+      pan: spec.pan,
+      minGapMs: spec.minGapMs,
+      maxPolyphony: spec.maxPolyphony,
+      duckMusicMs: spec.duckMusicMs,
+      duckDepth: spec.duckDepth,
+    });
+    return;
+  }
+  for (const note of spec.notes) {
+    playFallbackTone({ ...note, gain: (note.gain ?? 0.05) * Math.min(1, scaled) }, "sfx");
+  }
 }
-
-let musicTimer: ReturnType<typeof setInterval> | null = null;
 
 const musicApi = {
   start(spec: AmbientLoopSpec) {
-    musicApi.stop();
-    if (!spec.notes.length) return;
-    musicTimer = setInterval(() => {
-      if (runtimeState.musicMuted) return;
-      const freq = spec.notes[Math.floor(Math.random() * spec.notes.length)];
-      playSingleTone(
-        {
-          frequencyHz: freq,
-          durationMs: spec.durationMs ?? 600,
-          type: spec.type ?? "sine",
-          gain: spec.gain ?? 0.025,
-        },
-        "music",
-      );
-    }, Math.max(120, spec.intervalMs));
-  },
-  stop() {
-    if (musicTimer) {
-      clearInterval(musicTimer);
-      musicTimer = null;
+    if (spec.trackUrl) {
+      audioEngine.playMusic(spec.trackUrl, {
+        volume: spec.volume ?? 0.78,
+        crossfadeMs: spec.crossfadeMs ?? 1200,
+      });
     }
+  },
+  stop(fadeMs?: number) {
+    audioEngine.stopMusic(fadeMs);
+  },
+  duck(durationMs: number, depth?: number) {
+    audioEngine.duckMusic(durationMs, depth);
   },
 };
 
@@ -268,15 +323,40 @@ export function GxeProvider({
   children: ReactNode;
 }) {
   useEffect(() => {
+    audioEngine.bindLifecycle();
     if (typeof document === "undefined") return;
-    const unlock = () => {
-      const ctx = getAudioContext();
-      if (ctx && ctx.state === "suspended") {
-        void ctx.resume().catch(() => {});
+
+    // Délégation sonore globale des interactions UI (hors console /admin) :
+    // tout bouton/onglet/switch joue automatiquement le son réglé dans Admin → Sons & Audio.
+    // Un composant spécialisé peut poser `data-sound="off"` (muet) ou `data-sound="<GameSoundId>"`.
+    const onUiClick = (event: MouseEvent) => {
+      if (typeof window !== "undefined" && window.location.pathname.startsWith("/admin")) return;
+      const target = event.target;
+      if (!(target instanceof Element)) return;
+      const custom = target.closest<HTMLElement>("[data-sound]");
+      if (custom) {
+        const value = custom.dataset.sound;
+        if (!value || value === "off") return;
+        if (isGameSoundId(value)) {
+          playGameSound(value);
+          return;
+        }
+      }
+      const control = target.closest<HTMLElement>('button, [role="tab"], [role="switch"], [role="button"]');
+      if (!control) return;
+      if ((control as HTMLButtonElement).disabled || control.getAttribute("aria-disabled") === "true") return;
+      const role = control.getAttribute("role");
+      if (role === "switch") {
+        playGameSound("ui_toggle");
+      } else if (role === "tab") {
+        playGameSound("ui_tab");
+      } else {
+        playGameSound("ui_button");
       }
     };
-    window.addEventListener("pointerdown", unlock, { passive: true, once: true });
-    return () => window.removeEventListener("pointerdown", unlock);
+
+    document.addEventListener("click", onUiClick, { passive: true });
+    return () => document.removeEventListener("click", onUiClick);
   }, []);
 
   return <GxeContext.Provider value={runtimeState}>{children}</GxeContext.Provider>;
@@ -324,9 +404,19 @@ export function useFx() {
   return useMemo(() => fxApi, []);
 }
 
-export function useAudioMute(bus: "sfx" | "music", muted: boolean) {
+export function useAudioMute(bus: AudioBus, muted: boolean) {
   useEffect(() => {
     if (bus === "sfx") runtimeState.sfxMuted = muted;
     else runtimeState.musicMuted = muted;
+    audioEngine.setMuted(bus, muted);
   }, [bus, muted]);
+}
+
+export function useAudioVolume(bus: AudioBus, volume: number) {
+  useEffect(() => {
+    const clamped = Math.max(0, Math.min(1, volume));
+    if (bus === "sfx") runtimeState.sfxVolume = clamped;
+    else runtimeState.musicVolume = clamped;
+    audioEngine.setVolume(bus, clamped);
+  }, [bus, volume]);
 }

@@ -136,10 +136,10 @@ const RESOURCE_META: Record<
   ResourceType,
   { label: string; asset: string; tone: GameTone }
 > = {
-  energy: { label: "Énergie", asset: sysAsset("/assets/njambo/economy/energy-flask-64.webp"), tone: "teal" },
-  nkap: { label: "Nkap", asset: sysAsset("/assets/njambo/economy/nkap-64.webp"), tone: "gold" },
-  cauris: { label: "Cauris", asset: sysAsset("/assets/njambo/economy/cauri-64.webp"), tone: "cobalt" },
-  crowns: { label: "Couronnes", asset: sysAsset("/assets/njambo/ranks/rank-mboa-64.webp"), tone: "pink" },
+  energy: { label: "Énergie", asset: "/assets/njambo/economy/energy-flask-64.webp", tone: "teal" },
+  nkap: { label: "Nkap", asset: "/assets/njambo/economy/nkap-64.webp", tone: "gold" },
+  cauris: { label: "Cauris", asset: "/assets/njambo/economy/cauri-64.webp", tone: "cobalt" },
+  crowns: { label: "Couronnes", asset: "/assets/njambo/ranks/rank-mboa-64.webp", tone: "pink" },
 };
 
 export interface ResourcePillProps {
@@ -175,7 +175,7 @@ export function ResourcePill({
   const content = (
     <>
       <span className={styles.resourceIcon} aria-hidden="true">
-        <Image src={meta.asset} alt="" width={compact ? 27 : 32} height={compact ? 27 : 32} />
+        <Image src={sysAsset(meta.asset)} alt="" width={compact ? 27 : 32} height={compact ? 27 : 32} />
       </span>
       <span className={styles.resourceCopy}>
         <span className={styles.resourceLabel}>{label ?? meta.label}</span>

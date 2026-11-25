@@ -1,21 +1,22 @@
 /* Packs d'assets actifs (choisis dans l'admin, runtime_config/asset_pack) :
-   un pour les assets système, un pour l'interface. Les packs sont connus dès le
+   un pour les assets système, un pour l'interface, un pour les cartes Pouvoir.
+   Les packs sont connus dès le
    chargement grâce aux derniers packs vus (localStorage), puis suivis en temps
-   réel. Un changement s'applique aux écrans au fil de leur affichage et
-   entièrement au prochain lancement du jeu (les listes d'images calculées au
-   chargement d'un écran gardent les packs de ce moment). */
+   réel. Un changement s'applique tout de suite aux écrans affichés : appeler
+   sysAsset au rendu, jamais dans une constante de module (sinon l'image reste
+   figée sur le pack du chargement ; seules les listes de préchargement le sont). */
 
 import { useSyncExternalStore } from "react";
 import {
   ASSET_PACK_SCOPES,
   DEFAULT_ASSET_PACKS,
   crispAssetUrl,
-  isAssetPackId,
+  isAssetPackForScope,
   resolveAssetUrl,
   type AssetPackSelection,
 } from "@/domain/assetPacks";
 
-const STORAGE_KEY: Record<keyof AssetPackSelection, string> = { system: "njambo-asset-pack", interface: "njambo-ui-pack" };
+const STORAGE_KEY: Record<keyof AssetPackSelection, string> = { system: "njambo-asset-pack", interface: "njambo-ui-pack", powers: "njambo-power-pack" };
 
 /** Assets référencés depuis les feuilles de style (variables CSS). */
 const CSS_ASSETS: Record<string, string> = {
@@ -45,7 +46,7 @@ function applyCss(selection: AssetPackSelection) {
 /** Applique les packs reçus du serveur (appelé par useAssetPackSync) ou choisis dans l'admin. */
 export function setAssetPacks(next: Partial<AssetPackSelection>) {
   const merged = { ...current, ...next };
-  if (merged.system === current.system && merged.interface === current.interface) return;
+  if (ASSET_PACK_SCOPES.every((scope) => merged[scope] === current[scope])) return;
   current = merged;
   for (const scope of ASSET_PACK_SCOPES) {
     try { localStorage.setItem(STORAGE_KEY[scope], current[scope]); } catch { /* stockage indisponible */ }
@@ -61,7 +62,7 @@ function start() {
   for (const scope of ASSET_PACK_SCOPES) {
     try {
       const value = localStorage.getItem(STORAGE_KEY[scope]);
-      if (isAssetPackId(value)) saved[scope] = value;
+      if (isAssetPackForScope(value, scope)) saved[scope] = value;
     } catch { /* stockage indisponible */ }
   }
   current = saved;

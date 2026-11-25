@@ -9,7 +9,7 @@ import type { GameMode, Player, RoomDoc } from "@/types/game";
 import styles from "./RematchView.module.css";
 import { sysAsset } from "@/lib/assetPack";
 
-const NKAP_COIN_SRC = sysAsset("/assets/njambo/economy/nkap-64.webp");
+const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
 
 export interface RematchViewProps {
   room: RoomDoc | null;
@@ -147,7 +147,7 @@ export function RematchView({
       {room && !tableEmpty && (
         <div className={styles.metaStrip}>
           <span className={styles.stakeChip}>
-            <img src={NKAP_COIN_SRC} alt="" className={styles.coinImg} draggable={false} />
+            <img src={sysAsset(NKAP_COIN_SRC)} alt="" className={styles.coinImg} draggable={false} />
             <span>{mise > 0 ? NKAP(mise) : "Amicale"}</span>
           </span>
 
