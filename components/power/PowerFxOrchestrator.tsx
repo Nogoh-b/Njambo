@@ -25,7 +25,7 @@ import { getPowerModule } from "@/config/powers";
 import { FUNCTIONAL_CUES, fillCardPlaceholders, swapDelta, type ChoreoViewer } from "@/engine/power/choreography";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
-import { moveSourceUi, playChoreography, playMaskBluff, playShieldBlock, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
+import { moveSourceUi, openSorcererEye, playChoreography, playMaskBluff, playShieldBlock, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
 import { playAnimV2, type AnimV2Move } from "@/components/power/choreo/playAnimV2";
 import type { PoseZone } from "@/components/table/zones/zonePose";
 import { getAnimV2 } from "@/engine/anim/v2/registry";
@@ -197,6 +197,27 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     auraSeatsRef.current.clear();
   }, []);
 
+  /* Révélation sur la table (Œil du Sorcier), chez tous : l'œil s'ouvre au-dessus de la main visée et la balaie, puis ses
+     cartes volent une par une au centre — face visible pour `faceUp` (le lanceur ; la cible connaît déjà sa main), de dos
+     pour les autres — et y restent `durationMs` avant de repartir. Ne bloque pas le jeu. `onHold` : pendant la tenue. */
+  const revealOnTable = async (title: string, ui: number, cards: Card[], faceUp: boolean, durationMs: number, onHold?: () => void) => {
+    const d = depsRef.current;
+    const reveal = d.registry.reveal();
+    const name = d.getPlayers()[ui]?.name ?? "l'adversaire";
+    if (!reveal?.showOnTable) {
+      if (faceUp) void reveal?.open({ title, playerName: name, cards, durationMs });
+      return;
+    }
+    const hand = d.registry.hand(ui)?.getRect() ?? null;
+    const host = choreoLayerRef.current?.container();
+    const eye = host && hand ? openSorcererEye(host, hand, BLOCK_COLORS.pink) : null;
+    await eye?.opened;
+    const shown = reveal.showOnTable({ playerName: ui === 0 ? "toi" : name, cards, faceUp, from: hand, durationMs });
+    if (onHold) burstTimersRef.current.push(setTimeout(onHold, cards.length * 130 + 900));
+    await shown;
+    await eye?.close();
+  };
+
   const run = (activation: PowerCardActivation) => {
     const d = depsRef.current;
     const powerModule = getPowerModule(activation.cardId);
@@ -217,6 +238,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     const targetUi = d.uiIndexFromUid(activation.targetUid);
     const othersText = !mine && def.activationTextOthers
       ? def.activationTextOthers
+        // Chez la cible : « X lit ta main » plutôt que « X lit la main de toi ».
+        .replace("la main de {target}", targetUi === 0 ? "ta main" : "la main de {target}")
         .replace("{activator}", (activatorUi != null ? d.getPlayers()[activatorUi]?.name : undefined) ?? "Un joueur")
         .replace("{target}", targetUi === 0 ? "toi" : (targetUi != null ? d.getPlayers()[targetUi]?.name : undefined) ?? "un joueur")
       : undefined;
@@ -254,20 +277,25 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
       }
       return;
     }
-    // Bluff : le masque de la cible réapparaît et rit ; son aura et son badge (chez le porteur) tombent.
+    // Bluff : la révélation se joue comme d'habitude (l'attaquant voit, lui, la fausse main) ; pendant qu'elle est
+    // au centre, le masque de la cible réapparaît et rit ; son aura et son badge (chez le porteur) tombent.
     if (bluffer) {
       setCharges((current) => current.filter((charge) => !(charge.ui === targetUi && charge.key.endsWith("-mask"))));
-      const host = choreoLayerRef.current?.container();
-      const to = targetUi != null ? d.registry.timer(targetUi)?.getRect() : null;
       const dropAura = () => {
         if (targetUi != null && auraSeatsRef.current.has(targetUi)) {
           d.registry.timer(targetUi)?.showAura(null);
           auraSeatsRef.current.delete(targetUi);
         }
       };
-      if (d.motionEnabled && host && to) {
-        const timer = setTimeout(() => { void playMaskBluff(host, to, BLOCK_COLORS[bluffer.tone] ?? BLOCK_COLORS.pink).finally(dropAura); }, Math.round(d.overlayMs * 0.6));
-        burstTimersRef.current.push(timer);
+      const target = targetUi != null ? d.getPlayers()[targetUi] : undefined;
+      if (d.motionEnabled && targetUi != null && target) {
+        const laugh = () => {
+          const host = choreoLayerRef.current?.container();
+          const to = d.registry.timer(targetUi)?.getRect();
+          if (host && to) void playMaskBluff(host, to, BLOCK_COLORS[bluffer.tone] ?? BLOCK_COLORS.pink).finally(dropAura);
+          else dropAura();
+        };
+        burstTimersRef.current.push(setTimeout(() => { void revealOnTable(def.name, targetUi, target.hand, targetUi === 0, 5000, laugh); }, d.overlayMs));
       } else {
         dropAura();
       }
@@ -664,12 +692,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
 
       for (const step of script.steps) {
         for (const cue of step.anim ?? []) {
-          // Étape chorégraphiée : seuls les cues FONCTIONNELS restent joués ici. L'aura posée par la chorégraphie
-          // (cauris, totem, bouclier) est quand même retenue pour être retirée en fin de manche ou au blocage.
-          if (step.choreo && !(FUNCTIONAL_CUES as readonly string[]).includes(cue.cue)) {
-            if (cue.cue === "avatarAura") for (const ui of resolveRefUi(cue.player)) auraSeatsRef.current.add(ui);
-            continue;
-          }
+          // Étape chorégraphiée : seuls les cues FONCTIONNELS restent joués ici.
+          if (step.choreo && !(FUNCTIONAL_CUES as readonly string[]).includes(cue.cue)) continue;
           switch (cue.cue) {
           case "flyCards": {
             // Cosmétique — uniquement avec animations actives.
@@ -739,28 +763,22 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
           }
 
           case "revealOverlay": {
-            // FONCTIONNEL : seul l'activateur voit la révélation.
-            if (!mine) break;
+            // FONCTIONNEL : seul l'activateur voit les cartes de face ; avec animations, tous voient l'œil et les cartes
+            // voler au centre (de dos pour les autres, voir revealOnTable).
             const fx = fxOf(cue);
             const targetUi = resolveRefUi(cue.player)[0];
             const target = players[targetUi];
             if (!target) break;
             // En ligne, la main de la cible est masquée dans `players` → main
             // révélée jointe à l'activation ; en local, main directement lisible.
-            const cards = activation.revealedHand ?? target.hand;
-            emitBurst(
-              fx.preset,
-              new DOMRect(0, 0, window.innerWidth, window.innerHeight),
-              fx.tone,
-              fx.intensity,
-              1300,
-            );
-            void d.registry.reveal()?.open({
-              title: def.name,
-              playerName: target.name,
-              cards,
-              durationMs: cue.durationMs ?? 5000,
-            });
+            const cards = mine ? activation.revealedHand ?? target.hand : target.hand;
+            const durationMs = cue.durationMs ?? 5000;
+            if (!d.motionEnabled) {
+              if (mine) void d.registry.reveal()?.open({ title: def.name, playerName: target.name, cards, durationMs });
+              break;
+            }
+            if (mine) emitBurst(fx.preset, new DOMRect(0, 0, window.innerWidth, window.innerHeight), fx.tone, fx.intensity, 1300);
+            void revealOnTable(def.name, targetUi, cards, mine || targetUi === 0, durationMs);
             break;
           }
 

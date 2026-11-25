@@ -23,7 +23,12 @@ export function resolveTargets(spec: TargetSpec, input: TargetResolutionInput): 
     case "many":
       // "many" avec choix multiple arrive avec le clic générique — pour
       // l'instant une seule cible transite par la modale.
-      return requested !== undefined ? [requested] : [];
+      if (requested !== undefined) return [requested];
+      // Le jeu choisit (chooser "engine", réglable dans l'admin) : un adversaire au hasard. Sans ça, la carte n'avait
+      // aucune cible et restait sans effet.
+      return spec.chooser === "engine" && opponents.length > 0
+        ? [opponents[Math.floor(Math.random() * opponents.length)]]
+        : [];
     case "all_opponents":
       return opponents;
     case "random_opponent":

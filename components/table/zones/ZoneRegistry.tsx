@@ -125,6 +125,9 @@ export interface RevealHandle {
   getCardRect(cardId: string): DOMRect | null;
   getRect(): DOMRect | null;
   close(): void;
+  /** Révélation sur la table (Œil du Sorcier) : les cartes volent une par une de `from` (main de la cible) au centre,
+   *  face visible si `faceUp` (le lanceur), de dos sinon ; elles restent `durationMs` puis repartent. Ne bloque rien. */
+  showOnTable?(req: { playerName: string; cards: Card[]; faceUp: boolean; from: DOMRect | null; durationMs: number }): Promise<void>;
 }
 
 export interface ZoneHandleMap {

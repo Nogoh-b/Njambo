@@ -1183,6 +1183,54 @@ export async function playMaskBluff(host: HTMLElement, to: DOMRect, color: strin
   mask.remove();
 }
 
+/** Œil du sorcier : un grand œil s'ouvre au-dessus de la main visée et la balaie d'un rayon (`opened`), puis reste
+ *  ouvert pendant la révélation et se referme sur `close()`. Joué chez tous les joueurs. */
+export function openSorcererEye(host: HTMLElement, hand: DOMRect, color: string): { opened: Promise<void>; close(): Promise<void> } {
+  const w = Math.max(64, Math.min(110, hand.width * 0.55)), h = w * 0.5;
+  // Main au bord de l'écran (sièges latéraux) : l'œil reste entier à l'écran.
+  const cx = Math.max(w / 2 + 8, Math.min(window.innerWidth - w / 2 - 8, hand.left + hand.width / 2));
+  // Au-dessus de la main, ou en dessous si elle touche le haut de l'écran.
+  const above = hand.top - h - 18 > 8;
+  const ey = above ? hand.top - h / 2 - 14 : hand.bottom + h / 2 + 14;
+  const eye = document.createElement("div");
+  eye.setAttribute("data-choreo-fx", "sorcerer-eye");
+  Object.assign(eye.style, { position: "absolute", left: `${cx - w / 2}px`, top: `${ey - h / 2}px`, width: `${w}px`, height: `${h}px`, pointerEvents: "none", filter: `drop-shadow(0 0 10px ${color}) drop-shadow(0 3px 5px rgba(0,0,0,.6))` });
+  eye.innerHTML = `<svg viewBox="0 0 100 50" width="100%" height="100%" style="overflow:visible">
+    <path d="M2 25 Q50 -12 98 25 Q50 62 2 25 Z" fill="#1b0d18" stroke="${color}" stroke-width="2.4"/>
+    <g class="iris"><circle cx="50" cy="25" r="15" fill="${color}"/><circle cx="50" cy="25" r="9" fill="#3a0a22"/><ellipse cx="50" cy="25" rx="3" ry="8" fill="#0a0206"/><circle cx="45" cy="20" r="3" fill="#fff" opacity=".85"/></g>
+    <path d="M10 14 L4 6 M30 5 L28 -3 M50 1 L50 -8 M70 5 L72 -3 M90 14 L96 6" stroke="${color}" stroke-width="2" stroke-linecap="round"/>
+  </svg>`;
+  host.appendChild(eye);
+  // Rayon : un cône de lumière qui part de l'œil et balaie la main de gauche à droite.
+  const beam = document.createElement("div");
+  const reach = Math.abs(ey - (hand.top + hand.height / 2)) + hand.height / 2;
+  Object.assign(beam.style, {
+    position: "absolute", left: `${cx - w * 0.35}px`, top: above ? `${ey}px` : `${ey - reach}px`, width: `${w * 0.7}px`, height: `${reach}px`, pointerEvents: "none",
+    transformOrigin: above ? "50% 0" : "50% 100%", opacity: "0", mixBlendMode: "screen",
+    background: `linear-gradient(${above ? "180deg" : "0deg"}, ${color}cc, ${color}33 70%, transparent)`, clipPath: above ? "polygon(42% 0, 58% 0, 100% 100%, 0 100%)" : "polygon(0 0, 100% 0, 58% 100%, 42% 100%)",
+  });
+  host.appendChild(beam);
+  const iris = eye.querySelector<SVGGElement>(".iris");
+  const opened = (async () => {
+    await finished(eye.animate([{ transform: "scaleY(0)", opacity: 0 }, { transform: "scaleY(1.15)", opacity: 1, offset: 0.7 }, { transform: "scaleY(1)", opacity: 1 }], { duration: 380, easing: "ease-out", fill: "forwards" }));
+    const sweepMs = 900;
+    if (iris) void iris.animate([{ transform: "translateX(-10px)" }, { transform: "translateX(10px)" }, { transform: "translateX(0)" }], { duration: sweepMs, easing: "ease-in-out", fill: "forwards" });
+    await finished(beam.animate([
+      { opacity: 0, transform: `rotate(${above ? 22 : -22}deg)` },
+      { opacity: 1, transform: `rotate(${above ? 22 : -22}deg)`, offset: 0.12 },
+      { opacity: 1, transform: `rotate(${above ? -22 : 22}deg)`, offset: 0.8 },
+      { opacity: 0, transform: "rotate(0deg)" },
+    ], { duration: sweepMs, easing: "ease-in-out", fill: "forwards" }));
+    beam.remove();
+  })();
+  const close = async () => {
+    await opened;
+    await finished(eye.animate([{ transform: "scaleY(1)", opacity: 1 }, { transform: "scaleY(0)", opacity: 0 }], { duration: 260, easing: "ease-in", fill: "forwards" }));
+    eye.remove();
+  };
+  return { opened, close };
+}
+
 /** Blocage par un bouclier : un trait d'énergie part de l'attaquant et s'écrase sur un dôme autour de la cible ; le dôme
  *  flashe, se fissure puis éclate en morceaux. Jouée hors chorégraphie (l'activation bloquée n'en a pas). */
 export async function playShieldBlock(host: HTMLElement, from: DOMRect, to: DOMRect, color: string): Promise<void> {
