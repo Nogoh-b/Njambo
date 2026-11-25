@@ -44,9 +44,12 @@ export function findBlockingEffect(
 ): ActivePowerEffect | undefined {
   const tags = deriveScriptTags(script);
   if (tags.length === 0) return undefined;
-  return effects.find(
+  const candidates = effects.filter(
     (effect) =>
       effect.activatedBy === targetSeat &&
       effectBlocks(effect).some((tag) => tags.includes(tag)),
   );
+  // Protection la plus précise d'abord : le masque (révélations) avant le bouclier (toute attaque ciblée),
+  // pour ne pas user le bouclier quand le masque suffit.
+  return candidates.find((effect) => effectBlocks(effect).some((tag) => tag !== "targeted" && tags.includes(tag))) ?? candidates[0];
 }

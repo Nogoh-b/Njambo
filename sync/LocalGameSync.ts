@@ -16,6 +16,7 @@ import { canActivatePower } from "@/engine/power/canActivate";
 import { interpretPowerScript } from "@/engine/power/interpret";
 import { applyResolvedOps } from "@/engine/power/apply";
 import { findBlockingEffect } from "@/engine/power/blocking";
+import { bluffHand, isBluff } from "@/engine/power/bluff";
 import { resolveTargets } from "@/engine/power/targets";
 import { PowerRuntimeState } from "@/engine/power/runtimeState";
 import {
@@ -342,21 +343,28 @@ export class LocalGameSync implements GameSyncActions {
     if (canActivatePower(script, ctx)) return false;
 
     // Interception : un effet actif de la cible (bouclier, masque…) contre ce script
+    // Masque du Bluffeur contre une révélation : pas de blocage, une fausse main (bluffedByCardId).
     let blockedByCardId: PowerCardId | undefined;
+    let bluffedByCardId: PowerCardId | undefined;
     if (targets.length > 0) {
       const blocker = findBlockingEffect(script, targets[0], this.activePowerEffects);
       if (blocker) {
         this.activePowerEffects = this.activePowerEffects.filter((e) => e !== blocker);
-        blockedByCardId = blocker.cardId;
+        if (isBluff(blocker, script)) bluffedByCardId = blocker.cardId;
+        else blockedByCardId = blocker.cardId;
       }
     }
 
     let used = true;
     let resolved: PowerResolved | undefined;
+    let revealedHand: Card[] | undefined;
     if (!blockedByCardId) {
       const outcome = interpretPowerScript(script, ctx);
       resolved = outcome.resolved;
-      if (outcome.resolved.impact) {
+      if (bluffedByCardId) {
+        // Bluff : rien n'est appliqué ; l'attaquant voit une fausse main.
+        revealedHand = bluffHand(ctx.state, activatedBy, targets[0]);
+      } else if (outcome.resolved.impact) {
         const def = POWER_CARDS_BY_ID[cardId];
         if (def) this.flashBanner(`${def.name} !`, 2000);
         applyResolvedOps(
@@ -385,9 +393,12 @@ export class LocalGameSync implements GameSyncActions {
       used: consumed,
       playId: `local-${Date.now()}-${Math.random()}`,
       blockedByCardId,
+      // Je suis l'attaquant : je ne sais pas que j'ai été trompé (même règle que le serveur).
+      bluffedByCardId: activatedBy === 0 ? undefined : bluffedByCardId,
       consumedCardIds: consumed ? [cardId] : [],
       resolved,
       scriptVersion: 1,
+      ...(revealedHand ? { revealedHand } : {}),
     };
 
     const ps = this.players.map((p) => ({ ...p }));
@@ -395,7 +406,8 @@ export class LocalGameSync implements GameSyncActions {
     ps[activatedBy].powerActivations!.push(activation);
     this.players = ps;
 
-    this.powerActivatedListeners.forEach((cb) => cb(activation));
+    // Activation secrète d'un bot (Masque du Bluffeur) : je ne la vois pas.
+    if (!(script.secret && activatedBy !== 0)) this.powerActivatedListeners.forEach((cb) => cb(activation));
     this.emitState();
     return true;
   }

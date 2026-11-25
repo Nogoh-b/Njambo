@@ -25,7 +25,7 @@ import { getPowerModule } from "@/config/powers";
 import { FUNCTIONAL_CUES, fillCardPlaceholders, swapDelta, type ChoreoViewer } from "@/engine/power/choreography";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
-import { moveSourceUi, playChoreography, playShieldBlock, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
+import { moveSourceUi, playChoreography, playMaskBluff, playShieldBlock, type ChoreoCards, type ChoreoContext } from "@/components/power/choreo/playChoreography";
 import { playAnimV2, type AnimV2Move } from "@/components/power/choreo/playAnimV2";
 import type { PoseZone } from "@/components/table/zones/zonePose";
 import { getAnimV2 } from "@/engine/anim/v2/registry";
@@ -225,7 +225,13 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     const blockedText = blocker
       ? targetUi === 0 ? `Bloqué par ton ${blocker.name}` : `Bloqué par le ${blocker.name} de ${(targetUi != null ? d.getPlayers()[targetUi]?.name : undefined) ?? "la cible"}`
       : undefined;
-    showOverlay(activation.cardId, blocked, noEffect, blocked ? blockedText : othersText,activatorUi != null ? d.powerSlotRect?.(activation.cardId, activatorUi) : null);
+    // Bluff (Masque du Bluffeur) : la cible et les autres savent que l'attaquant a vu une fausse main.
+    const bluffer = activation.bluffedByCardId ? POWER_CARDS_BY_ID[activation.bluffedByCardId] : undefined;
+    const attackerName = (activatorUi != null ? d.getPlayers()[activatorUi]?.name : undefined) ?? "l'attaquant";
+    const bluffText = bluffer
+      ? targetUi === 0 ? `Ton ${bluffer.name} a trompé ${attackerName} : fausse main` : `Le ${bluffer.name} de ${(targetUi != null ? d.getPlayers()[targetUi]?.name : undefined) ?? "la cible"} a trompé ${attackerName}`
+      : undefined;
+    showOverlay(activation.cardId, blocked, noEffect, blocked ? blockedText : bluffText ?? othersText, activatorUi != null ? d.powerSlotRect?.(activation.cardId, activatorUi) : null);
 
     // Bloquée → l'attaque s'écrase sur le dôme de la cible, qui éclate ; aura et badge de protection consommés.
     if (blocked) {
@@ -242,6 +248,25 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
       if (d.motionEnabled && host && from && to) {
         const color = BLOCK_COLORS[blocker?.tone ?? "teal"] ?? BLOCK_COLORS.teal;
         const timer = setTimeout(() => { void playShieldBlock(host, from, to, color).finally(dropAura); }, Math.round(d.overlayMs * 0.6));
+        burstTimersRef.current.push(timer);
+      } else {
+        dropAura();
+      }
+      return;
+    }
+    // Bluff : le masque de la cible réapparaît et rit ; son aura et son badge (chez le porteur) tombent.
+    if (bluffer) {
+      setCharges((current) => current.filter((charge) => !(charge.ui === targetUi && charge.key.endsWith("-mask"))));
+      const host = choreoLayerRef.current?.container();
+      const to = targetUi != null ? d.registry.timer(targetUi)?.getRect() : null;
+      const dropAura = () => {
+        if (targetUi != null && auraSeatsRef.current.has(targetUi)) {
+          d.registry.timer(targetUi)?.showAura(null);
+          auraSeatsRef.current.delete(targetUi);
+        }
+      };
+      if (d.motionEnabled && host && to) {
+        const timer = setTimeout(() => { void playMaskBluff(host, to, BLOCK_COLORS[bluffer.tone] ?? BLOCK_COLORS.pink).finally(dropAura); }, Math.round(d.overlayMs * 0.6));
         burstTimersRef.current.push(timer);
       } else {
         dropAura();
@@ -382,12 +407,25 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
         depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
       });
     }
-    // Cauris, Totem et Bouclier sur le même joueur : badges distincts (un genre chacun).
-    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.insured ? (charge.key.endsWith("-totem") ? "totem" : charge.key.endsWith("-shield") ? "shield" : "insured") : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
+    // Masque (bluff des révélations) : badge chez son porteur seul (activation secrète), jusqu'au bluff ou à la fin de la manche.
+    if (shieldOp && shieldOp.op === "grantShield" && shieldOp.blocks.includes("reveal") && activatorUi != null) {
+      pendingCharges.push({
+        key: `${activation.playId}-mask`,
+        ui: activatorUi,
+        insured: true,
+        handTag: "",
+        avatarTag: "🎭 Masque (secret)",
+        landing: "spark",
+        tone: def.tone,
+        depositLen: d.getPlayers()[activatorUi]?.deposit.length ?? 0,
+      });
+    }
+    // Cauris, Totem, Bouclier et Masque sur le même joueur : badges distincts (un genre chacun).
+    const kindOf = (charge: PowerCharge) => (charge.force ? "force" : charge.pot ? "pot" : charge.insured ? (charge.key.endsWith("-totem") ? "totem" : charge.key.endsWith("-shield") ? "shield" : charge.key.endsWith("-mask") ? "mask" : "insured") : charge.key.endsWith("-seal") ? "seal" : charge.key.endsWith("-sand") ? "sand" : "boost");
     const sameKind = (a: PowerCharge, b: PowerCharge) => a.ui === b.ui && kindOf(a) === kindOf(b);
     // Chaque charge prend le relais au bon moment : carte imposée dès la fin de l'annonce (son projecteur fait partie
     // de la mise en scène), carte scellée à la fin de l'animation du sceau (1,9 s), renfort après la sienne.
-    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" || kindOf(charge) === "insured" || kindOf(charge) === "totem" || kindOf(charge) === "shield" ? 1800 : 1100));
+    const delayOf = (charge: PowerCharge) => (!d.motionEnabled ? 0 : d.overlayMs + (kindOf(charge) === "force" ? 100 : kindOf(charge) === "seal" || kindOf(charge) === "sand" || kindOf(charge) === "pot" || kindOf(charge) === "insured" || kindOf(charge) === "totem" || kindOf(charge) === "shield" || kindOf(charge) === "mask" ? 1800 : 1100));
     for (const charge of pendingCharges) {
       const timer = setTimeout(() => setCharges((current) => [...current.filter((item) => !sameKind(item, charge)), charge]), delayOf(charge));
       burstTimersRef.current.push(timer);

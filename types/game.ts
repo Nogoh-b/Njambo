@@ -235,6 +235,9 @@ export interface PowerCardActivation {
   /** Identifiant anti-replay (crypto UUID) */
   playId: string;
   blockedByCardId?: PowerCardId;
+  /** Révélation trompée par un masque (Masque du Bluffeur) : l'attaquant a vu une fausse main. Jamais envoyé à
+   *  l'attaquant lui-même ; la cible et les autres l'apprennent. */
+  bluffedByCardId?: PowerCardId;
   consumedCardIds?: PowerCardId[];
   /** Main révélée de la cible (Œil du Sorcier) — attachée LOCALEMENT à
    *  l'activateur uniquement (jamais écrite au doc partagé). */

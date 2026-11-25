@@ -328,6 +328,17 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(choreographyDuration(card.script.steps[0].choreo!)).toBeLessThanOrEqual(3_500);
     expect(card.script.steps[0].choreo!.tracks.some((track) => track.kind === "element" && track.effect === "villageShield")).toBe(true);
   });
+
+  it("Masque du Bluffeur : activation secrète, masque sur l'avatar, bluffe les révélations", () => {
+    const card = CODE_POWER_MODULES.masque_bluffeur;
+    expect(validatePowerCard({ def: card.def, script: card.script } as never)).toEqual([]);
+    expect(card.script.secret).toBe(true);
+    expect(card.script.steps[0].ops).toEqual([{ op: "grantShield", player: "self", blocks: ["reveal"] }]);
+    expect(choreographyDuration(card.script.steps[0].choreo!)).toBeLessThanOrEqual(3_500);
+    // Activation secrète : aucun texte destiné aux autres joueurs.
+    expect(card.script.steps[0].choreo!.tracks.every((track) => track.kind !== "text" || track.audience === "activator")).toBe(true);
+    expect(card.script.steps[0].choreo!.tracks.some((track) => track.kind === "element" && track.effect === "bluffMask")).toBe(true);
+  });
   it("Pacte des Mains : croisement au centre, textes du lanceur, de la cible et des autres", () => {
     const pacte = CODE_POWER_MODULES.pacte_mains;
     expect(validatePowerCard({ def: pacte.def, script: pacte.script } as never)).toEqual([]);

@@ -1089,6 +1089,100 @@ async function playAvatarShield(ctx: ChoreoContext, ui: number, durationMs: numb
   tag?.remove();
 }
 
+/** Masque de bluffeur (bois sculpté, motifs roses), dessiné en SVG. */
+const BLUFF_MASK_SVG = `<svg viewBox="0 0 50 64" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 4px 6px rgba(0,0,0,.55))">
+  <path d="M25 2 C40 2 47 14 46 30 C45 46 36 60 25 62 C14 60 5 46 4 30 C3 14 10 2 25 2 Z" fill="#5a2e17" stroke="#24110a" stroke-width="1.6"/>
+  <path d="M25 6 C37 7 42 17 41 30 C40 44 33 55 25 57 C17 55 10 44 9 30 C8 17 13 7 25 6 Z" fill="#8b4a24"/>
+  <path d="M12 16 Q25 10 38 16" stroke="#ff8fb0" stroke-width="2" fill="none" stroke-linecap="round"/>
+  <path class="eye" d="M13 27 Q18 22 23 27 Q18 30 13 27 Z" fill="#1a0b05"/><path class="eye" d="M27 27 Q32 22 37 27 Q32 30 27 27 Z" fill="#1a0b05"/>
+  <path d="M25 30 L22 40 L28 40 Z" fill="#6d3518" stroke="#24110a" stroke-width="1"/>
+  <path class="mouth" d="M17 46 Q25 52 33 46" stroke="#24110a" stroke-width="2.4" fill="none" stroke-linecap="round"/>
+  <path d="M8 34 L13 36 M42 34 L37 36 M10 42 L14 43 M40 42 L36 43" stroke="#ff8fb0" stroke-width="1.6" stroke-linecap="round"/>
+</svg>`;
+
+/** Masque du bluffeur : un masque sculpté descend sur l'avatar et s'y pose, ses yeux s'allument ; l'aura « masque »
+ *  prend le relais et `label` (« Masqué ») s'affiche. Vu par le lanceur seul (activation secrète). */
+async function playAvatarMask(ctx: ChoreoContext, ui: number, durationMs: number, color: string, label?: string) {
+  const timer = ctx.registry.timer(ui);
+  const rect = timer?.getRect();
+  const host = ctx.layer.container();
+  if (!timer || !rect || !host) return;
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const w = Math.max(34, Math.min(56, rect.width * 0.95)), h = w * 1.28;
+  const mask = document.createElement("div");
+  mask.setAttribute("data-choreo-fx", "mask");
+  Object.assign(mask.style, { position: "absolute", left: `${cx - w / 2}px`, top: `${cy - h / 2}px`, width: `${w}px`, height: `${h}px`, pointerEvents: "none" });
+  mask.innerHTML = BLUFF_MASK_SVG;
+  host.appendChild(mask);
+  const dropMs = Math.min(700, durationMs * 0.38);
+  // Le masque descend en se balançant et se plaque sur l'avatar.
+  await finished(mask.animate([
+    { transform: `translateY(${-h * 1.2}px) rotate(-14deg) scale(.7)`, opacity: 0 },
+    { transform: `translateY(${-h * 0.5}px) rotate(10deg) scale(.9)`, opacity: 1, offset: 0.45 },
+    { transform: "translateY(4px) rotate(-3deg) scale(1.06)", offset: 0.8 },
+    { transform: "translateY(0) rotate(0deg) scale(1)" },
+  ], { duration: dropMs, easing: "cubic-bezier(.3,.9,.4,1)", fill: "forwards" }));
+  mask.querySelectorAll<SVGPathElement>(".eye").forEach((eye) => {
+    void eye.animate([{ fill: "#1a0b05" }, { fill: color }], { duration: 300, fill: "forwards" });
+  });
+  ctx.burst("mystic", rect, ctx.defaultTone, "standard", 800);
+  timer.showAura("mask");
+  const tag = label ? document.createElement("span") : null;
+  if (tag) {
+    tag.textContent = label ?? "";
+    Object.assign(tag.style, {
+      position: "absolute", left: `${cx}px`, top: `${cy + h / 2 + 2}px`, transform: "translateX(-50%)", padding: "2px 8px", borderRadius: "999px",
+      background: "rgba(26,8,16,.86)", border: `1px solid ${color}`, color: "#ffd6e4", font: "800 11px/1.3 system-ui, sans-serif", whiteSpace: "nowrap", pointerEvents: "none",
+    });
+    host.appendChild(tag);
+    void tag.animate([{ opacity: 0, translate: "0 6px" }, { opacity: 1, translate: "0 0" }], { duration: 260, fill: "forwards" });
+  }
+  await sleep(Math.max(400, durationMs - dropMs - 350));
+  // Le masque se fond dans l'avatar : l'aura et le badge « Masque » restent (pour le lanceur seul).
+  await Promise.all([mask, ...(tag ? [tag] : [])].map((el) => finished(el.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 350, fill: "forwards" }))));
+  mask.remove();
+  tag?.remove();
+}
+
+/** Bluff réussi : le masque réapparaît sur l'avatar de la cible et rit (il se balance, la bouche s'ouvre), des « Ha ! »
+ *  s'envolent. Joué chez la cible et les autres, jamais chez l'attaquant (il croit avoir vu la vraie main). */
+export async function playMaskBluff(host: HTMLElement, to: DOMRect, color: string): Promise<void> {
+  const cx = to.left + to.width / 2, cy = to.top + to.height / 2;
+  const w = Math.max(34, Math.min(56, to.width * 0.95)), h = w * 1.28;
+  const mask = document.createElement("div");
+  mask.setAttribute("data-choreo-fx", "mask-bluff");
+  Object.assign(mask.style, { position: "absolute", left: `${cx - w / 2}px`, top: `${cy - h / 2}px`, width: `${w}px`, height: `${h}px`, pointerEvents: "none", transformOrigin: "50% 80%" });
+  mask.innerHTML = BLUFF_MASK_SVG;
+  host.appendChild(mask);
+  mask.querySelectorAll<SVGPathElement>(".eye").forEach((eye) => { eye.style.fill = color; });
+  // La bouche s'ouvre en rire.
+  mask.querySelector<SVGPathElement>(".mouth")?.setAttribute("d", "M16 45 Q25 58 34 45 Q25 50 16 45 Z");
+  await finished(mask.animate([{ transform: "scale(.4)", opacity: 0 }, { transform: "scale(1.12)", opacity: 1, offset: 0.7 }, { transform: "scale(1)", opacity: 1 }], { duration: 300, easing: "ease-out", fill: "forwards" }));
+  const laughs = ["Ha !", "Ha !", "Ha !"].map((text, index) => {
+    const puff = document.createElement("span");
+    puff.textContent = text;
+    const side = index % 2 === 0 ? 1 : -1;
+    Object.assign(puff.style, {
+      position: "absolute", left: `${cx + side * (w * 0.55)}px`, top: `${cy - h * 0.35}px`, transform: "translate(-50%, -50%)", pointerEvents: "none",
+      color: "#ffd6e4", font: "900 13px/1 system-ui, sans-serif", textShadow: `0 0 6px ${color}, 0 2px 3px rgba(0,0,0,.6)`, opacity: "0",
+    });
+    host.appendChild(puff);
+    return finished(puff.animate([
+      { opacity: 0, translate: "0 6px", scale: ".7" },
+      { opacity: 1, translate: `${side * 6}px -10px`, scale: "1.1", offset: 0.35 },
+      { opacity: 0, translate: `${side * 14}px -30px`, scale: "1" },
+    ], { duration: 900, delay: 180 + index * 260, easing: "ease-out", fill: "both" })).then(() => puff.remove());
+  });
+  // Le masque se balance en riant.
+  await finished(mask.animate([
+    { transform: "rotate(0deg)" }, { transform: "rotate(-12deg) translateY(-2px)" }, { transform: "rotate(10deg)" },
+    { transform: "rotate(-9deg) translateY(-2px)" }, { transform: "rotate(7deg)" }, { transform: "rotate(0deg)" },
+  ], { duration: 1100, easing: "ease-in-out" }));
+  await Promise.all(laughs);
+  await finished(mask.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.7)" }], { duration: 320, fill: "forwards" }));
+  mask.remove();
+}
+
 /** Blocage par un bouclier : un trait d'énergie part de l'attaquant et s'écrase sur un dôme autour de la cible ; le dôme
  *  flashe, se fissure puis éclate en morceaux. Jouée hors chorégraphie (l'activation bloquée n'en a pas). */
 export async function playShieldBlock(host: HTMLElement, from: DOMRect, to: DOMRect, color: string): Promise<void> {
@@ -1246,6 +1340,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
     // Cauris porte-bonheur (Cauris Chanceux) : il tombe sur l'avatar, bulle d'assurance, voir playAvatarCowrie.
     if (target.element === "avatar" && effect === "cowrie" && hit.ui !== undefined) {
       jobs.push(playAvatarCowrie(ctx, hit.ui, track.durationMs, color, track.label));
+      continue;
+    }
+    // Masque du bluffeur : il descend sur l'avatar et s'y pose, voir playAvatarMask.
+    if (target.element === "avatar" && effect === "bluffMask" && hit.ui !== undefined) {
+      jobs.push(playAvatarMask(ctx, hit.ui, track.durationMs, color, track.label));
       continue;
     }
     // Bouclier du village : il se dresse devant l'avatar puis s'ouvre en dôme, voir playAvatarShield.

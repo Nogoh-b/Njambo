@@ -20,6 +20,7 @@ import { canActivatePower } from "../../engine/power/canActivate";
 import { interpretPowerScript } from "../../engine/power/interpret";
 import { applyResolvedOps } from "../../engine/power/apply";
 import { findBlockingEffect } from "../../engine/power/blocking";
+import { bluffHand, isBluff } from "../../engine/power/bluff";
 import { resolveTargets } from "../../engine/power/targets";
 import { PowerRuntimeState, type PowerRuntimeSnapshot } from "../../engine/power/runtimeState";
 import type { PlayRestriction, PowerStateAdapter } from "../../engine/power/adapter";
@@ -223,12 +224,15 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     if (refusal) throw new HttpsError("failed-precondition", refusal);
 
     // Interception (bouclier, masque…) : l'effet de la cible contre ce script.
+    // Masque du Bluffeur contre une révélation : pas de blocage, une fausse main (bluffedByCardId).
     let blockedByCardId: PowerCardId | undefined;
+    let bluffedByCardId: PowerCardId | undefined;
     if (targets.length > 0) {
       const blocker = findBlockingEffect(script, targets[0], effects);
       if (blocker) {
         effects = effects.filter((effect) => effect !== blocker);
-        blockedByCardId = blocker.cardId;
+        if (isBluff(blocker, script)) bluffedByCardId = blocker.cardId;
+        else blockedByCardId = blocker.cardId;
       }
     }
 
@@ -239,7 +243,10 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
     if (!blockedByCardId) {
       const outcome = interpretPowerScript(script, ctx);
       resolved = outcome.resolved;
-      if (outcome.resolved.impact) {
+      if (bluffedByCardId) {
+        // Bluff : rien n'est appliqué, l'attaquant reçoit une fausse main (cartes qu'il ne peut pas démentir).
+        revealedHand = bluffHand(buildState(), seat, targets[0]) as Card[];
+      } else if (outcome.resolved.impact) {
         const adapter: PowerStateAdapter = {
           maxCardValue: GAME_CONFIG.ranks.max,
           getState: buildState,
@@ -274,7 +281,7 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
         // Aucun effet concret → la carte n'est PAS consommée (parité LocalGameSync).
         usedFlag = false;
       }
-      const revealOp = outcome.plan.find((op) => op.op === "revealHand");
+      const revealOp = bluffedByCardId ? undefined : outcome.plan.find((op) => op.op === "revealHand");
       if (revealOp && "seat" in revealOp) {
         const revealTarget = participants[revealOp.seat];
         if (revealTarget) revealedHand = [...(hands.get(revealTarget.uid) ?? [])];
@@ -290,6 +297,7 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
       used: consumed,
       playId: stableId(uid, "power", String(data.idempotencyKey)).slice(0, 32),
       blockedByCardId,
+      bluffedByCardId,
       consumedCardIds: consumed ? [cardId] : [],
       resolved,
       scriptVersion: 1,
@@ -310,7 +318,8 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
       handCounts: Object.fromEntries(participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0])),
       // Un tour sans limite (table contre l'IA réglée ainsi) le reste.
       actionDeadlineAt: Number(match.actionDeadlineAt) >= UNLIMITED_DEADLINE_AT ? UNLIMITED_DEADLINE_AT : Number(match.actionDeadlineAt) + POWER_ANIMATION_BUDGET_MS + deadlineDelta,
-      recentPowerActivations: [redactActivationForBroadcast(activation)],
+      // Activation secrète (Masque du Bluffeur) : rien n'est diffusé aux autres joueurs.
+      recentPowerActivations: script.secret ? undefined : [redactActivationForBroadcast(activation)],
       updatedAt: now,
     });
     transaction.update(matchRef, update);
@@ -322,7 +331,8 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
         hand: hands.get(uid) ?? [],
         equippedPowers: (privateSnaps[seat].get("equippedPowers") ?? []) as PowerCardId[],
       },
-      activation: clean(activation),
+      // L'attaquant ne doit pas savoir qu'il a été trompé.
+      activation: clean({ ...activation, bluffedByCardId: undefined }),
     };
   });
 }

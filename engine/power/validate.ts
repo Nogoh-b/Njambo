@@ -290,6 +290,7 @@ export function validatePowerCard(card: Pick<PowerModule, "def" | "script">): Po
     anim.forEach((cue, cueIndex) => validateCue(cue, `${base}.anim.${cueIndex}`, issues, choiceIds));
   });
   if (steps.length > 0 && !hasEffect) issues.push({ path: "script.steps", message: "La carte doit avoir au moins une brique d'effet." });
+  if (script.secret !== undefined && typeof script.secret !== "boolean") issues.push({ path: "script.secret", message: "Activation secrète : oui ou non." });
   const beats = obj(script.beats);
   if (beats.introMs !== undefined) validateDuration(beats.introMs, "script.beats.introMs", issues);
   if (beats.stepGapMs !== undefined) validateDuration(beats.stepGapMs, "script.beats.stepGapMs", issues);

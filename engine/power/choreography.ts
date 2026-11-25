@@ -59,7 +59,8 @@ export const ELEMENT_EFFECTS = {
   /* cowrie : un cauris tombe sur l'avatar, rebondit et se pose devant ; bulle d'assurance et aura « chance » (`label` dessous).
      totem : un totem sculpté sort de terre à côté de l'avatar, ses yeux s'allument, un cercle de pierres se referme (aura totem). */
   /* villageShield : un bouclier de village se dresse devant l'avatar en pivotant, puis s'ouvre en dôme (aura bouclier). */
-  avatar: ["auraShield", "auraMask", "auraTotem", "auraLucky", "shake", "halo", "bounce", "cowrie", "totem", "villageShield"],
+  /* bluffMask : un masque sculpté descend sur l'avatar, ses yeux s'allument (aura masque). */
+  avatar: ["auraShield", "auraMask", "auraTotem", "auraLucky", "shake", "halo", "bounce", "cowrie", "totem", "villageShield", "bluffMask"],
   /* bless : un halo doré part de l'avatar du lanceur et se pose sur le pot, qui enfle et rayonne. */
   pot: ["flash", "coinRain", "grow", "label", "bless"],
 } as const;

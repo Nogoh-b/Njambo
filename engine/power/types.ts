@@ -257,6 +257,8 @@ export interface PowerScript {
   steps: PowerStep[];
   /** Timings surchargés par carte ; défauts dérivés de TABLE_READABILITY_MS. */
   beats?: { introMs?: number; stepGapMs?: number };
+  /** Activation secrète : seul le lanceur la voit (Masque du Bluffeur — l'attaquant ne doit pas savoir qu'il bluffe). */
+  secret?: boolean;
 }
 
 /** Props d'un overlay custom par carte (rare — la plupart utilisent les visuels génériques). */
