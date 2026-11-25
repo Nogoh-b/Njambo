@@ -62,7 +62,8 @@ export const ELEMENT_EFFECTS = {
   /* bluffMask : un masque sculpté descend sur l'avatar, ses yeux s'allument (aura masque). */
   avatar: ["auraShield", "auraMask", "auraTotem", "auraLucky", "shake", "halo", "bounce", "cowrie", "totem", "villageShield", "bluffMask"],
   /* bless : un halo doré part de l'avatar du lanceur et se pose sur le pot, qui enfle et rayonne. */
-  pot: ["flash", "coinRain", "grow", "label", "bless"],
+  /* campfire : un feu de camp s'allume devant le pot (bûches, flammes, étincelles), le pot rougeoie. */
+  pot: ["flash", "coinRain", "grow", "label", "bless", "campfire"],
 } as const;
 
 export type ElementKind = keyof typeof ELEMENT_EFFECTS;

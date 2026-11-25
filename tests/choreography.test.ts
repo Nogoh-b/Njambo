@@ -329,6 +329,15 @@ describe("textes selon qui regarde et verdict d'un échange", () => {
     expect(card.script.steps[0].choreo!.tracks.some((track) => track.kind === "element" && track.effect === "villageShield")).toBe(true);
   });
 
+  it("Feu de Camp : +100 au pot si la manche est gagnée, feu de camp devant le pot", () => {
+    const card = CODE_POWER_MODULES.feu_camp;
+    expect(validatePowerCard({ def: card.def, script: card.script } as never)).toEqual([]);
+    expect(card.script.steps[0].ops).toEqual([{ op: "potBonus", amount: 100, when: "winRound" }]);
+    expect(card.def.activationTextOthers).toContain("{activator}");
+    expect(choreographyDuration(card.script.steps[0].choreo!)).toBeLessThanOrEqual(3_500);
+    expect(card.script.steps[0].choreo!.tracks.some((track) => track.kind === "element" && track.effect === "campfire")).toBe(true);
+  });
+
   it("Masque du Bluffeur : activation secrète, masque sur l'avatar, bluffe les révélations", () => {
     const card = CODE_POWER_MODULES.masque_bluffeur;
     expect(validatePowerCard({ def: card.def, script: card.script } as never)).toEqual([]);

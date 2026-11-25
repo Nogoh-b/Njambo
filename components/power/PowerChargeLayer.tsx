@@ -40,7 +40,7 @@ export interface PowerCharge {
   lockedIndex?: number;
   /** Bonus de pot « si tu gagnes la manche » (Bénédiction du Chef ×2, Pluie d'Étoiles +200) : badge près du pot pour tous
    *  jusqu'au dernier pli ; il éclate sur le pot si son joueur le rafle, s'éteint (« perdu ») sinon. */
-  pot?: { factor?: number; amount?: number; owner: string };
+  pot?: { factor?: number; amount?: number; owner: string; /** Icône du badge (🔥 Feu de Camp, ⭐ par défaut). */ icon?: string };
   /** Protection jusqu'à la fin de la manche (Cauris Chanceux, Totem des Ancêtres, Bouclier du Village) : badge sous
    *  l'avatar de son joueur, pour tous, jusqu'au dernier pli (le bouclier tombe aussi au blocage). */
   insured?: boolean;
@@ -128,7 +128,7 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
             potEndRef.current.delete(charge.key);
             const target = charge.pot.amount ? potNow + charge.pot.amount : potNow * (charge.pot.factor ?? 1);
             const what = charge.pot.amount ? `+${NKAP(charge.pot.amount)}` : `×${charge.pot.factor}`;
-            if (potRect) nextFrames.push({ key: charge.key, ui: charge.ui, x: potRect.left, y: potRect.top, w: potRect.width, h: potRect.height, kind: "pot", text: `⭐ ${what} pour ${charge.pot.owner} · ${NKAP(potNow)} → ${NKAP(target)}`, color, crackle: false });
+            if (potRect) nextFrames.push({ key: charge.key, ui: charge.ui, x: potRect.left, y: potRect.top, w: potRect.width, h: potRect.height, kind: "pot", text: `${charge.pot.icon ?? "⭐"} ${what} pour ${charge.pot.owner} · ${NKAP(potNow)} → ${NKAP(target)}`, color, crackle: false });
             continue;
           }
           const before = potBeforeRef.current.get(charge.key) ?? potNow;
@@ -137,7 +137,7 @@ export const PowerChargeLayer = memo(function PowerChargeLayer({ charges, regist
           potEndRef.current.set(charge.key, endedAt);
           const won = potNow >= target - 0.5;
           if (!won && performance.now() - endedAt < POT_SETTLE_MS) {
-            if (potRect) nextFrames.push({ key: charge.key, ui: charge.ui, x: potRect.left, y: potRect.top, w: potRect.width, h: potRect.height, kind: "pot", text: `⭐ ${charge.pot.amount ? `+${NKAP(charge.pot.amount)}` : `×${charge.pot.factor}`} pour ${charge.pot.owner}`, color, crackle: false });
+            if (potRect) nextFrames.push({ key: charge.key, ui: charge.ui, x: potRect.left, y: potRect.top, w: potRect.width, h: potRect.height, kind: "pot", text: `${charge.pot.icon ?? "⭐"} ${charge.pot.amount ? `+${NKAP(charge.pot.amount)}` : `×${charge.pot.factor}`} pour ${charge.pot.owner}`, color, crackle: false });
             continue;
           }
           done.add(charge.key);

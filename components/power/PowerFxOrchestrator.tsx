@@ -386,6 +386,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
           ...(potOp.op === "potMultiplier" ? { factor: potOp.factor } : {}),
           ...(potOp.op === "potBonus" ? { amount: potOp.amount } : {}),
           owner: activatorUi === 0 ? "toi" : d.getPlayers()[activatorUi]?.name ?? "le lanceur",
+          // Feu de Camp : son badge porte une flamme.
+          ...(powerModule.script.steps.some((step) => step.choreo?.tracks.some((track) => track.kind === "element" && track.effect === "campfire")) ? { icon: "🔥" } : {}),
         },
         handTag: "",
         avatarTag: "",

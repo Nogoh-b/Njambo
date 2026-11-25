@@ -1294,6 +1294,53 @@ export async function playShieldBlock(host: HTMLElement, from: DOMRect, to: DOMR
   dome.remove();
 }
 
+/** Feu de camp devant le pot : des bûches se posent, les flammes montent et dansent, des étincelles s'envolent ; le pot
+ *  rougeoie et `label` (« +100 ») s'affiche sur lui ; le feu retombe en braises et s'éteint. */
+async function playPotCampfire(ctx: ChoreoContext, durationMs: number, label?: string) {
+  const pot = ctx.registry.pot();
+  const potRect = pot?.getRect();
+  const host = ctx.layer.container();
+  if (!pot || !potRect || !host) return;
+  const size = Math.max(46, Math.min(80, potRect.height * 1.5));
+  const cx = potRect.left + potRect.width / 2;
+  // Le feu se pose sous le pot (ou au-dessus s'il n'y a pas la place en bas).
+  const below = potRect.bottom + size < window.innerHeight - 8;
+  const baseY = below ? potRect.bottom + size * 0.92 : potRect.top - 4;
+  const fire = document.createElement("div");
+  fire.setAttribute("data-choreo-fx", "campfire");
+  Object.assign(fire.style, { position: "absolute", left: `${cx - size / 2}px`, top: `${baseY - size}px`, width: `${size}px`, height: `${size}px`, pointerEvents: "none" });
+  fire.innerHTML = `<svg viewBox="0 0 60 60" width="100%" height="100%" style="overflow:visible;filter:drop-shadow(0 0 10px rgba(255,140,40,.75))">
+    <ellipse cx="30" cy="55" rx="24" ry="4" fill="rgba(0,0,0,.45)"/>
+    <g class="logs"><rect x="10" y="47" width="40" height="7" rx="3.5" fill="#6b3a1c" stroke="#2b1408" stroke-width="1.2" transform="rotate(-14 30 50)"/>
+    <rect x="10" y="47" width="40" height="7" rx="3.5" fill="#7d4522" stroke="#2b1408" stroke-width="1.2" transform="rotate(14 30 50)"/></g>
+    <g class="flames" style="transform-origin:30px 50px">
+      <path class="f1" d="M30 50 C16 46 18 30 26 20 C26 30 32 30 30 14 C40 24 46 36 38 48 Z" fill="#ff6a1f"/>
+      <path class="f2" d="M30 50 C22 47 22 36 28 29 C28 36 33 36 32 26 C38 33 40 42 35 49 Z" fill="#ffb02e"/>
+      <path class="f3" d="M30 50 C26 48 26 42 29 38 C30 42 32 42 32 37 C35 41 35 47 32 50 Z" fill="#fff2b0"/>
+    </g>
+  </svg>`;
+  host.appendChild(fire);
+  const flames = fire.querySelector<SVGGElement>(".flames");
+  const logs = fire.querySelector<SVGGElement>(".logs");
+  // Les bûches tombent en place, puis le feu prend.
+  if (logs) await finished(logs.animate([{ transform: "translateY(-14px)", opacity: 0 }, { transform: "translateY(0)", opacity: 1 }], { duration: 260, easing: "cubic-bezier(.3,1.4,.5,1)", fill: "both" }));
+  if (flames) {
+    await finished(flames.animate([{ transform: "scale(0.1, 0)", opacity: 0 }, { transform: "scale(1.1, 1.2)", opacity: 1, offset: 0.7 }, { transform: "scale(1, 1)", opacity: 1 }], { duration: 420, easing: "ease-out", fill: "both" }));
+    // Les flammes dansent pendant tout le feu.
+    void flames.animate([{ transform: "scale(1, 1) skewX(0deg)" }, { transform: "scale(.95, 1.08) skewX(-4deg)" }, { transform: "scale(1.04, .96) skewX(3deg)" }, { transform: "scale(1, 1) skewX(0deg)" }], { duration: 520, iterations: Infinity });
+  }
+  // Étincelles qui s'envolent du feu.
+  const sparkRect = new DOMRect(cx - size * 0.3, baseY - size * 0.9, size * 0.6, size * 0.6);
+  ctx.burst("goldRain", sparkRect, "gold", "standard", 1200);
+  const potEl = pot.getElement?.();
+  if (potEl && !ctx.lite) void potEl.animate([{ filter: "none" }, { filter: "brightness(1.35) drop-shadow(0 0 14px #ff8a2a)", offset: 0.35 }, { filter: "none" }], { duration: 1100 });
+  if (label) pot.flash(label);
+  await sleep(Math.max(500, durationMs - 260 - 420 - 450));
+  // Le feu retombe en braises et s'éteint.
+  await finished(fire.animate([{ opacity: 1, transform: "scale(1)" }, { opacity: 0, transform: "scale(.8) translateY(6px)" }], { duration: 450, easing: "ease-in", fill: "forwards" }));
+  fire.remove();
+}
+
 /** Halo sur le pot : un anneau doré se forme au-dessus de l'avatar du lanceur, vole jusqu'au pot en tournant et s'y pose ;
  *  le pot enfle et rayonne, `label` (« ×2 ») s'affiche sur lui. */
 async function playPotBless(ctx: ChoreoContext, durationMs: number, color: string, label?: string) {
@@ -1378,6 +1425,11 @@ async function playElement(ctx: ChoreoContext, track: ChoreoTrack & { kind: "ele
     // Cri (Cri du Chef) : ondes depuis cet avatar jusqu'au minuteur de chaque adversaire, voir playTimerShout.
     if (target.element === "timer" && effect === "shout" && hit.ui !== undefined) {
       jobs.push(playTimerShout(ctx, hit.ui, track.durationMs, color, intensity, track.label));
+      continue;
+    }
+    // Feu de camp devant le pot (Feu de Camp), voir playPotCampfire.
+    if (target.element === "pot" && effect === "campfire") {
+      jobs.push(playPotCampfire(ctx, track.durationMs, track.label));
       continue;
     }
     // Halo sur le pot (Bénédiction du Chef), voir playPotBless.
