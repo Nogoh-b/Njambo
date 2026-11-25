@@ -70,6 +70,8 @@ export interface MatchSettlementEntry {
 }
 interface MatchPlay { uid: string; card: ServerCard; turnId: string }
 export interface MatchDocument {
+  /** Fin prévue de l'animation du dernier pouvoir chez les clients (powerCommands). */
+  powerAnimUntil?: number;
   series?: { round: number; total: number; winners: string[] };
   status: string;
   mode: MatchMode;
@@ -995,7 +997,9 @@ export async function performGameAction(
     }
     // Budget d'animation du batch : le temps que les clients rejouent les
     // coups, le décompte affiché (clampé à turnSeconds) reste plein.
-    const animBudget = actions.length * PLAY_ANIM_MS + completedTricks * TRICK_PAUSE_MS;
+    // Un pouvoir encore en cours d'animation retarde d'autant le replay de ces coups chez les autres.
+    const powerAnimLeft = Math.max(0, Number(match.powerAnimUntil ?? 0) - now);
+    const animBudget = powerAnimLeft + actions.length * PLAY_ANIM_MS + completedTricks * TRICK_PAUSE_MS;
     const update = {
       turnIndex, leaderIndex, trickNumber, trickPlays, deposits, handCounts, potNkap: pot, series,
       eliminatedUids: [...eliminated],
@@ -1005,6 +1009,8 @@ export async function performGameAction(
         : turnDeadline(match.rules, now + SERVER_DELIVERY_MARGIN_MS + animBudget + nextTurnSeconds * 1_000),
       status: finished ? "settled" : roundFinished ? "between_rounds" : "playing", result,
       recentActions: actions.map((action, index) => ({ ...action, playId: stableId(opts.actionSeed, String(index)).slice(0, 32) })),
+      // Budget du pouvoir compté une fois (ci-dessus) : ne pas le recompter au coup suivant.
+      powerAnimUntil: 0,
       ...(missedTurns ? { missedTurns } : {}),
       settlementId: finished ? stableId("settlement", matchId) : null, updatedAt: now,
     };

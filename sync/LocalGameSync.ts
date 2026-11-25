@@ -26,6 +26,7 @@ import {
 import type { PowerChoices, PowerResolved, PowerStateAdapter } from "@/engine/power";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { powerScriptOf } from "@/config/powers";
+import { powerAnimationBudgetMs } from "@/engine/power/animBudget";
 import { DEV } from "@/config/devConfig";
 import { matchCountFor, seriesWinner } from "@/domain/gameplayConfig";
 import type { BOTS as BotsType } from "@/data/mock";
@@ -84,6 +85,8 @@ export class LocalGameSync implements GameSyncActions {
   /** Restrictions de jeu, timers gelés et pénalités différées (moteur partagé). */
   private powerRuntime = new PowerRuntimeState();
   private botPowerUsed = new Set<number>();
+  /** Animations actives (TableScreen) : cadence la pause après le pouvoir d'un bot. */
+  private motionEnabled = true;
 
   /** Port du moteur générique vers l'état local (tout est indexé par seat = idx). */
   private buildAdapter(): PowerStateAdapter {
@@ -712,17 +715,18 @@ export class LocalGameSync implements GameSyncActions {
 
   /* ═══════════════ Bot AI ═══════════════ */
 
-  /** @returns true si un pouvoir a été activé (→ lui donner un beat avant le coup). */
-  private maybeUseBotPower(): boolean {
+  /** @returns la pause à laisser avant le coup du bot (0 = aucun pouvoir activé) :
+   *  le temps que l'annonce et la mise en scène du pouvoir se jouent en entier. */
+  private maybeUseBotPower(): number {
     const botIdx = this.turnIdx;
     const difficulty = this.opts.difficulty ?? "normal";
-    if (difficulty === "easy" || botIdx <= 0 || this.botPowerUsed.has(botIdx)) return false;
+    if (difficulty === "easy" || botIdx <= 0 || this.botPowerUsed.has(botIdx)) return 0;
     const chance = difficulty === "hard" ? 0.72 : 0.36;
-    if (Math.random() > chance) return false;
+    if (Math.random() > chance) return 0;
 
     const powers = this.players[botIdx]?.equippedPowers ?? [];
     const cardId = powers.find((id) => !POWER_CARDS_BY_ID[id]?.disabled && !(this.players[botIdx].powerActivations ?? []).some((a) => a.cardId === id && a.used));
-    if (!cardId) return false;
+    if (!cardId) return 0;
 
     // Cible : si le script attend un choix de l'activateur, le bot tire un
     // adversaire au hasard (l'humain n'est plus systématiquement visé).
@@ -734,8 +738,11 @@ export class LocalGameSync implements GameSyncActions {
     }
 
     const activated = this.activatePower(cardId, botIdx, targetIdx);
-    if (activated) this.botPowerUsed.add(botIdx);
-    return activated;
+    if (!activated) return 0;
+    this.botPowerUsed.add(botIdx);
+    // Activation secrète : rien n'est montré, simple beat. Animations coupées : idem.
+    if (script.secret || !this.motionEnabled) return this.opts.cfg.anim.powerBeat;
+    return powerAnimationBudgetMs(script, this.opts.cfg.anim.powerMax);
   }
 
   private scheduleBotTurn() {
@@ -753,9 +760,9 @@ export class LocalGameSync implements GameSyncActions {
       const seatIdx = this.turnIdx;
       if (this.phase !== "turns" || this.players[seatIdx] !== p) return;
 
-      // Le bot tente d'abord son pouvoir. Si activé, on laisse le FX/overlay
-      // RESPIRER (powerBeat) avant que sa carte ne parte — sinon tout se superpose.
-      const usedPower = this.maybeUseBotPower();
+      // Le bot tente d'abord son pouvoir. Si activé, sa carte ne part qu'une fois
+      // l'annonce et la mise en scène du pouvoir terminées — sinon tout se superpose.
+      const powerPauseMs = this.maybeUseBotPower();
 
       // Choix + jeu de la carte, calculés APRÈS le pouvoir (état à jour). On
       // garde l'index numérique du siège : les effets pouvoir recréent les
@@ -780,8 +787,8 @@ export class LocalGameSync implements GameSyncActions {
         this.executePlay(seatIdx, idx);
       };
 
-      if (usedPower) {
-        this.botHandle = setTimeout(doPlay, this.opts.cfg.anim.powerBeat);
+      if (powerPauseMs > 0) {
+        this.botHandle = setTimeout(doPlay, powerPauseMs);
       } else {
         doPlay();
       }
@@ -818,6 +825,10 @@ export class LocalGameSync implements GameSyncActions {
   }
 
   /* ═══════════════ Interface GameSyncActions ═══════════════ */
+
+  setMotionEnabled = (enabled: boolean) => {
+    this.motionEnabled = enabled;
+  };
 
   onStateUpdate = (cb: (state: GameState) => void): Unsubscribe => {
     this.stateListeners.add(cb);

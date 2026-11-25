@@ -35,8 +35,11 @@ export const GAME_CONFIG: GameConfig = {
     dropFlight: 340,
     trickPause: 780,
     moment: 950,
-    powerMax: 1500,
+    // Annonce d'une carte pouvoir (carte au centre + titre/texte) avant sa mise en scène.
+    powerMax: 2200,
     landSettle: 80,
+    // Animations coupées : courte pause après un pouvoir. Sinon, la pause suit la durée
+    // réelle de l'animation (engine/power/animBudget.ts).
     powerBeat: 420,
     // Cadence de l'IA (table locale ET replay serveur) : un temps de
     // « réflexion » avant chaque carte adverse, puis une pause après son

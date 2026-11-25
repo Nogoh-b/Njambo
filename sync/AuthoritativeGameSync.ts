@@ -12,6 +12,8 @@ import { loadAssets, imageAsset, prefetchAssets } from "@/lib/assets/AssetLoader
 import { tableManifest } from "@/lib/assets/manifests";
 import { legalCards } from "@/engine/rules";
 import type { PowerChoices } from "@/engine/power";
+import { powerAnimationBudgetMs } from "@/engine/power/animBudget";
+import { getPowerModule } from "@/config/powers";
 import type {
   Card, GameState, GameSyncActions, Player, PowerCardActivation, PowerCardId, Profile,
   Result, RoomPlayer, SyncStatus,
@@ -152,6 +154,8 @@ export class AuthoritativeGameSync implements GameSyncActions {
   private timerListeners = new Set<(seconds: number) => void>();
   private syncListeners = new Set<(status: SyncStatus) => void>();
   private powerListeners = new Set<(activation: PowerCardActivation) => void>();
+  /** Animations actives (TableScreen) : cadence la pause du replay après un pouvoir. */
+  private motionEnabled = true;
 
   private initialReconnectMatchId: string | null = null;
 
@@ -596,7 +600,12 @@ export class AuthoritativeGameSync implements GameSyncActions {
         if (this.heldSwapHand) this.releaseSwapHand();
         else this.swapPowerShown = true;
       }
-      this.replayTimer = setTimeout(() => this.pump(), GAME_CONFIG.anim.powerBeat);
+      // L'événement suivant attend la fin de l'annonce ET de la mise en scène du
+      // pouvoir (même durée que le budget ajouté par le serveur à l'échéance).
+      const pauseMs = this.motionEnabled
+        ? powerAnimationBudgetMs(getPowerModule(step.activation.cardId)?.script, GAME_CONFIG.anim.powerMax)
+        : GAME_CONFIG.anim.powerBeat;
+      this.replayTimer = setTimeout(() => this.pump(), pauseMs);
       return;
     }
 
@@ -1043,6 +1052,7 @@ export class AuthoritativeGameSync implements GameSyncActions {
   onRoundEnd = (cb: (result: Result) => void) => { this.roundListeners.add(cb); return () => this.roundListeners.delete(cb); };
   onTimerTick = (cb: (seconds: number) => void) => { this.timerListeners.add(cb); return () => this.timerListeners.delete(cb); };
   onSyncStatus = (cb: (status: SyncStatus) => void) => { this.syncListeners.add(cb); return () => this.syncListeners.delete(cb); };
+  setMotionEnabled = (enabled: boolean) => { this.motionEnabled = enabled; };
   onPowerActivated = (cb: (activation: PowerCardActivation) => void) => { this.powerListeners.add(cb); return () => this.powerListeners.delete(cb); };
 
   private stopMatchSnapshots() {

@@ -23,13 +23,13 @@ import { findBlockingEffect } from "../../engine/power/blocking";
 import { bluffHand, isBluff } from "../../engine/power/bluff";
 import { resolveTargets } from "../../engine/power/targets";
 import { PowerRuntimeState, type PowerRuntimeSnapshot } from "../../engine/power/runtimeState";
+import { powerAnimationBudgetMs } from "../../engine/power/animBudget";
 import type { PlayRestriction, PowerStateAdapter } from "../../engine/power/adapter";
 import type { PowerChoices, PowerScript } from "../../engine/power/types";
 import type {
   ActivePowerEffect, Card, GameState, Player, PowerCardActivation, PowerCardId,
 } from "../../types/game";
 
-const POWER_ANIMATION_BUDGET_MS = GAME_CONFIG.anim.powerMax;
 
 /* ── État moteur persisté par match ── */
 
@@ -313,11 +313,16 @@ export async function usePowerCardHandler(request: CallableRequest<unknown>) {
       transaction.set(privateRefs[index], { uid: touchedUid, hand: hands.get(touchedUid) ?? [], updatedAt: now }, { merge: true });
     }
 
+    // Budget d'animation : annonce + mise en scène du script (même calcul que le replay client).
+    // Activation secrète : seul le lanceur la voit, simple annonce.
+    const animBudgetMs = script.secret ? GAME_CONFIG.anim.powerMax : powerAnimationBudgetMs(script, GAME_CONFIG.anim.powerMax);
     const update: DocumentData = clean({
       potNkap: pot,
       handCounts: Object.fromEntries(participants.map((participant) => [participant.uid, hands.get(participant.uid)?.length ?? 0])),
       // Un tour sans limite (table contre l'IA réglée ainsi) le reste.
-      actionDeadlineAt: Number(match.actionDeadlineAt) >= UNLIMITED_DEADLINE_AT ? UNLIMITED_DEADLINE_AT : Number(match.actionDeadlineAt) + POWER_ANIMATION_BUDGET_MS + deadlineDelta,
+      actionDeadlineAt: Number(match.actionDeadlineAt) >= UNLIMITED_DEADLINE_AT ? UNLIMITED_DEADLINE_AT : Number(match.actionDeadlineAt) + animBudgetMs + deadlineDelta,
+      // Fin prévue de l'animation chez les autres clients : le coup suivant en tient compte dans son budget.
+      powerAnimUntil: script.secret ? undefined : now + animBudgetMs,
       // Activation secrète (Masque du Bluffeur) : rien n'est diffusé aux autres joueurs.
       recentPowerActivations: script.secret ? undefined : [redactActivationForBroadcast(activation)],
       updatedAt: now,

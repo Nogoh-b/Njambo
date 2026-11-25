@@ -814,6 +814,7 @@ export function TableScreen({
 
   useEffect(() => {
     animationsOnRef.current = motionEnabled;
+    syncRef.current?.setMotionEnabled?.(motionEnabled);
   }, [motionEnabled]);
 
   useEffect(() => {
@@ -1523,6 +1524,7 @@ export function TableScreen({
     }
 
     syncRef.current = sync;
+    sync.setMotionEnabled?.(animationsOnRef.current);
     const animatedPlayIds = animatedPlayIdsRef.current;
 
     // Écouter les événements du sync. (La détection de swap par diff a disparu :

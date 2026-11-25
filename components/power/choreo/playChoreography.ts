@@ -1629,7 +1629,59 @@ async function playV2Track(ctx: ChoreoContext, track: V2Track, pendingHand: Map<
 }
 
 /** Joue toute la chorégraphie ; se résout quand la dernière piste est finie. */
-export async function playChoreography(ctx: ChoreoContext, choreo: Choreography, fill: (text: string) => string = (t) => t): Promise<void> {
+/** Vue du calque propre à UNE chorégraphie : ses cartes volantes et ses effets DOM (dans un
+ *  sous-conteneur) sont retirés à sa fin sans toucher à ceux d'une autre animation en cours. */
+function scopedLayer(layer: ChoreoLayerHandle): ChoreoLayerHandle {
+  const spriteIds = new Set<string>();
+  let host: HTMLElement | null = null;
+  return {
+    spawnCard: (sprite) => {
+      spriteIds.add(sprite.id);
+      return layer.spawnCard(sprite);
+    },
+    ...(layer.spawnCards
+      ? {
+          spawnCards: (sprites: Parameters<NonNullable<ChoreoLayerHandle["spawnCards"]>>[0]) => {
+            sprites.forEach((sprite) => spriteIds.add(sprite.id));
+            return layer.spawnCards!(sprites);
+          },
+        }
+      : {}),
+    removeCard: (id) => {
+      spriteIds.delete(id);
+      layer.removeCard(id);
+    },
+    removeCards: (ids) => {
+      ids.forEach((id) => spriteIds.delete(id));
+      if (layer.removeCards) layer.removeCards(ids);
+      else ids.forEach((id) => layer.removeCard(id));
+    },
+    container: () => {
+      if (host?.isConnected) return host;
+      const root = layer.container();
+      if (!root) return null;
+      host = document.createElement("div");
+      host.setAttribute("data-choreo-run", "");
+      // Même repère que le calque (plein écran, perspective) : les effets se placent à l'identique.
+      host.style.cssText = "position:absolute;inset:0;pointer-events:none;perspective:900px";
+      root.appendChild(host);
+      return host;
+    },
+    clear: () => {
+      const ids = [...spriteIds];
+      spriteIds.clear();
+      if (ids.length > 0) {
+        if (layer.removeCards) layer.removeCards(ids);
+        else ids.forEach((id) => layer.removeCard(id));
+      }
+      host?.remove();
+      host = null;
+    },
+  };
+}
+
+export async function playChoreography(baseCtx: ChoreoContext, choreo: Choreography, fill: (text: string) => string = (t) => t): Promise<void> {
+  const ctx: ChoreoContext = baseCtx.motionEnabled ? { ...baseCtx, layer: scopedLayer(baseCtx.layer) } : baseCtx;
   if (!ctx.motionEnabled) {
     // Animations coupées : on ne garde que les pistes qui accompagnent un vrai déplacement (pour libérer l'état).
     choreo.tracks.filter((track): track is MovingTrack => track.kind === "v2" || ((track.kind === "cardPath" || track.kind === "motif") && track.mode === "move")).forEach((track) => {

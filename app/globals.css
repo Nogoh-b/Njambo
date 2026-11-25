@@ -3291,7 +3291,7 @@ html[data-gxe-active] .njb--solid {
   background:
     radial-gradient(ellipse at 50% 48%, rgba(5, 5, 12, 0.4), transparent 64%),
     rgba(5, 5, 12, 0.14);
-  animation: powerActivationLife 1.6s ease-out both;
+  animation: powerActivationLife 2.2s ease-out both;
 }
 
 .nj-avatar-aura-field {
@@ -3524,7 +3524,7 @@ html[data-gxe-active] .njb--solid {
   z-index: 1;
   width: min(78vw, 330px);
   transform-origin: center;
-  animation: powerActivationCard 1.6s cubic-bezier(.2,.9,.25,1.12) both;
+  animation: powerActivationCard 2.2s cubic-bezier(.2,.9,.25,1.12) both;
 }
 
 .nj-power-activation-copy {
@@ -4065,8 +4065,8 @@ html[data-gxe-active] .njb--solid {
   0% {
     opacity: 0;
   }
-  12%,
-  78% {
+  10%,
+  86% {
     opacity: 1;
   }
   100% {
@@ -4079,8 +4079,8 @@ html[data-gxe-active] .njb--solid {
     opacity: 0;
     transform: translateY(28px) scale(0.72) rotate(-4deg);
   }
-  20%,
-  76% {
+  16%,
+  84% {
     opacity: 1;
     transform: translateY(-18px) scale(1) rotate(0deg);
   }
@@ -4100,17 +4100,17 @@ html[data-gxe-active] .njb--solid {
 
 /* Le texte attend que la carte soit arrivée. */
 .nj-power-activation-copy.is-launch {
-  animation: powerActivationCopyIn 1.5s ease-out both;
+  animation: powerActivationCopyIn 2.2s ease-out both;
 }
 
 @keyframes powerActivationCopyIn {
   0%,
-  22% {
+  18% {
     opacity: 0;
     transform: translateY(10px);
   }
-  32%,
-  80% {
+  26%,
+  86% {
     opacity: 1;
     transform: translateY(0);
   }
@@ -4129,12 +4129,12 @@ html[data-gxe-active] .njb--solid {
     opacity: 1;
     transform: translate(calc(var(--launch-x, 0px) * 0.96), calc(var(--launch-y, 28px) * 0.96 - 14px)) scale(calc(var(--launch-scale, 0.72) * 1.12)) rotate(var(--launch-rotate, 0deg));
   }
-  24% {
+  20% {
     opacity: 1;
     transform: translateY(-24px) scale(1.06) rotate(0deg);
   }
-  30%,
-  76% {
+  27%,
+  84% {
     opacity: 1;
     transform: translateY(-18px) scale(1) rotate(0deg);
   }

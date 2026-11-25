@@ -620,6 +620,8 @@ export interface GameSyncActions {
   abandon?: () => Promise<void>;
   /** Nettoyer les ressources */
   destroy: () => void;
+  /** Animations actives ? Cadence la pause après une activation de pouvoir. */
+  setMotionEnabled?: (enabled: boolean) => void;
 
   /** Événements entrants — retourne une fonction de désabonnement */
   onStateUpdate: (cb: (state: GameState) => void) => () => void;
@@ -682,7 +684,7 @@ export interface GameConfig {
     powerMax: number;
     /** Beat de « pose » après l'atterrissage d'une carte, avant l'annonce (ms) */
     landSettle: number;
-    /** Temps de lecture du FX d'une carte pouvoir avant que le bot ne joue (ms) */
+    /** Pause après un pouvoir quand les animations sont coupées (ms). Avec animations : durée du script (engine/power/animBudget). */
     powerBeat: number;
     /** Replay serveur : « réflexion » simulée avant un coup adverse (ms). */
     replayBotThinkMin: number;
