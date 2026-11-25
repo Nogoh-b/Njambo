@@ -14,25 +14,25 @@ Chaque carte passe par la même fiche :
 Ordre par famille : la première carte d'une famille construit ce que les suivantes réutilisent.
 
 ### 1. Main et pioche
-- [ ] Vent du Nord — **en cours** : publiée (rév. 4 en base de dev) et vérifiée en partie ; reste ton avis visuel et le commit
-- [ ] Marché de Nuit — **en cours** : publiée (rév. 2 en base de dev), vérifiée en partie ; reste ton avis visuel et le commit
+- [ ] Vent du Nord — **en cours** : publiée (rév. 5 en base de dev) et vérifiée en partie ; commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
+- [ ] Marché de Nuit — **en cours** : publiée (rév. 2 en base de dev), vérifiée en partie ; commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
 - [ ] Troc Ciblé — carte de test (`dev: true`), jamais en boutique : passée
-- [ ] Pacte des Mains — **en cours** : publiée (rév. 2 en base de dev), essayée en partie ; reste ton avis visuel et le commit
-- [ ] Main du Griot — **en cours** : publiée (rév. 2 en base de dev), essayée en partie ; reste ton avis visuel et le commit
+- [ ] Pacte des Mains — **en cours** : publiée (rév. 2 en base de dev), essayée en partie ; commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
+- [ ] Main du Griot — **en cours** : publiée (rév. 2 en base de dev), essayée en partie ; commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
 
 ### 2. Valeur
-- [ ] Éclair du Mfoundi — **en cours** : publiée (rév. 2 en base de dev), essayée en partie ; reste ton avis visuel et le commit
-- [ ] Pagne Changeant — **en cours** : publiée (rév. 2 en base de dev) ; pagne d'activation pas encore vu en partie ; reste ton avis visuel et le commit
+- [ ] Éclair du Mfoundi — **en cours** : publiée (rév. 2 en base de dev), essayée en partie ; commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
+- [ ] Pagne Changeant — **en cours** : publiée (rév. 2 en base de dev) ; pagne d'activation pas encore vu en partie ; commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
 
 ### 3. Restrictions
-- [ ] Coupe-Circuit — **en cours** : publiée (rév. 2 en base de dev) ; arc pas encore vu en partie ; reste ton avis visuel et le commit
-- [ ] Filet du Pêcheur — **en cours** : plus de filet ; version « Projecteur » de l'atelier portée en jeu ; reste publication (accord) et commit
-- [ ] Sceau d'Entrave — **en cours** : version C2 de l'atelier portée en jeu, vérifiée dans le bac à sable ; reste publication (accord) et commit
+- [ ] Coupe-Circuit — **en cours** : publiée (rév. 2 en base de dev) ; arc pas encore vu en partie ; commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
+- [ ] Filet du Pêcheur — **en cours** : plus de filet ; version « Projecteur » de l'atelier portée en jeu ; publiée en base de dev et commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
+- [ ] Sceau d'Entrave — **en cours** : version C2 de l'atelier portée en jeu, vérifiée dans le bac à sable ; publiée en base de dev et commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
 
 ### 4. Temps
-- [ ] Sable du Temps — **en cours** : règle changée (−6 s au prochain tour de la cible, plus de gel) et mise en scène écrites, vérifiées dans le bac à sable ; reste publication (accord) et commit
-- [ ] Cri du Chef — **en cours** : mise en scène écrite (règle gardée), vérifiée dans le bac à sable ; reste publication (accord) et commit
-- [ ] Tambour d'Appel — **en cours** : mise en scène écrite (règle gardée), vérifiée dans le bac à sable ; reste publication (accord) et commit
+- [ ] Sable du Temps — **en cours** : règle changée (−6 s au prochain tour de la cible, plus de gel) et mise en scène écrites, vérifiées dans le bac à sable ; publiée en base de dev et commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
+- [ ] Cri du Chef — **en cours** : mise en scène écrite (règle gardée), vérifiée dans le bac à sable ; publiée en base de dev et commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
+- [ ] Tambour d'Appel — **en cours** : mise en scène écrite (règle gardée), vérifiée dans le bac à sable ; publiée en base de dev et commitée ; reste ton avis en partie (voir cartes-pouvoir-recette.md)
 
 ### 5. Pot
 - [ ] Bénédiction du Chef — **en cours** : règle (pot ×2 si tu gagnes la MANCHE) et mise en scène faites (halo qui vole jusqu'au pot, « ×2 », badge de pot jusqu'au dernier pli) ; vérifiée (types, lint, tests, bac à sable) ; publiée (rév. 2 en base de dev) et commitée ; reste ton avis en partie
