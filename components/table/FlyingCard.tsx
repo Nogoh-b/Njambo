@@ -22,7 +22,7 @@ interface FlyingCardProps {
 }
 
 export const FlyingCard = memo(function FlyingCard({ f, effects = true, balanced = false }: FlyingCardProps) {
-  const dur = GAME_CONFIG.anim.dropFlight;
+  const dur = f.durationMs ?? GAME_CONFIG.anim.dropFlight;
   const w = f.w;
   const h = w * 1.45;
   const radius = Math.max(8, w * 0.14);

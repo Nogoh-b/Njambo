@@ -68,10 +68,10 @@ export const ventNord: PowerModule = {
         choreo: {
           tracks: [
             { id: "souffle", kind: "screen", startMs: 0, durationMs: 700, effect: "particles", preset: "wind", intensity: 2, at: { kind: "zone", zone: "hand", player: "self" } },
-            { id: "depart", kind: "v2", startMs: 120, durationMs: 690, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "deck" }, reflow: false },
-            { id: "avale", kind: "element", startMs: 820, durationMs: 420, target: { element: "deck" }, effect: "pulse", intensity: 3 },
+            { id: "depart", kind: "v2", startMs: 120, durationMs: 750, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "deck" }, reflow: false },
+            { id: "avale", kind: "element", startMs: 880, durationMs: 600, target: { element: "deck" }, effect: "pulse", intensity: 3 },
             { id: "rafale", kind: "screen", startMs: 1150, durationMs: 600, effect: "particles", preset: "wind", intensity: 2, at: { kind: "zone", zone: "deck" } },
-            { id: "tirage", kind: "v2", startMs: 1150, durationMs: 690, cards: "resolved:incoming", from: { zone: "deck" }, to: { zone: "hand", player: "self" }, present: { holdMs: 650, dy: -14, scale: 1.4 }, reflow: false },
+            { id: "tirage", kind: "v2", startMs: 1150, durationMs: 750, cards: "resolved:incoming", from: { zone: "deck" }, to: { zone: "hand", player: "self" }, present: { holdMs: 650, dy: -14, scale: 1.4 }, reflow: false },
             { id: "verdict", kind: "text", startMs: 2950, durationMs: 2000, text: "{outgoing} → {incoming} {delta}", at: { kind: "zone", zone: "hand", player: "self", dy: -16 }, size: "m", audience: "activator", verdictTone: true },
             { id: "temoin", kind: "text", startMs: 2900, durationMs: 1800, text: "{activator} a échangé une carte", at: { kind: "screen", at: "tableCenter", dy: -10 }, size: "s", audience: "others" },
           ],

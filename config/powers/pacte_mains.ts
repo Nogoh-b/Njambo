@@ -65,8 +65,8 @@ export const pacteMains: PowerModule = {
         choreo: {
           tracks: [
             { id: "sceau", kind: "screen", startMs: 0, durationMs: 800, effect: "particles", preset: "mystic", intensity: 2, at: { kind: "screen", at: "tableCenter" } },
-            { id: "offrande", kind: "v2", startMs: 100, durationMs: 690, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "hand", player: "target" }, present: { at: "tableCenter", dy: 8, scale: 1.2, holdMs: 1300 }, reflow: false, inPlace: true },
-            { id: "tribut", kind: "v2", startMs: 250, durationMs: 690, cards: "resolved:incoming", from: { zone: "hand", player: "target" }, to: { zone: "hand", player: "self" }, present: { at: "tableCenter", dy: -9, scale: 1.2, holdMs: 1150 }, reflow: false, inPlace: true },
+            { id: "offrande", kind: "v2", startMs: 100, durationMs: 750, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "hand", player: "target" }, present: { at: "tableCenter", dy: 8, scale: 1.2, holdMs: 1300 }, reflow: false, inPlace: true },
+            { id: "tribut", kind: "v2", startMs: 250, durationMs: 750, cards: "resolved:incoming", from: { zone: "hand", player: "target" }, to: { zone: "hand", player: "self" }, present: { at: "tableCenter", dy: -9, scale: 1.2, holdMs: 1150 }, reflow: false, inPlace: true },
             { id: "pacte_moi", kind: "text", startMs: 800, durationMs: 1000, text: "Le pacte est scellé", at: { kind: "screen", at: "tableCenter", dy: -22 }, size: "s", tone: "cobalt", audience: "activator" },
             { id: "pacte_cible", kind: "text", startMs: 800, durationMs: 1000, text: "{activator} prend {cards}", at: { kind: "screen", at: "tableCenter", dy: -22 }, size: "s", tone: "pink", audience: "target" },
             { id: "croisement", kind: "screen", startMs: 1850, durationMs: 700, effect: "particles", preset: "mystic", intensity: 3, at: { kind: "screen", at: "tableCenter" } },

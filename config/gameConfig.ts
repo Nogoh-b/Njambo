@@ -33,6 +33,8 @@ export const GAME_CONFIG: GameConfig = {
     dealPerCard: DEFAULT_GAMEPLAY_CONFIG.dealPerCardMs,
     dealFlight: DEFAULT_GAMEPLAY_CONFIG.dealFlightMs,
     dropFlight: 340,
+    // Vol d'une carte déplacée par un pouvoir (= POWER_FLIGHT_MS, engine/power/animBudget.ts).
+    powerFlight: 700,
     trickPause: 780,
     moment: 950,
     // Annonce d'une carte pouvoir (carte au centre + titre/texte) avant sa mise en scène.

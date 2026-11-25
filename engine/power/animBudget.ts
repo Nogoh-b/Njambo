@@ -8,13 +8,24 @@
 import { choreographyDuration } from "./choreography";
 import type { AnimCue, PowerScript } from "./types";
 
+/** Vol d'une carte déplacée par un pouvoir : nettement plus lent qu'une carte posée (dropFlight),
+ *  pour qu'on suive où elle part. Plancher appliqué aussi aux modèles V2 trop rapides. */
+export const POWER_FLIGHT_MS = 700;
+export const POWER_FLIGHT_MIN_MS = 650;
+
+/** Modèle de vol V2 ralenti au besoin pour un pouvoir (le modèle « Rapide » fait 420 ms). */
+export function withPowerFlightFloor<T extends { motion: { durationMs: number } }>(model: T): T {
+  if (model.motion.durationMs >= POWER_FLIGHT_MIN_MS) return model;
+  return { ...model, motion: { ...model.motion, durationMs: POWER_FLIGHT_MIN_MS } };
+}
+
 /** Plafond de la partie « script » (hors annonce) : un pouvoir ne bloque jamais la partie plus longtemps. */
 export const POWER_SCRIPT_BUDGET_CAP_MS = 4_500;
 
 /** Durée visible estimée d'un cue non chorégraphié (l'orchestrateur ne l'attend pas, mais on le laisse se jouer). */
 function cueVisibleMs(cue: AnimCue): number {
   switch (cue.cue) {
-    case "flyCards": return 700;
+    case "flyCards": return POWER_FLIGHT_MS;
     // La main révélée reste au centre plus longtemps, mais sans bloquer la lecture du jeu.
     case "revealOverlay": return Math.min(cue.durationMs ?? 5_000, 2_500);
     case "highlightHandCard": return Math.min(cue.durationMs ?? 2_600, 1_500) + (cue.delayMs ?? 0);
@@ -32,7 +43,7 @@ function cueStepMs(cues: AnimCue[]): number {
   let end = 0;
   for (const cue of cues) {
     end = Math.max(end, cursor + cueVisibleMs(cue));
-    if (cue.cue === "flyCards") cursor += 700;
+    if (cue.cue === "flyCards") cursor += POWER_FLIGHT_MS;
     cursor += cue.afterMs ?? (cue.cue === "flyCards" && cue.to.zone === "deck" ? 180 : 0);
   }
   return Math.max(end, cursor);

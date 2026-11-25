@@ -1240,6 +1240,7 @@ export function TableScreen({
         faceUp: req.faceUp,
         fxPreset: req.fxPreset,
         fxTone: req.fxTone,
+        durationMs: A.powerFlight,
       },
     ]);
     return new Promise((resolve) => {
@@ -1247,10 +1248,10 @@ export function TableScreen({
         setFlights((f) => f.filter((flight) => flight.key !== key));
         req.onArrive?.();
         resolve();
-      }, A.dropFlight);
+      }, A.powerFlight);
       burstTimersRef.current.push(timer);
     });
-  }, [A.dropFlight, depW, setFlights]);
+  }, [A.powerFlight, depW, setFlights]);
 
   const beginStateTransition = useCallback(() => {
     if (powerTransitionDepthRef.current === 0) {
@@ -1286,7 +1287,7 @@ export function TableScreen({
     liteMotion,
     balancedMotion,
     overlayMs: POWER_OVERLAY_MS,
-    flightMs: A.dropFlight,
+    flightMs: A.powerFlight,
     uiIndexFromUid: uiIndexFromPowerUid,
     uiIndexFromSeat,
     getPlayers: () => playersRef.current,

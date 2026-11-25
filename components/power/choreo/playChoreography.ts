@@ -13,6 +13,7 @@ import type { ZonePose } from "@/engine/anim/v2/pose";
 import { getAnimV2 } from "@/engine/anim/v2/registry";
 import { DEFAULT_V2_MODEL, V2_PRESENT_RISE_MS, audienceSees, motifOfTrack, type Anchor, type ChoreoViewer, type ChoreoTrack, type Choreography, type ElementTarget, type Easing, type MotifTrack, type V2Track, type V2ZoneAnchor, type Waypoint } from "@/engine/power/choreography";
 import type { PlayerRef, PowerFxIntensity, PowerFxPreset, PowerFxTone } from "@/engine/power/types";
+import { withPowerFlightFloor } from "@/engine/power/animBudget";
 import { sysAsset } from "@/lib/assetPack";
 import type { Card } from "@/types/game";
 import type { ChoreoLayerHandle } from "./ChoreoLayer";
@@ -1564,7 +1565,8 @@ async function playV2Track(ctx: ChoreoContext, track: V2Track, pendingHand: Map<
   if (cards.ids.length === 0) return;
   ctx.onMoveStart?.(track, cards);
   try {
-    const model = getAnimV2(track.model ?? ctx.animV2 ?? DEFAULT_V2_MODEL) ?? getAnimV2(DEFAULT_V2_MODEL) ?? DEFAULT_ANIMS_V2[0];
+    // Vol d'un pouvoir : jamais plus rapide que POWER_FLIGHT_MIN_MS, même avec un modèle « Rapide ».
+    const model = withPowerFlightFloor(getAnimV2(track.model ?? ctx.animV2 ?? DEFAULT_V2_MODEL) ?? getAnimV2(DEFAULT_V2_MODEL) ?? DEFAULT_ANIMS_V2[0]);
     const refOf = (anchor: V2ZoneAnchor): ZoneRef => ("player" in anchor ? { zone: anchor.zone, ui: ctx.resolveRefUi(anchor.player)[0] } : { zone: anchor.zone });
     const from = refOf(track.from);
     const to = refOf(track.to);

@@ -67,8 +67,8 @@ export const marcheNuit: PowerModule = {
         choreo: {
           tracks: [
             { id: "lanterne", kind: "screen", startMs: 0, durationMs: 700, effect: "particles", preset: "mystic", intensity: 2, at: { kind: "zone", zone: "deck" } },
-            { id: "depart", kind: "v2", startMs: 120, durationMs: 690, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "deck" }, reflow: false },
-            { id: "avale", kind: "element", startMs: 820, durationMs: 420, target: { element: "deck" }, effect: "pulse", intensity: 2 },
+            { id: "depart", kind: "v2", startMs: 120, durationMs: 750, cards: "resolved:outgoing", from: { zone: "hand", player: "self" }, to: { zone: "deck" }, reflow: false },
+            { id: "avale", kind: "element", startMs: 880, durationMs: 600, target: { element: "deck" }, effect: "pulse", intensity: 2 },
             ...[-21, -11, 11, 21].map((dx, index) => ({
               id: `etal${index + 1}`, kind: "cardPath" as const, startMs: 1000 + index * 40, durationMs: 900, cards: "ghost" as const, mode: "display" as const,
               waypoints: [
@@ -78,7 +78,7 @@ export const marcheNuit: PowerModule = {
               ],
               easing: "smooth" as const, arc: 0,
             })),
-            { id: "choix", kind: "v2", startMs: 1150, durationMs: 690, cards: "resolved:incoming", from: { zone: "deck" }, to: { zone: "hand", player: "self" }, present: { holdMs: 1100, dy: -15, scale: 1.4 }, reflow: false },
+            { id: "choix", kind: "v2", startMs: 1150, durationMs: 750, cards: "resolved:incoming", from: { zone: "deck" }, to: { zone: "hand", player: "self" }, present: { holdMs: 1100, dy: -15, scale: 1.4 }, reflow: false },
             { id: "eclat", kind: "screen", startMs: 1700, durationMs: 800, effect: "particles", preset: "goldRain", intensity: 3, at: { kind: "zone", zone: "deck", dy: -15 } },
             { id: "etal_moi", kind: "text", startMs: 1650, durationMs: 1100, text: "Le meilleur de l'étal", at: { kind: "zone", zone: "deck", dy: -29 }, size: "s", tone: "gold", audience: "activator" },
             { id: "etal_eux", kind: "text", startMs: 1650, durationMs: 1100, text: "{activator} choisit sa carte", at: { kind: "zone", zone: "deck", dy: -29 }, size: "s", audience: "others" },

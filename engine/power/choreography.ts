@@ -435,7 +435,7 @@ export function choreographyFromCues(anim: CueLike[]): Choreography {
         const cards = typeof cue.cards === "string" && ["resolved:outgoing", "resolved:incoming", "resolved:highlight"].includes(cue.cards)
           ? cue.cards as "resolved:outgoing" : "resolved:outgoing";
         tracks.push({
-          id, kind: "cardPath", startMs: at, durationMs: 650, cards, mode: cue.mode === "display" ? "display" : "move",
+          id, kind: "cardPath", startMs: at, durationMs: 750, cards, mode: cue.mode === "display" ? "display" : "move",
           waypoints: [{ at: zoneAnchorOf(obj(cue.from)), ...(cue.hidden ? { face: "down" as const } : {}) }, { at: zoneAnchorOf(obj(cue.to)) }],
           easing: "smooth", arc: 30, ...(fx.preset ? { trail: fx.preset as PowerFxPreset } : { trail: "wind" as const }),
         });

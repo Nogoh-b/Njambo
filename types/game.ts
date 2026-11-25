@@ -380,6 +380,8 @@ export interface Flight {
   /** Habillage mystique du vol, sans influence sur la logique de jeu. */
   fxPreset?: PowerFxPreset;
   fxTone?: PowerFxTone;
+  /** Durée du vol (ms). Défaut : anim.dropFlight (carte posée). */
+  durationMs?: number;
 }
 
 /* ───── Résultat de partie (union discriminée par `type`) ───── */
@@ -679,6 +681,8 @@ export interface GameConfig {
     dealPerCard: number;
     dealFlight: number;
     dropFlight: number;
+    /** Vol d'une carte déplacée par un pouvoir (ms), plus lent qu'une carte posée. */
+    powerFlight: number;
     trickPause: number;
     moment: number;
     powerMax: number;

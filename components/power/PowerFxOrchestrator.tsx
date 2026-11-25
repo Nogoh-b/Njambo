@@ -23,6 +23,7 @@ import {
 } from "@/components/power/PowerParticleLayer";
 import { getPowerModule } from "@/config/powers";
 import { FUNCTIONAL_CUES, fillCardPlaceholders, swapDelta, type ChoreoViewer } from "@/engine/power/choreography";
+import { withPowerFlightFloor } from "@/engine/power/animBudget";
 import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import { playPowerSound } from "@/lib/powerSounds";
 import { ChoreoLayer, type ChoreoLayerHandle } from "@/components/power/choreo/ChoreoLayer";
@@ -629,7 +630,8 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
 
     /* Animation V2 (fiche de la carte, `animV2`) : les vols de cartes passent par le lecteur V2,
        les zones donnent les poses. Modèle inconnu de ce client = vols habituels. */
-    const animV2 = def.animV2 ? getAnimV2(def.animV2) : null;
+    const v2Model = def.animV2 ? getAnimV2(def.animV2) : null;
+    const animV2 = v2Model ? withPowerFlightFloor(v2Model) : null;
     /** Nombre de cartes de chaque main APRÈS les mouvements déjà joués (l'état réel n'arrive qu'au commit). */
     const pendingHandCount = new Map<number, number>();
     const handCountOf = (ui: number) => pendingHandCount.get(ui) ?? players[ui]?.hand.length ?? 0;
