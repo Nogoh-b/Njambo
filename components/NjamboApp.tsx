@@ -136,13 +136,19 @@ function SceneRouter() {
   if (onMenu && menuCovered) setMenuCovered(false);
   // Visible pendant le fondu d'entrée de la scène suivante (fondu enchaîné), masqué ensuite.
   const menuVisible = onMenu || !menuCovered;
+  /* Calque de scène : ni pour l'accueil (calque permanent ci-dessus), ni pour la table (rendue par
+     les overlays MatchLoadingScreen/TableScreen/ResultScreen). Un calque VIDE de 100dvh en z-index 1
+     recouvrait sinon la table et captait tous les appuis (cartes, boutons) pendant la partie. */
+  const sceneLayer = !onMenu && scene !== "table";
   const coverMenu = useCallback(() => {
     setMenuCovered(true);
     endTransition();
   }, [endTransition]);
   useEffect(() => {
-    if (!onMenu && !motionProfile.allowNavigationMotion) setMenuCovered(true);
-  }, [onMenu, motionProfile.allowNavigationMotion]);
+    // Sans fondu d'entrée (pas de calque de scène, ou animations de navigation coupées),
+    // rien ne signale la fin du recouvrement : on masque l'accueil tout de suite.
+    if (!onMenu && (!sceneLayer || !motionProfile.allowNavigationMotion)) setMenuCovered(true);
+  }, [onMenu, sceneLayer, motionProfile.allowNavigationMotion]);
   const {
     currentRoom,
     resumeActiveRoom,
@@ -704,7 +710,7 @@ function SceneRouter() {
 
         {motionProfile.allowNavigationMotion ? (
           <AnimatePresence mode="wait" initial={false} onExitComplete={endTransition}>
-            {!onMenu && (
+            {sceneLayer && (
               <motion.div
                 key={scene}
                 variants={motionProfile.reduced ? reducedSceneVariants : sceneVariants}
@@ -721,7 +727,7 @@ function SceneRouter() {
             )}
           </AnimatePresence>
         ) : (
-          !onMenu && <div style={{ minHeight: "100dvh", position: "relative", zIndex: 1 }}>{renderScene()}</div>
+          sceneLayer && <div style={{ minHeight: "100dvh", position: "relative", zIndex: 1 }}>{renderScene()}</div>
         )}
 
         {/* Écran de chargement plein écran + cinématique d'ouverture en 3 actes
