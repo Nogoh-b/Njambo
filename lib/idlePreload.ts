@@ -1,7 +1,7 @@
 import { prefetchAssets } from "@/lib/assets/AssetLoader";
 import { menuManifest } from "@/lib/assets/manifests";
 import { loadGsap } from "@/lib/motion";
-import { IDLE_PREFETCH_SCENES, preloadScene } from "@/lib/scenePreload";
+import { IDLE_PREFETCH_SCENES, loadPowerParticles, preloadScene } from "@/lib/scenePreload";
 import { sysAsset } from "@/lib/assetPack";
 
 type IdleTask = () => void | Promise<unknown>;
@@ -24,7 +24,7 @@ const tasks: IdleTask[] = [
   // sur le premier geste réel (pointerdown/keydown), sans tâche idle dédiée.
   () => prefetchAssets(menuManifest().background),
   () => loadGsap(),
-  () => import("@/components/power/PowerParticles"),
+  loadPowerParticles,
   // Chunks + assets critiques des scènes les plus visitées depuis le home (une par tâche idle).
   ...IDLE_PREFETCH_SCENES.map((scene) => () => preloadScene(scene)),
 ];

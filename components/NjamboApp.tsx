@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { MotionProfileProvider, reducedSceneVariants, sceneVariants, useMotionProfile } from "@/lib/motion";
@@ -15,6 +15,7 @@ import { SettingsProvider, useSettings } from "@/contexts/SettingsContext";
 import { PerformanceHud } from "@/components/perf/PerformanceHud";
 import { markPerformance } from "@/lib/performanceMetrics";
 import { schedulePostSplashPreload } from "@/lib/idlePreload";
+import { SCENE_IMPORTS, peekScene } from "@/lib/scenePreload";
 import { EconomyProvider, useInventory } from "@/contexts/EconomyContext";
 import { LoadingGate } from "@/components/ui/LoadingGate";
 import { MatchLoadingScreen } from "@/components/ui/MatchLoadingScreen";
@@ -55,33 +56,48 @@ const SCENE_APPROACH: Record<string, string> = {
 };
 
 const loading = () => null;
-const BotSetupScreen = dynamic(() => import("@/components/scenes/BotSetupScreen").then((module) => module.BotSetupScreen), { loading });
-const OnlineSetupScreen = dynamic(() => import("@/components/scenes/OnlineSetupScreen").then((module) => module.OnlineSetupScreen), { loading });
-const FriendsSetupScreen = dynamic(() => import("@/components/scenes/FriendsSetupScreen").then((module) => module.FriendsSetupScreen), { loading });
-const LobbyScreen = dynamic(() => import("@/components/scenes/LobbyScreen").then((module) => module.LobbyScreen), { loading });
-const TableScreen = dynamic(() => import("@/components/scenes/TableScreen").then((module) => module.TableScreen), { loading });
-const ResultScreen = dynamic(() => import("@/components/scenes/ResultScreen").then((module) => module.ResultScreen), { loading });
-const ProfileScreen = dynamic(() => import("@/components/scenes/ProfileScreen").then((module) => module.ProfileScreen), { loading });
-const LeaderboardScreen = dynamic(() => import("@/components/scenes/LeaderboardScreen").then((module) => module.LeaderboardScreen), { loading });
-const FriendsScreen = dynamic(() => import("@/components/scenes/FriendsScreen").then((module) => module.FriendsScreen), { loading });
-const PlayersScreen = dynamic(() => import("@/components/scenes/PlayersScreen").then((module) => module.PlayersScreen), { loading });
-const FriendRequestsScreen = dynamic(() => import("@/components/scenes/FriendRequestsScreen").then((module) => module.FriendRequestsScreen), { loading });
-const NotificationsScreen = dynamic(() => import("@/components/scenes/NotificationsScreen").then((module) => module.NotificationsScreen), { loading });
-const MessagesScreen = dynamic(() => import("@/components/scenes/MessagesScreen").then((module) => module.MessagesScreen), { loading });
-const ChatScreen = dynamic(() => import("@/components/scenes/ChatScreen").then((module) => module.ChatScreen), { loading });
-const PublicProfileScreen = dynamic(() => import("@/components/scenes/PublicProfileScreen").then((module) => module.PublicProfileScreen), { loading });
-const OptionsScreen = dynamic(() => import("@/components/scenes/OptionsScreen").then((module) => module.OptionsScreen), { loading });
-const HistoryScreen = dynamic(() => import("@/components/scenes/HistoryScreen").then((module) => module.HistoryScreen), { loading });
-const RulesScreen = dynamic(() => import("@/components/scenes/RulesScreen").then((module) => module.RulesScreen), { loading });
-const PowerCollectionScreen = dynamic(() => import("@/components/scenes/PowerCollectionScreen").then((module) => module.PowerCollectionScreen), { loading });
-const PlayHubScreen = dynamic(() => import("@/components/scenes/PlayHubScreen").then((module) => module.PlayHubScreen), { loading });
-const ShopScreen = dynamic(() => import("@/components/scenes/ShopScreen").then((module) => module.ShopScreen), { loading });
-const EventsScreen = dynamic(() => import("@/components/scenes/EventsScreen").then((module) => module.EventsScreen), { loading });
-const SeasonScreen = dynamic(() => import("@/components/scenes/SeasonScreen").then((module) => module.SeasonScreen), { loading });
-const EventDetailScreen = dynamic(() => import("@/components/scenes/EventDetailScreen").then((module) => module.EventDetailScreen), { loading });
-const EventMatchmakingOverlay = dynamic(() => import("@/components/scenes/EventMatchmakingOverlay").then((module) => module.EventMatchmakingOverlay), { loading });
-const WalletScreen = dynamic(() => import("@/components/scenes/WalletScreen").then((module) => module.WalletScreen), { loading });
-const MiniGamesScreen = dynamic(() => import("@/components/minigames/MiniGamesScreen").then((module) => module.MiniGamesScreen), { loading });
+
+/** Écran chargé à la demande, mais rendu SANS suspension dès que son chunk est déjà là
+ *  (préchargé au repos ou au survol). Voir `peekScene` dans lib/scenePreload.ts. */
+function lazyScene<M, P extends object>(load: () => Promise<M>, pick: (module: M) => ComponentType<P>): ComponentType<P> {
+  const Lazy = dynamic(() => load().then(pick), { loading }) as ComponentType<P>;
+  function Scene(props: P) {
+    // Choix figé au montage : basculer de Lazy au composant réel en cours de vie remonterait l'écran.
+    const [Component] = useState<ComponentType<P>>(() => {
+      const loaded = peekScene(load);
+      return loaded ? pick(loaded) : Lazy;
+    });
+    return <Component {...props} />;
+  }
+  return Scene;
+}
+const BotSetupScreen = lazyScene(SCENE_IMPORTS.BotSetupScreen, (module) => module.BotSetupScreen);
+const OnlineSetupScreen = lazyScene(SCENE_IMPORTS.OnlineSetupScreen, (module) => module.OnlineSetupScreen);
+const FriendsSetupScreen = lazyScene(SCENE_IMPORTS.FriendsSetupScreen, (module) => module.FriendsSetupScreen);
+const LobbyScreen = lazyScene(SCENE_IMPORTS.LobbyScreen, (module) => module.LobbyScreen);
+const TableScreen = lazyScene(SCENE_IMPORTS.TableScreen, (module) => module.TableScreen);
+const ResultScreen = lazyScene(SCENE_IMPORTS.ResultScreen, (module) => module.ResultScreen);
+const ProfileScreen = lazyScene(SCENE_IMPORTS.ProfileScreen, (module) => module.ProfileScreen);
+const LeaderboardScreen = lazyScene(SCENE_IMPORTS.LeaderboardScreen, (module) => module.LeaderboardScreen);
+const FriendsScreen = lazyScene(SCENE_IMPORTS.FriendsScreen, (module) => module.FriendsScreen);
+const PlayersScreen = lazyScene(SCENE_IMPORTS.PlayersScreen, (module) => module.PlayersScreen);
+const FriendRequestsScreen = lazyScene(SCENE_IMPORTS.FriendRequestsScreen, (module) => module.FriendRequestsScreen);
+const NotificationsScreen = lazyScene(SCENE_IMPORTS.NotificationsScreen, (module) => module.NotificationsScreen);
+const MessagesScreen = lazyScene(SCENE_IMPORTS.MessagesScreen, (module) => module.MessagesScreen);
+const ChatScreen = lazyScene(SCENE_IMPORTS.ChatScreen, (module) => module.ChatScreen);
+const PublicProfileScreen = lazyScene(SCENE_IMPORTS.PublicProfileScreen, (module) => module.PublicProfileScreen);
+const OptionsScreen = lazyScene(SCENE_IMPORTS.OptionsScreen, (module) => module.OptionsScreen);
+const HistoryScreen = lazyScene(SCENE_IMPORTS.HistoryScreen, (module) => module.HistoryScreen);
+const RulesScreen = lazyScene(SCENE_IMPORTS.RulesScreen, (module) => module.RulesScreen);
+const PowerCollectionScreen = lazyScene(SCENE_IMPORTS.PowerCollectionScreen, (module) => module.PowerCollectionScreen);
+const PlayHubScreen = lazyScene(SCENE_IMPORTS.PlayHubScreen, (module) => module.PlayHubScreen);
+const ShopScreen = lazyScene(SCENE_IMPORTS.ShopScreen, (module) => module.ShopScreen);
+const EventsScreen = lazyScene(SCENE_IMPORTS.EventsScreen, (module) => module.EventsScreen);
+const SeasonScreen = lazyScene(SCENE_IMPORTS.SeasonScreen, (module) => module.SeasonScreen);
+const EventDetailScreen = lazyScene(SCENE_IMPORTS.EventDetailScreen, (module) => module.EventDetailScreen);
+const EventMatchmakingOverlay = lazyScene(SCENE_IMPORTS.EventMatchmakingOverlay, (module) => module.EventMatchmakingOverlay);
+const WalletScreen = lazyScene(SCENE_IMPORTS.WalletScreen, (module) => module.WalletScreen);
+const MiniGamesScreen = lazyScene(SCENE_IMPORTS.MiniGamesScreen, (module) => module.MiniGamesScreen);
 
 /* ═══════════════ SceneRouter ═══════════════
    Orchestrateur de scènes : gère la navigation réelle (pile + hash + Capacitor),
@@ -245,10 +261,13 @@ function SceneRouter() {
   }, [setProfile, user]);
 
   useEffect(() => {
-    if (["play", "bot_setup", "online_setup", "friends_invite", "lobby", "events", "event_detail"].includes(scene)) {
-      void import("@/components/scenes/TableScreen");
-      void import("@/components/scenes/ResultScreen");
-    }
+    if (!["play", "bot_setup", "online_setup", "friends_invite", "lobby", "events", "event_detail"].includes(scene)) return;
+    // Après la transition d'entrée : ~500 Ko de JS à parser ne doivent pas voler le CPU au fondu.
+    const timer = window.setTimeout(() => {
+      void SCENE_IMPORTS.TableScreen();
+      void SCENE_IMPORTS.ResultScreen();
+    }, 700);
+    return () => window.clearTimeout(timer);
   }, [scene]);
 
   /* Protection contre actualisation / fermeture accidentelle de l'onglet en pleine partie. */

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import dynamic from "next/dynamic";
+import { loadPowerParticles } from "@/lib/scenePreload";
 import { useSfx } from "@gxe/react";
 import { NjamboIcon } from "@/components/ui/Art";
 import { PlayCard } from "@/components/cards/PlayCard";
@@ -21,7 +22,7 @@ import styles from "./ResultScreen.module.css";
 import { sysAsset } from "@/lib/assetPack";
 
 /* Particules tsparticles chargées en lazy, client uniquement (jamais au SSR). */
-const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
+const PowerParticles = dynamic(loadPowerParticles, { ssr: false });
 
 const NKAP_COIN_SRC = "/assets/njambo/economy/nkap-64.webp";
 

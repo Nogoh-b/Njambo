@@ -17,6 +17,7 @@ import type { BotDifficulty, GameMode, PowerCardId } from "@/types/game";
 import styles from "./MatchLoadingScreen.module.css";
 import { sysAsset } from "@/lib/assetPack";
 import { playGameSound } from "@/lib/audio/audioCatalogStore";
+import { SCENE_IMPORTS, loadPowerParticles } from "@/lib/scenePreload";
 
 const MODE_META: Record<GameMode, { label: string; tone: "gold" | "teal" | "palm" | "pink"; icon: NjamboIconName; title: string }> = {
   bot: {
@@ -171,10 +172,11 @@ const DEFAULT_MATCH_LOADING_MAX_MS = 10000;
 export const SCENE_OPENING_DURATION_MS = 2650;
 
 const CHUNK_LOADERS: Array<() => Promise<unknown>> = [
-  () => import("@/components/scenes/TableScreen"),
-  () => import("@/components/scenes/ResultScreen"),
+  // Mêmes fonctions que NjamboApp, sinon Turbopack précharge un autre chunk (cf. lib/scenePreload.ts).
+  SCENE_IMPORTS.TableScreen,
+  SCENE_IMPORTS.ResultScreen,
   () => loadGsap(),
-  () => import("@/components/power/PowerParticles"),
+  loadPowerParticles,
 ];
 
 export function MatchLoadingScreen({

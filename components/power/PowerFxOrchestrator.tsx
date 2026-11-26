@@ -16,6 +16,7 @@ import { launchStyle, screenLaunchTarget } from "@/components/power/powerLaunch"
 import { PowerChargeLayer, type PowerCharge } from "@/components/power/PowerChargeLayer";
 import { GAME_CONFIG } from "@/config/gameConfig";
 import dynamic from "next/dynamic";
+import { loadPowerParticles } from "@/lib/scenePreload";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import {
   PowerParticleLayer,
@@ -45,7 +46,7 @@ import type {
 } from "@/engine/power/types";
 import type { Card, GameState, PowerCardActivation, PowerCardId } from "@/types/game";
 
-const PowerParticles = dynamic(() => import("@/components/power/PowerParticles"), { ssr: false });
+const PowerParticles = dynamic(loadPowerParticles, { ssr: false });
 
 type PowerTone = PowerFxTone;
 /** Couleur du dôme qui éclate au blocage, selon le ton de la carte protectrice. */
