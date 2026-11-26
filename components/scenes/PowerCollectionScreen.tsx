@@ -69,6 +69,9 @@ const FILTERS: Array<{ id: BinderFilter; label: string }> = [
 
 const ROMAN_SLOTS = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"] as const;
 
+/** Nombre de cartes du classeur animées à l'entrée (au-delà : affichées directement). */
+const BINDER_CASCADE_MAX = 12;
+
 export function PowerCollectionScreen() {
   const { navigateTo, goBack, backLabelFor, profile, setProfile, cfg, collectionTab, setCollectionTab } = useGame();
   const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
@@ -137,6 +140,15 @@ export function PowerCollectionScreen() {
       return card.category === filter;
     });
   }, [collectionCards, filter, inventory]);
+
+  /* Montage en deux temps : le 1er écran de cartes tout de suite, le reste (hors écran) juste
+     après la transition d'entrée, pour ne pas bloquer le fondu sur une seule grosse image. */
+  const [binderFull, setBinderFull] = useState(false);
+  useEffect(() => {
+    const timer = window.setTimeout(() => setBinderFull(true), 350);
+    return () => window.clearTimeout(timer);
+  }, []);
+  const renderedCards = binderFull ? visibleCards : visibleCards.slice(0, BINDER_CASCADE_MAX);
 
   const showNotice = useCallback((msg: string) => {
     setFeedback(msg);
@@ -870,7 +882,7 @@ export function PowerCollectionScreen() {
               </div>
             ) : (
               <div className={styles.cardGrid}>
-                {visibleCards.map((card, idx) => {
+                {renderedCards.map((card, idx) => {
                   const owned = (inventory[card.id] ?? 0) > 0;
                   const isEquipped = equipped.includes(card.id);
                   const isSelected = selectedId === card.id;
@@ -883,7 +895,9 @@ export function PowerCollectionScreen() {
                   return (
                     <motion.div
                       key={`${filter}-${card.id}`}
-                      initial={cascadeOn ? { opacity: 0, y: 14, scale: 0.94 } : false}
+                      // Cascade réservée au 1er écran (~12 cartes sur téléphone) : les cartes hors écran
+                      // n'ont pas à faire tourner un ressort JS pendant la transition d'entrée.
+                      initial={cascadeOn && idx < BINDER_CASCADE_MAX ? { opacity: 0, y: 14, scale: 0.94 } : false}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       whileHover={cascadeOn ? { y: -5, scale: 1.035 } : undefined}
                       whileTap={{ scale: 0.96 }}
