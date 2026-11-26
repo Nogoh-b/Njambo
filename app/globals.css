@@ -5505,3 +5505,11 @@ html[data-gxe-active] .njb--solid {
   color: #ffd76a;
   letter-spacing: 0.02em;
 }
+
+/* Scène gardée montée mais recouverte (accueil, voir NjamboApp) : aucune animation ne tourne
+   en dessous de la scène visible (ni compositing, ni batterie). */
+.nj-scene-dormant *,
+.nj-scene-dormant *::before,
+.nj-scene-dormant *::after {
+  animation-play-state: paused !important;
+}

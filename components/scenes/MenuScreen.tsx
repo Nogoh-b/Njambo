@@ -43,6 +43,8 @@ interface MenuScreenProps {
   /** Type de la partie en cours à reprendre (null = rien à reprendre). */
   resumeRoomType?: "online" | "friends" | null;
   onResumeGame?: () => void;
+  /** Accueil gardé monté mais couvert par une autre scène (voir NjamboApp) : boucles en pause. */
+  dormant?: boolean;
 }
 
 const ZERO_STATS: PlayerStats = { played: 0, won: 0, bestWin: 0 };
@@ -296,11 +298,11 @@ function ModeChipButton({
   );
 }
 
-export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenProps) {
+export function MenuScreen({ resumeRoomType = null, onResumeGame, dormant = false }: MenuScreenProps) {
   const { profile, navigateTo, cfg, setCollectionTab } = useGame();
   const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const motionProfile = useMotionProfile();
-  const pageActive = usePageActive();
+  const pageActive = usePageActive() && !dormant;
   const motionMode = resolveHomeMotionMode(motionProfile.enabled, motionProfile.level);
   const motionFeatures = HOME_MOTION_FEATURES[motionMode];
   const { user } = useAuth();
@@ -311,6 +313,10 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame }: MenuScreenPr
   const [claiming, setClaiming] = useState(false);
   const [bonusBurst, setBonusBurst] = useState(false);
   const [dailyModalOpen, setDailyModalOpen] = useState(false);
+  // La modale est rendue en portail : elle ne doit pas rester ouverte au-dessus d'une autre scène.
+  useEffect(() => {
+    if (dormant) setDailyModalOpen(false);
+  }, [dormant]);
   const [activeCardIdx, setActiveCardIdx] = useState<number | null>(null);
   const [cardBurstState, setCardBurstState] = useState<{ idx: number; key: number } | null>(null);
   const [dealCycle, setDealCycle] = useState(0);

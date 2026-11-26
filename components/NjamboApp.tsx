@@ -122,6 +122,27 @@ function SceneRouter() {
   } = useGame();
   const { animationsOn } = useSettings();
   const motionProfile = useMotionProfile();
+
+  /* ── Accueil gardé monté (keep-alive) ──
+     L'accueil est la scène pivot : presque tous les retours y mènent. Le démonter puis le
+     reconstruire à chaque aller-retour coûtait ~200 ms de JS et ~800 ms de rastérisation GPU
+     (51 calques, 7,6 × la surface de l'écran) : sur téléphone, écran vide ~1 s au retour.
+     Il reste donc monté dans un calque fixe SOUS les autres scènes : masqué (visibility),
+     inerte et animations en pause dès qu'une scène l'a entièrement recouvert. */
+  const [menuMounted, setMenuMounted] = useState(scene === "menu");
+  const [menuCovered, setMenuCovered] = useState(scene !== "menu");
+  const onMenu = scene === "menu";
+  if (onMenu && !menuMounted) setMenuMounted(true);
+  if (onMenu && menuCovered) setMenuCovered(false);
+  // Visible pendant le fondu d'entrée de la scène suivante (fondu enchaîné), masqué ensuite.
+  const menuVisible = onMenu || !menuCovered;
+  const coverMenu = useCallback(() => {
+    setMenuCovered(true);
+    endTransition();
+  }, [endTransition]);
+  useEffect(() => {
+    if (!onMenu && !motionProfile.allowNavigationMotion) setMenuCovered(true);
+  }, [onMenu, motionProfile.allowNavigationMotion]);
   const {
     currentRoom,
     resumeActiveRoom,
@@ -621,7 +642,7 @@ function SceneRouter() {
 
   const renderSceneContent = (): ReactNode => {
     switch (scene) {
-      case "menu": return <MenuScreen resumeRoomType={resumeRoomType} onResumeGame={handleResumeGame} />;
+      case "menu": return null; // rendu une seule fois, dans son calque permanent (voir menuMounted)
       case "profile": return <ProfileScreen />;
       case "leaderboard": return <LeaderboardScreen />;
       case "friends": return <FriendsScreen />;
@@ -670,21 +691,37 @@ function SceneRouter() {
         ].join(" ")}
         style={{ minHeight: "100vh", position: "relative" }}
       >
+        {menuMounted && (
+          <div
+            className={menuVisible ? undefined : "nj-scene-dormant"}
+            aria-hidden={onMenu ? undefined : true}
+            inert={!onMenu}
+            style={{ position: "fixed", inset: 0, zIndex: 0, visibility: menuVisible ? "visible" : "hidden" }}
+          >
+            <MenuScreen resumeRoomType={resumeRoomType} onResumeGame={handleResumeGame} dormant={!menuVisible} />
+          </div>
+        )}
+
         {motionProfile.allowNavigationMotion ? (
           <AnimatePresence mode="wait" initial={false} onExitComplete={endTransition}>
-            <motion.div
-              key={scene}
-              variants={motionProfile.reduced ? reducedSceneVariants : sceneVariants}
-              initial="out"
-              animate="in"
-              exit="exit"
-              style={{ minHeight: "100dvh", willChange: "opacity" }}
-            >
-              {renderScene()}
-            </motion.div>
+            {!onMenu && (
+              <motion.div
+                key={scene}
+                variants={motionProfile.reduced ? reducedSceneVariants : sceneVariants}
+                initial="out"
+                animate="in"
+                exit="exit"
+                onAnimationComplete={(definition) => {
+                  if (definition === "in") coverMenu();
+                }}
+                style={{ minHeight: "100dvh", willChange: "opacity", position: "relative", zIndex: 1 }}
+              >
+                {renderScene()}
+              </motion.div>
+            )}
           </AnimatePresence>
         ) : (
-          <div style={{ minHeight: "100dvh" }}>{renderScene()}</div>
+          !onMenu && <div style={{ minHeight: "100dvh", position: "relative", zIndex: 1 }}>{renderScene()}</div>
         )}
 
         {/* Écran de chargement plein écran + cinématique d'ouverture en 3 actes
