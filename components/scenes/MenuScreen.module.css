@@ -307,7 +307,8 @@
 }
 
 .hudIconBtn :global(.njambo-asset-icon img) {
-  filter: brightness(1.2) contrast(1.06) saturate(1.22) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.52));
+  /* Couleurs seules : les drop-shadow sur images coûtaient ~10 % du dessin de l'accueil. */
+  filter: brightness(1.2) contrast(1.06) saturate(1.22);
 }
 
 .countBadge {
@@ -401,7 +402,6 @@
 .resourceIcon img {
   display: block;
   object-fit: contain;
-  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.5));
 }
 
 .resourceBody {
@@ -727,7 +727,7 @@
 .tileIconWrap img {
   display: block;
   object-fit: contain;
-  filter: brightness(1.12) contrast(1.06) drop-shadow(0 3px 5px rgba(0, 0, 0, 0.45));
+  filter: brightness(1.12) contrast(1.06);
 }
 
 .tileMeta {

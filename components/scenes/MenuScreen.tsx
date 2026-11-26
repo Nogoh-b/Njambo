@@ -698,8 +698,10 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame, dormant = fals
         {/* Centre : Table ovale 3D en acajou & or + éventail vivant des 5 cartes */}
         <motion.div
           className={styles.tableCenterpiece}
-          initial={entrancesOn ? { opacity: 0, scale: 0.94 } : false}
-          animate={{ opacity: 1, scale: 1 }}
+          // Glissement plutôt qu'agrandissement : une échelle animée en JS ferait redessiner la table
+          // (le calque le plus coûteux de l'accueil) à chaque image de l'entrée.
+          initial={entrancesOn ? { opacity: 0, y: 12 } : false}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.42, delay: 0.04, ease: [0.22, 1, 0.36, 1] }}
         >
           {/* Halo solaire rotatif derrière la table royale */}

@@ -897,7 +897,9 @@ export function PowerCollectionScreen() {
                       key={`${filter}-${card.id}`}
                       // Cascade réservée au 1er écran (~12 cartes sur téléphone) : les cartes hors écran
                       // n'ont pas à faire tourner un ressort JS pendant la transition d'entrée.
-                      initial={cascadeOn && idx < BINDER_CASCADE_MAX ? { opacity: 0, y: 14, scale: 0.94 } : false}
+                      // Pas de `scale` à l'entrée : une échelle animée en JS fait redessiner (rastériser)
+                      // la carte à CHAQUE image ; un glissement (y) et l'opacité ne redessinent rien.
+                      initial={cascadeOn && idx < BINDER_CASCADE_MAX ? { opacity: 0, y: 14 } : false}
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       whileHover={cascadeOn ? { y: -5, scale: 1.035 } : undefined}
                       whileTap={{ scale: 0.96 }}

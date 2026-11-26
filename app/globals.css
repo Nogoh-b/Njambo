@@ -1039,7 +1039,21 @@ html[data-gxe-active] .njb--solid {
   place-items: center;
   line-height: 0;
   vertical-align: middle;
-  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.42)) drop-shadow(0 0 7px var(--nj-icon-glow));
+  /* Ombre + halo en dégradés radiaux (ci-dessous), plus en filter: drop-shadow. Chaque drop-shadow
+     coûtait un passage de dessin hors écran avec flou, pour chaque icône (15 sur l'accueil). */
+  isolation: isolate;
+}
+
+.njambo-asset-icon::before {
+  content: "";
+  position: absolute;
+  inset: -28%;
+  z-index: -1;
+  border-radius: 50%;
+  pointer-events: none;
+  background:
+    radial-gradient(closest-side at 50% 58%, rgba(0, 0, 0, 0.34), transparent 72%),
+    radial-gradient(closest-side, var(--nj-icon-glow), transparent 100%);
 }
 
 .njambo-asset-icon img,
