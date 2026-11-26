@@ -851,7 +851,7 @@ export default function NjamboApp() {
       <EconomyProvider>
         <SettingsProvider>
           <GameProvider>
-            <MotionProfileProvider>
+            <MotionProfileProvider clientOnly>
               <LobbyProvider>
                 <SceneRouter />
               </LobbyProvider>

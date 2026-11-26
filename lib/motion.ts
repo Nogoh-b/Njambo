@@ -70,15 +70,22 @@ export function requestMotionProbe(delayMs = 1_200): void {
   window.setTimeout(() => window.dispatchEvent(new Event(MOTION_PROBE_EVENT)), delayMs);
 }
 
-export function MotionProfileProvider({ children }: { children: ReactNode }) {
+export function MotionProfileProvider({ children, clientOnly = false }: {
+  children: ReactNode;
+  /** Arbre jamais rendu côté serveur (le jeu, chargé par AppBootstrap) : l'appareil est lu dès le
+   *  1er rendu. Sans cela, un téléphone affichait l'accueil en niveau maximal (calques, animations
+   *  lourdes) puis basculait en Performance ~100 ms plus tard : double travail au démarrage. */
+  clientOnly?: boolean;
+}) {
   const { animationsOn, motionQuality } = useSettings();
   const prefersReducedRaw = useReducedMotion();
-  // HYDRATION : le premier rendu client doit produire le MÊME HTML que le SSR
+  // HYDRATION (arbres pré-rendus) : le premier rendu client doit produire le MÊME HTML que le SSR
   // (le niveau de motion finit dans des className et styles inline). Les
   // signaux dépendants de l'appareil — viewport, CPU/RAM, prefers-reduced-motion —
   // ne sont donc lus qu'APRÈS montage ; le profil réel s'applique au re-render.
-  const [env, setEnv] = useState<MotionEnv>(SSR_MOTION_ENV);
-  const [mounted, setMounted] = useState(false);
+  const readNow = clientOnly && typeof window !== "undefined";
+  const [env, setEnv] = useState<MotionEnv>(() => (readNow ? getMotionEnv() : SSR_MOTION_ENV));
+  const [mounted, setMounted] = useState(readNow);
   const [runtimeLevel, setRuntimeLevel] = useState<MotionLevel | null>(null);
 
   useEffect(() => {
