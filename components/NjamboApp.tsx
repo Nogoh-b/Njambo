@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ComponentType, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { MotionProfileProvider, reducedSceneVariants, sceneVariants, useMotionProfile } from "@/lib/motion";
@@ -16,6 +16,7 @@ import { PerformanceHud } from "@/components/perf/PerformanceHud";
 import { markPerformance } from "@/lib/performanceMetrics";
 import { schedulePostSplashPreload } from "@/lib/idlePreload";
 import { SCENE_IMPORTS, peekScene } from "@/lib/scenePreload";
+import { navCommitted, navDone } from "@/lib/navPerf";
 import { EconomyProvider, useInventory } from "@/contexts/EconomyContext";
 import { LoadingGate } from "@/components/ui/LoadingGate";
 import { MatchLoadingScreen } from "@/components/ui/MatchLoadingScreen";
@@ -140,10 +141,17 @@ function SceneRouter() {
      les overlays MatchLoadingScreen/TableScreen/ResultScreen). Un calque VIDE de 100dvh en z-index 1
      recouvrait sinon la table et captait tous les appuis (cartes, boutons) pendant la partie. */
   const sceneLayer = !onMenu && scene !== "table";
+  const sceneRefForPerf = useRef(scene);
+  sceneRefForPerf.current = scene;
   const coverMenu = useCallback(() => {
     setMenuCovered(true);
     endTransition();
+    navDone(sceneRefForPerf.current);
   }, [endTransition]);
+  /* Mesure de navigation (?perf=1) : écran validé ; sans fondu, il est complet dès sa 1re image. */
+  useLayoutEffect(() => {
+    navCommitted(scene, !motionProfile.allowNavigationMotion || !(sceneLayer || onMenu));
+  }, [scene]); // eslint-disable-line react-hooks/exhaustive-deps -- une mesure par changement d'écran
   useEffect(() => {
     // Sans fondu d'entrée (pas de calque de scène, ou animations de navigation coupées),
     // rien ne signale la fin du recouvrement : on masque l'accueil tout de suite.
@@ -709,7 +717,14 @@ function SceneRouter() {
         )}
 
         {motionProfile.allowNavigationMotion ? (
-          <AnimatePresence mode="wait" initial={false} onExitComplete={endTransition}>
+          <AnimatePresence
+            mode="wait"
+            initial={false}
+            onExitComplete={() => {
+              endTransition();
+              navDone(sceneRefForPerf.current);
+            }}
+          >
             {sceneLayer && (
               <motion.div
                 key={scene}

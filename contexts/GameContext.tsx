@@ -19,6 +19,7 @@ import {
   type StoredAudioSettings,
 } from "@/lib/audio/audioSettings";
 import { GAME_CONFIG } from "@/config/gameConfig";
+import { navStart } from "@/lib/navPerf";
 import { useGameplayConfig } from "@/hooks/useGameplayConfig";
 import { STARTING_CAURIS } from "@/config/powerCards";
 import { DEV, devEquippedPowers } from "@/config/devConfig";
@@ -307,6 +308,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     setRestoredRoomId(nextRoomId);
 
     if (entry.scene !== sceneRef.current) {
+      navStart(sceneRef.current, entry.scene);
       if (animate) setTransitioning(true);
       sceneRef.current = entry.scene;
       setScene(entry.scene);

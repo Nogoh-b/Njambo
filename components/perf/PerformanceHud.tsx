@@ -3,6 +3,20 @@
 import { useEffect, useRef, useState } from "react";
 import { useMotionProfile } from "@/lib/motion";
 import { getBoardRenderCount, PERFORMANCE_EVENT } from "@/lib/performanceMetrics";
+import { getNavSamples, NAV_PERF_EVENT, navPerfEnabled, type NavSample } from "@/lib/navPerf";
+
+function deviceLine(): string {
+  const nav = navigator as Navigator & { deviceMemory?: number };
+  const coarse = window.matchMedia?.("(pointer: coarse)").matches ? "tactile" : "souris";
+  return `${window.innerWidth}×${window.innerHeight} @${window.devicePixelRatio.toFixed(1)} · ${nav.hardwareConcurrency ?? "?"} cœurs · ${nav.deviceMemory ?? "?"} Go · ${coarse}`;
+}
+
+function navLine(sample: NavSample): string {
+  const total = Math.round((sample.done ?? sample.painted ?? sample.start) - sample.start);
+  const mount = sample.commit !== undefined ? Math.round(sample.commit - sample.start) : "?";
+  const paint = sample.painted !== undefined ? Math.round(sample.painted - sample.start) : "?";
+  return `${sample.from}→${sample.to} ${total} ms (monté ${mount} · 1re image ${paint}) · pire ${sample.worstFrame} ms · ${sample.slowFrames} lente(s)`;
+}
 
 interface HudMetrics {
   fps: number;
@@ -17,8 +31,15 @@ export function PerformanceHud() {
   const [metrics, setMetrics] = useState<HudMetrics>({ fps: 0, p95: 0, longTasks: 0, boardRenders: 0 });
   const longTasksRef = useRef(0);
 
+  const [navSamples, setNavSamples] = useState<readonly NavSample[]>([]);
+  const [device, setDevice] = useState("");
+
   useEffect(() => {
-    setEnabled(new URLSearchParams(window.location.search).get("perf") === "1");
+    setEnabled(navPerfEnabled());
+    setDevice(deviceLine());
+    const onNav = () => setNavSamples([...getNavSamples()]);
+    window.addEventListener(NAV_PERF_EVENT, onNav);
+    return () => window.removeEventListener(NAV_PERF_EVENT, onNav);
   }, []);
 
   useEffect(() => {
@@ -76,11 +97,16 @@ export function PerformanceHud() {
   if (!enabled) return null;
   return (
     <aside className="nj-performance-hud" aria-label="Mesures de performance">
-      <strong>{metrics.fps} FPS</strong>
-      <span>p95 {metrics.p95} ms</span>
-      <span>longues {metrics.longTasks}</span>
-      <span>plateau {metrics.boardRenders}</span>
-      <span>profil {motion.mode}</span>
+      <strong>{metrics.fps} FPS · p95 {metrics.p95} ms · longues {metrics.longTasks} · profil {motion.mode} · plateau {metrics.boardRenders}</strong>
+      <span>{device}</span>
+      {navSamples.slice(0, 4).map((sample) => (
+        <span key={sample.id} className="nj-performance-hud-nav">
+          {navLine(sample)}
+          {sample.frames.map((frame, index) => (
+            <em key={index}>  image {frame.duration} ms : JS {frame.script} · mise en page {frame.layout} · {frame.source}</em>
+          ))}
+        </span>
+      ))}
     </aside>
   );
 }
