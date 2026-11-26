@@ -7,6 +7,14 @@ export interface MotionCapabilities {
   height: number;
   hardwareConcurrency: number;
   deviceMemory: number | null;
+  /** Pointeur principal tactile (`pointer: coarse`). Inconnu → on se fie à la taille seule. */
+  coarsePointer?: boolean;
+}
+
+/** Téléphone : écran tactile dont le petit côté fait moins de 600 px CSS. Les tablettes et une
+ *  fenêtre étroite d'ordinateur (pointeur fin) n'en sont pas. */
+export function isPhoneLike({ width, height, coarsePointer }: MotionCapabilities): boolean {
+  return Math.min(width, height) < 600 && coarsePointer !== false;
 }
 
 const LEVEL_WEIGHT: Record<MotionLevel, number> = { lite: 0, balanced: 1, full: 2 };
@@ -28,12 +36,12 @@ export function preferenceMotionLevel(preference: MotionQualityPreference, capab
   if (preference === "performance") return "lite";
   if (preference === "balanced") return "balanced";
   if (preference === "quality") return "full";
-  // « Auto » démarre au niveau maximal sur tous les appareils : c'est le
-  // capteur de fluidité (MotionProfileProvider) qui redescend d'un cran si
-  // l'appareil n'arrive pas à suivre. `capabilities` reste dans la signature
-  // pour les appelants ; deriveMotionLevel sert de repli hors React.
-  void capabilities;
-  return "full";
+  // « Auto » : niveau Performance sur téléphone. Le goulot y est le GPU (calques, ombres, filtres,
+  // animations en boucle), que le capteur de fluidité ne voit pas : il mesure les images du thread
+  // principal, qui reste fluide pendant que l'écran reste vide faute de pixels dessinés.
+  // Mesuré (densité ×2,7) : Performance divise par 4 à 7 le dessin GPU des transitions.
+  // Ailleurs (ordinateur, tablette) : niveau maximal, le capteur redescend si besoin.
+  return isPhoneLike(capabilities) ? "lite" : "full";
 }
 
 export function lowerMotionLevel(level: MotionLevel): MotionLevel {

@@ -17,8 +17,15 @@ describe("profil d'animation", () => {
     expect(deriveMotionLevel(capable)).toBe("full");
     expect(deriveMotionLevel({ width: 390, height: 844, hardwareConcurrency: 4, deviceMemory: 2 })).toBe("lite");
     expect(preferenceMotionLevel("performance", capable)).toBe("lite");
-    // « Auto » démarre au niveau maximal, même sur téléphone ; la baisse se fait à l'usage.
-    expect(preferenceMotionLevel("auto", { width: 390, height: 844, hardwareConcurrency: 4, deviceMemory: 2 })).toBe("full");
+    // « Auto » : Performance sur téléphone (le GPU y sature avant que le capteur ne le voie)…
+    expect(preferenceMotionLevel("auto", { width: 390, height: 844, hardwareConcurrency: 8, deviceMemory: 8, coarsePointer: true })).toBe("lite");
+    expect(preferenceMotionLevel("auto", { width: 844, height: 390, hardwareConcurrency: 8, deviceMemory: 8, coarsePointer: true })).toBe("lite");
+    // …niveau maximal sur ordinateur (même fenêtre étroite) et tablette.
+    expect(preferenceMotionLevel("auto", capable)).toBe("full");
+    expect(preferenceMotionLevel("auto", { width: 420, height: 900, hardwareConcurrency: 8, deviceMemory: 8, coarsePointer: false })).toBe("full");
+    expect(preferenceMotionLevel("auto", { width: 820, height: 1180, hardwareConcurrency: 8, deviceMemory: 8, coarsePointer: true })).toBe("full");
+    // Choix explicite du joueur : toujours respecté, même sur téléphone.
+    expect(preferenceMotionLevel("quality", { width: 390, height: 844, hardwareConcurrency: 8, deviceMemory: 8, coarsePointer: true })).toBe("full");
   });
 
   it("dégrade après plus de 10 % de frames lentes", () => {

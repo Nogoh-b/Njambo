@@ -71,6 +71,7 @@ function readSplashMotionMode(): SplashMotionMode {
       height: window.innerHeight,
       hardwareConcurrency: navigator.hardwareConcurrency || 8,
       deviceMemory: navigatorWithMemory.deviceMemory ?? null,
+      coarsePointer: window.matchMedia("(pointer: coarse)").matches,
     });
   } catch {
     return deriveMotionLevel({

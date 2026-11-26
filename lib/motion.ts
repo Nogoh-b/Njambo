@@ -55,6 +55,7 @@ function getMotionEnv(): MotionEnv {
     height: window.innerHeight,
     hardwareConcurrency: nav.hardwareConcurrency || 8,
     deviceMemory: typeof nav.deviceMemory === "number" ? nav.deviceMemory : null,
+    coarsePointer: window.matchMedia?.("(pointer: coarse)").matches,
   };
 }
 

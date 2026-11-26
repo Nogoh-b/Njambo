@@ -19,7 +19,7 @@ const LANGUAGES = [
 ];
 
 const QUALITY: Array<{ id: MotionQualityPreference; label: string; hint: string }> = [
-  { id: "auto", label: "Auto", hint: "Qualité maximale, baisse toute seule si le téléphone rame" },
+  { id: "auto", label: "Auto", hint: "Fluide sur téléphone, qualité maximale sur ordinateur et tablette" },
   { id: "performance", label: "Perf.", hint: "Le plus fluide : idéal vieux téléphones et batterie faible" },
   { id: "balanced", label: "Équilibré", hint: "Animations essentielles, sans effets lourds" },
   { id: "quality", label: "Qualité", hint: "Tous les effets, confettis et particules, toujours" },
