@@ -220,7 +220,7 @@ export function EventCountdown({
 
       {phase !== "ended" && (
         <div className={styles.track} aria-hidden="true">
-          <div className={styles.trackFill} style={{ width: `${progressPct}%` }}>
+          <div className={styles.trackFill} style={{ transform: `scaleX(${progressPct / 100})` }}>
             <span className={styles.trackShimmer} />
           </div>
         </div>

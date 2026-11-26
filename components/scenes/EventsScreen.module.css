@@ -332,7 +332,8 @@
 .posterArt {
   object-fit: cover;
   object-position: center 22%;
-  filter: saturate(1.18) contrast(1.05);
+  /* Pas de filter saturate/contrast ici : sous le voile sombre (.posterShade) il ne se voyait
+     presque pas, et coûtait ~24 % du dessin GPU de la page sur téléphone. */
   transition: transform 360ms ease;
 }
 

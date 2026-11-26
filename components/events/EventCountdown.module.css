@@ -331,7 +331,11 @@
   border-radius: inherit;
   background: linear-gradient(90deg, color-mix(in srgb, var(--cd-accent) 68%, #ffffff), var(--cd-accent));
   box-shadow: 0 0 8px var(--cd-accent-soft);
-  transition: width 650ms cubic-bezier(0.22, 1, 0.36, 1);
+  /* Largeur pleine + scaleX (GPU) : animer `width` relançait la mise en page à chaque image,
+     ~650 ms par seconde sur chaque compte à rebours affiché. */
+  width: 100%;
+  transform-origin: left center;
+  transition: transform 650ms cubic-bezier(0.22, 1, 0.36, 1);
   overflow: hidden;
 }
 
