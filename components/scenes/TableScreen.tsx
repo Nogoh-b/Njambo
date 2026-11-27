@@ -88,8 +88,11 @@ import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import { loadGsap, requestMotionProbe, useGsapTimeline, useMotionProfile, type MotionLevel } from "@/lib/motion";
 import { markPerformance } from "@/lib/performanceMetrics";
 import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions";
+import { AcademyGameSync } from "@/sync/AcademyGameSync";
 import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
 import { LocalGameSync } from "@/sync/LocalGameSync";
+import { coachDirector } from "@/lib/academy/coachDirector";
+import type { AcademyScene, SceneOutcome } from "@/engine/academy/types";
 import { stabilizeGameState } from "@/sync/stateIdentity";
 import type {
   BotDifficulty,
@@ -134,6 +137,10 @@ interface TableScreenProps {
    *  est déjà pré-montée et peinte en arrière-plan (60 fps garanti), mais la
    *  donne et le minuteur attendent le feu vert. */
   waitForReveal?: boolean;
+  /** Scène de l'Académie : la table joue cette situation figée (AcademyGameSync), guidée par le coach. */
+  academyScene?: AcademyScene;
+  /** Fin d'une scène de l'Académie (« Continuer » du coach). */
+  onAcademyDone?: (outcome: SceneOutcome) => void;
 }
 
 interface CardBurst {
@@ -248,6 +255,7 @@ const TimerAvatar = memo(function TimerAvatar({
     <div
       className={`${className}${motionEnabled && active && !unlimitedTime && seconds <= 5 ? " nj-avatar-seat-urgent" : ""}`}
       style={style}
+      data-academy-anchor={`seat:${seatIdx}`}
     >
       <Avatar
         p={player}
@@ -496,6 +504,8 @@ export function TableScreen({
   onBackRequestRef,
   paused = false,
   waitForReveal = false,
+  academyScene,
+  onAcademyDone,
 }: TableScreenProps) {
   const wasHeldForRevealRef = useRef(waitForReveal);
   if (waitForReveal) wasHeldForRevealRef.current = true;
@@ -525,7 +535,7 @@ export function TableScreen({
   /* Prédicat UNIQUE de sélection du sync : partagé entre l'instanciation du
      sync et le sourcing des pouvoirs équipés — s'ils divergent, on afficherait
      des pouvoirs locaux sur un match serveur (→ POWER_NOT_EQUIPPED). */
-  const isLocalSync = gameMode === "bot" && (!authUser || authUser.isAnonymous);
+  const isLocalSync = Boolean(academyScene) || (gameMode === "bot" && (!authUser || authUser.isAnonymous));
   const serverInventory = useInventory();
   const A = cfg.anim;
   const mise = initialMise;
@@ -1738,7 +1748,24 @@ export function TableScreen({
     if (waitForReveal) return;
     let sync: GameSyncActions;
 
-    if (isLocalSync) {
+    if (academyScene) {
+      // Académie : mains servies, pas de mise ; le coach met la scène en pause quand il parle.
+      const academySync = new AcademyGameSync({
+        scene: academyScene,
+        cfg,
+        profile,
+        onBanner: handleBanner,
+        onSceneEvent: (event) => coachDirector.dispatch(event),
+      });
+      coachDirector.start({
+        cfg,
+        hold: academySync.hold,
+        retry: () => onNextRoundRef.current?.(),
+        skip: onMenu,
+        finish: (outcome) => (onAcademyDone ?? (() => onMenu()))(outcome),
+      });
+      sync = academySync;
+    } else if (isLocalSync) {
       sync = new LocalGameSync({
         profile,
         bots: BOTS,
@@ -2063,7 +2090,7 @@ export function TableScreen({
       sync.start();
     };
 
-    if (animationsOnRef.current && isLocalSync && !wasHeldForRevealRef.current) {
+    if (animationsOnRef.current && isLocalSync && !academyScene && !wasHeldForRevealRef.current) {
       setRoundIntro(true);
       gxeSfxRef.current.playChime(ROUND_START_SOUND);
       showMomentOverlay({
@@ -2119,11 +2146,12 @@ export function TableScreen({
       animatedPlayIds.clear();
       syncRef.current = null;
       sync.destroy();
+      if (academyScene) coachDirector.stop();
     };
     // Le sync doit vivre pour toute la session. On le relance seulement quand
     // l'identite de session arrive/change (ou au feu vert après l'ouverture de scène).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameMode, roomId, roomSessionReady, sessionAuthKey, waitForReveal]);
+  }, [gameMode, roomId, roomSessionReady, sessionAuthKey, waitForReveal, academyScene]);
 
   /* ----- Bouton Retour (navigateur / matériel Android / Échap) exposé au router ----- */
   useEffect(() => {
@@ -2605,6 +2633,7 @@ export function TableScreen({
           <div
             key={"dep" + p.name}
             className={depositClass}
+            data-academy-anchor={`deposit:${i}`}
             style={{
               position: "absolute",
               left: dp.left,

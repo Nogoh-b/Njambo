@@ -51,7 +51,7 @@ describe("partie de l'Académie (AcademyGameSync)", () => {
 
     sync.playCard(handIdx("9♥"));
     expect(plays).toHaveLength(2);
-    expect(events.at(-1)).toEqual({ type: "refused", reason: "wrongCard", coach: "ch1.pli1.wrong9", message: undefined });
+    expect(events.at(-1)).toMatchObject({ type: "refused", reason: "wrongCard", coach: "ch1.pli1.wrong9", cardId: "9♥" });
 
     sync.playCard(handIdx("4♥"));
     expect(plays.at(-1)?.card.id).toBe("4♥");
@@ -66,7 +66,7 @@ describe("partie de l'Académie (AcademyGameSync)", () => {
     settle();
     sync.playCard(handIdx("9♥"));
     settle();
-    expect(events).toContainEqual({ type: "coach", key: "ch1.pli2.madoDefausse" });
+    expect(events).toContainEqual({ type: "coach", key: "ch1.pli2.madoDefausse", seat: 1, source: "play" });
     expect(events.at(-1)).toMatchObject({ type: "end", outcome: "success", coach: "ch1.success" });
     sync.destroy();
   });
@@ -89,11 +89,47 @@ describe("partie de l'Académie (AcademyGameSync)", () => {
     expect(events.at(-1)).toMatchObject({ type: "refused", reason: "powerFirst", coach: "ch4.direct.wrong" });
     sync.usePowerCard("eclair_mfoundi");
     expect(powers).toEqual([expect.objectContaining({ cardId: "eclair_mfoundi", activatedByUid: "local", used: true })]);
+    // Le coach ne reparle qu'une fois la mise en scène de l'Éclair jouée.
+    expect(events.at(-1)).toEqual({ type: "accepted" });
+    settle();
     expect(events.at(-1)).toMatchObject({ type: "awaitYou", expect: { kind: "card", card: "8♥" } });
     sync.playCard(handIdx("8♥"));
     settle();
     expect(last().players[0].deposit[0]).toMatchObject({ id: "8♥", effectiveValue: 10 });
     expect(events.at(-1)).toMatchObject({ type: "end", outcome: "success" });
+    sync.destroy();
+  });
+
+  it("s'arrête pendant que le coach parle et reprend où elle en était", () => {
+    const { sync, plays, events, handIdx, settle } = setup(CH1_FOLLOW);
+    sync.start();
+    sync.hold(true);
+    settle();
+    expect(plays).toHaveLength(0); // Mado attend la fin de la réplique
+    sync.hold(false);
+    settle();
+    expect(plays.map((play) => play.card.id)).toEqual(["8♠", "10♠"]);
+    sync.hold(true);
+    sync.playCard(handIdx("4♥"));
+    expect(plays).toHaveLength(2); // pas de coup du joueur pendant la réplique
+    expect(events.filter((event) => event.type === "refused")).toHaveLength(0);
+    sync.destroy();
+  });
+
+  it("donne les sièges du pli et dit la réplique d'un coup une fois la carte posée", () => {
+    const { sync, cfg, events, handIdx, settle } = setup(CH1_FOLLOW);
+    sync.start();
+    settle();
+    expect(events.at(-1)).toMatchObject({ type: "awaitYou", trick: [1, 2] });
+    sync.playCard(handIdx("4♥"));
+    settle();
+    sync.playCard(handIdx("9♥"));
+    // Mado se défausse : la réplique arrive quand sa carte est posée, pas pendant le vol.
+    const { replayBotThinkMin, dropFlight, landSettle, botAfterPlay } = cfg.anim;
+    vi.advanceTimersByTime(dropFlight + landSettle + botAfterPlay + replayBotThinkMin);
+    expect(events.some((event) => event.type === "coach")).toBe(false);
+    vi.advanceTimersByTime(dropFlight + landSettle + botAfterPlay);
+    expect(events).toContainEqual({ type: "coach", key: "ch1.pli2.madoDefausse", seat: 1, source: "play" });
     sync.destroy();
   });
 

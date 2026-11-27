@@ -1,6 +1,7 @@
 /* Répliques de Tonton René pour l'Académie — BROUILLONS, ton à faire relire.
-   Une clé par réplique, 2 lignes au plus. Les valeurs réglables seront
-   insérées par le calque du coach (A2) : {turnSeconds}, {sumBelow}… */
+   Une clé par réplique, 2 lignes au plus. Les valeurs réglables sont
+   insérées depuis la config de la partie (lib/academy/texts.ts) :
+   {turnSeconds}, {sumBelow}, {lastTrick}… */
 
 export const ACADEMY_TEXTS_FR = {
   /* Refus génériques, quand la scène ne prévoit pas de réplique (RefusalReason). */
@@ -33,8 +34,8 @@ export const ACADEMY_TEXTS_FR = {
 
   /* Chapitre 3 — Le 5e tour et le 3 */
   "ch3.recap": "Au 2e pli, Mado et Ya n'ont pas suivi le Trèfle : elles n'en ont plus.",
-  "ch3.pli4.pourquoi": "Les 4 premiers plis ne paient rien : ils servent à prendre la main pour le dernier.",
-  "ch3.pli4.gagne": "Gagne ce pli : tu lanceras le 5e.",
+  "ch3.pli4.pourquoi": "Les {firstTricks} premiers plis ne paient rien : ils servent à prendre la main pour le dernier.",
+  "ch3.pli4.gagne": "Gagne ce pli : tu lanceras le {lastTrick}e.",
   "ch3.pli5.trois": "Ton 3 est la plus petite carte du jeu… mais elles n'ont plus de Trèfle. Lance-le !",
   "ch3.success": "Ngata avec un 3 ! Chaque perdant paie une mise de plus : tes gains sont doublés.",
   "ch3.etSi.mado": "Et si Mado avait gardé un Trèfle ? Son 5♣ bat ton 3.",

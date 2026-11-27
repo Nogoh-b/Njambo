@@ -13,7 +13,7 @@
 | --- | --- | --- |
 | A0 | Corriger les textes de règles qui contredisent le moteur | ✅ Terminé |
 | A1 | Moteur de scènes : donne imposée, bots scriptés, sans chrono ni mise | ✅ Terminé |
-| A2 | Coach : bulle, projecteur, refus doux, file « animation → parole → action » | ⬜ À faire |
+| A2 | Coach : bulle, projecteur, refus doux, file « animation → parole → action » | ✅ Terminé |
 | A3 | Chapitres 1 à 3 : les bases du Njambo | ⬜ À faire |
 | A4 | Partie de fin d'Académie (vraie donne, bots faciles, aides) | ⬜ À faire |
 | A5 | Porte d'entrée au premier lancement | ⬜ À faire |
@@ -260,37 +260,54 @@ une restriction « verrou » (Sceau d'Entrave) sur le joueur serait traitée
 comme une carte imposée (`resolveForcedPlay`). Aucun bot n'a cette carte,
 donc le cas n'arrive pas ; l'Académie passe par `resolvePlay`.
 
-## A2 — Coach ⬜
+## A2 — Coach ✅
 
-- [ ] Calque `components/academy/` : avatar de Tonton René, bulle,
-      projecteur (voile sombre percé sur une ou plusieurs zones), bouton
-      « Passer »
-- [ ] Calque monté au niveau de l'application, pas dans `TableScreen` : il
-      doit aussi viser des éléments hors table (A13) par des ancres
-      `data-academy-anchor`, suivre le défilement et le redimensionnement,
-      et rester ouvert quand l'écran change
-- [ ] File d'attente : une réplique n'apparaît qu'une fois la table au
-      repos (aucune animation en cours) ; l'action du joueur n'est ouverte
-      qu'après la réplique
-- [ ] Placement de la bulle calculé à partir des rectangles du registre des
-      zones : jamais sur la cible, toujours dans l'écran (portrait d'abord)
-- [ ] Mode strict : seule la carte attendue est jouable ; une autre carte
-      tremble et le coach explique pourquoi
-- [ ] Mode libre : toute carte légale est jouable ; si le défi est raté,
-      bouton « Réessayer ce pli »
-- [ ] Textes : `data/academy/fr.ts`, une clé par réplique, valeurs de `cfg`
-      insérées (`{turnSeconds}`, `{sumBelow}`…). Fichier créé en A1 avec
-      les brouillons du plan et les refus génériques `refus.*` ; reste
-      l'insertion des valeurs de `cfg` et la relecture du ton
-- [ ] Vérification sur téléphone (375 × 812) et sur grand écran : aucune
-      bulle ne cache la carte attendue ni le dépôt regardé
+- [x] Calque `components/academy/CoachLayer.tsx` : avatar de Tonton René,
+      bulle, projecteur (voile sombre percé sur une ou plusieurs zones, avec
+      un contour doré qui respire), bouton « Passer »
+- [x] Calque monté une seule fois dans `NjamboApp`, pas dans `TableScreen` :
+      il vise ses zones par des repères DOM (`data-academy-anchor` sur la
+      main, les dépôts et les avatars, `data-academy-card` sur chaque carte
+      du joueur, `data-power-slot` déjà présent sur les cartes Pouvoir), qu'il
+      mesure à chaque image ; il servira tel quel hors table (A13)
+- [x] File d'attente (`lib/academy/coachDirector.ts`) : la scène se met en
+      **pause** pendant une réplique (`AcademyGameSync.hold`), qui se lit en
+      2,6 à 6,5 s ou se passe avec « Suivant » ; les répliques liées à un
+      coup arrivent quand la carte est posée ou la mise en scène du pouvoir
+      jouée ; le coup du joueur n'est ouvert qu'après la dernière réplique,
+      et un coup tenté pendant une réplique est ignoré
+- [x] Placement de la bulle (`lib/academy/placement.ts`) : jamais sur la
+      cible **ni sur la main** du joueur, toujours dans l'écran, sous
+      l'en-tête de la table ; au-dessus ou au-dessous de la cible d'abord
+- [x] Mode strict : toutes les cartes légales restent touchables, mais une
+      autre carte que l'attendue **tremble** et le coach dit pourquoi
+      (réplique de la scène, sinon refus générique `refus.*`) ; le voile est
+      seulement visuel, c'est la scène qui refuse
+- [x] Mode libre : toute la main est éclairée, indice au bout de 5 s ; défi
+      raté → « Réessayer ce pli », réussite → « Rejouer » ou « Continuer »
+- [x] Textes : valeurs de la partie insérées (`lib/academy/texts.ts` :
+      `{turnSeconds}`, `{sumBelow}`, `{lastTrick}`, `{firstTricks}`…) ;
+      le « 4 premiers plis / 5e » du chapitre 3 n'est plus écrit en dur.
+      Reste la relecture du ton (brouillons)
+- [x] Vérifié au navigateur, téléphone (375 × 812) et grand écran (556 ×
+      630) : chapitre 1 de bout en bout (refus du 9♥, défausse de Mado,
+      fin), chapitre 2 (indice, défi raté, « Réessayer ce pli »), « Passer »
+- [x] Entrée d'essai en attendant le hub (A6) : lien `/?academie=<scène>`
+      (`ch1-follow`, `ch2-lead`, `ch3-last-trick`, `ch3-what-if`,
+      `ch4-…`), table ouverte sans écran de chargement ni mise ; `TableScreen`
+      reçoit la scène par la prop `academyScene`
+
+À reprendre en A8 : le voile est au-dessus de la table (z-index 420) ; les
+fenêtres des pouvoirs (aperçu, choix de cible, choix de cartes) doivent
+rester lisibles et touchables pendant le geste attendu.
 
 ## A3 — Chapitres 1 à 3 : les bases ⬜
 
 Scènes déjà écrites et testées en A1 (`data/academy/scenes.ts` :
-`CH1_FOLLOW`, `CH2_LEAD`, `CH3_LAST_TRICK`, `CH3_WHAT_IF`). Reste : l'entrée
-de `TableScreen` pour recevoir l'`AcademyGameSync`, l'enchaînement des
-chapitres avec le coach (A2) et les variantes du défi de fin de chapitre 3.
+`CH1_FOLLOW`, `CH2_LEAD`, `CH3_LAST_TRICK`, `CH3_WHAT_IF`), et jouables
+avec le coach depuis A2 (`/?academie=ch1-follow`). Reste : l'enchaînement
+des chapitres (« Continuer » mène aujourd'hui au menu), le « Et si ? »
+juste après le chapitre 3, et les variantes du défi de fin de chapitre 3.
 Au chapitre 3, l'historique des plis 1 à 3 est complet et rejoué : les
 dépôts de chaque joueur contiennent bien leurs 3 cartes. Reste à voir à
 l'écran si l'on y lit le Trèfle non suivi au 2e pli, sinon la ligne de
@@ -615,3 +632,4 @@ le joueur clic par clic, avec le calque de A2 (voile percé, bulle,
 | 2026-11-27 | D7 | D7 tranchée : un 3 boosté (Éclair du Mfoundi) gagne avec sa valeur effective mais ne double plus. `lastCardDoubles` exige un vrai 3 non boosté et le serveur (`matchCommands.ts`) l'appelle au lieu de sa propre copie. Phrase ajoutée au guide (carte 3, vue au navigateur à 375×812 sans défilement), à la description de l'Éclair et à la référence de l'assistant IA. 5 tests unitaires et un 4e cas dans `smoke-double-penalty.cjs` (schéma Postgres temporaire, vert). tsc, eslint, suite au vert (459). Description de l'Éclair déjà en base : non écrasée par le seed, à reprendre dans l'éditeur admin. Reste : D9 à confirmer en A1. |
 | 2026-11-27 | A13 | Demande : un tuto interactif aussi hors de la table. Ajout de l'étape A13, parcours guidé clic par clic pour équiper sa première carte (fin du chapitre 4 → Collection → fiche → « Équiper dans mon deck » → éventail de l'écran Jouer). A2 doit donc pouvoir viser des éléments hors table (calque au niveau de l'application, ancres). Relevé au passage : « remplace slot III » écrit en dur dans la Collection. |
 | 2026-11-27 | A1 | A1 terminée, D9 confirmée. `engine/academy/` : type de scène (donne + historique rejoué avec les vraies règles), table pure qui suit le chemin de `LocalGameSync` pour les cartes et les pouvoirs, validation qui joue la solution (ordre de la table, piège du défi, carte imposée non remplacée), repli des pouvoirs par geste sans hasard. `sync/AcademyGameSync.ts` (interface `GameSyncActions`, rythme du jeu, événements du coach). 8 scènes écrites dans `data/academy/scenes.ts` (chapitres 1 à 4 et « Et si ? ») et leurs répliques brouillons dans `data/academy/fr.ts`. Geste 4 sur 2 plis (pouvoir seulement à son tour). 34 tests ; tsc, eslint, suite au vert (499). Rien n'est encore branché sur l'écran (A3). |
+| 2026-11-27 | A2 | A2 terminée. Calque du coach monté dans l'application (projecteur, bulle de Tonton René, « Suivant », « Passer », fin avec « Réessayer ce pli » / « Rejouer » / « Continuer »), directeur qui met la scène en pause pendant qu'il parle, repères DOM sur la main, les cartes, les dépôts et les avatars, textes avec valeurs de la partie. `TableScreen` reçoit une scène (`academyScene`) ; lien d'essai `/?academie=<scène>` sans écran de chargement. Vu au navigateur sur téléphone et grand écran : chapitres 1 et 2 de bout en bout, refus qui fait trembler la carte, indice, défi raté et rejoué, « Passer ». Corrigé en route : la bulle mordait sur la main (mesure des cartes soulevées), « Passer » couvrait l'en-tête, « Réessayer » laissait la scène en pause. 13 tests de plus ; tsc, eslint, suite au vert (512). |

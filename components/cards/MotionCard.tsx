@@ -27,10 +27,12 @@ interface MotionCardProps {
   anim?: MotionProps;
   className?: string;
   style?: CSSProperties;
+  /** Repère du coach de l'Académie (`data-academy-card`) : identifiant de la carte du joueur. */
+  academyCard?: string;
 }
 
 export const MotionCard = forwardRef<HTMLDivElement, MotionCardProps>(function MotionCard(
-  { card, hidden, w, rot, lift, dim, glow, onClick, dealDelay, dealDuration, dealOrigin, anim, className, style },
+  { card, hidden, w, rot, lift, dim, glow, onClick, dealDelay, dealDuration, dealOrigin, anim, className, style, academyCard },
   ref,
 ) {
   const playCard = (
@@ -52,11 +54,11 @@ export const MotionCard = forwardRef<HTMLDivElement, MotionCardProps>(function M
   // div natif si pas d'anim: evite l'overhead Framer Motion sur les
   // cartes adverses statiques (3 adversaires x 5 cartes = 15 motion.div).
   if (!anim) {
-    return <div ref={ref} className={className} style={style}>{playCard}</div>;
+    return <div ref={ref} className={className} style={style} data-academy-card={academyCard}>{playCard}</div>;
   }
 
   return (
-    <motion.div ref={ref} className={className} style={style} tabIndex={-1} {...anim}>
+    <motion.div ref={ref} className={className} style={style} tabIndex={-1} data-academy-card={academyCard} {...anim}>
       {playCard}
     </motion.div>
   );

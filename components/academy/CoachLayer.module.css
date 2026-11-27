@@ -1,0 +1,138 @@
+/* Calque du coach : au-dessus de la table, sous les toasts système. Seuls la
+   bulle et « Passer » prennent les clics ; le voile laisse jouer la table. */
+.layer {
+  position: fixed;
+  inset: 0;
+  z-index: 420;
+  pointer-events: none;
+}
+
+.veil {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  transition: opacity 260ms ease;
+}
+
+.veilOn {
+  opacity: 1;
+}
+
+.veilFill {
+  fill: rgba(8, 5, 3, 0.62);
+}
+
+/* Contour doré qui respire autour de la zone éclairée. */
+.ring {
+  fill: none;
+  stroke: rgba(255, 212, 92, 0.9);
+  stroke-width: 2.5;
+  animation: ring-pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes ring-pulse {
+  0%, 100% { stroke-opacity: 0.95; }
+  50% { stroke-opacity: 0.35; }
+}
+
+/* Sous l'en-tête de la table, pour ne pas couvrir ses boutons. */
+.skip {
+  position: absolute;
+  top: calc(max(10px, env(safe-area-inset-top)) + 44px);
+  right: 12px;
+  pointer-events: auto;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 240, 200, 0.4);
+  background: rgba(17, 13, 10, 0.78);
+  color: #fff8ea;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.skip:focus-visible,
+.next:focus-visible {
+  outline: 2px solid #ffd45c;
+  outline-offset: 2px;
+}
+
+.bubble {
+  position: absolute;
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: min(340px, calc(100vw - 24px));
+  padding: 11px 13px 11px 11px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 212, 92, 0.55);
+  background: linear-gradient(180deg, rgba(34, 24, 17, 0.97), rgba(20, 14, 10, 0.97));
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.55);
+  color: #fff8ea;
+  pointer-events: auto;
+  animation: bubble-in 220ms cubic-bezier(.22, 1, .36, 1);
+}
+
+/* Premier rendu : mesurée hors écran avant d'être placée. */
+.bubbleMeasuring {
+  left: -9999px;
+  top: 0;
+  animation: none;
+}
+
+@keyframes bubble-in {
+  from { opacity: 0; transform: translateY(6px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+
+.guide {
+  flex: 0 0 auto;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 212, 92, 0.7);
+}
+
+.body {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.name {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffd45c;
+}
+
+.text {
+  margin: 0;
+  font-size: 0.92rem;
+  line-height: 1.38;
+}
+
+.next {
+  justify-self: end;
+  padding: 4px 10px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 212, 92, 0.5);
+  background: rgba(255, 212, 92, 0.12);
+  color: #ffe9a8;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+  margin-top: 4px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ring,
+  .bubble {
+    animation: none;
+  }
+}

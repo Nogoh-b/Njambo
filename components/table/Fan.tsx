@@ -275,6 +275,7 @@ export const Fan = memo(function Fan({
       aria-label={faceUp ? `Votre main, ${cards.length} cartes` : undefined}
       aria-hidden={faceUp ? undefined : true}
       data-opp-turn={!faceUp && activeTurn ? "true" : undefined}
+      data-academy-anchor={faceUp ? "hand" : undefined}
       style={{ display: "flex", pointerEvents: faceUp ? "auto" : "none" }}
     >
       {cards.map((card, ci) => {
@@ -310,6 +311,7 @@ export const Fan = memo(function Fan({
           <MotionCard
             key={card.id}
             className={cardClassName}
+            academyCard={faceUp ? card.id : undefined}
             card={card}
             hidden={!faceUp}
             w={w}

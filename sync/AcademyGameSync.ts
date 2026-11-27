@@ -25,12 +25,14 @@ import type {
 
 /** Ce que le calque du coach (A2) doit savoir de la scène. */
 export type AcademySceneEvent =
-  /** Réplique à dire (ouverture, ou réplique liée à un coup qui vient d'être joué). */
-  | { type: "coach"; key: CoachKey }
-  /** C'est au joueur : coup attendu, avec ses répliques (avant, indice, erreurs). */
-  | { type: "awaitYou"; expect: YourExpectation }
-  /** Coup du joueur refusé : la carte tremble, le coach dit pourquoi. */
-  | { type: "refused"; reason: RefusalReason; coach: CoachKey; message?: string }
+  /** Réplique à dire : ouverture, ou réplique liée au coup qui vient de se poser (siège et nature du coup). */
+  | { type: "coach"; key: CoachKey; seat?: number; source?: "play" | "power" }
+  /** C'est au joueur : coup attendu, avec ses répliques ; `trick` = sièges qui ont déjà posé dans ce pli. */
+  | { type: "awaitYou"; expect: YourExpectation; trick: number[] }
+  /** Coup du joueur accepté. */
+  | { type: "accepted" }
+  /** Coup du joueur refusé : la carte touchée tremble, le coach dit pourquoi. */
+  | { type: "refused"; reason: RefusalReason; coach: CoachKey; cardId?: string; message?: string }
   | { type: "trickEnd"; winnerIdx: number }
   | { type: "end"; outcome: SceneOutcome; roundEnd: RoundEnd | null; coach?: CoachKey };
 
@@ -53,6 +55,12 @@ export class AcademyGameSync implements GameSyncActions {
   private afterPlayUntil = 0;
   /** Coup du joueur déjà annoncé au coach (une seule annonce par coup). */
   private announcedAction = -1;
+  /** Le coach parle : la scène attend (aucun coup, ni bot ni joueur). */
+  private held = false;
+  /** Coup programmé arrivé pendant que le coach parlait : joué à la reprise. */
+  private deferred: (() => void) | null = null;
+  /** Répliques liées à un coup, dites une fois la carte posée. */
+  private coachTimers: ReturnType<typeof setTimeout>[] = [];
   private ended = false;
   private motionEnabled = true;
   private destroyed = false;
@@ -80,6 +88,10 @@ export class AcademyGameSync implements GameSyncActions {
   /** Démarre la scène, mains déjà servies (pas de donne animée). */
   start() {
     this.clearHandle();
+    this.clearCoachTimers();
+    // Nouveau départ (ou « Réessayer ») : la pause posée par le coach en fin de scène ne compte plus.
+    this.held = false;
+    this.deferred = null;
     this.ended = false;
     this.announcedAction = -1;
     this.afterPlayUntil = 0;
@@ -95,23 +107,26 @@ export class AcademyGameSync implements GameSyncActions {
   }
 
   playCard = (cardIdx: number) => {
-    if (this.handle || this.destroyed) return;
+    if (this.handle || this.held || this.destroyed) return;
     const result = this.table.playYou(cardIdx);
     if (!result.ok) {
-      this.refuse(result.reason, result.coach, result.message);
+      const cardId = this.table.state().players[0]?.hand[cardIdx]?.id;
+      this.refuse(result.reason, result.coach, result.message, cardId);
       return;
     }
+    this.sceneEvent({ type: "accepted" });
     this.handleEvent(result.event);
     this.advance();
   };
 
   usePowerCard = (cardId: PowerCardId, targetIdx?: number, choices?: PowerChoices) => {
-    if (this.handle || this.destroyed) return;
+    if (this.handle || this.held || this.destroyed) return;
     const result = this.table.useYourPower(cardId, targetIdx, choices);
     if (!result.ok) {
       this.refuse(result.reason, result.coach, result.message);
       return;
     }
+    this.sceneEvent({ type: "accepted" });
     this.handleEvent(result.event);
     this.advance();
   };
@@ -120,11 +135,21 @@ export class AcademyGameSync implements GameSyncActions {
     this.motionEnabled = enabled;
   };
 
+  /** Le coach parle (true) ou a fini (false) : la scène s'arrête puis reprend là où elle en était. */
+  hold = (on: boolean) => {
+    this.held = on;
+    if (on || this.destroyed) return;
+    const run = this.deferred;
+    this.deferred = null;
+    run?.();
+    this.advance();
+  };
+
   /* ═══════════════ Déroulé ═══════════════ */
 
   /** Enchaîne les coups automatiques jusqu'au prochain coup du joueur ou à la fin. */
   private advance() {
-    if (this.destroyed || this.handle) return;
+    if (this.destroyed || this.handle || this.held) return;
     const step = this.table.next();
     const wait = Math.max(0, this.afterPlayUntil - Date.now());
     if (step.kind === "end") {
@@ -146,26 +171,30 @@ export class AcademyGameSync implements GameSyncActions {
     }
     if (step.kind === "auto") {
       const { replayBotThinkMin, replayBotThinkMax } = this.opts.cfg.anim;
-      this.schedule(wait + (replayBotThinkMin + replayBotThinkMax) / 2, () => {
-        const event = this.table.stepAuto();
-        this.handleEvent(event);
-        // Pouvoir d'un bot : sa carte ne part qu'une fois la mise en scène jouée.
-        if (event.type === "power") {
-          const script = powerScriptOf(event.activation.cardId);
-          const pause = event.secret || !this.motionEnabled ? this.opts.cfg.anim.powerBeat : powerAnimationBudgetMs(script, this.opts.cfg.anim.powerMax);
-          this.afterPlayUntil = Date.now() + pause;
-        }
-      });
+      this.schedule(wait + (replayBotThinkMin + replayBotThinkMax) / 2, () => this.handleEvent(this.table.stepAuto()));
+      return;
+    }
+    // Au joueur : le coach ne parle qu'une fois la carte posée ou le pouvoir joué.
+    if (wait > 0) {
+      this.schedule(wait, () => {});
       return;
     }
     if (this.announcedAction !== this.table.actionIndex) {
       this.announcedAction = this.table.actionIndex;
       this.timerListeners.forEach((cb) => cb(this.opts.cfg.turnSeconds));
-      this.sceneEvent({ type: "awaitYou", expect: step.expect });
+      const trick = this.table.state().trickPlays.map((play) => play.playerIdx);
+      this.sceneEvent({ type: "awaitYou", expect: step.expect, trick });
     }
   }
 
   private handleEvent(event: AcademyEvent) {
+    const seat = event.type === "play" ? event.play.playerIdx : event.seat;
+    if (event.type === "power") {
+      // Mise en scène du pouvoir : la suite (carte du bot, parole du coach) attend qu'elle soit jouée.
+      const script = powerScriptOf(event.activation.cardId);
+      const pause = event.secret || !this.motionEnabled ? this.opts.cfg.anim.powerBeat : powerAnimationBudgetMs(script, this.opts.cfg.anim.powerMax);
+      this.afterPlayUntil = Date.now() + pause;
+    }
     if (event.type === "play") {
       const { dropFlight, landSettle, botAfterPlay } = this.opts.cfg.anim;
       this.afterPlayUntil = Date.now() + dropFlight + landSettle + botAfterPlay;
@@ -186,11 +215,22 @@ export class AcademyGameSync implements GameSyncActions {
       if (!event.secret) this.powerActivatedListeners.forEach((cb) => cb(event.activation));
       this.emitState();
     }
-    if (event.coach) this.sceneEvent({ type: "coach", key: event.coach });
+    if (event.coach) {
+      const key = event.coach;
+      const source = event.type;
+      this.coachTimers.push(setTimeout(() => {
+        if (!this.destroyed) this.sceneEvent({ type: "coach", key, seat, source });
+      }, Math.max(0, this.afterPlayUntil - Date.now())));
+    }
   }
 
-  private refuse(reason: RefusalReason, coach: CoachKey | undefined, message?: string) {
-    this.sceneEvent({ type: "refused", reason, coach: coach ?? `refus.${reason}`, message });
+  private refuse(reason: RefusalReason, coach: CoachKey | undefined, message?: string, cardId?: string) {
+    this.sceneEvent({ type: "refused", reason, coach: coach ?? `refus.${reason}`, cardId, message });
+  }
+
+  private clearCoachTimers() {
+    this.coachTimers.forEach(clearTimeout);
+    this.coachTimers = [];
   }
 
   private flashBanner(text: string) {
@@ -207,6 +247,10 @@ export class AcademyGameSync implements GameSyncActions {
     this.handle = setTimeout(() => {
       this.handle = null;
       if (this.destroyed) return;
+      if (this.held) {
+        this.deferred = run;
+        return;
+      }
       run();
       this.advance();
     }, Math.max(0, ms));
@@ -271,6 +315,7 @@ export class AcademyGameSync implements GameSyncActions {
   destroy() {
     this.destroyed = true;
     this.clearHandle();
+    this.clearCoachTimers();
     if (this.bannerHandle) clearTimeout(this.bannerHandle);
     this.stateListeners.clear();
     this.playCardListeners.clear();

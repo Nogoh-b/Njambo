@@ -6,6 +6,9 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react";
 import { MotionProfileProvider, reducedSceneVariants, sceneVariants, useMotionProfile } from "@/lib/motion";
 import { GameProvider, useGame } from "@/contexts/GameContext";
 import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepLink";
+import { consumeAcademyDeepLink } from "@/lib/academy/deepLink";
+import { CoachLayer } from "@/components/academy/CoachLayer";
+import type { AcademyScene } from "@/engine/academy/types";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import { usePowerCatalogLoader, usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
 import { useAssetPackSync } from "@/hooks/useAssetPackSync";
@@ -207,6 +210,8 @@ function SceneRouter() {
   const [reconnectMatchId, setReconnectMatchId] = useState<string | null>(null);
   /** Identifiant monotone de lancement pour réinitialiser proprement la table. */
   const [launchNonce, setLaunchNonce] = useState(0);
+  /** Scène de l'Académie jouée sur la table (null : partie normale). */
+  const [academyScene, setAcademyScene] = useState<AcademyScene | null>(null);
 
   /* Refs d'interception du bouton Retour */
   const nextRoundRef = useRef<(() => void) | null>(null);
@@ -222,7 +227,7 @@ function SceneRouter() {
   const roomId = currentRoom?.id ?? null;
   const roomPlayers = useMemo(() => currentRoom?.players ?? [], [currentRoom?.players]);
   const roomHostId = currentRoom?.hostId ?? "";
-  const tableKey = `${launchNonce}-${gameMode}-${gameBotCount}-${gameMise}-${gameDifficulty}-${isRoomMode && roomId ? roomId : ""}-${eventRunId ?? ""}-${reconnectMatchId ?? ""}`;
+  const tableKey = `${launchNonce}-${gameMode}-${gameBotCount}-${gameMise}-${gameDifficulty}-${isRoomMode && roomId ? roomId : ""}-${eventRunId ?? ""}-${reconnectMatchId ?? ""}-${academyScene?.id ?? ""}`;
 
   const displayPlayerCount = isRoomMode
     ? Math.max(2, roomPlayers.length || currentRoom?.maxPlayers || 2)
@@ -318,6 +323,7 @@ function SceneRouter() {
 
   const enterTable = useCallback((options?: { replace?: boolean; resuming?: boolean; reconnectId?: string | null }) => {
     tableRestoreAttemptedRef.current = true;
+    setAcademyScene(null);
     setResumingMatch(Boolean(options?.resuming));
     setReconnectMatchId(options?.reconnectId ?? null);
     setLaunchNonce((n) => n + 1);
@@ -328,6 +334,37 @@ function SceneRouter() {
     setGameActive(true);
     navigateTo("table", { replace: options?.replace });
   }, [navigateTo]);
+
+  /* --- Académie : une scène sur la table, sans écran de chargement ni mise --- */
+  const startAcademyScene = useCallback((academy: AcademyScene) => {
+    // Rien à reprendre après actualisation : une scène se rejoue depuis le début.
+    clearActiveGameSession();
+    tableRestoreAttemptedRef.current = true;
+    setAcademyScene(academy);
+    setGameMode("bot");
+    setGameBotCount(academy.seats.length - 1);
+    setGameMise(0);
+    setGameDifficulty("easy");
+    setEventRunId(null);
+    setEventId(null);
+    setEventMatchmaking(false);
+    setResumingMatch(false);
+    setReconnectMatchId(null);
+    setLaunchNonce((n) => n + 1);
+    setGameResult(null);
+    setMatchLoading(false);
+    setTableMounted(true);
+    setTableUnlocked(true);
+    setGameActive(true);
+    navigateTo("table");
+  }, [navigateTo]);
+
+  useEffect(() => {
+    const academy = consumeAcademyDeepLink();
+    if (academy) startAcademyScene(academy);
+    // Une seule lecture du lien, au démarrage.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /* --- Bot setup --- */
   const handleBotStart = useCallback((
@@ -576,6 +613,7 @@ function SceneRouter() {
     setResumingMatch(false);
     setReconnectMatchId(null);
     setEventMatchmaking(false);
+    setAcademyScene(null);
     nextRoundRef.current = null;
     if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
     if (gameMode === "event" && eventDetailId) {
@@ -801,8 +839,12 @@ function SceneRouter() {
             onBackRequestRef={tableBackRef}
             paused={Boolean(gameResult)}
             waitForReveal={!tableUnlocked}
+            academyScene={academyScene ?? undefined}
           />
         )}
+
+        {/* Coach de l'Académie : un seul calque, au-dessus de la table et des écrans. */}
+        <CoachLayer />
 
         {/* Écran de file d'attente — au-dessus de la table tant qu'un événement
             PvP n'a pas de groupe (currentMatchId absent du run). */}
