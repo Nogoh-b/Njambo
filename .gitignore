@@ -59,3 +59,6 @@ next-env.d.ts
 firestore-audit.local.md
 
 __pycache__/
+
+# Images générées (packs de cartes, itérations) : hors git, importées via l’admin
+output/imagegen/
