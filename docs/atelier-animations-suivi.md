@@ -18,6 +18,7 @@
 | G4 | Moments du jeu : donne, carte jouée, pli, pouvoir lancé | ✅ Terminé |
 | G5 | Styles d'animation des joueurs (cosmétiques) | ✅ Terminé |
 | M | Mélange de la pioche : queue d'aronde puis paquets | 🟡 Code et tests faits, à voir en partie |
+| D | Donne à deux bords : pas de rotation vers la main d'en face | 🟡 Code et tests faits, à voir en partie |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -634,10 +635,26 @@ puis le mélange par paquets.
 - [x] Tests : `shuffle-choreo`, config, pioche (26 au vert), `tsc`
 - [ ] Vérification visuelle dans une vraie partie
 
+## D — Donne à deux bords 🟡
+
+Validé sur l'esquisse « Donne face à face » : quand la main suivante est en face,
+la pioche ne tourne pas et la carte sort par le bord arrière.
+
+- [x] `planDealAim` / `twoEdgeAim` dans `deckAim.ts` : bord le plus proche, calendrier des départs
+- [x] Rythme : sans rotation, délai entre cartes + 90 ms (au lieu de délai + rotation)
+- [x] `TableScreen` : pioche, éventails (`Fan.dealLaunchMs`) et donne V2 sur le même calendrier
+- [x] `DeckZone` : carte poussée, pouce et reflet sur le bord arrière (`launchEdge`)
+- [x] Tests `deal-two-edge` (7), suite complète 431 au vert, `tsc`, `eslint`
+- [ ] Vérification visuelle dans une vraie partie (2 et 3 joueurs)
+
+Gain mesuré sur 5 cartes : 2 joueurs 9 rotations → 0 (4,4 s → 2,3 s) ; 3 joueurs 14 → 9 ;
+4 joueurs inchangé (chaque main est à 90°).
+
 ## Journal
 
 | Date | Étape | Avancée |
 | --- | --- | --- |
+| 2026-11-27 | D | Donne à deux bords intégrée : plus de rotation vers la main d'en face, carte poussée par le bord arrière, carte suivante plus tôt. 2 joueurs : 0 rotation, donne 2,3 s au lieu de 4,4 s. 431 tests, `tsc` et `eslint` au vert. Pas encore vue en partie. |
 | 2026-11-26 | M | Mélange aronde + paquets intégré dans la pioche, durées réglables dans l'admin (aronde / paquets). Un mélange déjà enregistré garde sa durée, joué en aronde seule. 26 tests et `tsc` au vert. Pas vu en partie : le compte invité n'avait pas d'énergie pour lancer une table. |
 | 2026-11-21 | G5 | « Offrir un cosmétique » dans la section Joueurs de l'admin, pour tester un style de bout en bout : motif obligatoire et audité, même inactif, refusé s'il est déjà possédé. Intégration Postgres 18/18, 223 tests au vert. |
 | 2026-11-21 | G5 | **G5 terminé, l'atelier d'animations est complet.** Vérifié dans le navigateur : table de démonstration, puis vraie partie avec un style en aperçu. Mes 5 cartes stylées (gerbe 5 × 18, étincelles, lueur, tout en rose), cartes de l'IA inchangées, aucune erreur. Corrigé : la case « Lueur en vol » de l'éditeur. |

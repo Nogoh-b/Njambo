@@ -138,6 +138,11 @@
   transform: translate3d(0, 3px, 0);
 }
 
+/* Main d'en face servie par le bord arrière : le pouce pousse la carte du dessus vers −Y */
+.stackLayerTopThumbPeekBack {
+  transform: translate3d(0, -3px, 0);
+}
+
 .topCardFollowA {
   animation: dealTopFollowA 190ms cubic-bezier(0.32, 0.08, 0.2, 1) both;
   will-change: transform;
@@ -148,7 +153,19 @@
   will-change: transform;
 }
 
-/* ── Carte poussée du pouce hors du bord avant (+Y local) vers le joueur visé ── */
+/* ── Carte poussée du pouce hors du bord avant (+Y local), ou arrière (repère tourné d'un demi-tour) ── */
+.ejectFromFront,
+.ejectFromBack {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  pointer-events: none;
+}
+
+.ejectFromBack {
+  transform: rotate(180deg);
+}
+
 .dealEjectCard {
   position: absolute;
   inset: 0;
@@ -176,6 +193,12 @@
   pointer-events: none;
   opacity: 0;
   transition: opacity 220ms ease;
+}
+
+/* Reflet sur la tranche arrière (−Y) quand la carte sort par l'autre bord */
+.leadingEdgeSheenBack {
+  top: -4px;
+  bottom: auto;
 }
 
 .leadingEdgeSheenVisible {

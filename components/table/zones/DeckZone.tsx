@@ -13,7 +13,7 @@ import { NjamboIcon } from "@/components/ui/Art";
 import { displayFont } from "@/components/ui/Shell";
 import { NKAP } from "@/data/mock";
 import { rotateVector, stackPose } from "@/engine/anim/v2/pose";
-import type { Point2D } from "./deckAim";
+import type { DeckEdge, Point2D } from "./deckAim";
 import { buildShufflePlan } from "./shuffleChoreo";
 import { useRegisterZone } from "./ZoneRegistry";
 import { elementCenter, elementScale } from "./zonePose";
@@ -101,6 +101,8 @@ interface DeckZoneProps {
   turnSeq?: number;
   /** Compteur monotone incrémenté à chaque carte qui quitte la pioche (poussée du pouce). */
   launchSeq?: number;
+  /** Bord par lequel sort la carte : avant, ou arrière quand la main servie est en face (pas de rotation). */
+  launchEdge?: DeckEdge;
   /** Position verticale exacte du centre du plateau (ex. "47%" portrait, "48%" bureau). */
   centerTop?: string;
   /** Paysage compact (hauteur ≤ 620 px) : place le médaillon Pot à droite sans décentrer la pioche. */
@@ -124,6 +126,7 @@ export const DeckZone = memo(function DeckZone({
   wristOffset,
   turnSeq = 0,
   launchSeq = 0,
+  launchEdge = "front",
   centerTop,
   compactHeight = false,
   motionEnabled,
@@ -241,16 +244,18 @@ export const DeckZone = memo(function DeckZone({
     turningNow && !liteMotion ? (turnSeq % 2 === 0 ? styles.stackFanBack1A : styles.stackFanBack1B) : "",
   ].filter(Boolean).join(" ");
 
+  const fromBack = launchEdge === "back";
   const topCardClass = [
     styles.stackLayerTop,
-    motionEnabled && isDealing ? styles.stackLayerTopThumbPeek : "",
-    motionEnabled && isDealing && launchSeq > 0
+    motionEnabled && isDealing ? (fromBack ? styles.stackLayerTopThumbPeekBack : styles.stackLayerTopThumbPeek) : "",
+    motionEnabled && isDealing && launchSeq > 0 && !fromBack
       ? (launchSeq % 2 === 0 ? styles.topCardFollowA : styles.topCardFollowB)
       : "",
   ].filter(Boolean).join(" ");
 
   const sheenClass = [
     styles.leadingEdgeSheen,
+    fromBack ? styles.leadingEdgeSheenBack : "",
     isDealing ? styles.leadingEdgeSheenVisible : "",
     motionEnabled && isDealing && launchSeq > 0
       ? (launchSeq % 2 === 0 ? styles.leadingEdgeSheenPulseA : styles.leadingEdgeSheenPulseB)
@@ -298,13 +303,11 @@ export const DeckZone = memo(function DeckZone({
                     <PlayCard hidden w={visualDeckW} />
                   </div>
                   {motionEnabled && isDealing && launchSeq > 0 && (
-                    <div
-                      key={`eject-${launchSeq}`}
-                      className={styles.dealEjectCard}
-                      style={{ borderRadius: cardRadius }}
-                      aria-hidden="true"
-                    >
-                      <PlayCard hidden w={visualDeckW} />
+                    // Bord arrière : la poussée du pouce part vers l'autre côté (repère tourné d'un demi-tour).
+                    <div key={`eject-${launchSeq}`} className={fromBack ? styles.ejectFromBack : styles.ejectFromFront} aria-hidden="true">
+                      <div className={styles.dealEjectCard} style={{ borderRadius: cardRadius }}>
+                        <PlayCard hidden w={visualDeckW} />
+                      </div>
                     </div>
                   )}
                 </>

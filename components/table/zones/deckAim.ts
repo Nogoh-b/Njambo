@@ -78,3 +78,71 @@ export function nearestRestAngle(currentDeg: number, restDeg = 0): number {
   const diff = ((((restDeg - currentDeg) % 360) + 540) % 360) - 180;
   return currentDeg + diff;
 }
+
+/* ═══════════════ Donne à deux bords : pas de rotation vers la main d'en face ═══════════════
+   La pioche a deux bords utilisables : l'avant (+Y) et l'arrière (−Y). Pour chaque carte,
+   on garde l'orientation (bord avant ou arrière tourné vers la main) qui demande le moins
+   de rotation. Main d'en face : aucune rotation, la carte sort par l'autre bord, et la
+   carte suivante part plus tôt (pas de temps de rotation à attendre). */
+
+export type DeckEdge = "front" | "back";
+
+export interface DealAimStep {
+  /** Rang de la carte dans la donne (0 = première). */
+  k: number;
+  /** Joueur servi (index UI) et tour de donne. */
+  ui: number;
+  round: number;
+  /** Angle cumulé de la pioche pour cette carte (sans micro-variation). */
+  angle: number;
+  /** Bord de la pioche par lequel sort la carte. */
+  edge: DeckEdge;
+  /** Vrai si la pioche doit tourner avant cette carte. */
+  turned: boolean;
+  dir: 1 | -1;
+  /** Départ de la carte, en ms après le début de la distribution (fin du mélange). */
+  launchMs: number;
+}
+
+/** Écart signé le plus court de `from` vers `to` (degrés, dans (−180, 180]). */
+export function shortestAngleDelta(from: number, to: number): number {
+  const d = normalizeAngle(to - from);
+  return d > 180 ? d - 360 : d;
+}
+
+/** Choisit le bord qui vise `targetDeg` avec le moins de rotation depuis `currentDeg`. */
+export function twoEdgeAim(currentDeg: number, targetDeg: number): { angle: number; edge: DeckEdge; delta: number } {
+  const front = shortestAngleDelta(currentDeg, targetDeg);
+  const back = shortestAngleDelta(currentDeg, targetDeg + 180);
+  // À égalité (main à 90°), le bord avant reste la référence.
+  const useBack = Math.abs(back) < Math.abs(front) - 0.5;
+  const delta = useBack ? back : front;
+  return { angle: currentDeg + delta, edge: useBack ? "back" : "front", delta };
+}
+
+/** Calendrier complet de la donne (une carte par joueur, tour après tour). */
+export function planDealAim(
+  seatAngles: number[],
+  perPlayer: number,
+  timing: { perCardMs: number; rotateMs: number; quickGapMs?: number },
+): DealAimStep[] {
+  const count = seatAngles.length;
+  const quickGap = Math.min(timing.rotateMs, timing.quickGapMs ?? 90);
+  const steps: DealAimStep[] = [];
+  let current = 0;
+  let launch = 0;
+  for (let k = 0; k < count * perPlayer; k++) {
+    const ui = k % count;
+    const { angle, edge, delta } = twoEdgeAim(current, seatAngles[ui]);
+    const turned = Math.abs(delta) > 0.5;
+    if (k > 0) launch += timing.perCardMs + (turned ? timing.rotateMs : quickGap);
+    steps.push({ k, ui, round: Math.floor(k / count), angle, edge, turned, dir: delta < 0 ? -1 : 1, launchMs: launch });
+    current = angle;
+  }
+  return steps;
+}
+
+/** Départs (ms après la fin du mélange) des cartes d'un joueur, tour par tour. */
+export function dealLaunchesFor(plan: DealAimStep[], ui: number): number[] {
+  return plan.filter((step) => step.ui === ui).map((step) => step.launchMs);
+}
