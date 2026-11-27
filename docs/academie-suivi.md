@@ -12,7 +12,7 @@
 | Étape | Contenu | Statut |
 | --- | --- | --- |
 | A0 | Corriger les textes de règles qui contredisent le moteur | ✅ Terminé |
-| A1 | Moteur de scènes : donne imposée, bots scriptés, sans chrono ni mise | ⬜ À faire |
+| A1 | Moteur de scènes : donne imposée, bots scriptés, sans chrono ni mise | ✅ Terminé |
 | A2 | Coach : bulle, projecteur, refus doux, file « animation → parole → action » | ⬜ À faire |
 | A3 | Chapitres 1 à 3 : les bases du Njambo | ⬜ À faire |
 | A4 | Partie de fin d'Académie (vraie donne, bots faciles, aides) | ⬜ À faire |
@@ -24,6 +24,7 @@
 | A10 | Dojo des Pouvoirs (« Essayer sur la table ») | ⬜ À faire |
 | A11 | Bulles « juste à temps » (table et hors table) | ⬜ À faire |
 | A12 | Coach en direct : aide en temps réel pendant les vraies parties | ⬜ À faire |
+| A13 | Parcours guidé hors table : équiper sa première carte Pouvoir | ⬜ À faire |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -31,6 +32,8 @@ Ordre voulu : les bases (A0 → A4) sont testées par de vrais novices (A7)
 **avant** de construire les pouvoirs, les récompenses et le Dojo. Le coach
 en direct (A12) se construit juste après A4 : la partie de fin d'Académie
 est sa première utilisation, et il sert ensuite dans toutes les parties.
+Le parcours guidé du premier équipement (A13) vient après A8 et A9 : il
+part de la carte offerte à la fin du chapitre 4.
 
 **Deux formes d'aide, un seul calque de coach (A2) :**
 
@@ -39,6 +42,9 @@ est sa première utilisation, et il sert ensuite dans toutes les parties.
 | Partie | Situation figée, mains imposées | Vraie partie, vraie donne |
 | Rythme | Le joueur attend le coach | Le coach suit le jeu, sans jamais le bloquer |
 | But | Enseigner une notion | Rappeler la bonne notion au bon moment, puis s'effacer |
+
+Le même calque sert aussi **hors de la table**, pour un seul parcours guidé
+clic par clic : équiper sa première carte Pouvoir (A13).
 
 ---
 
@@ -118,6 +124,8 @@ porte d'entrée.
 | Récompense quotidienne | `claimDailyReward`, `functions/src/index.ts:137` | Modèle de la commande de récompense (A9) |
 | Invité → compte en gardant l'identifiant | `contexts/AuthContext.tsx:30` | Les récompenses d'un invité suivent son compte (A9) |
 | Familles côté joueur | `PowerCollectionScreen.tsx:62` : Attaque, Défense, Tactique, Bluff, Score, Nkap | Vocabulaire du chapitre 4 |
+| Équiper une carte | `PowerCollectionScreen.tsx` : fiche de la carte et bouton « Équiper dans mon deck » (`toggleEquip`), emplacements du deck, glisser-déposer | Parcours guidé A13, sans nouvelle logique d'équipement (invité en local, compte via `equipPowerCards`) |
+| Cartes équipées sur l'écran Jouer | `PlayArenaScreen.tsx` : éventail `powerHandDock`, qui ouvre la Collection | Dernière étape du parcours A13 |
 
 ### Ce que l'admin peut changer (et ce qu'il ne peut pas)
 
@@ -156,7 +164,7 @@ d'accord avec le code.
 | D6 | Couleur (5 cartes de même couleur) | Gagne immédiatement **sans doubler** : on garde `flushDoubles: false`, les textes suivent | ✅ Tranché le 2026-11-27 |
 | D7 | Éclair du Mfoundi posé sur un 3 | Un 3 boosté gagne le pli avec sa valeur effective (`effectiveValue`, `rules.ts:40`) mais **ne double plus** : le ×2 ne vaut que pour un vrai 3. Règle unique `lastCardDoubles` (`engine/rules.ts`), lue par le jeu local et par le serveur (`matchCommands.ts`) ; un 3 dont seule la couleur change (Pagne Changeant) garde le ×2 | ✅ Tranché le 2026-11-27 (plus de ×2) |
 | D8 | Partie de fin d'Académie | Gratuite pour tous (ni Énergie ni mise), jouée en local, même pour un compte connecté | ✅ Validé le 2026-11-27 |
-| D9 | Branchement des scènes sur la table | Un moteur de partie dédié qui suit la même interface que `LocalGameSync` (la table l'affiche sans changement), plutôt qu'une option de plus dans `LocalGameSync` | À confirmer en A1 après lecture de l'interface |
+| D9 | Branchement des scènes sur la table | Un moteur de partie dédié qui suit la même interface que `LocalGameSync` (la table l'affiche sans changement), plutôt qu'une option de plus dans `LocalGameSync` | ✅ Confirmé en A1 le 2026-11-27 : `AcademyGameSync` ; `TableScreen` aura seulement une entrée pour le recevoir (A3) |
 | D10 | Coach en direct contre d'autres joueurs (En ligne, Amis, Classé) | **Règles seulement** (tendance, défausse, chrono, pouvoir subi), jamais de conseil de coup ni d'aide-mémoire des cartes tombées : ce serait un avantage sur l'adversaire | ✅ Validé le 2026-11-27 |
 | D11 | Le coach choisit-il la carte à ta place ? | Seulement dans la partie de fin d'Académie et en Solo IA niveau « Accompagné », après 5 s d'hésitation. Ailleurs il explique la situation sans désigner la carte, pour garder sa valeur à **Main du Griot**, la carte Pouvoir qui le fait (« Suggère ta meilleure carte légale ») | ✅ Validé le 2026-11-27 |
 | D12 | Niveau par défaut et retrait | « Accompagné » pour un nouveau joueur, « Conseils » après 5 parties gagnées (proposé, pas imposé), et chaque conseil se retire tout seul quand le joueur l'applique sans aide 3 fois de suite | ✅ Validé le 2026-11-27 |
@@ -194,38 +202,73 @@ Piège trouvé au navigateur : le compilateur a supprimé l'espace après un
 (« Pouvoiravant », « 3ne »). Corrigé par un `{" "}` explicite ; aucun autre
 cas du même motif dans `components/`.
 
-## A1 — Moteur de scènes ⬜
+## A1 — Moteur de scènes ✅
 
 Une scène = une situation figée, rejouable à l'identique.
 
-- [ ] Type pur `AcademyScene` (`engine/academy/`, sans DOM ni réseau) :
-  - joueurs (2 à 4), mains imposées, dépôts déjà joués (pour les plis
-    précédents), numéro du pli, qui lance ;
-  - pioche imposée (pour les pouvoirs qui piochent) ;
-  - coups des bots : une carte précise ou une règle simple (« la plus
-    petite légale ») ;
-  - actions attendues du joueur, mode **strict** (une seule bonne réponse)
-    ou **libre** (défi) ;
-  - répliques du coach (clés de texte) liées à des moments ;
-  - pouvoirs équipés pour la scène.
-- [ ] Validation d'une scène : cartes uniques, 3 à 10, mains de la bonne
-      taille, aucune victoire instantanée dans une donne de départ, coups des
-      bots légaux, la solution attendue gagne vraiment
-- [ ] Moteur de partie « Académie » (D9) : mêmes règles que
-      `engine/rules.ts`, même moteur de pouvoirs, **pas de chrono, pas de
-      mise, pas d'Énergie, aucun appel serveur**
-- [ ] Rejouer une scène = repartir de son état figé (pas de retour en
-      arrière dans une partie en cours)
-- [ ] Repli : une carte Pouvoir de la scène désactivée ou archivée →
-      remplacée par une carte du même geste, sinon la scène est masquée
-- [ ] Tests : chaque scène du plan se joue jusqu'au bout avec la solution
-      attendue et échoue avec une mauvaise carte
+- [x] Type pur `AcademyScene` (`engine/academy/types.ts`, sans DOM ni
+      réseau) :
+  - joueurs (2 à 4), **donne complète** de la manche et **plis déjà
+    joués** (dans l'ordre de pose) : les dépôts, le numéro du pli et le
+    meneur s'en déduisent, et l'historique est rejoué avec les vraies
+    règles (couleur suivie, vainqueur qui relance) ;
+  - dessus de pioche imposé (`deckTop`), le reste du paquet suit ;
+  - coups des bots : une carte précise ou une règle (`lowest`, `highest`,
+    `smart` = gagne au plus juste, sinon la plus petite) ;
+  - coups du joueur : carte imposée (**strict**), coup **libre** avec sa
+    solution (défi), ou geste de pouvoir (bonne carte, bonne cible, bons
+    choix) ;
+  - répliques du coach (clés) : avant le coup, après, indice, erreurs par
+    carte (`wrong`), ouverture et fin ;
+  - pouvoirs équipés par siège ; but `winTrick`, `winRound` ou `watch`
+    (rejeu à regarder).
+- [x] Validation (`engine/academy/validate.ts`) : cartes uniques et du
+      paquet, mains complètes, aucune victoire à la donne, pouvoirs équipés
+      et dans la limite `maxEquippedPowers`, répliques existantes ; puis la
+      scène est **jouée par le moteur** avec sa solution : coups dans
+      l'ordre de la table, coups des bots légaux, carte imposée non
+      remplacée par un pouvoir, solution gagnante, défi = dernier pli avec
+      un vrai choix et au moins un piège
+- [x] Moteur de partie Académie (D9) : `engine/academy/table.ts`, pur et
+      synchrone, mêmes règles (`engine/rules.ts`) et même chemin de pouvoir
+      que `LocalGameSync` (ciblage → validation → bouclier/masque →
+      interprétation → application) ; **ni chrono, ni mise, ni Énergie, ni
+      serveur**. Adaptateur `sync/AcademyGameSync.ts` (interface
+      `GameSyncActions`) : rythme du jeu (réflexion des bots, atterrissage,
+      pause de fin de pli, mise en scène des pouvoirs des bots) et
+      événements pour le coach (`awaitYou`, `refused`, `coach`, `trickEnd`,
+      `end`)
+- [x] Rejouer une scène = repartir de son état figé (`nextRound()`)
+- [x] Repli (`engine/academy/powers.ts`) : carte désactivée ou archivée →
+      carte du même geste, **sans tirage au hasard**, qui fait encore gagner
+      la scène (vérifié en la rejouant), sinon la scène est masquée (`null`)
+- [x] Tests : 8 scènes (chapitres 1 à 4 et « Et si ? ») validées, gagnées
+      avec leur solution, et mises en échec par une mauvaise carte
+      (`tests/academy-scenes.test.ts`) ; erreurs d'écriture relevées
+      (`tests/academy-validation.test.ts`) ; rythme, refus, pouvoir et
+      rejeu de l'adaptateur (`tests/academy-sync.test.ts`)
+
+D9 confirmée en lisant le code : la table (`TableScreen`) ne connaît que
+l'interface `GameSyncActions`, et sait déjà démarrer en pleine manche
+(reconnexion). Il lui faudra seulement une entrée pour recevoir
+l'`AcademyGameSync` d'une scène au lieu de créer `LocalGameSync` (A3).
+Les répliques en ligne : `refus.*` génériques quand la scène n'en prévoit
+pas. Pas de `onRoundEnd` : une scène ne règle aucune mise.
+
+Relevé au passage, sans effet aujourd'hui : dans `LocalGameSync.playCard`,
+une restriction « verrou » (Sceau d'Entrave) sur le joueur serait traitée
+comme une carte imposée (`resolveForcedPlay`). Aucun bot n'a cette carte,
+donc le cas n'arrive pas ; l'Académie passe par `resolvePlay`.
 
 ## A2 — Coach ⬜
 
 - [ ] Calque `components/academy/` : avatar de Tonton René, bulle,
       projecteur (voile sombre percé sur une ou plusieurs zones), bouton
       « Passer »
+- [ ] Calque monté au niveau de l'application, pas dans `TableScreen` : il
+      doit aussi viser des éléments hors table (A13) par des ancres
+      `data-academy-anchor`, suivre le défilement et le redimensionnement,
+      et rester ouvert quand l'écran change
 - [ ] File d'attente : une réplique n'apparaît qu'une fois la table au
       repos (aucune animation en cours) ; l'action du joueur n'est ouverte
       qu'après la réplique
@@ -236,11 +279,22 @@ Une scène = une situation figée, rejouable à l'identique.
 - [ ] Mode libre : toute carte légale est jouable ; si le défi est raté,
       bouton « Réessayer ce pli »
 - [ ] Textes : `data/academy/fr.ts`, une clé par réplique, valeurs de `cfg`
-      insérées (`{turnSeconds}`, `{sumBelow}`…)
+      insérées (`{turnSeconds}`, `{sumBelow}`…). Fichier créé en A1 avec
+      les brouillons du plan et les refus génériques `refus.*` ; reste
+      l'insertion des valeurs de `cfg` et la relecture du ton
 - [ ] Vérification sur téléphone (375 × 812) et sur grand écran : aucune
       bulle ne cache la carte attendue ni le dépôt regardé
 
 ## A3 — Chapitres 1 à 3 : les bases ⬜
+
+Scènes déjà écrites et testées en A1 (`data/academy/scenes.ts` :
+`CH1_FOLLOW`, `CH2_LEAD`, `CH3_LAST_TRICK`, `CH3_WHAT_IF`). Reste : l'entrée
+de `TableScreen` pour recevoir l'`AcademyGameSync`, l'enchaînement des
+chapitres avec le coach (A2) et les variantes du défi de fin de chapitre 3.
+Au chapitre 3, l'historique des plis 1 à 3 est complet et rejoué : les
+dépôts de chaque joueur contiennent bien leurs 3 cartes. Reste à voir à
+l'écran si l'on y lit le Trèfle non suivi au 2e pli, sinon la ligne de
+résumé suffit.
 
 Trois joueurs, dans cet ordre de jeu : toi, Mado Biyem, Ya Pauline. Les
 mains sont servies dès le départ. Les répliques ci-dessous sont des
@@ -371,6 +425,11 @@ une situation concrète.
 | 3. Choix de cartes (choisir 1 à 3 cartes, valider) | Troc Ciblé, Pacte des Mains | Un 4♦ inutile ; Troc Ciblé l'échange contre le dessus de la pioche (imposé : 10♥) |
 | 4. Défense et bon moment | Bouclier du Village, Masque du Bluffeur, Totem des Ancêtres, Cauris Chanceux, Feu de Camp, Pluie d'Étoiles, Bénédiction du Chef | Tu poses le Bouclier, Mado lance Coupe-Circuit sur toi : le Bouclier l'arrête |
 
+Les 4 scènes sont écrites et testées depuis A1 (`CH4_DIRECT`,
+`CH4_TARGETED`, `CH4_CHOICE`, `CH4_DEFENSE`). Le geste 4 tient sur **2
+plis** : un pouvoir ne s'active qu'à son propre tour, donc tu lèves le
+Bouclier à ton tour du pli 1, et Mado attaque en lançant le pli 2.
+
 - [ ] Les 4 scènes, avec les mêmes écrans de choix que le jeu
       (`PowerTargetPicker`, `PowerChoiceBar`)
 - [ ] Les deux règles qui surprennent :
@@ -381,7 +440,8 @@ une situation concrète.
 - [ ] Composer un deck : « 1 Attaque + 1 Défense + 1 Tactique ou Score »,
       dans la limite de `cfg.maxEquippedPowers`
 - [ ] Chapitre masqué si `maxEquippedPowers === 0`
-- [ ] Fin : carte offerte (D5) puis « Viens l'équiper » → Collection
+- [ ] Fin : carte offerte (D5) puis « Viens l'équiper » → parcours guidé
+      A13
 - [ ] Si le joueur pose l'Éclair sur un 3 (Dojo) : réplique « il gagne
       comme un 5, mais ne double plus » (D7)
 
@@ -488,6 +548,43 @@ table et ne demande jamais de toucher la bulle.
       locales **et** serveur : il ne touche pas à la synchro en ligne.
 - [ ] Mesures (A7) : conseil affiché, conseil suivi ou non, niveau choisi.
 
+## A13 — Parcours guidé : équiper sa première carte ⬜
+
+Le seul geste hors table indispensable : une carte gagnée mais pas équipée
+ne vient jamais à table. Le parcours part de la fin du chapitre 4 et guide
+le joueur clic par clic, avec le calque de A2 (voile percé, bulle,
+« Passer »), sur les vrais écrans du jeu.
+
+| Écran | Zone éclairée | Ce que tu fais | Coach (brouillon) |
+| --- | --- | --- | --- |
+| Fin du chapitre 4 | La carte offerte et le bouton « Viens l'équiper » | Tu touches « Viens l'équiper » | « Cette carte est à toi. Mais une carte rangée ne sert à rien : il faut l'équiper. » |
+| Collection | La carte offerte dans le classeur, amenée à l'écran par un défilement automatique | Tu la touches | « La voici. Touche-la pour lire ce qu'elle fait. » |
+| Fiche de la carte | Le bouton « Équiper dans mon deck » | Tu le touches | « Seules les cartes de ton deck viennent à table. Équipe-la ! » |
+| Collection, deck | Les emplacements du deck, où la carte vient de se ranger | Tu touches « Suivant » | « Ton deck tient {maxEquippedPowers} cartes. Tu peux aussi glisser une carte sur un emplacement. » |
+| Jouer (Solo IA) | L'éventail des cartes équipées | Tu touches « Compris » | « Ta carte te suit dans chaque partie. Touche ici pour changer ton deck. » |
+
+- [ ] Ancres `data-academy-anchor` sur la carte du classeur, le bouton
+      « Équiper » des **deux** fiches (panneau sur grand écran, fenêtre sous
+      900 px), les
+      emplacements du deck et l'éventail de l'écran Jouer
+- [ ] Seule la zone éclairée répond ; un toucher ailleurs ne fait rien
+      (pas de tremblement hors table)
+- [ ] Une seule fois par compte (registre des bulles vues, A11) ; rejouable
+      depuis le hub (A6)
+- [ ] « Passer » ou retour arrière : le parcours s'arrête, la carte reste
+      dans la Collection, rien n'est perdu
+- [ ] Deck déjà plein (joueur « Je connais le Njambo ») : la bulle annonce
+      le remplacement (« Ton deck est plein : elle prend la place de la
+      dernière. Tu pourras changer quand tu veux. »)
+- [ ] Texte du bouton : « Équiper (remplace slot III) » est écrit en dur
+      (`PowerCollectionScreen.tsx`, deux endroits) alors que le deck tient
+      de 0 à 8 cartes : lire `ROMAN_SLOTS[powerLimit - 1]`, comme le
+      message qui suit (règle stricte n° 6)
+- [ ] Pas de parcours si `maxEquippedPowers === 0` (chapitre 4 masqué)
+- [ ] Vérification à 375 × 812 et sur grand écran, invité et compte
+- [ ] Mesures (A7) : parcours fini, abandonné (à quelle étape), carte
+      toujours équipée à la partie suivante
+
 ---
 
 ## Risques
@@ -504,6 +601,7 @@ table et ne demande jamais de toucher la bulle.
 | Le coach en direct devient bavard ou agaçant | Une bulle par tour au plus, compteurs de retrait, niveau changeable en pleine partie (A12) |
 | Le coach donne un avantage injuste en ligne | Règles seulement contre d'autres joueurs, vue du joueur sans les mains adverses (D10, A12) |
 | Le coach se trompe de conseil | Moteur pur testé situation par situation ; conseil de coup limité au Solo IA |
+| Le parcours guidé perd sa cible (carte hors écran, fiche fermée, retour arrière) | Défilement jusqu'à la carte, attente de l'ancre avant d'éclairer, « Passer » toujours visible ; un retour arrière arrête le parcours sans rien perdre (A13) |
 
 ## Journal
 
@@ -515,3 +613,5 @@ table et ne demande jamais de toucher la bulle.
 | 2026-11-27 | A12 | D10, D11 et D12 validées telles que proposées : règles seulement contre de vrais joueurs, carte conseillée seulement en Solo IA « Accompagné » après 5 s, niveau « Accompagné » au départ avec retrait progressif. |
 | 2026-11-27 | — | D1 à D5 et D8 validées telles que proposées : porte d'entrée à 2 boutons, chapitre 4 puis Dojo générique, bulles hors table en dernier, Tonton René en guide, récompenses modestes côté serveur (montants à fixer en A9), partie de fin gratuite et locale. Restent : D7 ouverte, D9 à confirmer en A1. |
 | 2026-11-27 | D7 | D7 tranchée : un 3 boosté (Éclair du Mfoundi) gagne avec sa valeur effective mais ne double plus. `lastCardDoubles` exige un vrai 3 non boosté et le serveur (`matchCommands.ts`) l'appelle au lieu de sa propre copie. Phrase ajoutée au guide (carte 3, vue au navigateur à 375×812 sans défilement), à la description de l'Éclair et à la référence de l'assistant IA. 5 tests unitaires et un 4e cas dans `smoke-double-penalty.cjs` (schéma Postgres temporaire, vert). tsc, eslint, suite au vert (459). Description de l'Éclair déjà en base : non écrasée par le seed, à reprendre dans l'éditeur admin. Reste : D9 à confirmer en A1. |
+| 2026-11-27 | A13 | Demande : un tuto interactif aussi hors de la table. Ajout de l'étape A13, parcours guidé clic par clic pour équiper sa première carte (fin du chapitre 4 → Collection → fiche → « Équiper dans mon deck » → éventail de l'écran Jouer). A2 doit donc pouvoir viser des éléments hors table (calque au niveau de l'application, ancres). Relevé au passage : « remplace slot III » écrit en dur dans la Collection. |
+| 2026-11-27 | A1 | A1 terminée, D9 confirmée. `engine/academy/` : type de scène (donne + historique rejoué avec les vraies règles), table pure qui suit le chemin de `LocalGameSync` pour les cartes et les pouvoirs, validation qui joue la solution (ordre de la table, piège du défi, carte imposée non remplacée), repli des pouvoirs par geste sans hasard. `sync/AcademyGameSync.ts` (interface `GameSyncActions`, rythme du jeu, événements du coach). 8 scènes écrites dans `data/academy/scenes.ts` (chapitres 1 à 4 et « Et si ? ») et leurs répliques brouillons dans `data/academy/fr.ts`. Geste 4 sur 2 plis (pouvoir seulement à son tour). 34 tests ; tsc, eslint, suite au vert (499). Rien n'est encore branché sur l'écran (A3). |
