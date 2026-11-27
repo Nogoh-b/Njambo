@@ -5,6 +5,7 @@ import { GAME_CONFIG } from "@/config/gameConfig";
 import { MotionCard } from "@/components/cards/MotionCard";
 import type { DealOrigin } from "@/components/cards/PlayCard";
 import { useRegisterZone, type HandHighlightStyle, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
+import { angleFromDeckToHand, shortestAngleDelta } from "@/components/table/zones/deckAim";
 import { elementCenter, elementScale } from "@/components/table/zones/zonePose";
 import { fanPose, fanRestLift } from "@/engine/anim/v2/pose";
 import type { PanInfo } from "motion/react";
@@ -229,6 +230,15 @@ export const Fan = memo(function Fan({
     const sin = Math.sin(rad);
     const scale = Math.max(0.45, Math.min(1.05, deckRect.width / Math.max(24, w)));
     const rootRect = root.getBoundingClientRect();
+    // Orientation de la pioche quand elle vise cette main (repère du siège), ramenée au demi-tour
+    // le plus proche : la carte sort du paquet dans son axe, par le bord avant ou arrière.
+    const aim = angleFromDeckToHand(
+      { x: deckCx, y: deckCy },
+      { x: rootRect.left + rootRect.width / 2, y: rootRect.top + rootRect.height / 2 },
+      seatAngle,
+    );
+    const rot = shortestAngleDelta(0, aim - seatAngle);
+    const startRot = rot > 90 ? rot - 180 : rot <= -90 ? rot + 180 : rot;
 
     const origins: DealOrigin[] = cards.map((_, ci) => {
       const child = root.children[ci] as HTMLElement | undefined;
@@ -239,6 +249,7 @@ export const Fan = memo(function Fan({
         dx: wx * cos + wy * sin,
         dy: -wx * sin + wy * cos,
         scale,
+        rot: startRot,
       };
     });
     setDealOrigins(origins);

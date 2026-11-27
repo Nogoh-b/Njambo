@@ -70,6 +70,8 @@ export interface DealOrigin {
   dx: number;
   dy: number;
   scale: number;
+  /** Orientation de la pioche au départ, dans le repère du siège (degrés). */
+  rot?: number;
 }
 
 export interface PlayCardProps {
@@ -112,6 +114,7 @@ export const PlayCard = memo(function PlayCard({
                 ["--deal-dx" as string]: `${Math.round(dealOrigin.dx)}px`,
                 ["--deal-dy" as string]: `${Math.round(dealOrigin.dy)}px`,
                 ["--deal-scale" as string]: dealOrigin.scale.toFixed(3),
+                ["--deal-rot" as string]: `${(dealOrigin.rot ?? 0).toFixed(1)}deg`,
               }
             : {}),
         }

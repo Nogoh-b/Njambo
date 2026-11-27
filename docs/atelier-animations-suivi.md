@@ -646,6 +646,12 @@ la pioche ne tourne pas et la carte sort par le bord arrière.
 - [x] `DeckZone` : carte poussée, pouce et reflet sur le bord arrière (`launchEdge`)
 - [x] Tests `deal-two-edge` (7), suite complète 431 au vert, `tsc`, `eslint`
 - [ ] Vérification visuelle dans une vraie partie (2 et 3 joueurs)
+- [x] Sortie de carte synchrone : plus de carte fantôme éjectée par la pioche, la carte qui vole
+      part elle-même de la pioche (posée dessus, dans son orientation) à l'instant de la poussée
+- [x] Modèle V1 de la donne sur le calendrier de la pioche (`startsMs`) au lieu du décalage régulier
+- [x] V1 et V2 sur l'horloge de la pioche (`epoch`) : la création des sprites ne décale plus les départs
+- [x] Tests `deal-two-edge` (8), `deck-deal-animation`, suite complète, `tsc`, `eslint`
+- [ ] Vérification visuelle de la synchro dans une vraie partie
 
 Gain mesuré sur 5 cartes : 2 joueurs 9 rotations → 0 (4,4 s → 2,3 s) ; 3 joueurs 14 → 9 ;
 4 joueurs inchangé (chaque main est à 90°).
@@ -654,6 +660,7 @@ Gain mesuré sur 5 cartes : 2 joueurs 9 rotations → 0 (4,4 s → 2,3 s) ; 3 jo
 
 | Date | Étape | Avancée |
 | --- | --- | --- |
+| 2026-11-27 | D | Donne synchronisée avec la sortie de carte : carte fantôme de la pioche retirée (elle doublait la carte qui vole) ; vol de l'éventail visible dès le départ, posé sur la pioche ; V1 sur le calendrier de la pioche ; V1/V2 sur la même horloge que la pioche. Tests, `tsc` et `eslint` au vert. Pas vu en partie : dans le navigateur intégré, la partie Solo IA démarre sans phase de donne. |
 | 2026-11-27 | D | Donne à deux bords intégrée : plus de rotation vers la main d'en face, carte poussée par le bord arrière, carte suivante plus tôt. 2 joueurs : 0 rotation, donne 2,3 s au lieu de 4,4 s. 431 tests, `tsc` et `eslint` au vert. Pas encore vue en partie. |
 | 2026-11-26 | M | Mélange aronde + paquets intégré dans la pioche, durées réglables dans l'admin (aronde / paquets). Un mélange déjà enregistré garde sa durée, joué en aronde seule. 26 tests et `tsc` au vert. Pas vu en partie : le compte invité n'avait pas d'énergie pour lancer une table. |
 | 2026-11-21 | G5 | « Offrir un cosmétique » dans la section Joueurs de l'admin, pour tester un style de bout en bout : motif obligatoire et audité, même inactif, refusé s'il est déjà possédé. Intégration Postgres 18/18, 223 tests au vert. |

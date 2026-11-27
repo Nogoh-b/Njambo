@@ -4185,12 +4185,17 @@ html[data-gxe-active] .njb--solid {
 
 /* La carte quitte réellement la pioche centrale (--deal-dx / --deal-dy mesurés
    dans le repère local de chaque siège) puis glisse jusqu'à son emplacement
-   exact dans l'éventail, 100% composité GPU (transform + opacity uniquement). */
+   exact dans l'éventail, 100% composité GPU (transform + opacity uniquement).
+   Cachée jusqu'à son départ, elle apparaît d'un coup posée sur la pioche, dans son
+   orientation (--deal-rot) : c'est elle qui sort du paquet, pas un fondu en plein vol. */
 @keyframes dealFly {
   0% {
     opacity: 0;
     transform: translate3d(var(--deal-dx, 0px), var(--deal-dy, -42vmin), 0)
-      scale(var(--deal-scale, 0.6)) rotate(0deg);
+      scale(var(--deal-scale, 0.6)) rotate(var(--deal-rot, 0deg));
+  }
+  0.5% {
+    opacity: 1;
   }
   12% {
     opacity: 1;
@@ -4199,7 +4204,8 @@ html[data-gxe-active] .njb--solid {
         calc(var(--deal-dy, -42vmin) * 0.88),
         0
       )
-      scale(calc(var(--deal-scale, 0.6) + 0.14)) rotate(calc(var(--card-rot, 0deg) * 0.35));
+      scale(calc(var(--deal-scale, 0.6) + 0.14))
+      rotate(calc(var(--deal-rot, 0deg) * 0.65 + var(--card-rot, 0deg) * 0.35));
   }
   76% {
     opacity: 1;

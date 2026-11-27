@@ -25,6 +25,10 @@ export interface MotifRun {
   release?: "keep" | "landing" | "end";
   /** Appelé à l'atterrissage de chaque carte (index dans `cards`). */
   onLanded?(k: number): void;
+  /** Départ de chaque carte (ms après `epoch`) à la place du décalage régulier du modèle. */
+  startsMs?: readonly number[];
+  /** Origine des temps (`performance.now()`) partagée avec la pioche ; défaut : première image du modèle. */
+  epoch?: number;
 }
 
 const TONE_COLORS: Record<PowerFxTone, string> = { gold: "#f2bb45", teal: "#1de4be", pink: "#ff5b82", cobalt: "#6fa8ff" };
@@ -284,7 +288,7 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
   const color = TONE_COLORS[ctx.defaultTone];
   const sink = SINKS.has(motif.to.zone);
   const inPlace = JSON.stringify(motif.from) === JSON.stringify(motif.to);
-  const schedule = motifSchedule(motif, ids.length);
+  const schedule = motifSchedule(motif, ids.length, run.startsMs);
 
   // Index des cartes dans leurs mains (sinon : les dernières au départ, à la suite à l'arrivée).
   const fromUis = ids.map((_, k) => uiFor(ctx, motif.from, k));
@@ -340,16 +344,18 @@ export async function playMotif(ctx: ChoreoContext, run: MotifRun, spriteEls?: M
       spreads.push({ ui, atMs: Math.max(0, firstEnd - SPREAD_LEAD_MS), count: mine.length, durationMs: SPREAD_LEAD_MS + lastEnd - firstEnd, done: false });
     }
   }
-  const reactions = motifReactionInstances(motif, flights.length).map((instance) => ({ instance, fired: false }));
-  const total = motifTotalMs(motif, flights.length);
+  const reactions = motifReactionInstances(motif, flights.length, run.startsMs).map((instance) => ({ instance, fired: false }));
+  const total = motifTotalMs(motif, flights.length, run.startsMs);
   const trailEvery = motif.trail === "sparks" ? (ctx.lite ? 90 : 26) / (motif.trailIntensity ?? 2) * 2 : 0;
   const afterimages = motif.trail === "light" && !ctx.lite ? 2 + (motif.trailIntensity ?? 2) : 0;
   const ghostNodes = new Map<number, HTMLElement[]>();
   const kept: HTMLElement[] = [];
 
+  // Horloge partagée : le temps passé à créer les sprites ne décale pas les départs.
   const start = await nextFrame();
+  const origin = run.epoch ?? start;
   for (let now = start; ; now = await nextFrame()) {
-    const elapsed = now - start;
+    const elapsed = now - origin;
     // 1. Lectures (positions des zones), 2. écritures : une seule mise en page par image.
     const frames = flights.map((flight) => {
       const local = elapsed - flight.startMs;

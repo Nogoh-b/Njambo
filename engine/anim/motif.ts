@@ -325,9 +325,9 @@ function validateWaypoint(value: unknown, path: string, issues: MotifIssue[], pr
 }
 
 /** Fin du dernier vol et de la dernière réaction, pour `flights` cartes (ms). */
-export function motifTotalMs(motif: AnimMotif, flights = motif.count): number {
+export function motifTotalMs(motif: AnimMotif, flights = motif.count, startsMs?: readonly number[]): number {
   const n = Math.max(1, flights);
-  const lastStart = (n - 1) * motif.staggerMs;
+  const lastStart = startsMs?.length ? Math.max(...startsMs.slice(0, n)) : (n - 1) * motif.staggerMs;
   let total = lastStart + motif.durationMs + (motif.squash && !sameAnchor(motif.from, motif.to) ? SQUASH_MS : 0);
   for (const reaction of motif.reactions) {
     const def = MOTIF_REACTIONS[reaction.type];

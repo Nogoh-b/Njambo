@@ -205,9 +205,10 @@ export function sampleFlight(motif: AnimMotif, geometry: FlightGeometry, elapsed
 
 export interface FlightTiming { index: number; startMs: number; endMs: number }
 
-export function motifSchedule(motif: AnimMotif, flights: number): FlightTiming[] {
+export function motifSchedule(motif: AnimMotif, flights: number, startsMs?: readonly number[]): FlightTiming[] {
   return Array.from({ length: Math.max(1, flights) }, (_, index) => {
-    const startMs = index * motif.staggerMs;
+    // Départs imposés (donne calée sur la pioche), sinon décalage régulier du modèle.
+    const startMs = startsMs?.[index] ?? index * motif.staggerMs;
     return { index, startMs, endMs: startMs + motif.durationMs };
   });
 }
@@ -223,8 +224,8 @@ export interface ReactionInstance {
 }
 
 /** Réactions à jouer : une par carte si « pour chaque carte », sinon départ de la première / arrivée de la dernière. */
-export function motifReactionInstances(motif: AnimMotif, flights: number): ReactionInstance[] {
-  const schedule = motifSchedule(motif, flights);
+export function motifReactionInstances(motif: AnimMotif, flights: number, startsMs?: readonly number[]): ReactionInstance[] {
+  const schedule = motifSchedule(motif, flights, startsMs);
   const out: ReactionInstance[] = [];
   motif.reactions.forEach((reaction, reactionIndex) => {
     const def = MOTIF_REACTIONS[reaction.type];

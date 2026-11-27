@@ -299,17 +299,11 @@ export const DeckZone = memo(function DeckZone({
                   <div className={back1Class}>
                     <PlayCard hidden w={visualDeckW} />
                   </div>
+                  {/* Pas de carte fantôme éjectée : la carte qui vole (éventail, V1 ou V2) part
+                      elle-même de la pioche, au même instant, et c'est elle qu'on voit sortir. */}
                   <div className={topCardClass} style={{ borderRadius: cardRadius }}>
                     <PlayCard hidden w={visualDeckW} />
                   </div>
-                  {motionEnabled && isDealing && launchSeq > 0 && (
-                    // Bord arrière : la poussée du pouce part vers l'autre côté (repère tourné d'un demi-tour).
-                    <div key={`eject-${launchSeq}`} className={fromBack ? styles.ejectFromBack : styles.ejectFromFront} aria-hidden="true">
-                      <div className={styles.dealEjectCard} style={{ borderRadius: cardRadius }}>
-                        <PlayCard hidden w={visualDeckW} />
-                      </div>
-                    </div>
-                  )}
                 </>
               )}
 

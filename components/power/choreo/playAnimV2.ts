@@ -50,6 +50,8 @@ export interface AnimV2Run {
   onFirstFrame?(): void;
   /** Identifiants des cartes volantes, dès leur création (pour les retirer plus tard avec `layer.removeCard`). */
   onSpawned?(spriteIds: string[]): void;
+  /** Origine des temps des `delayMs` (`performance.now()`) partagée avec la pioche ; défaut : première image. */
+  epoch?: number;
 }
 
 interface Flight {
@@ -192,9 +194,11 @@ export async function playAnimV2(ctx: ChoreoContext, run: AnimV2Run): Promise<vo
   let reflowed = false, entered = false;
   const needsLiveReflowRead = run.reflow !== false;
   const reflowWindowEnd = timeline.reflowAt + model.handReflowMs + 80;
+  // Horloge partagée : le temps passé à créer les sprites ne décale pas les départs.
   const start = await nextFrame();
+  const origin = run.epoch ?? start;
   for (let now = start; ; now = await nextFrame()) {
-    const elapsed = now - start;
+    const elapsed = now - origin;
     // 1. Lectures groupées uniquement si une main se réorganise réellement pendant le vol.
     const frames = flights.map((flight) => {
       const local = elapsed - flight.delayMs;

@@ -153,28 +153,6 @@
   will-change: transform;
 }
 
-/* ── Carte poussée du pouce hors du bord avant (+Y local), ou arrière (repère tourné d'un demi-tour) ── */
-.ejectFromFront,
-.ejectFromBack {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-}
-
-.ejectFromBack {
-  transform: rotate(180deg);
-}
-
-.dealEjectCard {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  pointer-events: none;
-  animation: dealCardThumbSlide 185ms cubic-bezier(0.24, 0.78, 0.28, 1) both;
-  will-change: transform, opacity;
-}
-
 /* ── Reflet chaud organique sur la tranche avant (+Y) : lisible sans flèche mécanique ── */
 .leadingEdgeSheen {
   position: absolute;
@@ -308,17 +286,6 @@
   0%   { transform: translate3d(0, 3px, 0) scale(1); }
   38%  { transform: translate3d(0, 6.5px, 0) rotate(-0.8deg) scale(1.02); }
   100% { transform: translate3d(0, 3px, 0) scale(1); }
-}
-
-@keyframes dealCardThumbSlide {
-  0% {
-    opacity: 0.92;
-    transform: translate3d(0, 3px, 0) rotate(0deg) scale(1.01);
-  }
-  100% {
-    opacity: 0;
-    transform: translate3d(0, 29px, 0) rotate(2.4deg) scale(0.95);
-  }
 }
 
 @keyframes leadingEdgePulseA {

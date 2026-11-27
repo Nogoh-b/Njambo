@@ -165,8 +165,8 @@ describe("DeckZone — pioche centrée, mélange poussé (≥ 3 s) et rotation h
     expect(html).toContain("--turn-dir:-1");
     expect(html).toContain("translate3d(-6px, 0px, 0) rotate(450deg)");
     expect(html).toContain("top:47%");
-    // 3 couches du paquet + 1 carte glissée du pouce
-    expect(html.match(/nj-playcard/g)?.length).toBe(4);
+    // 3 couches du paquet, sans carte fantôme : c'est la carte qui vole qui sort de la pioche
+    expect(html.match(/nj-playcard/g)?.length).toBe(3);
   });
 });
 

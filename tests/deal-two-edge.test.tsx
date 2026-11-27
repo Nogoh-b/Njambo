@@ -2,6 +2,9 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 import { dealLaunchesFor, planDealAim, shortestAngleDelta, twoEdgeAim } from "../components/table/zones/deckAim";
 import { DeckZone } from "../components/table/zones/DeckZone";
+import { DEFAULT_MOTIFS_BY_ID } from "../engine/anim/defaults";
+import { motifTotalMs } from "../engine/anim/motif";
+import { motifSchedule } from "../engine/anim/sample";
 
 const timing = { perCardMs: 110, rotateMs: 320 };
 
@@ -52,13 +55,24 @@ describe("donne à deux bords : pas de rotation vers la main d'en face", () => {
     expect(dealLaunchesFor(plan, 1)).toEqual([200, 600, 1000]);
   });
 
-  it("DeckZone pousse la carte et le reflet par le bord arrière", () => {
+  it("modèle V1 : les cartes partent au calendrier de la pioche, pas au décalage régulier", () => {
+    const motif = { ...DEFAULT_MOTIFS_BY_ID.deal, staggerMs: 430, durationMs: 520 };
+    const startsMs = dealLaunchesFor(planDealAim([0, 180], 2, timing), 0)
+      .flatMap((_, round) => [round * 400, round * 400 + 200].map((ms) => ms + 5700));
+    expect(motifSchedule(motif, 4, startsMs).map((flight) => flight.startMs)).toEqual([5700, 5900, 6100, 6300]);
+    expect(motifSchedule(motif, 4).map((flight) => flight.startMs)).toEqual([0, 430, 860, 1290]);
+    expect(motifTotalMs(motif, 4, startsMs)).toBeGreaterThanOrEqual(6300 + 520);
+  });
+
+  it("DeckZone pousse la carte et le reflet par le bord arrière, sans carte fantôme", () => {
     const render = (launchEdge: "front" | "back") => renderToStaticMarkup(
       <DeckZone deckW={50} pot={500} ledSuit={null} stage="dealing" launchSeq={2} launchEdge={launchEdge} motionEnabled premiumFxAllowed liteMotion={false} />,
     );
-    expect(render("back")).toMatch(/ejectFromBack/);
+    expect(render("back")).toMatch(/stackLayerTopThumbPeekBack/);
     expect(render("back")).toMatch(/leadingEdgeSheenBack/);
-    expect(render("front")).toMatch(/ejectFromFront/);
+    expect(render("front")).toMatch(/topCardFollow/);
     expect(render("front")).not.toMatch(/leadingEdgeSheenBack/);
+    // La carte qui vole part elle-même de la pioche : pas de deuxième carte éjectée.
+    expect(render("front")).not.toMatch(/eject/i);
   });
 });

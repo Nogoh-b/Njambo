@@ -847,6 +847,8 @@ export function TableScreen({
   const [deckLaunchEdge, setDeckLaunchEdge] = useState<DeckEdge>("front");
   const deckAngleRef = useRef(0);
   const deckSequenceKeyRef = useRef<string | null>(null);
+  /** Origine des temps de la donne en cours (`performance.now()`) : la pioche et les cartes qui volent la partagent. */
+  const dealEpochRef = useRef<{ key: string; at: number } | null>(null);
   const dealSequenceTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const clearDealSequenceTimers = useCallback(() => {
     dealSequenceTimersRef.current.forEach((timer) => clearTimeout(timer));
@@ -1132,10 +1134,13 @@ export function TableScreen({
     visible?: (index: number) => boolean;
     /** Teinte du style du joueur concerné (traînée, lueur, réactions). */
     tone?: PowerFxTone;
+    /** Départs imposés et origine des temps (donne calée sur la pioche). */
+    startsMs?: number[];
+    epoch?: number;
   }): Promise<void> => {
     const layer = momentLayerRef.current;
     if (!layer) return Promise.resolve();
-    return playMotif(momentContext(layer, opts), { id: `moment_${Date.now().toString(36)}`, motif, cards: opts.cards, mode: opts.mode, release: opts.release });
+    return playMotif(momentContext(layer, opts), { id: `moment_${Date.now().toString(36)}`, motif, cards: opts.cards, mode: opts.mode, release: opts.release, startsMs: opts.startsMs, epoch: opts.epoch });
   }, [impactShake, liteMotion, zoneRegistry]); // eslint-disable-line react-hooks/exhaustive-deps
   const runMomentRef = useRef(runMoment);
   runMomentRef.current = runMoment;
@@ -1158,10 +1163,10 @@ export function TableScreen({
     };
   }
   /** Moment animé par un modèle V2 (phase V2-3) : les zones donnent les poses, le modèle le mouvement. */
-  const runMomentV2 = (model: AnimV2, moves: AnimV2Move[], opts: { actorUi: number; reflow?: boolean; tone?: PowerFxTone }): Promise<void> => {
+  const runMomentV2 = (model: AnimV2, moves: AnimV2Move[], opts: { actorUi: number; reflow?: boolean; tone?: PowerFxTone; epoch?: number }): Promise<void> => {
     const layer = momentLayerRef.current;
     if (!layer) return Promise.resolve();
-    return playAnimV2(momentContext(layer, { actorUi: opts.actorUi, tone: opts.tone }), { id: `moment_v2_${Date.now().toString(36)}`, model, moves, release: "landing", reflow: opts.reflow });
+    return playAnimV2(momentContext(layer, { actorUi: opts.actorUi, tone: opts.tone }), { id: `moment_v2_${Date.now().toString(36)}`, model, moves, release: "landing", reflow: opts.reflow, epoch: opts.epoch });
   };
   const runMomentV2Ref = useRef(runMomentV2);
   runMomentV2Ref.current = runMomentV2;
@@ -1255,6 +1260,7 @@ export function TableScreen({
 
     clearDealSequenceTimers();
     deckSequenceKeyRef.current = key;
+    dealEpochRef.current = { key, at: performance.now() };
     deckAngleRef.current = 0;
     setDeckAimTransitionMs(0);
     setDeckAimAngle(0);
@@ -1376,6 +1382,10 @@ export function TableScreen({
     }
     dealPlayedRef.current = key;
     const count = hands.length;
+    // Même origine des temps que la pioche : chaque carte quitte le paquet à l'instant où la pioche la pousse.
+    const epoch = dealEpochRef.current?.key === key ? dealEpochRef.current.at : performance.now();
+    // Départ de chaque carte (ordre de la donne : une carte par joueur, tour après tour).
+    const startOf = (round: number, ui: number) => dealShuffleMs + (dealPlan[round * count + ui]?.launchMs ?? (round * count + ui) * dealStepMs);
     if (dealV2) {
       // V2 : distribution regroupée dans UNE seule boucle RAF + un seul spawn batché
       // (zéro layout thrashing et zéro cascade de 20 re-rendus React), après le mélange.
@@ -1385,19 +1395,23 @@ export function TableScreen({
       for (let round = 0; round < perPlayer; round++) {
         for (let ui = 0; ui < count; ui++) {
           const step = dealPlan[round * count + ui];
-          const startMs = dealShuffleMs + (step?.launchMs ?? (round * count + ui) * dealStepMs);
+          const startMs = startOf(round, ui);
           zoneRegistry.hand(ui)?.hideCardsFor?.([round], startMs + dealV2.motion.durationMs + 30);
+          // Pose exacte de la pioche au départ : visée (micro-variation du poignet comprise) et avancée vers la main.
+          const edgeTurn = step?.edge === "back" ? 180 : 0;
+          const aim = seatAngles[ui] + edgeTurn + (step ? humanHandJitter(step.k) : 0);
+          const reach = wristReachOffset(aim - edgeTurn, 6);
           dealMoves.push({
             card: ui === 0 ? hands[ui][round] : null,
             from: { zone: "deck", index: 0 },
-            ...(deckBasePose ? { fromPose: { ...deckBasePose, rotate: seatAngles[ui] + (step?.edge === "back" ? 180 : 0) } } : {}),
+            ...(deckBasePose ? { fromPose: { ...deckBasePose, x: deckBasePose.x + reach.x, y: deckBasePose.y + reach.y, rotate: aim } } : {}),
             to: { zone: "hand", ui, index: round, count: perPlayer },
             delayMs: startMs,
           });
         }
       }
       if (!pausedRef.current && dealMoves.length > 0) {
-        void runMomentV2Ref.current(dealV2, dealMoves, { actorUi: 0, reflow: false });
+        void runMomentV2Ref.current(dealV2, dealMoves, { actorUi: 0, reflow: false, epoch });
         // Sortie des cartes du deck : quelques déclenchements rythmés (limités par minGapMs).
         const step = Math.max(1, Math.floor(dealMoves.length / 5));
         for (let i = 0; i < dealMoves.length; i += step) {
@@ -1411,27 +1425,23 @@ export function TableScreen({
       return;
     }
     if (!dealMotif) return;
-    const ids: string[] = [], snapshots: Card[] = [], toIndexes: number[] = [];
+    const ids: string[] = [], snapshots: Card[] = [], toIndexes: number[] = [], startsMs: number[] = [];
     // Ordre de la donne : une carte à chaque joueur, tour après tour (« chacun » = sièges 0..n-1).
     for (let round = 0; round < perPlayer; round++) {
-      for (let ui = 0; ui < count; ui++) { ids.push(hands[ui][round].id); snapshots.push(hands[ui][round]); toIndexes.push(round); }
+      for (let ui = 0; ui < count; ui++) { ids.push(hands[ui][round].id); snapshots.push(hands[ui][round]); toIndexes.push(round); startsMs.push(startOf(round, ui)); }
     }
-    const schedule = motifSchedule(dealMotif, ids.length);
+    // Calendrier de la pioche (bord arrière sans rotation = carte suivante plus tôt), pas le décalage régulier du modèle.
+    const schedule = motifSchedule(dealMotif, ids.length, startsMs);
     hands.forEach((_, ui) => {
-      for (let round = 0; round < perPlayer; round++) zoneRegistry.hand(ui)?.hideCardsFor?.([round], dealShuffleMs + schedule[round * count + ui].endMs + 30);
+      for (let round = 0; round < perPlayer; round++) zoneRegistry.hand(ui)?.hideCardsFor?.([round], schedule[round * count + ui].endMs + 30);
     });
-    const launchMotif = () => {
-      if (pausedRef.current) return;
+    // Lancé tout de suite (les sprites restent cachés pendant le mélange) : aucun retard de création au premier départ.
+    if (!pausedRef.current) {
       void runMomentRef.current(dealMotif, {
         actorUi: 0, cards: { ids, snapshots, fromIndexes: [], toIndexes }, mode: "display", release: "landing",
         visible: (index) => index % count === 0,
+        startsMs, epoch,
       });
-    };
-    if (dealShuffleMs > 0) {
-      const motifTimer = setTimeout(launchMotif, dealShuffleMs);
-      dealSequenceTimersRef.current.push(motifTimer);
-    } else {
-      launchMotif();
     }
   }, [aimAngleForSeat, dealMotif, dealPlan, dealShuffleMs, dealV2, dealRetry, phase, players, zoneRegistry]); // eslint-disable-line react-hooks/exhaustive-deps
 
