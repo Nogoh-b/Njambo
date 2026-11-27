@@ -24,6 +24,7 @@ import {
   type DefaultCosmeticsConfig,
 } from "../../domain";
 import { asObject, db, requireAdmin, requireUid, requiredString, runIdempotent } from "./core";
+import { loadImportedPowerPacks } from "./powerPackCommands";
 
 function cosmeticFrom(raw: unknown): CosmeticDefinition {
   const source = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
@@ -115,9 +116,11 @@ export async function saveAssetPackHandler(request: CallableRequest<unknown>) {
   const data = asObject(request.data);
   const pack = data.pack;
   const scope = data.scope ?? "system";
-  if (!isAssetPackId(pack)) throw new HttpsError("invalid-argument", "ASSET_PACK_UNKNOWN");
+  // Packs Pouvoir importés depuis l'admin : connus seulement par runtime_config/power_packs.
+  const imported = await loadImportedPowerPacks();
+  if (!isAssetPackId(pack, imported)) throw new HttpsError("invalid-argument", "ASSET_PACK_UNKNOWN");
   if (!isAssetPackScope(scope)) throw new HttpsError("invalid-argument", "ASSET_PACK_SCOPE_UNKNOWN");
-  if (!isAssetPackForScope(pack, scope)) throw new HttpsError("invalid-argument", "ASSET_PACK_SCOPE_MISMATCH");
+  if (!isAssetPackForScope(pack, scope, imported)) throw new HttpsError("invalid-argument", "ASSET_PACK_SCOPE_MISMATCH");
   const field = ASSET_PACK_FIELD[scope];
   return runIdempotent(uid, "saveAssetPack", data.idempotencyKey, async (transaction, now) => {
     transaction.set(db.doc(`runtime_config/${ASSET_PACK_DOC}`), { [field]: pack, updatedAt: now, updatedBy: uid }, { merge: true });

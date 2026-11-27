@@ -2,6 +2,7 @@ import { setGlobalOptions } from "firebase-functions/v2";
 import { onCall } from "firebase-functions/v2/https";
 import { saveGameplayConfigHandler } from "./gameplayCommands";
 import { saveAudioConfigHandler } from "./audioCommands";
+import { deletePowerPackHandler, savePowerPackHandler } from "./powerPackCommands";
 
 setGlobalOptions({ region: "africa-south1", maxInstances: 20, memory: "256MiB", timeoutSeconds: 60 });
 
@@ -200,6 +201,8 @@ export const listCosmetics = onCall(callable, listCosmeticsHandler);
 export const saveCosmetic = onCall(callable, saveCosmeticHandler);
 export const saveCosmeticDefaults = onCall(callable, saveCosmeticDefaultsHandler);
 export const saveAssetPack = onCall(callable, saveAssetPackHandler);
+export const savePowerPack = onCall(callable, savePowerPackHandler);
+export const deletePowerPack = onCall(callable, deletePowerPackHandler);
 export const getCosmeticCollection = onCall(callable, getCosmeticCollectionHandler);
 export const equipCosmetic = onCall(callable, equipCosmeticHandler);
 export const listCampaigns = onCall(callable, listCampaignsHandler);

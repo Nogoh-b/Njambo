@@ -1,6 +1,7 @@
 import type { CallableRequest } from "firebase-functions/v2/https";
 import { saveGameplayConfigHandler } from "../../functions/src/gameplayCommands";
 import { saveAudioConfigHandler } from "../../functions/src/audioCommands";
+import { deletePowerPackHandler, savePowerPackHandler } from "../../functions/src/powerPackCommands";
 import {
   buyBoosterBookHandler,
   buyDailyGridSlotHandler,
@@ -207,6 +208,8 @@ export const commands: Record<string, Handler> = {
   saveCosmetic: saveCosmeticHandler,
   saveCosmeticDefaults: saveCosmeticDefaultsHandler,
   saveAssetPack: saveAssetPackHandler,
+  savePowerPack: savePowerPackHandler,
+  deletePowerPack: deletePowerPackHandler,
   getCosmeticCollection: getCosmeticCollectionHandler,
   equipCosmetic: equipCosmeticHandler,
   listCampaigns: listCampaignsHandler,

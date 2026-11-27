@@ -1,5 +1,7 @@
 /* Packs d'assets actifs (choisis dans l'admin, runtime_config/asset_pack) :
    un pour les assets système, un pour l'interface, un pour les cartes Pouvoir.
+   Les packs Pouvoir importés depuis l'admin (runtime_config/power_packs) sont
+   suivis aussi : un pack importé n'est reconnu qu'une fois sa définition reçue.
    Les packs sont connus dès le
    chargement grâce aux derniers packs vus (localStorage), puis suivis en temps
    réel. Un changement s'applique tout de suite aux écrans affichés : appeler
@@ -12,11 +14,16 @@ import {
   DEFAULT_ASSET_PACKS,
   crispAssetUrl,
   isAssetPackForScope,
+  readAssetPacks,
+  readImportedPowerPacks,
   resolveAssetUrl,
+  setImportedPowerPacks,
   type AssetPackSelection,
+  type ImportedPowerPack,
 } from "@/domain/assetPacks";
 
 const STORAGE_KEY: Record<keyof AssetPackSelection, string> = { system: "njambo-asset-pack", interface: "njambo-ui-pack", powers: "njambo-power-pack" };
+const IMPORTED_STORAGE_KEY = "njambo-power-packs";
 
 /** Assets référencés depuis les feuilles de style (variables CSS). */
 const CSS_ASSETS: Record<string, string> = {
@@ -34,6 +41,8 @@ const CSS_ASSETS: Record<string, string> = {
 let current: AssetPackSelection = DEFAULT_ASSET_PACKS;
 const listeners = new Set<() => void>();
 let started = false;
+/** Dernier document runtime_config/asset_pack reçu : relu quand la liste des packs importés change. */
+let lastPackDoc: { data: unknown } | null = null;
 
 function applyCss(selection: AssetPackSelection) {
   if (typeof document === "undefined") return;
@@ -55,9 +64,30 @@ export function setAssetPacks(next: Partial<AssetPackSelection>) {
   listeners.forEach((listener) => listener());
 }
 
+/** Applique le document runtime_config/asset_pack reçu du serveur. */
+export function applyAssetPackDoc(data: unknown) {
+  lastPackDoc = { data };
+  setAssetPacks(readAssetPacks(data));
+}
+
+/** Applique la liste des packs Pouvoir importés (runtime_config/power_packs). */
+export function setImportedPacks(packs: readonly ImportedPowerPack[]) {
+  setImportedPowerPacks(packs);
+  try { localStorage.setItem(IMPORTED_STORAGE_KEY, JSON.stringify({ packs })); } catch { /* stockage indisponible */ }
+  if (lastPackDoc) setAssetPacks(readAssetPacks(lastPackDoc.data));
+  // Les URL d'un pack importé ont pu changer (nouvelle image) : on redessine les écrans.
+  current = { ...current };
+  applyCss(current);
+  listeners.forEach((listener) => listener());
+}
+
 function start() {
   if (started || typeof window === "undefined") return;
   started = true;
+  try {
+    const cached = localStorage.getItem(IMPORTED_STORAGE_KEY);
+    if (cached) setImportedPowerPacks(readImportedPowerPacks(JSON.parse(cached)));
+  } catch { /* cache absent ou illisible */ }
   const saved = { ...current };
   for (const scope of ASSET_PACK_SCOPES) {
     try {

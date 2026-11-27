@@ -6,10 +6,11 @@
    cartes de modes de jeu), et illustrations des cartes Pouvoir. */
 
 import { useState } from "react";
-import { ASSET_PACKS, assetPackUrl, assetPacksForScope, isPortraitPowerPack, type AssetPackId, type AssetPackScope } from "@/domain/assetPacks";
+import { assetPackUrl, assetPacksForScope, isPortraitPowerPack, powerPackThumbUrl, type AssetPackId, type AssetPackScope } from "@/domain/assetPacks";
 import { setAssetPacks, useAssetPacks } from "@/lib/assetPack";
 import { useAssetPackSync } from "@/hooks/useAssetPackSync";
 import { adminApi, adminErrorText } from "./adminApi";
+import { PowerPackImporter } from "./PowerPackImporter";
 import styles from "./AdminConsole.module.css";
 
 const SECTIONS: Record<AssetPackScope, { title: string; hint: string; preview: string[] }> = {
@@ -39,7 +40,7 @@ const SECTIONS: Record<AssetPackScope, { title: string; hint: string; preview: s
   },
   powers: {
     title: "Pack de cartes Pouvoir",
-    hint: "Illustrations des 21 cartes Pouvoir intégrées. Les images personnalisées restent prioritaires.",
+    hint: "Illustrations des 21 cartes Pouvoir intégrées, packs importés compris. Les images personnalisées restent prioritaires.",
     preview: [
       "/assets/power-cards/v2/oeil_sorcier.webp",
       "/assets/power-cards/v2/tambour_appel.webp",
@@ -62,7 +63,7 @@ function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPa
     try {
       await adminApi.saveAssetPack(pack, scope);
       setAssetPacks({ [scope]: pack });
-      const name = ASSET_PACKS.find((item) => item.id === pack)?.name ?? pack;
+      const name = assetPacksForScope(scope).find((item) => item.id === pack)?.name ?? pack;
       setMessage({ kind: "ok", text: `« ${name} » activé pour tous les joueurs. Il s'affiche tout de suite sur tous les écrans, sans relancer le jeu.` });
     } catch (error) {
       setMessage({ kind: "error", text: `Activation impossible : ${adminErrorText(error)}` });
@@ -91,8 +92,7 @@ function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPa
             >
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, background: "#0c0906", borderRadius: 8, padding: 6 }}>
                 {section.preview.map((path) => {
-                  const url = assetPackUrl(path, pack.id, scope);
-                  const thumbnail = scope === "powers" && pack.id !== "classique" ? url.replace(/\.webp$/, "-256.webp") : url;
+                  const thumbnail = scope === "powers" ? powerPackThumbUrl(path, pack.id) : assetPackUrl(path, pack.id, scope);
                   return (
                     // eslint-disable-next-line @next/next/no-img-element
                     <img key={path} src={thumbnail} alt="" loading="lazy" width={64} height={isPortraitPowerPack(pack.id) ? 96 : 64} style={{ width: "100%", height: "auto" }} />
@@ -127,6 +127,7 @@ export function AssetPackPanel() {
       <PackSection scope="system" active={active.system} />
       <PackSection scope="interface" active={active.interface} />
       <PackSection scope="powers" active={active.powers} />
+      <PowerPackImporter />
     </>
   );
 }
@@ -135,5 +136,10 @@ export function AssetPackPanel() {
 export function PowerArtPackPanel() {
   useAssetPackSync();
   const active = useAssetPacks();
-  return <PackSection scope="powers" active={active.powers} />;
+  return (
+    <>
+      <PackSection scope="powers" active={active.powers} />
+      <PowerPackImporter />
+    </>
+  );
 }

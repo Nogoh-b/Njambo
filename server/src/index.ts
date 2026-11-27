@@ -15,6 +15,7 @@ import { startJobs } from "./jobs";
 import { attachRealtime } from "./realtime/server";
 import { mountUploads } from "./uploads";
 import { mountAudioUploads } from "./audioUploads";
+import { mountPowerPackUploads } from "./powerPackUploads";
 
 /* Charge server/.env s'il existe (DATABASE_URL, PORT, GOOGLE_APPLICATION_
    CREDENTIALS…). Les variables déjà présentes dans l'environnement priment —
@@ -44,6 +45,7 @@ app.use(express.json({ limit: "1mb" }));
 mountAuthRoutes(app);
 mountUploads(app);
 mountAudioUploads(app);
+mountPowerPackUploads(app);
 
 app.post("/api/:command", async (req, res) => {
   const handler = commands[req.params.command];

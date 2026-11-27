@@ -172,6 +172,9 @@ export const adminApi = {
   saveCosmeticDefaults: (defaults: { cardBack?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null; handArc?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null }) =>
     call<{ defaults: DefaultCosmeticsConfig }>("saveCosmeticDefaults", { defaults }),
   saveAssetPack: (pack: string, scope: "system" | "interface" | "powers") => call<{ pack: string; scope: string }>("saveAssetPack", { pack, scope }),
+  savePowerPack: (pack: { id?: string; name: string; description: string; portrait: boolean }) =>
+    call<{ pack: import("@/domain/assetPacks").ImportedPowerPack }>("savePowerPack", { pack }),
+  deletePowerPack: (packId: string) => call<{ packId: string }>("deletePowerPack", { packId }),
   saveAudioConfig: (config: import("@/domain/audioCatalog").AudioCatalogConfig) =>
     call<{ config: import("@/domain/audioCatalog").AudioCatalogConfig }>("saveAudioConfig", { config }),
   seasons: () => call<{ seasons: SeasonDefinition[]; now: number }>("listSeasons"),
@@ -289,6 +292,22 @@ export async function uploadImage(file: File, kind: "event" | "boss" | "cosmetic
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new BackendError(body.code ?? "internal", body.message ?? `HTTP_${response.status}`);
   return body as { url: string; path: string; width: number; height: number; bytes: number };
+}
+
+/** Illustration d'une carte dans un pack importé : envoyée réduite (≤ 1 080 px), déclinée en 3 tailles par le serveur. */
+export async function uploadPowerPackArt(packId: string, card: string, image: Blob) {
+  const user = auth.currentUser;
+  if (!user) throw new BackendError("unauthenticated", "AUTH_REQUIRED");
+  if (image.size > 3 * 1024 * 1024) throw new BackendError("invalid-argument", "FILE_TOO_LARGE");
+  const query = `?pack=${encodeURIComponent(packId)}&card=${encodeURIComponent(card)}`;
+  const response = await fetch(`${BACKEND_URL}/admin/power-pack-art${query}`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await user.getIdToken()}`, "Content-Type": image.type || "image/webp" },
+    body: image,
+  });
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new BackendError(body.code ?? "internal", body.message ?? `HTTP_${response.status}`);
+  return body as { card: string; art: import("@/domain/assetPacks").ImportedPowerArt; pack: import("@/domain/assetPacks").ImportedPowerPack };
 }
 
 export async function uploadAudio(file: File, role: "sfx" | "music" = "sfx") {

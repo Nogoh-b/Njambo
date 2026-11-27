@@ -38,7 +38,7 @@ export function sniffImage(buffer: Buffer): "png" | "jpeg" | "webp" | null {
   return null;
 }
 
-function publicBase(req: Request) {
+export function publicBase(req: Request) {
   const configured = process.env.PUBLIC_BASE_URL?.replace(/\/$/, "");
   if (configured) return configured;
   const proto = (req.header("x-forwarded-proto") ?? req.protocol).split(",")[0].trim();

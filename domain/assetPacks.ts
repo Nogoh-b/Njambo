@@ -7,7 +7,9 @@
    Trois réglages indépendants : « system » (monnaies, tickets, livres, rangs)
    et « interface » (icônes, icônes de navigation, cadres de boutons, cartes de
    modes de jeu), et « powers » (illustrations des cartes Pouvoir intégrées).
-   Les illustrations Pouvoir vivent dans /assets/power-cards/packs/<id>/.
+   Les illustrations Pouvoir vivent dans /assets/power-cards/packs/<id>/, ou,
+   pour les packs importés depuis l'admin (ids « import-… »), sur le serveur
+   d'uploads (runtime_config/power_packs, voir plus bas).
    Pour ajouter un pack système/interface : déposer ses fichiers dans
    public/assets/njambo/packs/<id>/ (mêmes sous-dossiers et noms) puis l'ajouter
    à ASSET_PACKS. */
@@ -46,10 +48,110 @@ export const ASSET_PACKS = [
   { id: "double-vue", name: "Double vue", description: "Figures tête-bêche et jeux de silhouettes en risographie.", scopes: ["powers"], portrait: true },
 ] as const satisfies readonly AssetPackDefinition[];
 
-export type AssetPackId = (typeof ASSET_PACKS)[number]["id"];
+export type BuiltinAssetPackId = (typeof ASSET_PACKS)[number]["id"];
+/** Packs de cartes Pouvoir importés depuis l'admin (images sur le serveur d'uploads). */
+export type ImportedPowerPackId = `import-${string}`;
+export type AssetPackId = BuiltinAssetPackId | ImportedPowerPackId;
 
-export function isPortraitPowerPack(id: AssetPackId): boolean {
-  const pack: AssetPackDefinition | undefined = ASSET_PACKS.find((item) => item.id === id);
+/* ═══════════════ Packs Pouvoir importés (runtime_config/power_packs) ═══════════════
+   L'admin crée un pack (nom, description, format), puis dépose une image par
+   carte intégrée. Le serveur la décline en 720 / 256 / 128 px et enregistre
+   ici l'URL de chaque taille. Une carte sans image garde son illustration
+   d'origine. Les fichiers vivent hors de git (UPLOAD_DIR/power-packs/<id>/). */
+
+export const POWER_PACKS_DOC = "power_packs";
+export const IMPORTED_POWER_PACK_PREFIX = "import-";
+export const IMPORTED_POWER_PACK_LIMITS = { packs: 30, name: 40, description: 160 } as const;
+
+export interface ImportedPowerArt {
+  /** Illustration 720 px de large, URL absolue du serveur d'uploads. */
+  url: string;
+  /** Vignettes 256 et 128 px. */
+  thumb: string;
+  small: string;
+  /** Empreinte du fichier source (change à chaque nouvel import de la carte). */
+  v: string;
+  updatedAt: number;
+}
+
+export interface ImportedPowerPack extends AssetPackDefinition {
+  id: ImportedPowerPackId;
+  portrait: boolean;
+  art: Partial<Record<string, ImportedPowerArt>>;
+  createdAt: number;
+  updatedAt: number;
+}
+
+let importedPowerPacks: readonly ImportedPowerPack[] = [];
+
+/** Packs importés connus (client : suivis en temps réel ; serveur : lus à la demande). */
+export function setImportedPowerPacks(packs: readonly ImportedPowerPack[]) {
+  importedPowerPacks = packs;
+}
+
+export function getImportedPowerPacks(): readonly ImportedPowerPack[] {
+  return importedPowerPacks;
+}
+
+export function isImportedPowerPackId(value: unknown): value is ImportedPowerPackId {
+  return typeof value === "string" && /^import-[a-z0-9-]{2,48}$/.test(value);
+}
+
+const isHttpUrl = (value: unknown): value is string => typeof value === "string" && value.length <= 400 && /^https?:\/\/[^\s"'<>]+$/.test(value);
+
+function readImportedArt(value: unknown): ImportedPowerArt | null {
+  if (!value || typeof value !== "object") return null;
+  const art = value as Record<string, unknown>;
+  if (!isHttpUrl(art.url) || !isHttpUrl(art.thumb) || !isHttpUrl(art.small)) return null;
+  return { url: art.url, thumb: art.thumb, small: art.small, v: typeof art.v === "string" ? art.v : "", updatedAt: Number(art.updatedAt) || 0 };
+}
+
+/** Lit le document runtime_config/power_packs (entrées invalides ignorées). */
+export function readImportedPowerPacks(data: unknown): ImportedPowerPack[] {
+  const source = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
+  const list = Array.isArray(source.packs) ? source.packs : [];
+  const packs: ImportedPowerPack[] = [];
+  for (const raw of list.slice(0, IMPORTED_POWER_PACK_LIMITS.packs)) {
+    if (!raw || typeof raw !== "object") continue;
+    const pack = raw as Record<string, unknown>;
+    if (!isImportedPowerPackId(pack.id) || packs.some((item) => item.id === pack.id)) continue;
+    const name = typeof pack.name === "string" ? pack.name.trim().slice(0, IMPORTED_POWER_PACK_LIMITS.name) : "";
+    if (!name) continue;
+    const art: Partial<Record<string, ImportedPowerArt>> = {};
+    const rawArt = pack.art && typeof pack.art === "object" ? (pack.art as Record<string, unknown>) : {};
+    for (const card of BUILTIN_POWER_ART_IDS) {
+      const entry = readImportedArt(rawArt[card]);
+      if (entry) art[card] = entry;
+    }
+    packs.push({
+      id: pack.id,
+      name,
+      description: typeof pack.description === "string" ? pack.description.trim().slice(0, IMPORTED_POWER_PACK_LIMITS.description) : "",
+      scopes: ["powers"],
+      portrait: pack.portrait === true,
+      art,
+      createdAt: Number(pack.createdAt) || 0,
+      updatedAt: Number(pack.updatedAt) || 0,
+    });
+  }
+  return packs;
+}
+
+/** Identifiant d'un nouveau pack importé, dérivé de son nom et unique. */
+export function importedPowerPackIdFor(name: string, taken: readonly string[]): ImportedPowerPackId {
+  const slug = name.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "pack";
+  const base = slug.length >= 2 ? slug : `pack-${slug}`;
+  let id = `${IMPORTED_POWER_PACK_PREFIX}${base}` as ImportedPowerPackId;
+  for (let n = 2; taken.includes(id); n++) id = `${IMPORTED_POWER_PACK_PREFIX}${base}-${n}` as ImportedPowerPackId;
+  return id;
+}
+
+function importedPack(id: unknown, imported: readonly ImportedPowerPack[] = importedPowerPacks) {
+  return imported.find((pack) => pack.id === id);
+}
+
+export function isPortraitPowerPack(id: AssetPackId, imported: readonly ImportedPowerPack[] = importedPowerPacks): boolean {
+  const pack: AssetPackDefinition | undefined = ASSET_PACKS.find((item) => item.id === id) ?? importedPack(id, imported);
   return pack?.portrait === true;
 }
 
@@ -79,27 +181,30 @@ const SCOPE_PATH: Record<AssetPackScope, RegExp> = {
   powers: /^\/assets\/power-cards\/(?:v2\/)?([a-z0-9_]+)\.webp$/,
 };
 
-export function isAssetPackId(value: unknown): value is AssetPackId {
-  return typeof value === "string" && ASSET_PACKS.some((pack) => pack.id === value);
+export function isAssetPackId(value: unknown, imported: readonly ImportedPowerPack[] = importedPowerPacks): value is AssetPackId {
+  return typeof value === "string" && (ASSET_PACKS.some((pack) => pack.id === value) || Boolean(importedPack(value, imported)));
 }
 
 export function isAssetPackScope(value: unknown): value is AssetPackScope {
   return typeof value === "string" && (ASSET_PACK_SCOPES as readonly string[]).includes(value);
 }
 
-export function isAssetPackForScope(value: unknown, scope: AssetPackScope): value is AssetPackId {
+export function isAssetPackForScope(value: unknown, scope: AssetPackScope, imported: readonly ImportedPowerPack[] = importedPowerPacks): value is AssetPackId {
+  if (scope === "powers" && importedPack(value, imported)) return true;
   const pack = (ASSET_PACKS as readonly AssetPackDefinition[]).find((pack) => pack.id === value);
   return Boolean(pack && (pack.scopes ?? ["system", "interface"]).includes(scope));
 }
 
-export function assetPacksForScope(scope: AssetPackScope) {
-  return ASSET_PACKS.filter((pack) => isAssetPackForScope(pack.id, scope));
+/** Packs proposés pour un réglage (les packs Pouvoir importés suivent les packs intégrés). */
+export function assetPacksForScope(scope: AssetPackScope, imported: readonly ImportedPowerPack[] = importedPowerPacks): Array<AssetPackDefinition & { id: AssetPackId }> {
+  const builtin = ASSET_PACKS.filter((pack) => isAssetPackForScope(pack.id, scope, imported));
+  return scope === "powers" ? [...builtin, ...imported] : builtin;
 }
 
 /** Lit le document runtime_config/asset_pack (valeur inconnue → pack classique). */
-export function readAssetPacks(data: unknown): AssetPackSelection {
+export function readAssetPacks(data: unknown, imported: readonly ImportedPowerPack[] = importedPowerPacks): AssetPackSelection {
   const source = data && typeof data === "object" ? (data as Record<string, unknown>) : {};
-  const pick = (value: unknown, scope: AssetPackScope) => (isAssetPackForScope(value, scope) ? value : DEFAULT_ASSET_PACK);
+  const pick = (value: unknown, scope: AssetPackScope) => (isAssetPackForScope(value, scope, imported) ? value : DEFAULT_ASSET_PACK);
   return { system: pick(source.pack, "system"), interface: pick(source.uiPack, "interface"), powers: pick(source.powerPack, "powers") };
 }
 
@@ -115,9 +220,26 @@ export function assetPackUrl(path: string, pack: AssetPackId, scope: AssetPackSc
   if (scope === "powers") {
     const id = pattern.exec(path)?.[1];
     if (!BUILTIN_POWER_ART_IDS.some((candidate) => candidate === id)) return path;
+    // Pack importé : image du serveur d'uploads, sinon illustration d'origine.
+    const imported = importedPack(pack);
+    if (imported) return (id && imported.art[id]?.url) || path;
     return path.replace(pattern, "/assets/power-cards/packs/" + pack + "/$1.webp");
   }
   return path.replace(pattern, `/assets/njambo/packs/${pack}/$1/`);
+}
+
+/** Vignette 256 px d'une illustration Pouvoir dans un pack (aperçus de l'admin). */
+export function powerPackThumbUrl(path: string, pack: AssetPackId): string {
+  const url = assetPackUrl(path, pack, "powers");
+  if (url === path) return path;
+  const imported = importedPack(pack);
+  if (imported) return Object.values(imported.art).find((art) => art?.url === url)?.thumb ?? url;
+  return url.replace(/\.webp$/, "-256.webp");
+}
+
+/** Vrai si l'URL résolue d'une illustration Pouvoir vient d'un pack (intégré ou importé). */
+export function isPackedPowerArt(resolved: string): boolean {
+  return resolved.startsWith("/assets/power-cards/packs/") || resolved.includes("/uploads/power-packs/");
 }
 
 /** Chemin d'un asset selon les packs choisis pour chaque réglage. */
