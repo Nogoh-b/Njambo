@@ -61,12 +61,15 @@ async function main() {
   delete process.env.POWERS_DEV_BYPASS;
   const config = clone(DEFAULT_GAMEPLAY_CONFIG);
   config.maxEquippedPowers = 2; config.turnSeconds = 31;
+  config.dealShuffleMs = 3600; config.dealRotateMs = 320;
   config.dealPerCardMs = 150; config.dealFlightMs = 700;
   config.matchesByMode.bot = { 2: 3, 3: 5, 4: 7 };
   config.matchesByMode.online[2] = config.matchesByMode.friends[2] = 3;
   await assert.rejects(() => saveGameplayConfigHandler(request("user", { config })), /ADMIN_REQUIRED/);
   await assert.rejects(() => saveGameplayConfigHandler(request("admin", { config: { ...config, maxEquippedPowers: 9 } }, true)), /INVALID_GAMEPLAY_CONFIG/);
   await assert.rejects(() => saveGameplayConfigHandler(request("admin", { config: { ...config, dealFlightMs: 5000 } }, true)), /INVALID_GAMEPLAY_CONFIG/);
+  await assert.rejects(() => saveGameplayConfigHandler(request("admin", { config: { ...config, dealShuffleMs: 500 } }, true)), /INVALID_GAMEPLAY_CONFIG/);
+  await assert.rejects(() => saveGameplayConfigHandler(request("admin", { config: { ...config, dealRotateMs: 2500 } }, true)), /INVALID_GAMEPLAY_CONFIG/);
   await saveGameplayConfigHandler(request("admin", { config }, true));
   assert.equal(data.get("runtime_config/gameplay").turnSeconds, 31);
   seedPlayer("equip");
@@ -91,7 +94,9 @@ async function main() {
     const id = started.matchId;
     assert.equal(started.match.series.total, 3, `${mode}: trois manches`);
     assert.equal(started.match.rules.turnSeconds, mode === "event" ? 9 : 31);
-    // Rythme de la donne copié dans les règles ; le minuteur du 1er tour l'attend (2 joueurs × 5 cartes × 150 + 700).
+    // Rythme de la donne copié dans les règles ; le minuteur du 1er tour l'attend (mélange + rotations + vols).
+    assert.equal(started.match.rules.dealShuffleMs, 3600, `${mode}: durée du mélange copiée`);
+    assert.equal(started.match.rules.dealRotateMs, 320, `${mode}: durée de rotation copiée`);
     assert.equal(started.match.rules.dealPerCardMs, 150, `${mode}: délai entre deux cartes copié`);
     assert.equal(started.match.rules.dealFlightMs, 700, `${mode}: vol copié`);
     assert.equal(started.equippedPowers.length, 2, "ancien équipement tronqué à la limite");

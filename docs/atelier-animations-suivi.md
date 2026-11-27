@@ -17,6 +17,7 @@
 | G3 | Atelier dans la console admin, publication versionnée | ✅ Terminé |
 | G4 | Moments du jeu : donne, carte jouée, pli, pouvoir lancé | ✅ Terminé |
 | G5 | Styles d'animation des joueurs (cosmétiques) | ✅ Terminé |
+| M | Mélange de la pioche : queue d'aronde puis paquets | 🟡 Code et tests faits, à voir en partie |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
@@ -620,10 +621,24 @@ nouvelle version en le rééquipant.
 
 ---
 
+## M — Mélange de la pioche 🟡
+
+Choisi sur la démo « Atelier du mélange » : la queue d'aronde de la proposition 1,
+puis le mélange par paquets.
+
+- [x] Chorégraphie pure `components/table/zones/shuffleChoreo.ts` (aronde, pont, cascade, 5 paquets, sons)
+- [x] `DeckZone` : 14 cartes animées en WAAPI (8 en lite), ancien mélange CSS 4 actes retiré
+- [x] Config : `dealShufflePacketsMs` (0–3 000 ms, défaut 2 300) ; mélange total par défaut 5 700 ms
+- [x] Admin : réglages « queue d'aronde » et « paquets » (0 = aronde seule)
+- [x] Sons de `TableScreen` calés sur la nouvelle chorégraphie
+- [x] Tests : `shuffle-choreo`, config, pioche (26 au vert), `tsc`
+- [ ] Vérification visuelle dans une vraie partie
+
 ## Journal
 
 | Date | Étape | Avancée |
 | --- | --- | --- |
+| 2026-11-26 | M | Mélange aronde + paquets intégré dans la pioche, durées réglables dans l'admin (aronde / paquets). Un mélange déjà enregistré garde sa durée, joué en aronde seule. 26 tests et `tsc` au vert. Pas vu en partie : le compte invité n'avait pas d'énergie pour lancer une table. |
 | 2026-11-21 | G5 | « Offrir un cosmétique » dans la section Joueurs de l'admin, pour tester un style de bout en bout : motif obligatoire et audité, même inactif, refusé s'il est déjà possédé. Intégration Postgres 18/18, 223 tests au vert. |
 | 2026-11-21 | G5 | **G5 terminé, l'atelier d'animations est complet.** Vérifié dans le navigateur : table de démonstration, puis vraie partie avec un style en aperçu. Mes 5 cartes stylées (gerbe 5 × 18, étincelles, lueur, tout en rose), cartes de l'IA inchangées, aucune erreur. Corrigé : la case « Lueur en vol » de l'éditeur. |
 | 2026-11-21 | G5 | Décisions : nouveau type de cosmétique « Style d'animation » ; style appliqué même sans modèle (vol actuel). Liste blanche et application sans changer le rythme, champ `style` des cosmétiques, carte jouée / pli gagné / pouvoir lancé du propriétaire, éditeur admin avec aperçu et essai en partie, emplacement « Style » de la collection. 18 tests, intégration Postgres 17/17, 223 tests au vert. Reste la vérification visuelle (panneau du navigateur masqué). |

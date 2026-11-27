@@ -29,6 +29,12 @@ export const GAME_CONFIG: GameConfig = {
   anim: {
     navigation: 220,
     roundIntro: 750,
+    // Mélange visible du paquet au centre du plateau avant la donne (réglable dans l'admin).
+    dealShuffle: DEFAULT_GAMEPLAY_CONFIG.dealShuffleMs,
+    // Dont les paquets joués après la queue d'aronde (réglable dans l'admin).
+    dealShufflePackets: DEFAULT_GAMEPLAY_CONFIG.dealShufflePacketsMs,
+    // Rotation animée de la pioche vers chaque main servie (réglable dans l'admin).
+    dealRotate: DEFAULT_GAMEPLAY_CONFIG.dealRotateMs,
     // Rythme de la donne par défaut ; réglable dans l'admin (Règles des parties), copié dans les règles de chaque partie.
     dealPerCard: DEFAULT_GAMEPLAY_CONFIG.dealPerCardMs,
     dealFlight: DEFAULT_GAMEPLAY_CONFIG.dealFlightMs,

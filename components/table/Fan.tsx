@@ -30,6 +30,10 @@ interface FanProps {
   /** Rythme de la donne de la partie (défaut : celui du jeu). */
   dealPerCardMs?: number;
   dealFlightMs?: number;
+  /** Cadence totale entre deux lancements (délai + rotation de la pioche). Défaut : dealPerCardMs. */
+  dealStepMs?: number;
+  /** Décalage avant la 1re carte distribuée (ms — dure le temps du mélange du paquet). */
+  dealOffsetMs?: number;
   legal: number[] | null;
   onCardClick: (cardIdx: number) => void;
   /** Vrai si les animations sont activées (drag + hover). */
@@ -84,6 +88,8 @@ export const Fan = memo(function Fan({
   dealing,
   dealPerCardMs = GAME_CONFIG.anim.dealPerCard,
   dealFlightMs = GAME_CONFIG.anim.dealFlight,
+  dealStepMs,
+  dealOffsetMs = 0,
   legal,
   onCardClick,
   motionOn = true,
@@ -298,7 +304,7 @@ export const Fan = memo(function Fan({
             dim={(faceUp && ((selection != null && !selectable) || (selection == null && legal != null && !playable))) || (dimKeep != null && !dimKeep.has(card.id))}
             glow={!!playable}
             onClick={handleTap}
-            dealDelay={dealing ? (ci * playerCount + seatIdx) * dealPerCardMs : null}
+            dealDelay={dealing ? dealOffsetMs + (ci * playerCount + seatIdx) * (dealStepMs ?? dealPerCardMs) : null}
             dealDuration={dealFlightMs}
             dealOrigin={dealing ? (dealOrigins?.[ci] ?? null) : null}
             style={{

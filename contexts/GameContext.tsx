@@ -218,7 +218,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const cfg = useMemo(() => ({
     ...GAME_CONFIG,
     ...gameplay,
-    anim: { ...GAME_CONFIG.anim, dealPerCard: gameplay.dealPerCardMs, dealFlight: gameplay.dealFlightMs },
+    anim: {
+      ...GAME_CONFIG.anim,
+      dealShuffle: gameplay.dealShuffleMs,
+      dealShufflePackets: gameplay.dealShufflePacketsMs,
+      dealRotate: gameplay.dealRotateMs,
+      dealPerCard: gameplay.dealPerCardMs,
+      dealFlight: gameplay.dealFlightMs,
+    },
   }), [gameplay]);
 
   // Hydratation initiale synchrone (aucun flash du MenuScreen après F5 / reload WebView)

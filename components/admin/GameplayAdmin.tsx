@@ -27,6 +27,18 @@ export function GameplayAdmin() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
   const value = draft ?? config;
+  // Mélange = queue d'aronde + paquets : la durée totale enregistrée est leur somme.
+  const riffleMs = value.dealShuffleMs - value.dealShufflePacketsMs;
+  const riffleLimits = {
+    min: DEAL_TIMING_LIMITS.riffleMinMs,
+    max: DEAL_TIMING_LIMITS.shuffleMs.max - DEAL_TIMING_LIMITS.shufflePacketsMs.max,
+  };
+  const packetsMax = Math.min(DEAL_TIMING_LIMITS.shufflePacketsMs.max, DEAL_TIMING_LIMITS.shuffleMs.max - riffleMs);
+  const setShuffle = (riffle: number, packets: number) => {
+    const packetsMs = Math.max(0, Math.min(DEAL_TIMING_LIMITS.shufflePacketsMs.max, Math.round(packets) || 0));
+    const total = Math.max(DEAL_TIMING_LIMITS.shuffleMs.min, Math.round(riffle) || 0) + packetsMs;
+    setDraft({ ...value, dealShuffleMs: total, dealShufflePacketsMs: packetsMs });
+  };
   const save = async () => {
     setBusy(true); setMessage("");
     try {
@@ -153,15 +165,118 @@ export function GameplayAdmin() {
       </section>
 
       <section className={styles.panel}>
-        <h2>Rythme de la donne</h2>
-        <p>Copié dans les règles de chaque nouvelle partie : le serveur et tous les joueurs distribuent au même rythme. Les parties en cours gardent le leur.</p>
+        <h2>Rythme de la donne, mélange &amp; rotation</h2>
+        <p>Copié dans les règles de chaque nouvelle partie : le serveur et tous les joueurs mélangent, orientent la pioche et distribuent au même rythme. Les parties en cours gardent le leur.</p>
         <div className={styles.grid2}>
+          <label className={styles.field}>
+            <span>Mélange 1 · queue d’aronde ({(riffleMs / 1000).toFixed(1).replace(".", ",")} s)</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="range"
+                data-testid="deal-shuffle-range"
+                min={riffleLimits.min}
+                max={riffleLimits.max}
+                step={100}
+                value={riffleMs}
+                onChange={(e) => setShuffle(Number(e.target.value), value.dealShufflePacketsMs)}
+                style={{ flex: 1 }}
+              />
+              <input
+                type="number"
+                data-testid="deal-shuffle"
+                aria-label="Durée de la queue d’aronde (ms)"
+                min={riffleLimits.min}
+                max={riffleLimits.max}
+                step={100}
+                value={riffleMs}
+                onChange={(e) => setShuffle(Number(e.target.value), value.dealShufflePacketsMs)}
+                style={{ width: 88 }}
+              />
+            </div>
+            <small>{riffleLimits.min} à {riffleLimits.max} ms (défaut : {DEFAULT_GAMEPLAY_CONFIG.dealShuffleMs - DEFAULT_GAMEPLAY_CONFIG.dealShufflePacketsMs} ms). Coupe, entrelacement, pont et cascade.</small>
+          </label>
+          <label className={styles.field}>
+            <span>Mélange 2 · paquets ({value.dealShufflePacketsMs > 0 ? `${(value.dealShufflePacketsMs / 1000).toFixed(1).replace(".", ",")} s` : "désactivés"})</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="range"
+                data-testid="deal-shuffle-packets-range"
+                min={DEAL_TIMING_LIMITS.shufflePacketsMs.min}
+                max={packetsMax}
+                step={100}
+                value={value.dealShufflePacketsMs}
+                onChange={(e) => setShuffle(riffleMs, Number(e.target.value))}
+                style={{ flex: 1 }}
+              />
+              <input
+                type="number"
+                data-testid="deal-shuffle-packets"
+                aria-label="Durée des paquets après l’aronde (ms)"
+                min={DEAL_TIMING_LIMITS.shufflePacketsMs.min}
+                max={packetsMax}
+                step={100}
+                value={value.dealShufflePacketsMs}
+                onChange={(e) => setShuffle(riffleMs, Number(e.target.value))}
+                style={{ width: 88 }}
+              />
+            </div>
+            <small>0 à {packetsMax} ms (défaut : {DEFAULT_GAMEPLAY_CONFIG.dealShufflePacketsMs} ms ; 0 = aronde seule). Mélange total : {(value.dealShuffleMs / 1000).toFixed(1).replace(".", ",")} s.</small>
+          </label>
+          <label className={styles.field}>
+            <span>Rotation de la pioche vers chaque joueur ({value.dealRotateMs} ms)</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <input
+                type="range"
+                data-testid="deal-rotate-range"
+                min={DEAL_TIMING_LIMITS.rotateMs.min}
+                max={DEAL_TIMING_LIMITS.rotateMs.max}
+                step={10}
+                value={value.dealRotateMs}
+                onChange={(e) => setDraft({ ...value, dealRotateMs: Number(e.target.value) })}
+                style={{ flex: 1 }}
+              />
+              <input
+                type="number"
+                data-testid="deal-rotate"
+                aria-label="Durée de rotation de la pioche (ms)"
+                min={DEAL_TIMING_LIMITS.rotateMs.min}
+                max={DEAL_TIMING_LIMITS.rotateMs.max}
+                step={10}
+                value={value.dealRotateMs}
+                onChange={(e) => setDraft({ ...value, dealRotateMs: Number(e.target.value) })}
+                style={{ width: 88 }}
+              />
+            </div>
+            <small>{DEAL_TIMING_LIMITS.rotateMs.min} à {DEAL_TIMING_LIMITS.rotateMs.max} ms (défaut : {DEFAULT_GAMEPLAY_CONFIG.dealRotateMs} ms). Temps mis par la pioche pour se tourner vers chaque main.</small>
+          </label>
           <label className={styles.field}><span>Délai entre deux cartes (ms)</span><input type="number" data-testid="deal-per-card" min={DEAL_TIMING_LIMITS.perCardMs.min} max={DEAL_TIMING_LIMITS.perCardMs.max} step={5} value={value.dealPerCardMs} onChange={(e) => setDraft({ ...value, dealPerCardMs: Number(e.target.value) })} /><small>{DEAL_TIMING_LIMITS.perCardMs.min} à {DEAL_TIMING_LIMITS.perCardMs.max} ms. Plus grand = distribution plus posée.</small></label>
           <label className={styles.field}><span>Durée du vol d’une carte (ms)</span><input type="number" data-testid="deal-flight" min={DEAL_TIMING_LIMITS.flightMs.min} max={DEAL_TIMING_LIMITS.flightMs.max} step={10} value={value.dealFlightMs} onChange={(e) => setDraft({ ...value, dealFlightMs: Number(e.target.value) })} /><small>{DEAL_TIMING_LIMITS.flightMs.min} à {DEAL_TIMING_LIMITS.flightMs.max} ms.</small></label>
         </div>
-        <p className={styles.hint} data-testid="deal-total">
-          Durée de la donne : {PLAYER_COUNTS.map((count) => `${count} joueurs ${(dealDurationMs({ perCardMs: value.dealPerCardMs, flightMs: value.dealFlightMs }, count, GAME_CONFIG.cardsPerPlayer) / 1000).toFixed(1).replace(".", ",")} s`).join(" · ")}.
-        </p>
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap", marginTop: 8 }}>
+          <p className={styles.hint} data-testid="deal-total" style={{ margin: 0 }}>
+            Durée totale (mélange + rotations + donne) : {PLAYER_COUNTS.map((count) => `${count} joueurs ${(dealDurationMs({ shuffleMs: value.dealShuffleMs, rotateMs: value.dealRotateMs, perCardMs: value.dealPerCardMs, flightMs: value.dealFlightMs }, count, GAME_CONFIG.cardsPerPlayer) / 1000).toFixed(1).replace(".", ",")} s`).join(" · ")}.
+          </p>
+          {(value.dealShuffleMs !== DEFAULT_GAMEPLAY_CONFIG.dealShuffleMs ||
+            value.dealShufflePacketsMs !== DEFAULT_GAMEPLAY_CONFIG.dealShufflePacketsMs ||
+            value.dealRotateMs !== DEFAULT_GAMEPLAY_CONFIG.dealRotateMs ||
+            value.dealPerCardMs !== DEFAULT_GAMEPLAY_CONFIG.dealPerCardMs ||
+            value.dealFlightMs !== DEFAULT_GAMEPLAY_CONFIG.dealFlightMs) && (
+            <button
+              type="button"
+              className={styles.btn}
+              onClick={() => setDraft({
+                ...value,
+                dealShuffleMs: DEFAULT_GAMEPLAY_CONFIG.dealShuffleMs,
+                dealShufflePacketsMs: DEFAULT_GAMEPLAY_CONFIG.dealShufflePacketsMs,
+                dealRotateMs: DEFAULT_GAMEPLAY_CONFIG.dealRotateMs,
+                dealPerCardMs: DEFAULT_GAMEPLAY_CONFIG.dealPerCardMs,
+                dealFlightMs: DEFAULT_GAMEPLAY_CONFIG.dealFlightMs,
+              })}
+            >
+              Réinitialiser le rythme
+            </button>
+          )}
+        </div>
       </section>
       <section className={styles.panel}>
         <h2>Manches complètes par table</h2>

@@ -4190,16 +4190,16 @@ html[data-gxe-active] .njb--solid {
   0% {
     opacity: 0;
     transform: translate3d(var(--deal-dx, 0px), var(--deal-dy, -42vmin), 0)
-      scale(var(--deal-scale, 0.6)) rotate(18deg);
+      scale(var(--deal-scale, 0.6)) rotate(0deg);
   }
   12% {
     opacity: 1;
     transform: translate3d(
-        calc(var(--deal-dx, 0px) * 0.9),
-        calc(var(--deal-dy, -42vmin) * 0.9),
+        calc(var(--deal-dx, 0px) * 0.88),
+        calc(var(--deal-dy, -42vmin) * 0.88),
         0
       )
-      scale(calc(var(--deal-scale, 0.6) + 0.14)) rotate(12deg);
+      scale(calc(var(--deal-scale, 0.6) + 0.14)) rotate(calc(var(--card-rot, 0deg) * 0.35));
   }
   76% {
     opacity: 1;

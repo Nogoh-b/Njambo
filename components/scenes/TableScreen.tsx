@@ -27,9 +27,19 @@ import { DepositZone } from "@/components/table/DepositZone";
 import { Fan } from "@/components/table/Fan";
 import { FlyingCard } from "@/components/table/FlyingCard";
 import { PLAYER_HAND_ARC_ASPECT, PlayerHandArc } from "@/components/table/PlayerHandArc";
-import { DeckZone } from "@/components/table/zones/DeckZone";
+import { DeckZone, type DeckStage } from "@/components/table/zones/DeckZone";
+import {
+  angleFromDeckToHand,
+  humanHandJitter,
+  naturalAimAngle,
+  nearestRestAngle,
+  wristReachOffset,
+  type Point2D,
+} from "@/components/table/zones/deckAim";
 import { RevealOverlay } from "@/components/table/zones/RevealOverlay";
+import { buildShufflePlan, splitShuffleMs } from "@/components/table/zones/shuffleChoreo";
 import { ZoneRegistry, ZoneRegistryProvider } from "@/components/table/zones/ZoneRegistry";
+import { zonePoseOf } from "@/components/table/zones/zonePose";
 import { NjamboIcon, NjamboMark } from "@/components/ui/Art";
 import { Btn } from "@/components/ui/Btn";
 import { Chip } from "@/components/ui/Chip";
@@ -531,11 +541,14 @@ export function TableScreen({
   const fanHy = youW * 1.45;
   const fanHb = botW * 1.45;
   const cockpitBottom = Math.round(fanHy * 1.06) + 8;
+  const shortLandscape = !portrait && vp.h <= 620;
   const tableInset = portrait
     ? "7.5% 4% 13.5% 4%"
-    : vp.h <= 620
+    : shortLandscape
       ? "11% 8% 13% 8%"
       : "9% 5.5% 13% 5.5%";
+  // Centre géométrique du plateau ovale (TableSurface) pour ancrer la pioche pile au milieu.
+  const tableCenterTop = portrait ? "47%" : shortLandscape ? "47.5%" : "48%";
 
   /* ----- État synchronisé (provenant du sync adapter) ----- */
   const [gameState, setGameState] = useState<GameState>({
@@ -809,6 +822,25 @@ export function TableScreen({
   /** Rythme de la donne de cette partie (règles copiées au départ, réglables dans l'admin). */
   const dealPerCardMs = gameState.dealTiming?.perCardMs ?? A.dealPerCard;
   const dealFlightMs = gameState.dealTiming?.flightMs ?? A.dealFlight;
+  const dealShuffleMs = motionEnabled ? (gameState.dealTiming?.shuffleMs ?? A.dealShuffle ?? 0) : 0;
+  // Même proportion aronde / paquets que le réglage admin, appliquée à la durée de mélange de la partie.
+  const dealShuffleSplit = splitShuffleMs(dealShuffleMs, A.dealShuffle ?? 0, A.dealShufflePackets ?? 0);
+  const dealRotateMs = motionEnabled ? (gameState.dealTiming?.rotateMs ?? A.dealRotate ?? 0) : 0;
+  const dealStepMs = dealPerCardMs + dealRotateMs;
+  const [deckStage, setDeckStage] = useState<DeckStage>("idle");
+  const [deckAimAngle, setDeckAimAngle] = useState(0);
+  const [deckAimTransitionMs, setDeckAimTransitionMs] = useState(320);
+  const [deckTurnDir, setDeckTurnDir] = useState<1 | -1>(1);
+  const [deckWristOffset, setDeckWristOffset] = useState<Point2D>({ x: 0, y: 0 });
+  const [deckTurnSeq, setDeckTurnSeq] = useState(0);
+  const [deckLaunchSeq, setDeckLaunchSeq] = useState(0);
+  const deckAngleRef = useRef(0);
+  const deckSequenceKeyRef = useRef<string | null>(null);
+  const dealSequenceTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const clearDealSequenceTimers = useCallback(() => {
+    dealSequenceTimersRef.current.forEach((timer) => clearTimeout(timer));
+    dealSequenceTimersRef.current = [];
+  }, []);
   const turnSecondsRef = useRef(turnSeconds);
   turnSecondsRef.current = turnSeconds;
 
@@ -870,13 +902,13 @@ export function TableScreen({
   const depositPos = (edge: "bottom" | "left" | "top" | "right") => {
     switch (edge) {
       case "bottom":
-        return { left: "50%", top: portrait ? "58.5%" : "61%" };
+        return { left: "50%", top: portrait ? "58.5%" : "62%" };
       case "top":
         return { left: "50%", top: portrait ? "32%" : "27%" };
       case "left":
-        return { left: portrait ? "29%" : "33%", top: portrait ? "47%" : "45%" };
+        return { left: portrait ? "29%" : "33%", top: portrait ? "47%" : shortLandscape ? "46%" : "48%" };
       case "right":
-        return { left: portrait ? "71%" : "67%", top: portrait ? "47%" : "45%" };
+        return { left: portrait ? "71%" : "67%", top: portrait ? "47%" : shortLandscape ? "46%" : "48%" };
       default:
         return { left: "50%", top: "50%" };
     }
@@ -1134,14 +1166,190 @@ export function TableScreen({
   // Modèles de la donne au rythme de CETTE partie (le serveur attend la même durée).
   const dealMotif = useMemo(() => {
     const motif = motionEnabled && phase === "dealing" ? getMomentMotif("deal") : null;
-    return motif && { ...motif, staggerMs: dealPerCardMs, durationMs: dealFlightMs };
-  }, [motionEnabled, phase, motifRevision, dealPerCardMs, dealFlightMs]); // eslint-disable-line react-hooks/exhaustive-deps
+    return motif && { ...motif, staggerMs: dealStepMs, durationMs: dealFlightMs };
+  }, [motionEnabled, phase, motifRevision, dealStepMs, dealFlightMs]); // eslint-disable-line react-hooks/exhaustive-deps
   const dealV2 = useMemo(() => {
     const model = motionEnabled && phase === "dealing" ? getMomentAnimV2("deal") : null;
     return model && { ...model, motion: { ...model.motion, durationMs: dealFlightMs } };
   }, [motionEnabled, phase, motifRevision, dealFlightMs]); // eslint-disable-line react-hooks/exhaustive-deps
   const dealPlayedRef = useRef<string | null>(null);
   const [dealRetry, setDealRetry] = useState(0);
+
+  /** Angle exact (degrés horaires, 0° = bas) de la pioche centrale vers la main du siège `ui`. */
+  const aimAngleForSeat = useCallback((ui: number): number => {
+    const fallback = seatAngle[seatEdge(ui)];
+    const deckRect = zoneRegistry.deck()?.getRect();
+    const handRect = zoneRegistry.hand(ui)?.getRect();
+    if (!deckRect || !handRect) return fallback;
+    return angleFromDeckToHand(
+      { x: deckRect.left + deckRect.width / 2, y: deckRect.top + deckRect.height / 2 },
+      { x: handRect.left + handRect.width / 2, y: handRect.top + handRect.height / 2 },
+      fallback,
+    );
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [players.length, zoneRegistry]);
+
+  /* Chorégraphie complète d'ouverture de donne (tous modes de rendu : CSS, V1 et V2) :
+     1. Mélange du paquet au centre du plateau (`dealShuffleMs`).
+     2. Distribution : la pioche pivote vers la main de chaque joueur servi puis
+        se recale doucement face au joueur local une fois la dernière carte lancée. */
+  useLayoutEffect(() => {
+    if (phase !== "dealing" || isGameEnded) {
+      if (deckSequenceKeyRef.current !== null || deckStage !== "idle") {
+        clearDealSequenceTimers();
+        deckSequenceKeyRef.current = null;
+        setDeckStage("idle");
+        setDeckTurnDir(1);
+        setDeckWristOffset({ x: 0, y: 0 });
+        setDeckTurnSeq(0);
+        setDeckLaunchSeq(0);
+        const rest = nearestRestAngle(deckAngleRef.current, 0);
+        if (Math.abs(rest - deckAngleRef.current) > 0.5 && motionEnabled) {
+          const settleMs = Math.max(220, Math.min(520, dealRotateMs || 320));
+          deckAngleRef.current = rest;
+          setDeckAimTransitionMs(settleMs);
+          setDeckAimAngle(rest);
+          const snapTimer = setTimeout(() => {
+            deckAngleRef.current = 0;
+            setDeckAimTransitionMs(0);
+            setDeckAimAngle(0);
+          }, settleMs + 30);
+          dealSequenceTimersRef.current.push(snapTimer);
+        } else {
+          deckAngleRef.current = 0;
+          setDeckAimTransitionMs(0);
+          setDeckAimAngle(0);
+        }
+      }
+      return;
+    }
+
+    const hands = players.map((player) => player.hand);
+    const perPlayer = hands[0]?.length ?? 0;
+    if (perPlayer === 0 || hands.some((hand) => hand.length !== perPlayer)) return;
+    const key = hands.map((hand) => hand.map((card) => card.id).join(",")).join("|");
+    if (deckSequenceKeyRef.current === key) return;
+    if (hands.some((_, ui) => !zoneRegistry.hand(ui))) {
+      const frame = requestAnimationFrame(() => setDealRetry((value) => value + 1));
+      return () => cancelAnimationFrame(frame);
+    }
+
+    clearDealSequenceTimers();
+    deckSequenceKeyRef.current = key;
+    deckAngleRef.current = 0;
+    setDeckAimTransitionMs(0);
+    setDeckAimAngle(0);
+    setDeckTurnDir(1);
+    setDeckWristOffset({ x: 0, y: 0 });
+    setDeckTurnSeq(0);
+    setDeckLaunchSeq(0);
+
+    if (!motionEnabled) {
+      setDeckStage("idle");
+      return;
+    }
+
+    const count = hands.length;
+    const totalCards = perPlayer * count;
+    const seatTargets = Array.from({ length: count }, (_, ui) => aimAngleForSeat(ui));
+    const alternateWrist = count === 2;
+    const pushTimer = (fn: () => void, ms: number) => {
+      const timer = setTimeout(() => {
+        if (!pausedRef.current) fn();
+      }, ms);
+      dealSequenceTimersRef.current.push(timer);
+    };
+
+    if (dealShuffleMs > 0) {
+      setDeckStage("shuffling");
+      // Effets sonores calés sur la chorégraphie du mélange (aronde : coupe, entrelacement, pont ; puis paquets).
+      const shuffleSounds = { tick: ["card_draw", 0.46], swish: ["card_draw", 0.7], flick: ["card_select", 0.55], tap: ["card_select", 0.68] } as const;
+      const { beats } = buildShufflePlan({ cardW: 1, cardH: 1, count: 14, riffleMs: dealShuffleSplit.riffleMs, packetsMs: dealShuffleSplit.packetsMs, frames: 1 });
+      beats.forEach((beat, i) => {
+        const [sound, volume] = shuffleSounds[beat.kind];
+        const pan = beat.kind === "tick" ? (i % 2 ? 0.22 : -0.22) : 0;
+        pushTimer(() => playGameSound(sound, { pan, volume }), Math.round(dealShuffleMs * beat.at));
+      });
+      pushTimer(() => setDeckStage("dealing"), dealShuffleMs);
+    } else {
+      setDeckStage("dealing");
+    }
+
+    const turnDurationMs = dealRotateMs > 0 ? dealRotateMs : Math.max(120, Math.min(260, Math.round(dealPerCardMs * 0.85)));
+    const drawSoundStep = Math.max(1, Math.floor(totalCards / 8));
+
+    for (let k = 0; k < totalCards; k++) {
+      const ui = k % count;
+      const launchAt = dealShuffleMs + k * dealStepMs;
+      const targetDeg = seatTargets[ui];
+      const jitterDeg = humanHandJitter(k);
+
+      if (k === 0) {
+        pushTimer(() => {
+          const { angle, dir } = naturalAimAngle(deckAngleRef.current, targetDeg, {
+            alternate: alternateWrist,
+            jitterDeg,
+          });
+          deckAngleRef.current = angle;
+          setDeckTurnDir(dir);
+          setDeckAimTransitionMs(Math.min(220, turnDurationMs));
+          setDeckAimAngle(angle);
+          setDeckWristOffset(wristReachOffset(angle, 6));
+        }, Math.max(0, dealShuffleMs - 20));
+      } else {
+        // Rotation naturelle du poignet : commence exactement `dealRotateMs` avant le départ de la carte,
+        // avec légère avancée vers le joueur et roulis souple, puis poussée du pouce dès l'alignement.
+        const turnAt = Math.max(dealShuffleMs, launchAt - turnDurationMs);
+        pushTimer(() => {
+          const { angle, dir } = naturalAimAngle(deckAngleRef.current, targetDeg, {
+            alternate: alternateWrist,
+            jitterDeg,
+          });
+          deckAngleRef.current = angle;
+          setDeckTurnDir(dir);
+          setDeckAimTransitionMs(turnDurationMs);
+          setDeckAimAngle(angle);
+          setDeckWristOffset(wristReachOffset(angle, 6));
+          setDeckTurnSeq((seq) => seq + 1);
+        }, turnAt);
+      }
+
+      pushTimer(() => {
+        setDeckLaunchSeq((seq) => seq + 1);
+        if (!dealV2 && k % drawSoundStep === 0) {
+          playGameSound("card_draw", { volume: 0.74 });
+        }
+      }, launchAt);
+    }
+
+    const settleAt = dealShuffleMs + Math.max(0, totalCards - 1) * dealStepMs + Math.max(dealPerCardMs, Math.min(260, Math.round(dealFlightMs * 0.45)));
+    const settleDurMs = Math.max(240, Math.min(520, turnDurationMs));
+    pushTimer(() => {
+      const prevAngle = deckAngleRef.current;
+      const restAngle = nearestRestAngle(prevAngle, 0);
+      const dir: 1 | -1 = restAngle >= prevAngle ? 1 : -1;
+      deckAngleRef.current = restAngle;
+      setDeckTurnDir(dir);
+      setDeckAimTransitionMs(settleDurMs);
+      setDeckAimAngle(restAngle);
+      setDeckWristOffset({ x: 0, y: 0 });
+      if (Math.abs(restAngle - prevAngle) > 0.5) {
+        setDeckTurnSeq((seq) => seq + 1);
+      }
+    }, settleAt);
+
+    pushTimer(() => {
+      deckAngleRef.current = 0;
+      setDeckTurnDir(1);
+      setDeckAimTransitionMs(0);
+      setDeckAimAngle(0);
+      setDeckWristOffset({ x: 0, y: 0 });
+      setDeckTurnSeq(0);
+      setDeckLaunchSeq(0);
+    }, settleAt + settleDurMs + 30);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aimAngleForSeat, clearDealSequenceTimers, dealFlightMs, dealPerCardMs, dealRetry, dealRotateMs, dealShuffleMs, dealShuffleSplit.packetsMs, dealShuffleSplit.riffleMs, dealStepMs, dealV2, isGameEnded, motionEnabled, phase, players, zoneRegistry]);
+
   useLayoutEffect(() => {
     if (phase !== "dealing") { dealPlayedRef.current = null; return; }
     if (!dealMotif && !dealV2) return;
@@ -1159,15 +1367,18 @@ export function TableScreen({
     const count = hands.length;
     if (dealV2) {
       // V2 : distribution regroupée dans UNE seule boucle RAF + un seul spawn batché
-      // (zéro layout thrashing et zéro cascade de 20 re-rendus React).
+      // (zéro layout thrashing et zéro cascade de 20 re-rendus React), après le mélange.
+      const deckBasePose = zonePoseOf(zoneRegistry, { zone: "deck" }, 0);
+      const seatAngles = Array.from({ length: count }, (_, ui) => aimAngleForSeat(ui));
       const dealMoves: AnimV2Move[] = [];
       for (let round = 0; round < perPlayer; round++) {
         for (let ui = 0; ui < count; ui++) {
-          const startMs = (round * count + ui) * dealPerCardMs;
+          const startMs = dealShuffleMs + (round * count + ui) * dealStepMs;
           zoneRegistry.hand(ui)?.hideCardsFor?.([round], startMs + dealV2.motion.durationMs + 30);
           dealMoves.push({
             card: ui === 0 ? hands[ui][round] : null,
             from: { zone: "deck", index: 0 },
+            ...(deckBasePose ? { fromPose: { ...deckBasePose, rotate: seatAngles[ui] } } : {}),
             to: { zone: "hand", ui, index: round, count: perPlayer },
             delayMs: startMs,
           });
@@ -1195,13 +1406,22 @@ export function TableScreen({
     }
     const schedule = motifSchedule(dealMotif, ids.length);
     hands.forEach((_, ui) => {
-      for (let round = 0; round < perPlayer; round++) zoneRegistry.hand(ui)?.hideCardsFor?.([round], schedule[round * count + ui].endMs + 30);
+      for (let round = 0; round < perPlayer; round++) zoneRegistry.hand(ui)?.hideCardsFor?.([round], dealShuffleMs + schedule[round * count + ui].endMs + 30);
     });
-    void runMomentRef.current(dealMotif, {
-      actorUi: 0, cards: { ids, snapshots, fromIndexes: [], toIndexes }, mode: "display", release: "landing",
-      visible: (index) => index % count === 0,
-    });
-  }, [dealMotif, dealV2, dealRetry, phase, players, zoneRegistry]); // eslint-disable-line react-hooks/exhaustive-deps
+    const launchMotif = () => {
+      if (pausedRef.current) return;
+      void runMomentRef.current(dealMotif, {
+        actorUi: 0, cards: { ids, snapshots, fromIndexes: [], toIndexes }, mode: "display", release: "landing",
+        visible: (index) => index % count === 0,
+      });
+    };
+    if (dealShuffleMs > 0) {
+      const motifTimer = setTimeout(launchMotif, dealShuffleMs);
+      dealSequenceTimersRef.current.push(motifTimer);
+    } else {
+      launchMotif();
+    }
+  }, [aimAngleForSeat, dealMotif, dealShuffleMs, dealV2, dealRetry, phase, players, zoneRegistry]); // eslint-disable-line react-hooks/exhaustive-deps
 
   /* ----- Orchestrateur générique des animations de pouvoir ----- */
 
@@ -1318,6 +1538,7 @@ export function TableScreen({
 
   useEffect(() => {
     return () => {
+      clearDealSequenceTimers();
       if (roundIntroTimerRef.current) clearTimeout(roundIntroTimerRef.current);
       if (dealSweepTimerRef.current) clearTimeout(dealSweepTimerRef.current);
       if (reactionTimerRef.current) clearTimeout(reactionTimerRef.current);
@@ -1325,7 +1546,7 @@ export function TableScreen({
       momentOverlayQueueRef.current = [];
       momentOverlayActiveRef.current = false;
     };
-  }, []);
+  }, [clearDealSequenceTimers]);
 
   useEffect(() => {
     if (motionEnabled) return;
@@ -1348,11 +1569,11 @@ export function TableScreen({
       dealSweepTimerRef.current = setTimeout(() => {
         gxeSfxRef.current.playChime(DEAL_SWEEP_SOUND); // migré vers GXE
         dealSweepTimerRef.current = null;
-      }, 120);
+      }, dealShuffleMs + 80);
     }
 
     prevPhaseRef.current = phase;
-  }, [motionEnabled, phase]);
+  }, [dealShuffleMs, motionEnabled, phase]);
 
   /* Fin de manche / écran de résultat ouvert : figer et stopper intégralement
      la table (timers, overlays, vols, réactions, sons différés et modales). */
@@ -1378,6 +1599,16 @@ export function TableScreen({
       clearTimeout(momentOverlayTimerRef.current);
       momentOverlayTimerRef.current = null;
     }
+    clearDealSequenceTimers();
+    deckSequenceKeyRef.current = null;
+    deckAngleRef.current = 0;
+    setDeckStage("idle");
+    setDeckAimTransitionMs(0);
+    setDeckAimAngle(0);
+    setDeckTurnDir(1);
+    setDeckWristOffset({ x: 0, y: 0 });
+    setDeckTurnSeq(0);
+    setDeckLaunchSeq(0);
     burstTimersRef.current.forEach((timer) => clearTimeout(timer));
     burstTimersRef.current = [];
     momentOverlayQueueRef.current = [];
@@ -1401,7 +1632,7 @@ export function TableScreen({
     setPowerChoiceConfirm(null);
     clearSpotlightTimer();
     setSpotlight({ seatIdx: null, phase: "idle" });
-  }, [clearSpotlightTimer, isGameEnded, transientStore]);
+  }, [clearDealSequenceTimers, clearSpotlightTimer, isGameEnded, transientStore]);
 
   /* Chorégraphie stricte de surbrillance de tour :
      1. Entrée en surbrillance (agrandissement de l'arche + sortie des cartes) AVANT de jouer.
@@ -1922,6 +2153,16 @@ export function TableScreen({
       reactionTimerRef.current = null;
       if (momentOverlayTimerRef.current) clearTimeout(momentOverlayTimerRef.current);
       momentOverlayTimerRef.current = null;
+      clearDealSequenceTimers();
+      deckSequenceKeyRef.current = null;
+      deckAngleRef.current = 0;
+      setDeckStage("idle");
+      setDeckAimTransitionMs(0);
+      setDeckAimAngle(0);
+      setDeckTurnDir(1);
+      setDeckWristOffset({ x: 0, y: 0 });
+      setDeckTurnSeq(0);
+      setDeckLaunchSeq(0);
       burstTimersRef.current.forEach((timer) => clearTimeout(timer));
       burstTimersRef.current = [];
       momentOverlayQueueRef.current = [];
@@ -2280,13 +2521,23 @@ export function TableScreen({
         {phase === "trickEnd" && gameState.series.lastWinnerName && <span>{gameState.series.lastWinnerName} remporte la manche</span>}
       </div>}
 
-      {/* Centre : pioche 3D discrète + médaillon Pot (handles "deck" et "pot") */}
+      {/* Centre exact du plateau : pioche 3D (mélange + visée par main) + médaillon Pot */}
       <DeckZone
         deckW={deckW}
         pot={displayedPot}
         ledSuit={ledSuit}
         ledColor={ledInfo?.color}
-        dealing={roundIntro || phase === "dealing"}
+        stage={deckStage}
+        shuffleDurationMs={dealShuffleMs}
+        shufflePacketsMs={dealShuffleSplit.packetsMs}
+        aimAngle={deckAimAngle}
+        aimTransitionMs={deckAimTransitionMs}
+        turnDir={deckTurnDir}
+        wristOffset={deckWristOffset}
+        turnSeq={deckTurnSeq}
+        launchSeq={deckLaunchSeq}
+        centerTop={tableCenterTop}
+        compactHeight={shortLandscape}
         motionEnabled={motionEnabled}
         premiumFxAllowed={premiumFxAllowed}
         liteMotion={liteMotion}
@@ -2294,7 +2545,7 @@ export function TableScreen({
       />
 
       {/* Bannière discrète */}
-      {!isGameEnded && banner && (
+      {!isGameEnded && (banner || (deckStage === "shuffling" ? "Mélange des cartes…" : "")) && (
         <div
           role="status"
           aria-live="polite"
@@ -2309,7 +2560,7 @@ export function TableScreen({
           }}
         >
           <Chip strong style={{ fontSize: 13, padding: "8px 18px" }}>
-            {banner}
+            {banner || "Mélange des cartes…"}
           </Chip>
         </div>
       )}
@@ -2441,6 +2692,8 @@ export function TableScreen({
               dealing={motionEnabled && phase === "dealing" && !dealMotif && !dealV2}
               dealPerCardMs={dealPerCardMs}
               dealFlightMs={dealFlightMs}
+              dealStepMs={dealStepMs}
+              dealOffsetMs={dealShuffleMs}
               legal={p.isYou ? yourLegal : null}
               onCardClick={handleCardClick}
               motionOn={motionEnabled}

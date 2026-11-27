@@ -38,8 +38,16 @@ interface ServerMatch {
   turnId: string;
   actionDeadlineAt: number;
   potNkap: number;
-  /** Règles de la table (événement : minuteur par table, etc.). */
-  rules?: { turnSeconds?: number; maxEquippedPowers?: number; dealPerCardMs?: number; dealFlightMs?: number; unlimitedTurns?: boolean };
+  /** Règles de la table (événement : minuteur par table, rythme de la donne, etc.). */
+  rules?: {
+    turnSeconds?: number;
+    maxEquippedPowers?: number;
+    dealShuffleMs?: number;
+    dealRotateMs?: number;
+    dealPerCardMs?: number;
+    dealFlightMs?: number;
+    unlimitedTurns?: boolean;
+  };
   result: null | {
     winnerUid: string; winnerName: string; winnerIsBot: boolean; type: "lastTrick"; crownGain?: number;
     /** Dernier pli gagné avec un 3 : chaque perdant a payé une mise de plus (sauf Totem des Ancêtres). */
@@ -761,7 +769,14 @@ export class AuthoritativeGameSync implements GameSyncActions {
     this.dealtMatchIds.add(dealKey);
     this.pendingOpeningReplay = allowOpeningReplay && actionCount > 0;
     // Rythme de la donne de CETTE partie (copié dans ses règles par le serveur) : même durée que le budget serveur.
-    const dealTime = dealDurationMs(this.dealTiming(match), match.participants.length, GAME_CONFIG.cardsPerPlayer) + 200;
+    const timing = this.dealTiming(match);
+    const effectiveTiming: DealTiming = {
+      perCardMs: timing.perCardMs,
+      flightMs: timing.flightMs,
+      shuffleMs: this.motionEnabled ? (timing.shuffleMs ?? 0) : 0,
+      rotateMs: this.motionEnabled ? (timing.rotateMs ?? 0) : 0,
+    };
+    const dealTime = dealDurationMs(effectiveTiming, match.participants.length, GAME_CONFIG.cardsPerPlayer) + 200;
     this.dealing = true;
     if (this.dealTimer) clearTimeout(this.dealTimer);
     this.dealTimer = setTimeout(() => {
@@ -822,7 +837,12 @@ export class AuthoritativeGameSync implements GameSyncActions {
 
   /** Rythme de la donne de CE match (règles copiées au départ), sinon celui du jeu. */
   private dealTiming(match: ServerMatch | null | undefined): DealTiming {
-    return dealTimingOf(match?.rules, { perCardMs: GAME_CONFIG.anim.dealPerCard, flightMs: GAME_CONFIG.anim.dealFlight });
+    return dealTimingOf(match?.rules, {
+      perCardMs: GAME_CONFIG.anim.dealPerCard,
+      flightMs: GAME_CONFIG.anim.dealFlight,
+      shuffleMs: GAME_CONFIG.anim.dealShuffle ?? 0,
+      rotateMs: GAME_CONFIG.anim.dealRotate ?? 0,
+    });
   }
 
   /** Secondes par tour de CE match (minuteur de table d'événement), sinon la valeur globale. */

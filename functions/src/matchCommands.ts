@@ -27,6 +27,8 @@ export interface MatchTableRules {
   powersDisabled: boolean;
   turnSeconds: number;
   /** Rythme de la donne copié de runtime_config/gameplay au départ (absent : parties plus anciennes, valeurs du jeu). */
+  dealShuffleMs?: number;
+  dealRotateMs?: number;
   dealPerCardMs?: number;
   dealFlightMs?: number;
   /** Table contre l'IA sans limite de temps par tour (runtime_config/gameplay.unlimitedTurnsBot au départ). */
@@ -148,8 +150,13 @@ const PLAY_ANIM_MS = GAME_CONFIG.anim.replayBotThinkMax + GAME_CONFIG.anim.dropF
 const TRICK_PAUSE_MS = GAME_CONFIG.anim.trickPause;
 const SERVER_DELIVERY_MARGIN_MS = 2_000;
 /** Miroir de la fenêtre "dealing" client (AuthoritativeGameSync.beginDealingWindow), au rythme de la donne de la partie. */
-function dealBudgetMs(playerCount: number, rules?: Pick<MatchTableRules, "dealPerCardMs" | "dealFlightMs"> | null) {
-  const timing = dealTimingOf(rules, { perCardMs: GAME_CONFIG.anim.dealPerCard, flightMs: GAME_CONFIG.anim.dealFlight });
+function dealBudgetMs(playerCount: number, rules?: Pick<MatchTableRules, "dealShuffleMs" | "dealRotateMs" | "dealPerCardMs" | "dealFlightMs"> | null) {
+  const timing = dealTimingOf(rules, {
+    perCardMs: GAME_CONFIG.anim.dealPerCard,
+    flightMs: GAME_CONFIG.anim.dealFlight,
+    shuffleMs: GAME_CONFIG.anim.dealShuffle,
+    rotateMs: GAME_CONFIG.anim.dealRotate,
+  });
   return dealDurationMs(timing, playerCount, GAME_CONFIG.cardsPerPlayer) + 350;
 }
 
@@ -438,6 +445,7 @@ export async function startMatchHandler(request: CallableRequest<unknown>) {
       turnId, turnStartedAt: now, actionDeadlineAt: turnDeadline({ unlimitedTurns }, now + SERVER_DELIVERY_MARGIN_MS + dealBudgetMs(participants.length, gameplay) + turnSeconds * 1_000),
       rules: {
         powersDisabled, turnSeconds, matchCount, maxEquippedPowers: gameplay.maxEquippedPowers,
+        dealShuffleMs: gameplay.dealShuffleMs, dealRotateMs: gameplay.dealRotateMs,
         dealPerCardMs: gameplay.dealPerCardMs, dealFlightMs: gameplay.dealFlightMs, unlimitedTurns,
         botDifficulty: tableRules?.botDifficulty ?? (data.difficulty === "easy" || data.difficulty === "hard" ? data.difficulty : "normal"),
         modifiers: tableRules?.modifiers ?? [],

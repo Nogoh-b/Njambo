@@ -588,7 +588,7 @@ export interface TakeoverRequestDoc {
 export interface GameState {
   turnStartSeconds?: number;
   /** Rythme de la donne de cette partie (copié dans ses règles au départ) ; absent = celui de la config. */
-  dealTiming?: { perCardMs: number; flightMs: number };
+  dealTiming?: { perCardMs: number; flightMs: number; shuffleMs?: number; rotateMs?: number };
   /** Pas de limite de temps par tour dans cette partie (table contre l'IA réglée ainsi au départ). */
   unlimitedTurns?: boolean;
   series?: { round: number; total: number; scores: number[]; lastWinnerName?: string };
@@ -649,7 +649,10 @@ export interface SyncStatus {
 
 export interface GameConfig {
   maxEquippedPowers: number;
-  /** Rythme de la donne réglé dans l'admin (repris dans `anim.dealPerCard` / `anim.dealFlight`). */
+  /** Rythme de la donne réglé dans l'admin (repris dans `anim.dealShuffle` / `dealRotate` / `dealPerCard` / `dealFlight`). */
+  dealShuffleMs: number;
+  dealShufflePacketsMs: number;
+  dealRotateMs: number;
   dealPerCardMs: number;
   dealFlightMs: number;
   /** Tables contre l'IA sans limite de temps par tour (admin, Règles des parties). */
@@ -678,6 +681,12 @@ export interface GameConfig {
   anim: {
     navigation: number;
     roundIntro: number;
+    /** Animation de mélange du paquet au centre du plateau avant la distribution (ms). */
+    dealShuffle: number;
+    /** Part du mélange jouée en paquets après la queue d'aronde (ms, visuel local). */
+    dealShufflePackets: number;
+    /** Rotation animée de la pioche vers chaque joueur servi pendant la distribution (ms). */
+    dealRotate: number;
     dealPerCard: number;
     dealFlight: number;
     dropFlight: number;

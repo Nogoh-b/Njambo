@@ -28,7 +28,7 @@ import { POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { powerScriptOf } from "@/config/powers";
 import { powerAnimationBudgetMs } from "@/engine/power/animBudget";
 import { DEV } from "@/config/devConfig";
-import { matchCountFor, seriesWinner } from "@/domain/gameplayConfig";
+import { dealDurationMs, matchCountFor, seriesWinner } from "@/domain/gameplayConfig";
 import type { BOTS as BotsType } from "@/data/mock";
 import type {
   BotDifficulty,
@@ -138,6 +138,7 @@ export class LocalGameSync implements GameSyncActions {
   /** Fin de la pause qui suit la carte d'une IA (atterrissage + lecture). */
   private botAfterPlayUntil = 0;
   private dealHandle: ReturnType<typeof setTimeout> | null = null;
+  private shuffleBannerHandle: ReturnType<typeof setTimeout> | null = null;
   private trickHandle: ReturnType<typeof setTimeout> | null = null;
   private bannerHandle: ReturnType<typeof setTimeout> | null = null;
   private destroyed = false;
@@ -151,6 +152,10 @@ export class LocalGameSync implements GameSyncActions {
     if (this.dealHandle) {
       clearTimeout(this.dealHandle);
       this.dealHandle = null;
+    }
+    if (this.shuffleBannerHandle) {
+      clearTimeout(this.shuffleBannerHandle);
+      this.shuffleBannerHandle = null;
     }
     if (this.trickHandle) {
       clearTimeout(this.trickHandle);
@@ -252,9 +257,26 @@ export class LocalGameSync implements GameSyncActions {
     this.leader = leaderIdx;
     this.phase = "dealing";
     this.emitState();
-    this.opts.onBanner("Distribution…");
 
-    const dealTime = ps.length * cfg.cardsPerPlayer * cfg.anim.dealPerCard + cfg.anim.dealFlight + 180;
+    const shuffleMs = this.motionEnabled ? (cfg.anim.dealShuffle ?? 0) : 0;
+    const rotateMs = this.motionEnabled ? (cfg.anim.dealRotate ?? 0) : 0;
+    if (shuffleMs > 0) {
+      this.opts.onBanner("Mélange des cartes…");
+      this.shuffleBannerHandle = setTimeout(() => {
+        this.shuffleBannerHandle = null;
+        if (!this.destroyed && this.phase === "dealing") {
+          this.opts.onBanner("Distribution…");
+        }
+      }, shuffleMs);
+    } else {
+      this.opts.onBanner("Distribution…");
+    }
+
+    const dealTime = dealDurationMs(
+      { perCardMs: cfg.anim.dealPerCard, flightMs: cfg.anim.dealFlight, shuffleMs, rotateMs },
+      ps.length,
+      cfg.cardsPerPlayer,
+    ) + 180;
 
     this.dealHandle = setTimeout(() => {
       this.dealHandle = null;
@@ -558,6 +580,12 @@ export class LocalGameSync implements GameSyncActions {
       dominantIdx: this.dominantIdx,
       banner: "",
       activePowerEffects: [...this.activePowerEffects],
+      dealTiming: {
+        perCardMs: this.opts.cfg.anim.dealPerCard,
+        flightMs: this.opts.cfg.anim.dealFlight,
+        shuffleMs: this.opts.cfg.anim.dealShuffle,
+        rotateMs: this.opts.cfg.anim.dealRotate,
+      },
       players: this.players.map((p) => ({ ...p, hand: [...p.hand], deposit: [...p.deposit] })),
     };
   }
@@ -800,7 +828,12 @@ export class LocalGameSync implements GameSyncActions {
   private emitState() {
     const state: GameState = {
       turnStartSeconds: this.opts.cfg.turnSeconds,
-      dealTiming: { perCardMs: this.opts.cfg.anim.dealPerCard, flightMs: this.opts.cfg.anim.dealFlight },
+      dealTiming: {
+        perCardMs: this.opts.cfg.anim.dealPerCard,
+        flightMs: this.opts.cfg.anim.dealFlight,
+        shuffleMs: this.opts.cfg.anim.dealShuffle,
+        rotateMs: this.opts.cfg.anim.dealRotate,
+      },
       unlimitedTurns: DEV.unlimitedTime || this.opts.cfg.unlimitedTurnsBot,
       series: {
         round: this.seriesRound, total: this.seriesTotal,
