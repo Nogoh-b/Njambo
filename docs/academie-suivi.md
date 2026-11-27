@@ -1,0 +1,517 @@
+# Plan et suivi — Académie Njambo (prise en main)
+
+> Fichier de **plan et de suivi**, mis à jour à **chaque avancée** : case
+> cochée, statut de l'étape et une ligne dans le journal en bas de page.
+>
+> Point de départ : l'analyse « 3 profils, 3 cercles, 4 mécanismes » du
+> 2026-11-27, relue contre le code. Les écarts trouvés sont listés plus bas
+> et corrigés à l'étape A0.
+
+## État
+
+| Étape | Contenu | Statut |
+| --- | --- | --- |
+| A0 | Corriger les textes de règles qui contredisent le moteur | ✅ Terminé |
+| A1 | Moteur de scènes : donne imposée, bots scriptés, sans chrono ni mise | ⬜ À faire |
+| A2 | Coach : bulle, projecteur, refus doux, file « animation → parole → action » | ⬜ À faire |
+| A3 | Chapitres 1 à 3 : les bases du Njambo | ⬜ À faire |
+| A4 | Partie de fin d'Académie (vraie donne, bots faciles, aides) | ⬜ À faire |
+| A5 | Porte d'entrée au premier lancement | ⬜ À faire |
+| A6 | Hub Académie (remplace « Comment jouer ») + Mémo express | ⬜ À faire |
+| A7 | Mesures + premier test avec de vrais novices | ⬜ À faire |
+| A8 | Chapitre 4 : les 4 gestes des cartes Pouvoir | ⬜ À faire |
+| A9 | Récompenses côté serveur | ⬜ À faire |
+| A10 | Dojo des Pouvoirs (« Essayer sur la table ») | ⬜ À faire |
+| A11 | Bulles « juste à temps » (table et hors table) | ⬜ À faire |
+| A12 | Coach en direct : aide en temps réel pendant les vraies parties | ⬜ À faire |
+
+Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
+
+Ordre voulu : les bases (A0 → A4) sont testées par de vrais novices (A7)
+**avant** de construire les pouvoirs, les récompenses et le Dojo. Le coach
+en direct (A12) se construit juste après A4 : la partie de fin d'Académie
+est sa première utilisation, et il sert ensuite dans toutes les parties.
+
+**Deux formes d'aide, un seul calque de coach (A2) :**
+
+| | Scènes de l'Académie (A3, A8) | Coach en direct (A4, A12) |
+| --- | --- | --- |
+| Partie | Situation figée, mains imposées | Vraie partie, vraie donne |
+| Rythme | Le joueur attend le coach | Le coach suit le jeu, sans jamais le bloquer |
+| But | Enseigner une notion | Rappeler la bonne notion au bon moment, puis s'effacer |
+
+---
+
+## Objectifs mesurables
+
+Cibles de départ, à ajuster après le premier test (A7).
+
+| Mesure | Cible |
+| --- | --- |
+| Temps entre le choix d'entrée et la première carte posée | < 15 s |
+| Premier pli gagné | < 60 s |
+| Chapitres 1 à 3 | ≤ 3 min au total |
+| Novices qui finissent les chapitres 1 à 3 | ≥ 70 % |
+| Novices qui gagnent au moins un pli dans la partie de fin d'Académie | ≥ 80 % |
+| Novices qui expliquent, sans aide, pourquoi les 4 premiers plis comptent | ≥ 4 sur 5 au test |
+
+⚠️ La donne animée prend à elle seule **12,4 s à 3 joueurs** et 14,5 s à 4
+avec les réglages par défaut (`dealDurationMs`, `domain/gameplayConfig.ts` :
+mélange 5,7 s + 110 ms par carte + 320 ms de rotation entre deux cartes +
+vol). Les scènes commencent donc **avec les mains déjà servies** (ou une
+donne courte), sinon la cible des 15 s est impossible.
+
+---
+
+## Les 4 profils de joueurs
+
+| Profil | Ce qu'il sait | Porte d'entrée | Parcours |
+| --- | --- | --- | --- |
+| Débutant complet | Rien | « Je découvre Njambo » | Chapitres 1 → 3, partie de fin, puis chapitre 4 |
+| Habitué du Njambo papier | Règles de base, pas les pouvoirs ni l'économie | « Je connais le Njambo » | Chapitre 4 directement ; les chapitres 1 à 3 restent dans le hub |
+| Joueur actif avec un doute ponctuel | Tout sauf une carte | Fiche de la carte → Dojo (A10), bouton `?` de la table | Une scène de 1 pli |
+| Invité par un ami (lien de salle) | Variable | **Aucune** : il entre dans la salle | Mémo de 30 s dans la salle d'attente, bulles juste à temps |
+
+Le 4e profil ne doit jamais être bloqué par l'accueil : une arrivée avec une
+salle à restaurer (`restoredRoomId`, `contexts/GameContext.tsx`) saute la
+porte d'entrée.
+
+---
+
+## Règles strictes
+
+1. **Animation terminée → parole du coach → action du joueur.** Jamais de
+   bulle pendant qu'une carte vole, qu'un pouvoir est mis en scène ou que la
+   donne tourne.
+2. **Bulle courte** : 2 lignes au plus, 15 à 25 mots. Elle se place dans la
+   zone libre, jamais sur la carte à toucher ni sur le dépôt à regarder.
+3. **Le pourquoi avant le quoi.** Chaque consigne vient avec sa raison en
+   une phrase.
+4. **Jamais punitif, jamais bloquant.** Une mauvaise carte tremble et le
+   coach dit pourquoi ; un défi raté se rejoue en un geste.
+5. **Toujours « Passer », toujours rejouable.**
+6. **Aucun chiffre en dur.** Tout ce qui est réglable est lu dans la config
+   de la partie (`cfg`) : secondes par tour, nombre de cartes équipables,
+   coûts d'Énergie, victoires instantanées.
+7. **Les scènes ne coûtent rien** : ni Énergie, ni mise, ni appel serveur.
+   Seule la réclamation d'une récompense passe par le serveur (A9).
+8. **Textes externalisés** dès le départ (une clé par réplique), en
+   français d'abord ; l'anglais pourra suivre sans toucher au code.
+
+---
+
+## Ce qui existe déjà et sera réutilisé
+
+| Élément | Où | Rôle dans l'Académie |
+| --- | --- | --- |
+| Guide en 5 cartes | `components/scenes/RulesScreen.tsx` | Devient le **Mémo express** du hub (A6), après corrections (A0) |
+| Aide rapide de la table | `TableScreen.tsx:594`, clé `njambo:onboarding-seen:v1` | À fusionner avec le registre des bulles vues (A11), pas à dupliquer |
+| Aperçu d'une carte Pouvoir sur la table | `previewPowerCard`, `TableScreen.tsx` | Étiquette cliquable quand un adversaire joue un pouvoir inconnu (A11) |
+| Partie locale (invités) | `sync/LocalGameSync.ts`, choisie par `isLocalSync` (`TableScreen.tsx:521`) | Modèle du moteur de scènes (A1). Aujourd'hui la donne est toujours aléatoire (`shuffle(buildDeck(cfg))`) |
+| Règles pures | `engine/rules.ts` (`legalCards`, `trickWinner`, `lastCardDoubles`, `checkInstantWin`) | Mêmes règles dans les scènes que dans le jeu |
+| Bots faciles sans pouvoirs | `LocalGameSync.ts:223` | Partie de fin d'Académie (A4) |
+| Coup automatique à la fin du chrono | `LocalGameSync.ts:724` (joue la carte légale la plus faible) | À expliquer la première fois que ça arrive (A11) |
+| Tours sans limite contre l'IA | `unlimitedTurnsBot`, `domain/gameplayConfig.ts:20` | Même idée pour les scènes et la partie de fin |
+| Bac à sable des pouvoirs | `engine/power/sandbox.ts` (`createSandboxTable`, `runSandboxActivation`, graine, noms « Tonton Rene », « Mado Biyem », « Ya Pauline ») | Base du Dojo (A10) et des scènes de pouvoirs (A8) |
+| Choix de cible, choix de cartes | `components/power/PowerTargetPicker.tsx`, `PowerChoiceBar.tsx` | Gestes 2 et 3 du chapitre 4 |
+| Registre des zones de la table | `components/table/zones/ZoneRegistry.tsx` (`hand:n`, `deposit:n`, `deck`, `pot`) | Position des cibles du projecteur et placement de la bulle (A2) |
+| Récompense quotidienne | `claimDailyReward`, `functions/src/index.ts:137` | Modèle de la commande de récompense (A9) |
+| Invité → compte en gardant l'identifiant | `contexts/AuthContext.tsx:30` | Les récompenses d'un invité suivent son compte (A9) |
+| Familles côté joueur | `PowerCollectionScreen.tsx:62` : Attaque, Défense, Tactique, Bluff, Score, Nkap | Vocabulaire du chapitre 4 |
+
+### Ce que l'admin peut changer (et ce qu'il ne peut pas)
+
+| Réglable dans l'admin (`runtime_config/gameplay`) | Fixé dans le code (`config/gameConfig.ts`) |
+| --- | --- |
+| `turnSeconds`, `maxEquippedPowers` (0 à 8), rythme de la donne, `unlimitedTurnsBot`, manches par mode (`matchesByMode`), coûts d'Énergie (`matchEnergyCosts`), cartes Pouvoir (désactivées, archivées, ajoutées) | Paquet 3 à 10, 5 cartes par joueur, `instantWin` (dont `flushDoubles: false`), `lastCardThreeDoubles` |
+
+Conséquence : les scènes et les textes lisent `cfg` pour la colonne de
+gauche. Pour la colonne de droite, un test vérifie que les textes restent
+d'accord avec le code.
+
+---
+
+## Écarts entre les textes et le moteur (étape A0)
+
+| Écart | Où | Correction |
+| --- | --- | --- |
+| La Couleur est affichée « doublée (×2) » alors que le moteur ne la double pas (`flushDoubles: false`) | `RulesScreen.tsx:157` et mémo de la table (`TableScreen.tsx`, « Victoires instantanées & Pouvoirs ») / `engine/rules.ts:19` | Les deux écrans lisent `getInstantWinRules(cfg)` ; D6 tranchée : pas de ×2 |
+| « Équipe jusqu'à 3 cartes Pouvoir » écrit en dur | `RulesScreen.tsx:174` | Lire `cfg.maxEquippedPowers` ; masquer le paragraphe si 0 |
+| Un pouvoir sert **une fois par partie**, pas une fois par manche : les pouvoirs utilisés sont gardés d'une manche à l'autre d'une série | `LocalGameSync.ts:239` et `:617` ; serveur : `usedPowers` « consommées dans ce match » | Écrire « une fois par partie » |
+| « Garde un 3 pour le 5e tour » pousse le novice vers un pari perdant : le 3 ne gagne que si **tu lances** et que **personne ne peut suivre** | `RulesScreen.tsx:132` | Nuancer l'astuce |
+| Le ×2 du 3 ne s'applique pas en Événement (barème propre) | `functions/src/matchCommands.ts:722` | Ne jamais promettre le ×2 « partout » ; bulle au premier Événement (A11) |
+| Énergie « 5 en Solo IA, 10 en Classé » : ce sont les valeurs de repli du serveur, l'admin peut les changer | `matchCommands.ts:137` et `:410` | Lire le coût affiché par l'écran de lancement, jamais un chiffre écrit |
+
+---
+
+## Décisions
+
+| # | Sujet | Recommandation | Statut |
+| --- | --- | --- | --- |
+| D1 | Premier lancement | Écran à **2 gros boutons** : « Je découvre Njambo » (droit sur la table) et « Je connais le Njambo » (chapitre 4), plus un lien discret « Passer ». Sauté si on arrive par un lien de salle. Tant que le chapitre 4 n'existe pas, le 2e bouton mène au hub | ✅ Validé le 2026-11-27 |
+| D2 | Cartes Pouvoir | Chapitre 4 (les 4 gestes) d'abord, Dojo ensuite, **générique** : la situation est déduite du script de la carte | ✅ Validé le 2026-11-27 |
+| D3 | Hors table | La table et les pouvoirs d'abord ; les bulles du Salon, de la Boutique et des Événements en dernier (A11) | ✅ Validé le 2026-11-27 |
+| D4 | Guide | **Tonton René**, hors de la table (avatar + bulle). **Mado Biyem** et **Ya Pauline** sont les adversaires. Ton chaleureux, direct, jamais scolaire ; quelques expressions du Mboa, sans caricature ; textes relus par un locuteur | ✅ Validé le 2026-11-27 |
+| D5 | Récompenses | Oui, modestes, données par le serveur une seule fois par compte. La carte offerte au chapitre 4 est une **commune** : Éclair du Mfoundi et Bouclier du Village sont **épiques** | ✅ Validé le 2026-11-27 ; montants à fixer en A9 (valeurs de départ proposées) |
+| D6 | Couleur (5 cartes de même couleur) | Gagne immédiatement **sans doubler** : on garde `flushDoubles: false`, les textes suivent | ✅ Tranché le 2026-11-27 |
+| D7 | Éclair du Mfoundi posé sur un 3 | Un 3 boosté gagne le pli avec sa valeur effective (`effectiveValue`, `rules.ts:40`) mais **ne double plus** : le ×2 ne vaut que pour un vrai 3. Règle unique `lastCardDoubles` (`engine/rules.ts`), lue par le jeu local et par le serveur (`matchCommands.ts`) ; un 3 dont seule la couleur change (Pagne Changeant) garde le ×2 | ✅ Tranché le 2026-11-27 (plus de ×2) |
+| D8 | Partie de fin d'Académie | Gratuite pour tous (ni Énergie ni mise), jouée en local, même pour un compte connecté | ✅ Validé le 2026-11-27 |
+| D9 | Branchement des scènes sur la table | Un moteur de partie dédié qui suit la même interface que `LocalGameSync` (la table l'affiche sans changement), plutôt qu'une option de plus dans `LocalGameSync` | À confirmer en A1 après lecture de l'interface |
+| D10 | Coach en direct contre d'autres joueurs (En ligne, Amis, Classé) | **Règles seulement** (tendance, défausse, chrono, pouvoir subi), jamais de conseil de coup ni d'aide-mémoire des cartes tombées : ce serait un avantage sur l'adversaire | ✅ Validé le 2026-11-27 |
+| D11 | Le coach choisit-il la carte à ta place ? | Seulement dans la partie de fin d'Académie et en Solo IA niveau « Accompagné », après 5 s d'hésitation. Ailleurs il explique la situation sans désigner la carte, pour garder sa valeur à **Main du Griot**, la carte Pouvoir qui le fait (« Suggère ta meilleure carte légale ») | ✅ Validé le 2026-11-27 |
+| D12 | Niveau par défaut et retrait | « Accompagné » pour un nouveau joueur, « Conseils » après 5 parties gagnées (proposé, pas imposé), et chaque conseil se retire tout seul quand le joueur l'applique sans aide 3 fois de suite | ✅ Validé le 2026-11-27 |
+
+---
+
+## A0 — Corriger les textes de règles ✅
+
+- [x] Source unique `getInstantWinRules(cfg)` (`lib/gamePresentation.ts`) :
+      victoires à la donne et doublement, lus dans les règles du jeu
+- [x] Couleur sans ×2 (D6) dans les deux écrans qui l'affichaient : guide
+      « Comment jouer » (`RulesScreen.tsx`) **et** mémo de la table
+      (`TableScreen.tsx`, qui disait aussi « 5 cartes de même couleur
+      (×2) »). Seuils 21 et nombre de cartes lus dans `cfg`
+- [x] « Jusqu'à {maxEquippedPowers} carte(s) Pouvoir », paragraphe masqué
+      si 0
+- [x] « Chacune ne sert qu'une fois par partie »
+- [x] Astuce du 3 : « gagne le 4e tour avec une grosse carte pour lancer le
+      dernier. Ton 3 ne gagne que si personne ne peut suivre sa couleur :
+      c'est un pari ! »
+- [x] Assistant IA de l'admin (`server/src/ai/reference.ts:59` et `:62`) :
+      déjà d'accord avec le moteur, rien à changer
+- [x] Test (`tests/game-presentation.test.ts`) : pour chaque victoire
+      annoncée, une main qui la déclenche passe dans `checkInstantWin` et
+      le moteur double exactement quand l'écran dit ×2 (Couleur doublée ou
+      non) ; Couleur retirée et victoires coupées suivies
+- [x] Vérifications : `tsc` sans erreur, `eslint` sans avertissement,
+      suite complète au vert (454 tests passés, 11 ignorés) ; guide vérifié
+      dans le navigateur, cartes 3 à 5, sans défilement à 375 × 812
+- [ ] Mémo de la table pas vu à l'écran : il faut une partie, et le
+      serveur local (:8081) ne répondait pas pendant la vérification
+
+Piège trouvé au navigateur : le compilateur a supprimé l'espace après un
+`</b>` quand le texte suivant, sur plusieurs lignes, contenait `&apos;`
+(« Pouvoiravant », « 3ne »). Corrigé par un `{" "}` explicite ; aucun autre
+cas du même motif dans `components/`.
+
+## A1 — Moteur de scènes ⬜
+
+Une scène = une situation figée, rejouable à l'identique.
+
+- [ ] Type pur `AcademyScene` (`engine/academy/`, sans DOM ni réseau) :
+  - joueurs (2 à 4), mains imposées, dépôts déjà joués (pour les plis
+    précédents), numéro du pli, qui lance ;
+  - pioche imposée (pour les pouvoirs qui piochent) ;
+  - coups des bots : une carte précise ou une règle simple (« la plus
+    petite légale ») ;
+  - actions attendues du joueur, mode **strict** (une seule bonne réponse)
+    ou **libre** (défi) ;
+  - répliques du coach (clés de texte) liées à des moments ;
+  - pouvoirs équipés pour la scène.
+- [ ] Validation d'une scène : cartes uniques, 3 à 10, mains de la bonne
+      taille, aucune victoire instantanée dans une donne de départ, coups des
+      bots légaux, la solution attendue gagne vraiment
+- [ ] Moteur de partie « Académie » (D9) : mêmes règles que
+      `engine/rules.ts`, même moteur de pouvoirs, **pas de chrono, pas de
+      mise, pas d'Énergie, aucun appel serveur**
+- [ ] Rejouer une scène = repartir de son état figé (pas de retour en
+      arrière dans une partie en cours)
+- [ ] Repli : une carte Pouvoir de la scène désactivée ou archivée →
+      remplacée par une carte du même geste, sinon la scène est masquée
+- [ ] Tests : chaque scène du plan se joue jusqu'au bout avec la solution
+      attendue et échoue avec une mauvaise carte
+
+## A2 — Coach ⬜
+
+- [ ] Calque `components/academy/` : avatar de Tonton René, bulle,
+      projecteur (voile sombre percé sur une ou plusieurs zones), bouton
+      « Passer »
+- [ ] File d'attente : une réplique n'apparaît qu'une fois la table au
+      repos (aucune animation en cours) ; l'action du joueur n'est ouverte
+      qu'après la réplique
+- [ ] Placement de la bulle calculé à partir des rectangles du registre des
+      zones : jamais sur la cible, toujours dans l'écran (portrait d'abord)
+- [ ] Mode strict : seule la carte attendue est jouable ; une autre carte
+      tremble et le coach explique pourquoi
+- [ ] Mode libre : toute carte légale est jouable ; si le défi est raté,
+      bouton « Réessayer ce pli »
+- [ ] Textes : `data/academy/fr.ts`, une clé par réplique, valeurs de `cfg`
+      insérées (`{turnSeconds}`, `{sumBelow}`…)
+- [ ] Vérification sur téléphone (375 × 812) et sur grand écran : aucune
+      bulle ne cache la carte attendue ni le dépôt regardé
+
+## A3 — Chapitres 1 à 3 : les bases ⬜
+
+Trois joueurs, dans cet ordre de jeu : toi, Mado Biyem, Ya Pauline. Les
+mains sont servies dès le départ. Les répliques ci-dessous sont des
+brouillons (ton à faire relire).
+
+Les chapitres 1 et 2 forment une seule manche de 3 plis, avec ces mains :
+
+| Joueur | Main |
+| --- | --- |
+| Toi | 9♥ 5♥ 4♥ 7♦ 6♣ (aucun Pique) |
+| Mado Biyem | 8♠ 7♠ 10♦ 3♦ 9♣ (aucun Cœur) |
+| Ya Pauline | 10♠ 5♠ 6♥ 3♥ 8♣ |
+
+### Chapitre 1 — Suis la tendance (2 plis, mode strict)
+
+| Pli | Table | Ce que tu fais | Coach |
+| --- | --- | --- | --- |
+| 1 | Mado lance 8♠, Ya joue 10♠ | Tu n'as pas de Pique : tu te défausses du **4♥** | « Mado lance du Pique ♠ : c'est la tendance. Tu n'en as pas, tu te défausses. » puis « Une défausse ne gagne jamais. Jette ta plus petite carte, garde les fortes. » |
+| 1 (erreur) | — | Tu touches le 9♥ | « Doucement ! Ton 9♥ est précieux, et une défausse ne gagne pas. Jette plutôt ton 4♥. » |
+| 2 | Ya a gagné, elle lance 6♥ | Tes cartes légales sont éclairées (9♥, 5♥) ; tu joues le **9♥** | « Tu as du Cœur ♥ : tu dois en jouer. La plus forte carte de la tendance gagne. » |
+| 2 (erreur) | — | Tu touches le 5♥ | « Le 6♥ de Ya est plus fort. Ton 9♥, lui, gagne. » |
+| 2 (suite) | Mado n'a pas de Cœur : elle se défausse du 3♦ | — | « Regarde : Mado se défausse. Elle n'a plus de Cœur, retiens-le ! » |
+| Fin | Tu gagnes le pli | — | « Le pli est à toi ! Et qui gagne lance le pli suivant. » |
+
+### Chapitre 2 — Prends la main (1 pli, mode libre)
+
+Suite directe : tu lances le pli 3 avec 5♥ 7♦ 6♣.
+
+| Ce que tu lances | Ce qui se passe | Résultat |
+| --- | --- | --- |
+| **5♥** | Mado n'a pas de Cœur, elle se défausse ; Ya doit suivre avec son 3♥ | Tu gagnes |
+| 7♦ | Mado joue son 10♦ | Tu perds → « Réessayer ce pli » |
+| 6♣ | Mado joue son 9♣ | Tu perds → « Réessayer ce pli » |
+
+- Coach : « C'est toi qui lances : tu choisis la tendance. Choisis une
+  couleur où elles sont faibles. »
+- Si tu hésites plus de 5 s : « Mado n'a plus de Cœur. Lance ton 5♥ ! »
+- Réussite : « Tu vois ? Même un 5 gagne quand c'est toi qui choisis la
+  couleur. »
+
+### Chapitre 3 — Le 5e tour et le 3 (2 plis + un « et si ? »)
+
+Nouvelle manche, déjà au pli 4. Ta main : 10♦ 3♣. Une ligne résume les plis
+1 à 3 : « Au 2e pli, Mado et Ya n'ont pas suivi le Trèfle : elles n'en ont
+plus. » (Les dépôts de la table ne montrent peut-être pas tout
+l'historique : à vérifier en écrivant la scène.)
+
+| Moment | Table | Ce que tu fais | Coach |
+| --- | --- | --- | --- |
+| Pli 4 | Mado lance 8♦, Ya joue 9♦ | Tu joues le **10♦** | « Les 4 premiers plis ne paient rien : ils servent à prendre la main pour le dernier. » puis « Gagne ce pli : tu lanceras le 5e. » |
+| Pli 5 | Tu lances | Tu lances le **3♣** | « Ton 3 est la plus petite carte du jeu… mais elles n'ont plus de Trèfle. Lance-le ! » |
+| Fin | Mado et Ya se défaussent, ton 3♣ gagne | — | « Ngata avec un 3 ! Chaque perdant paie une mise de plus : tes gains sont doublés. » |
+| Et si ? | Rejeu automatique de 8 s : Mado garde un 5♣ et bat ton 3 | Tu regardes | « Le 3 est un pari. Tente-le seulement quand personne ne peut suivre ta couleur. » |
+
+Défi de fin de chapitre (mode libre) : pli 3 à 5 avec 10♦ 6♥ 3♣, mains
+adverses tirées dans une petite liste de situations où une solution existe.
+Raté → « Réessayer ce pli ».
+
+### Victoires instantanées : pas de scène
+
+Le joueur n'agit pas : on l'explique **quand ça arrive** (A11), sur l'écran
+de résultat, avec la somme animée carte par carte
+(« 3 + 4 + 4 + 5 + 5 = 21 → doublé ! »). Le Mémo express garde la fiche.
+
+## A4 — Partie de fin d'Académie ⬜
+
+C'est le passage le plus risqué : beaucoup de novices décrochent à leur
+première vraie partie. C'est aussi la **première partie avec le coach en
+direct** (A12), au niveau « Accompagné ».
+
+- [ ] Vraie donne aléatoire, 3 joueurs, bots **faciles** (sans pouvoirs)
+- [ ] Gratuite (D8) : ni Énergie ni mise
+- [ ] Pas de chrono (comme `unlimitedTurnsBot`), ou un chrono large annoncé
+- [ ] Aide si tu hésites plus de 5 s : la meilleure carte légale s'éclaire,
+      comme le fait la carte Main du Griot
+- [ ] Le coach ne parle qu'aux moments clés : 4e pli (« prends la main »),
+      5e pli, victoire instantanée éventuelle
+- [ ] À la fin : explication courte de ce qui change en vraie partie
+      (« En vraie partie, tu as {turnSeconds} s par tour. Si le temps
+      finit, ta plus petite carte part toute seule. »)
+
+## A5 — Porte d'entrée ⬜
+
+- [ ] Premier lancement détecté (aucune progression d'Académie locale ni
+      sur le compte)
+- [ ] Écran à 2 gros boutons + lien « Passer » (D1)
+- [ ] « Je découvre » : chapitre 1 directement, sans écran de plus
+- [ ] Arrivée par un lien de salle : écran sauté
+- [ ] « Passer » ne revient jamais ; le hub reste accessible depuis le Salon
+      et depuis le bouton `?` de la table
+
+## A6 — Hub Académie ⬜
+
+`RulesScreen.tsx` devient l'Académie :
+
+- [ ] Chapitres avec statut (À faire / Validé), récompense, bouton Jouer /
+      Rejouer
+- [ ] Mémo express : les 5 fiches actuelles, corrigées en A0
+- [ ] Accès au Dojo (grisé « bientôt » tant que A10 n'est pas fait)
+- [ ] Progression stockée en local (`njambo:academy:v1`) et sur le compte
+      quand le joueur est connecté
+
+## A7 — Mesures et premier test ⬜
+
+Le code n'a aujourd'hui aucun suivi d'usage : il faut le minimum.
+
+- [ ] Événements : choix d'entrée, début et fin de chaque scène, mauvaise
+      carte, « Réessayer », « Passer » (avec l'étape), récompense
+      réclamée, résultat de la partie de fin, résultat de la première vraie
+      partie, retour le lendemain
+- [ ] Stockage : à décider (serveur Postgres ou Firebase) ; aucune donnée
+      personnelle, seulement l'identifiant du joueur
+- [ ] Test avec **5 personnes qui n'ont jamais joué au Njambo** et 3
+      habitués : sans aide, on observe et on note chaque hésitation
+- [ ] Critère de passage aux étapes suivantes : les objectifs mesurables
+      sont atteints, ou les scènes sont corrigées et retestées
+
+## A8 — Chapitre 4 : les 4 gestes des pouvoirs ⬜
+
+On n'enseigne pas les 21 cartes : on enseigne **4 gestes**, et le joueur
+saura jouer les 21. Chaque geste = une scène de 1 pli où le pouvoir sauve
+une situation concrète.
+
+| Geste | Cartes concernées | Scène |
+| --- | --- | --- |
+| 1. Effet direct (1 toucher) | Éclair du Mfoundi, Tambour d'Appel, Vent du Nord, Marché de Nuit, Main du Griot, Cri du Chef, Pagne Changeant | Mado lance 9♥, tu n'as que 8♥ : « Tu vas perdre… sauf avec l'Éclair du Mfoundi (+2). » Ton 8♥ compte 10 |
+| 2. Pouvoir ciblé (toucher, puis choisir l'adversaire) | Coupe-Circuit, Filet du Pêcheur, Œil du Sorcier, Sable du Temps, Sceau d'Entrave | Ya a 10♠ et 4♠, toi 9♠ : Coupe-Circuit sur Ya, elle doit jouer son 4♠ |
+| 3. Choix de cartes (choisir 1 à 3 cartes, valider) | Troc Ciblé, Pacte des Mains | Un 4♦ inutile ; Troc Ciblé l'échange contre le dessus de la pioche (imposé : 10♥) |
+| 4. Défense et bon moment | Bouclier du Village, Masque du Bluffeur, Totem des Ancêtres, Cauris Chanceux, Feu de Camp, Pluie d'Étoiles, Bénédiction du Chef | Tu poses le Bouclier, Mado lance Coupe-Circuit sur toi : le Bouclier l'arrête |
+
+- [ ] Les 4 scènes, avec les mêmes écrans de choix que le jeu
+      (`PowerTargetPicker`, `PowerChoiceBar`)
+- [ ] Les deux règles qui surprennent :
+  - [ ] **condition non remplie** : carte grisée avec sa raison (ex. Cri du
+        Chef : « seulement si tu lances le pli ») ;
+  - [ ] **carte gardée si elle n'a aucun effet, perdue si un Bouclier
+        l'arrête** : à vérifier dans le moteur avant d'écrire la réplique.
+- [ ] Composer un deck : « 1 Attaque + 1 Défense + 1 Tactique ou Score »,
+      dans la limite de `cfg.maxEquippedPowers`
+- [ ] Chapitre masqué si `maxEquippedPowers === 0`
+- [ ] Fin : carte offerte (D5) puis « Viens l'équiper » → Collection
+- [ ] Si le joueur pose l'Éclair sur un 3 (Dojo) : réplique « il gagne
+      comme un 5, mais ne double plus » (D7)
+
+## A9 — Récompenses côté serveur ⬜
+
+- [ ] Commande `claimAcademyReward({ chapterId })` sur le modèle de
+      `claimDailyReward` : une seule fois par compte et par chapitre
+      (écriture au journal avec un identifiant stable)
+- [ ] Montants dans la config de l'économie (réglables dans l'admin).
+      Valeurs de départ proposées, à valider :
+
+| Chapitre | Récompense proposée |
+| --- | --- |
+| 1, 2, 3 | 100 Nkap chacun (une mise minimale) + badge de progression |
+| Partie de fin | 20 Cauris |
+| 4 | 1 carte commune (ex. Tambour d'Appel ou Vent du Nord) |
+
+- [ ] Invité : crédité sur son identifiant anonyme, qui est gardé quand il
+      crée son compte. Levier d'inscription : « Crée ton compte pour ne pas
+      perdre ta progression » (un invité qui change d'appareil perd tout)
+- [ ] Abus : un compte invité ne coûte rien à créer → montants modestes,
+      rien d'échangeable
+
+## A10 — Dojo des Pouvoirs ⬜
+
+- [ ] Bouton « Essayer sur la table » sur chaque fiche (Collection, Boutique)
+- [ ] Situation de 1 pli **générée à partir du script** de la carte (cible,
+      conditions comme `isTrickLeader` ou `deckNotEmpty`) avec le bac à sable
+      (`createSandboxTable`, `runSandboxActivation`), pour que les cartes
+      ajoutées depuis l'admin aient leur essai sans écrire de scène
+- [ ] Par geste : une cible prête (geste 2), une attaque du bot juste après
+      (geste 4, défense), un pli qui termine la manche (cartes de fin de
+      manche)
+- [ ] Scène écrite à la main seulement en option, pour une carte qui le
+      mérite
+- [ ] Après l'essai : « Rejouer », « Équiper » ou « Acheter »
+
+## A11 — Bulles « juste à temps » ⬜
+
+Une seule fois chacune, sans voile sombre, toujours refermables.
+
+- [ ] Registre des bulles vues (local + compte), qui reprend
+      `njambo:onboarding-seen:v1`
+- [ ] Table : première victoire instantanée (somme animée), premier coup
+      joué par le chrono, premier ×2 subi, premier pouvoir adverse inconnu
+      (étiquette → aperçu de la carte), première manche d'une série
+- [ ] Hors table : première Boutique (Livres et offres), premier Événement
+      (vies, étapes, pas de ×2 du 3), première Collection (équiper),
+      Énergie à zéro
+- [ ] Bouton `?` de la table : Mémo, et Dojo après la partie
+
+## A12 — Coach en direct ⬜
+
+Pendant une vraie partie, le coach regarde ce qui se passe **à chaque
+tour** et dit en une phrase ce qui compte maintenant. Il ne fige jamais la
+table et ne demande jamais de toucher la bulle.
+
+### Ce qu'il dit, et quand
+
+| Moment de la partie | Exemple de bulle | Accompagné | Conseils | En ligne (D10) |
+| --- | --- | --- | --- | --- |
+| C'est à toi, tu dois suivre | « Tendance ♥ : tu dois jouer du Cœur. » | ✅ | — | ✅ (premières fois) |
+| Tu ne peux pas gagner le pli | « Tu ne peux pas gagner ce pli : joue ta plus petite carte. » | ✅ | ✅ | — |
+| Tu peux gagner le pli | « Ton 9♥ bat la table pour l'instant. » | ✅ | — | — |
+| Tu lances | « Tu lances : tu choisis la tendance. » | ✅ | — | ✅ (premières fois) |
+| Pli 4 | « Pli 4 : gagne-le pour lancer le dernier. » | ✅ | ✅ | — |
+| Pli 5 avec un 3, tu lances | « Personne n'a suivi le ♣ au pli 2 : ton 3♣ peut tenter le ×2. » | ✅ | ✅ | — |
+| Fin d'un pli | « Ya gagne : son 10♠ est le plus fort de la tendance. » | ✅ | — | — |
+| Pouvoir subi | « Coupe-Circuit de Mado : tu dois jouer ta plus petite carte. » | ✅ | ✅ | ✅ |
+| Chrono bas (5 s) | « Plus que 5 s, sinon ta plus petite carte part seule. » | ✅ | ✅ | ✅ (premières fois) |
+| Hésitation de 5 s (D11) | La carte conseillée s'éclaire, comme avec Main du Griot | ✅ (Solo IA) | — | — |
+
+### Règles du coach en direct
+
+- [ ] **Seulement ce que le joueur voit** : sa main, les cartes posées, les
+      défausses tombées, le chrono. Jamais la main d'un adversaire, même en
+      Solo IA où la partie locale la connaît. Le moteur du coach reçoit une
+      « vue du joueur » construite sans ces mains : il ne peut pas tricher
+      par erreur.
+- [ ] **Une bulle par tour au plus**, posée seulement quand la table est au
+      repos (file d'attente de A2), et qui disparaît seule.
+- [ ] **Bulles plus courtes en ligne** (10 mots au plus) : le chrono ne
+      s'arrête pas.
+- [ ] **Solo IA, niveau « Accompagné »** : chrono allongé ou sans limite
+      (comme `unlimitedTurnsBot`).
+- [ ] **Le coach s'efface** : chaque conseil a un compteur ; appliqué sans
+      aide 3 fois de suite, il ne revient plus (D12).
+- [ ] Réglage à 3 niveaux (Accompagné, Conseils, Désactivé) dans les
+      Options **et** dans le bouton `?` de la table, changeable en pleine
+      partie.
+
+### Technique
+
+- [ ] Moteur pur `engine/academy/liveCoach.ts` : (vue du joueur avant, vue
+      après, compteurs) → une bulle ou rien, avec sa priorité. Testé conseil
+      par conseil.
+- [ ] Les situations se calculent avec les règles du jeu (`legalCards`,
+      `trickWinner`). La carte conseillée (D11) vient de `botChooseCard`
+      (`engine/bot.ts`, niveau « hard » : mémoire des cartes tombées et
+      cartes maîtresses), en lui passant seulement les cartes visibles.
+- [ ] Affichage avec le calque de A2 ; carte conseillée avec le même effet
+      que Main du Griot (`highlightHandCard`, style `recommend`).
+- [ ] Branché sur l'état de la table (`TableScreen.tsx`), pour les parties
+      locales **et** serveur : il ne touche pas à la synchro en ligne.
+- [ ] Mesures (A7) : conseil affiché, conseil suivi ou non, niveau choisi.
+
+---
+
+## Risques
+
+| Risque | Parade |
+| --- | --- |
+| La bulle parle pendant une animation | File d'attente du coach (A2), testée sur la donne et sur les pouvoirs les plus longs (`powerMax`) |
+| Bulle sur la carte à toucher, en portrait | Placement calculé depuis le registre des zones ; vérification à 375 × 812 |
+| Texte en désaccord avec les réglages de l'admin | Règle stricte n° 6 + test A0 |
+| Carte d'une scène désactivée par l'admin | Repli A1 (carte du même geste, sinon scène masquée) |
+| Le moteur de scènes dérive des vraies règles | Il appelle les mêmes fonctions (`engine/rules.ts`, moteur de pouvoirs) ; tests A1 |
+| Récompenses récoltées en boucle avec des comptes invités | Montants modestes, rien d'échangeable (A9) |
+| Un chantier trop gros avant d'avoir appris quoi que ce soit | Test avec de vrais novices (A7) avant A8 |
+| Le coach en direct devient bavard ou agaçant | Une bulle par tour au plus, compteurs de retrait, niveau changeable en pleine partie (A12) |
+| Le coach donne un avantage injuste en ligne | Règles seulement contre d'autres joueurs, vue du joueur sans les mains adverses (D10, A12) |
+| Le coach se trompe de conseil | Moteur pur testé situation par situation ; conseil de coup limité au Solo IA |
+
+## Journal
+
+| Date | Étape | Avancée |
+| --- | --- | --- |
+| 2026-11-27 | — | Plan rédigé à partir de l'analyse « 3 profils, 3 cercles, 4 mécanismes », relue contre le code : 6 écarts entre textes et moteur listés (A0), donne animée de 12,4 s à 3 joueurs relevée, 4e profil (invité par un ami) ajouté. Décisions D1 à D5, D8, D9 proposées ; D6 (Couleur ×2) et D7 (Éclair sur un 3) ouvertes. |
+| 2026-11-27 | A0 | D6 tranchée : la Couleur ne double pas. Source unique `getInstantWinRules(cfg)` pour le guide et le mémo de la table (qui promettait aussi le ×2), limite de cartes Pouvoir lue dans la config, « une fois par partie », astuce du 3 nuancée. 3 tests ; tsc, eslint et suite au vert (454). Guide vérifié au navigateur (espaces perdus après `</b>` corrigés). Mémo de la table non vu à l'écran (serveur local arrêté). |
+| 2026-11-27 | A12 | Demande : une aide en temps réel aussi dans les vraies parties. Ajout de l'étape A12 « Coach en direct » (conseils par moment de jeu, 3 niveaux, retrait progressif, vue du joueur sans mains adverses) et des décisions D10 à D12, à valider. |
+| 2026-11-27 | A12 | D10, D11 et D12 validées telles que proposées : règles seulement contre de vrais joueurs, carte conseillée seulement en Solo IA « Accompagné » après 5 s, niveau « Accompagné » au départ avec retrait progressif. |
+| 2026-11-27 | — | D1 à D5 et D8 validées telles que proposées : porte d'entrée à 2 boutons, chapitre 4 puis Dojo générique, bulles hors table en dernier, Tonton René en guide, récompenses modestes côté serveur (montants à fixer en A9), partie de fin gratuite et locale. Restent : D7 ouverte, D9 à confirmer en A1. |
+| 2026-11-27 | D7 | D7 tranchée : un 3 boosté (Éclair du Mfoundi) gagne avec sa valeur effective mais ne double plus. `lastCardDoubles` exige un vrai 3 non boosté et le serveur (`matchCommands.ts`) l'appelle au lieu de sa propre copie. Phrase ajoutée au guide (carte 3, vue au navigateur à 375×812 sans défilement), à la description de l'Éclair et à la référence de l'assistant IA. 5 tests unitaires et un 4e cas dans `smoke-double-penalty.cjs` (schéma Postgres temporaire, vert). tsc, eslint, suite au vert (459). Description de l'Éclair déjà en base : non écrasée par le seed, à reprendre dans l'éditeur admin. Reste : D9 à confirmer en A1. |

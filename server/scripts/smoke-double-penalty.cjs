@@ -19,8 +19,9 @@ const STAKE = 100;
 /* Lance une partie contre un bot et prépare le dernier pli :
    - `iWin` : je mène avec 3♠, le bot n'a pas de pique → je gagne avec un 3 ;
    - sinon : le bot a déjà posé 3♠, je n'ai pas de pique → il gagne avec un 3.
-   `totem` : effet Totem des Ancêtres actif pour moi. */
-async function lastTrick(uid, { iWin, totem }) {
+   `totem` : effet Totem des Ancêtres actif pour moi.
+   `eclair` : Éclair du Mfoundi actif pour moi (mon 3 joue comme un 5). */
+async function lastTrick(uid, { iWin, totem, eclair = false }) {
   await core.db.doc(`players/${uid}`).set({ uid, name: "Mbarga", emoji: "🎴" });
   await core.db.doc(`economies/${uid}`).set({ nkap: 5000, cauris: 100 });
   await core.db.doc(`inventories/${uid}`).set({ cards: {}, equippedCards: [], tickets: {} });
@@ -39,10 +40,12 @@ async function lastTrick(uid, { iWin, totem }) {
     trickNumber: GAME_CONFIG.cardsPerPlayer - 1,
     trickPlays: iWin ? [] : [{ uid: botUid, card: card("3", 3, "♠"), turnId: doc.turnId }],
   }, { merge: true });
-  if (totem) {
+  if (totem || eclair) {
     const engineRef = core.db.doc(`matches/${started.matchId}/private/__engine`);
     const engine = (await engineRef.get()).data();
-    await engineRef.set({ ...engine, effects: [{ cardId: "totem_ancetres", activatedBy: me, scopeTrickNo: 1, preventDoublePenalty: true }] });
+    await engineRef.set({ ...engine, effects: [totem
+      ? { cardId: "totem_ancetres", activatedBy: me, scopeTrickNo: 1, preventDoublePenalty: true }
+      : { cardId: "eclair_mfoundi", activatedBy: me, scopeTrickNo: GAME_CONFIG.cardsPerPlayer, valueBonus: 2 }] });
   }
   const before = (await core.db.doc(`economies/${uid}`).get()).data().nkap;
   const pot = Number((await ref.get()).get("potNkap"));
@@ -73,5 +76,11 @@ async function lastTrick(uid, { iWin, totem }) {
   const totem = await lastTrick("doubleTotem00000000001", { iWin: false, totem: true });
   assert(totem.after === totem.before, "Totem : aucune mise double prélevée");
   assert(totem.mine?.doubleBlocked === true && totem.mine.nkapDelta === -STAKE, "règlement : Totem signalé, seule la mise est perdue");
+
+  // 4. Je gagne le dernier pli avec un 3 boosté par l'Éclair : il gagne comme un 5 mais ne double pas.
+  const boosted = await lastTrick("doubleEclair0000000001", { iWin: true, totem: false, eclair: true });
+  assert(boosted.result?.winnerUid === "doubleEclair0000000001", "le 3 boosté gagne le dernier pli");
+  assert(boosted.result?.doubled === false, "3 boosté : partie non doublée");
+  assert(boosted.after - boosted.before === boosted.pot, `gain : pot ${boosted.pot} seul (reçu ${boosted.after - boosted.before})`);
   process.exit(0);
 })().catch((e) => { console.error(e); process.exit(1); });

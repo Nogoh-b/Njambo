@@ -11,6 +11,7 @@ import { getPowerModule } from "../../config/powers/registry";
 import type { PowerScript } from "../../engine/power/types";
 import { ensurePowerCatalogFresh } from "./powerCatalog";
 import { botChooseCard } from "../../engine/bot";
+import { lastCardDoubles } from "../../engine/rules";
 import { applyTrickPowerRewards, consumeNextCardModifiers } from "../../engine/power/rewards";
 import { loadEngineState, persistEngineState } from "./powerCommands";
 import type { Card as EngineCard, PowerCardId } from "../../types/game";
@@ -716,11 +717,12 @@ export async function performGameAction(
     /* Dernier pli gagné avec un 3 (GAME_CONFIG.lastCardThreeDoubles, annoncé dans les règles) : chaque perdant paie
        une mise de plus au vainqueur, plafonnée à son solde ; Totem des Ancêtres (preventDoublePenalty) en protège.
        En série, seul le dernier pli de la dernière manche compte, et il doit être gagné par le vainqueur du match.
-       Hors événements : leurs tables ont leur propre barème. */
+       Hors événements : leurs tables ont leur propre barème. Un 3 boosté (Éclair…) ne double pas : même règle
+       que le jeu local (engine/rules.lastCardDoubles). */
     // (affecté dans resolveCompletedTrick : TypeScript ne suit pas l'affectation faite dans la closure)
     const lastWin = lastTrickWin as { seat: number; card: ServerCard } | null;
-    const doubled = finished && GAME_CONFIG.lastCardThreeDoubles && eventRunSnaps.length === 0
-      && lastWin !== null && lastWin.seat === finalWinnerIndex && lastWin.card.value === 3;
+    const doubled = finished && eventRunSnaps.length === 0
+      && lastWin !== null && lastWin.seat === finalWinnerIndex && lastCardDoubles(lastWin.card as EngineCard, GAME_CONFIG);
     const result = finished ? {
       winnerUid: participants[finalWinnerIndex].uid,
       winnerName: participants[finalWinnerIndex].name,

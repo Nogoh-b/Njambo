@@ -41,5 +41,7 @@ export function trickWinner(plays: TrickPlay[], ledSuit: string): number {
   return best!.playerIdx;
 }
 
+/* Le ×2 récompense un vrai 3 : boosté par un pouvoir (Éclair du Mfoundi…), il
+   gagne le pli avec sa valeur effective mais ne double plus. */
 export const lastCardDoubles = (card: Card, cfg: GameConfig = GAME_CONFIG): boolean =>
-  cfg.lastCardThreeDoubles && card.value === 3;
+  cfg.lastCardThreeDoubles && card.value === 3 && (card.effectiveValue ?? card.value) === 3;

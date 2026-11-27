@@ -1,4 +1,4 @@
-import type { Result, SyncStatus } from "@/types/game";
+import type { GameConfig, InstantReason, Result, SyncStatus } from "@/types/game";
 
 export interface NextRoundPresentation {
   /** Libellé complet, conservé pour l'étiquette d'accessibilité. */
@@ -12,6 +12,23 @@ export interface NextRoundPresentation {
 export interface SyncStatusPresentation {
   label: string;
   urgent: boolean;
+}
+
+export interface InstantWinRule {
+  reason: InstantReason;
+  /** Gains doublés : même valeur que le moteur (engine/rules.ts, checkInstantWin). */
+  doubles: boolean;
+}
+
+/** Victoires immédiates à la donne, dans l'ordre d'affichage des écrans de règles.
+ *  Les règles et le mémo de la table lisent ces lignes au lieu d'écrire « ×2 » en dur. */
+export function getInstantWinRules(cfg: Pick<GameConfig, "instantWin">): InstantWinRule[] {
+  if (!cfg.instantWin.enabled) return [];
+  return [
+    { reason: "under21", doubles: false },
+    { reason: "exact21", doubles: true },
+    ...(cfg.instantWin.flushWins ? [{ reason: "flush" as const, doubles: cfg.instantWin.flushDoubles }] : []),
+  ];
 }
 
 /** Texte de résultat partagé par tous les modes, sans modifier le calcul du moteur. */

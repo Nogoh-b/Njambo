@@ -15,7 +15,7 @@ export const eclairMfoundi: PowerModule = {
     activationTitle: "ÉCLAIR DU MFOUNDI",
     activationText: "Ta prochaine carte frappe +2",
     activationTextOthers: "{activator} charge un éclair",
-    description: "Ta prochaine carte gagne +2 valeur virtuelle, max 10.",
+    description: "Ta prochaine carte gagne +2 valeur virtuelle, max 10. Un 3 boosté ne double pas au dernier tour.",
     costCauris: 58,
     costNkap: 950,
     animTags: ["hand_self_boost"],

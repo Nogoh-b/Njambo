@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
+import { Fragment, memo, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties } from "react";
 import { useSfx } from "@gxe/react";
 
 
@@ -75,7 +75,7 @@ import type {
 } from "@/engine/power/types";
 import { useAuth } from "@/hooks/useAuth";
 import { useViewport } from "@/hooks/useViewport";
-import { formatGameAnnouncement, getSyncStatusPresentation } from "@/lib/gamePresentation";
+import { formatGameAnnouncement, getInstantWinRules, getSyncStatusPresentation } from "@/lib/gamePresentation";
 import {
   CARD_SOUND,
   DEAL_SWEEP_SOUND,
@@ -507,6 +507,13 @@ export function TableScreen({
   const latestConfigRef = useRef(cfg);
   latestConfigRef.current = cfg;
   const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
+  /* Mémo de la table : victoires à la donne lues dans les règles du jeu (pas de « ×2 » en dur). */
+  const instantWinLabels = getInstantWinRules(cfg).map((rule) => {
+    const label = rule.reason === "under21" ? `< ${cfg.instantWin.sumBelow}`
+      : rule.reason === "exact21" ? `= ${cfg.instantWin.sumExactDoubles}`
+        : `${cfg.cardsPerPlayer} cartes de même couleur`;
+    return rule.doubles ? `${label} (×2)` : label;
+  });
   /* Tous les sons de cet écran sont migrés vers GXE (lib/gxeSfx.ts). D'autres
      écrans (ResultScreen, SettlementArena) utilisent encore `sfx` de
      `useGame()` (lib/sound.ts) tant que leur propre migration n'est pas
@@ -3144,7 +3151,19 @@ export function TableScreen({
             <div className={styles.ruleCard}>
               <strong className={styles.ruleHeadingPink}>4. Victoires instantanées & Pouvoirs</strong>
               <div style={{ marginTop: 3, opacity: 0.85 }}>
-                Dès la donne, une main dont la somme est <b>&lt; 21</b>, <b>= 21 (×2)</b> ou <b>5 cartes de même couleur (×2)</b> gagne immédiatement. Touche tes cartes pouvoir en bas à droite pour voir leur effet.
+                {instantWinLabels.length > 0 && (
+                  <>
+                    Dès la donne, une main dont la somme est{" "}
+                    {instantWinLabels.map((label, index) => (
+                      <Fragment key={label}>
+                        {index > 0 && (index === instantWinLabels.length - 1 ? " ou " : ", ")}
+                        <b>{label}</b>
+                      </Fragment>
+                    ))}{" "}
+                    gagne immédiatement.{" "}
+                  </>
+                )}
+                Touche tes cartes pouvoir en bas à droite pour voir leur effet.
               </div>
             </div>
 

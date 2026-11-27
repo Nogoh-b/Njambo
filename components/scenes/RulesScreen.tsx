@@ -9,6 +9,7 @@ import { Chip } from "@/components/ui/Chip";
 import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import { useGame } from "@/contexts/GameContext";
 import { NKAP } from "@/data/mock";
+import { getInstantWinRules } from "@/lib/gamePresentation";
 
 /* ═══════════════ RulesScreen — Guide interactif en 5 cartes (zéro scroll) ═══════════════ */
 
@@ -26,6 +27,8 @@ export function RulesScreen() {
   const { navigateTo, goBack, backLabelFor, cfg } = useGame();
   const [stepIndex, setStepIndex] = useState(0);
   const deckSize = (cfg.ranks.max - cfg.ranks.min + 1) * cfg.suits.length;
+  const instantWins = getInstantWinRules(cfg);
+  const powerLimit = cfg.maxEquippedPowers;
 
   const steps: RuleStep[] = [
     {
@@ -112,7 +115,7 @@ export function RulesScreen() {
             {cfg.lastCardThreeDoubles && (
               <>
                 {" "}Si tu gagnes le <b style={{ color: "#fffaf0" }}>5e et dernier tour avec un 3</b>, tu réalises un coup de maître :{" "}
-                <b style={{ color: "#fff0a8" }}>tes gains sont doublés (×2)</b> !
+                <b style={{ color: "#fff0a8" }}>tes gains sont doublés (×2)</b> ! Un 3 boosté par un pouvoir ne double pas.
               </>
             )}
           </p>
@@ -129,7 +132,7 @@ export function RulesScreen() {
           >
             <PlayCard card={{ id: "ex-3bonus", rank: "3", value: 3, suit: "♠", color: "#1c1f24" }} w={46} glow />
             <div style={{ fontSize: 12.5, lineHeight: 1.4, color: "#f2e4c7" }}>
-              <b style={{ color: "#fff0a8" }}>Astuce de pro :</b> garde un <b>3</b> pour le 5e tour et une grosse carte au 4e tour pour prendre la main et lancer le dernier pli !
+              <b style={{ color: "#fff0a8" }}>Astuce de pro :</b> gagne le 4e tour avec une grosse carte pour lancer le dernier. Ton <b>3</b>{" "}ne gagne que si personne ne peut suivre sa couleur : c&apos;est un pari !
             </div>
           </div>
         </div>
@@ -144,20 +147,24 @@ export function RulesScreen() {
       badge: "Dès la donne",
       render: () => (
         <div style={{ display: "grid", gap: 10 }}>
-          <p style={{ margin: 0 }}>Avant même le 1er tour, ta main de 5 cartes gagne immédiatement le pot si :</p>
-          <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
-            <li>
-              Somme des 5 cartes <b style={{ color: "#fffaf0" }}>&lt; {cfg.instantWin.sumBelow}</b> → victoire immédiate.
-            </li>
-            <li>
-              Somme exacte <b style={{ color: "#fffaf0" }}>= {cfg.instantWin.sumExactDoubles}</b> → victoire <b style={{ color: "#fff0a8" }}>doublée (×2)</b>.
-            </li>
-            {cfg.instantWin.flushWins && (
-              <li>
-                <b style={{ color: "#fffaf0" }}>Couleur (5 cartes du même signe)</b> → victoire immédiate <b style={{ color: "#fff0a8" }}>doublée (×2)</b>.
-              </li>
-            )}
-          </ul>
+          {instantWins.length > 0 ? (
+            <>
+              <p style={{ margin: 0 }}>Avant même le 1er tour, ta main de {cfg.cardsPerPlayer} cartes gagne immédiatement le pot si :</p>
+              <ul style={{ margin: 0, paddingLeft: 18, display: "grid", gap: 8 }}>
+                {instantWins.map((rule) => (
+                  <li key={rule.reason}>
+                    {rule.reason === "under21" && <>Somme des {cfg.cardsPerPlayer} cartes <b style={{ color: "#fffaf0" }}>&lt; {cfg.instantWin.sumBelow}</b></>}
+                    {rule.reason === "exact21" && <>Somme exacte <b style={{ color: "#fffaf0" }}>= {cfg.instantWin.sumExactDoubles}</b></>}
+                    {rule.reason === "flush" && <b style={{ color: "#fffaf0" }}>Couleur ({cfg.cardsPerPlayer} cartes du même signe)</b>}
+                    {" → victoire "}
+                    {rule.doubles ? <b style={{ color: "#fff0a8" }}>doublée (×2)</b> : "immédiate"}.
+                  </li>
+                ))}
+              </ul>
+            </>
+          ) : (
+            <p style={{ margin: 0 }}>Pas de victoire immédiate à la donne : on joue toujours les {cfg.cardsPerPlayer} tours.</p>
+          )}
         </div>
       ),
     },
@@ -171,7 +178,12 @@ export function RulesScreen() {
       render: () => (
         <div style={{ display: "grid", gap: 12 }}>
           <p style={{ margin: 0 }}>
-            Équipe jusqu&apos;à <b style={{ color: "#fffaf0" }}>3 cartes Pouvoir</b> avant la manche et touche-les en partie pour activer leur effet.
+            {powerLimit > 0 && (
+              <>
+                Équipe jusqu&apos;à <b style={{ color: "#fffaf0" }}>{powerLimit} carte{powerLimit > 1 ? "s" : ""} Pouvoir</b>{" "}avant la partie, puis touche-les à table pour activer leur effet.
+                Chacune ne sert qu&apos;<b style={{ color: "#fffaf0" }}>une fois par partie</b>.{" "}
+              </>
+            )}
             Tu disposes de <b style={{ color: "#fffaf0" }}>{cfg.turnSeconds}s</b> par tour.
           </p>
           <div style={{ display: "flex", gap: 7, flexWrap: "wrap", alignItems: "center" }}>

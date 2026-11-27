@@ -55,7 +55,7 @@ function gameRules(): string {
     "# Njambo : règles et déroulement",
     `- Jeu de ${(cfg.ranks.max - cfg.ranks.min + 1) * cfg.suits.length} cartes : valeurs ${cfg.ranks.min} à ${cfg.ranks.max}, couleurs ${suits} (ni figures ni As). 2 à 4 joueurs, ${cfg.cardsPerPlayer} cartes chacun, mise au départ dans le pot.`,
     `- Une manche = ${cfg.cardsPerPlayer} tours (plis). Le premier joueur d'un pli fixe la « tendance » (sa couleur). Les autres doivent la suivre s'ils peuvent, sinon ils se défaussent : une défausse ne gagne jamais le pli. La plus forte carte de la tendance gagne le pli et entame le suivant.`,
-    "- Seul le gagnant du dernier pli remporte le pot. Gagner le dernier pli avec un 3 double les gains (Ngata ×2), si la règle est active.",
+    "- Seul le gagnant du dernier pli remporte le pot. Gagner le dernier pli avec un 3 double les gains (Ngata ×2), si la règle est active ; un 3 boosté par un pouvoir (Éclair du Mfoundi) ne double pas.",
     `- Victoires immédiates à la donne : somme des cartes < ${cfg.instantWin.sumBelow} ; somme = 21 (gains doublés) ; 5 cartes de la même couleur.`,
     `- Chaque tour a un minuteur (${cfg.turnSeconds} s par défaut, réglable dans « Règles des parties »). Une partie peut compter plusieurs manches (séries) : le pot est réglé une fois pour le gagnant de la série.`,
     "- Les cartes jouées s'empilent sur le dépôt de chaque joueur jusqu'à la donne suivante : le pli n'est jamais « ramassé ».",
