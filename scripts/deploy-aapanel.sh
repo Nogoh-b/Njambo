@@ -64,6 +64,11 @@ npm run build:server --silent
 
 echo "▶ Build du front (dans .next-build, le site en ligne continue de tourner)…"
 rm -rf .next-build
+# tsconfig.json inclut .next/types/**/*.ts : sans ce nettoyage, le type-check
+# lit les types générés par le build EN LIGNE, qui référencent d'anciennes
+# routes (ex. app/admin/page.js déplacée) → « Cannot find module ».
+# Ces fichiers ne servent qu'au type-check, `next start` n'en a pas besoin.
+rm -rf .next/types .next/dev/types
 NEXT_DIST_DIR=.next-build npm run build --silent
 git checkout -q -- tsconfig.json   # Next y ajoute les types de .next-build
 
