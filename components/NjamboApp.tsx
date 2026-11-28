@@ -9,7 +9,9 @@ import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepL
 import { consumeAcademyDeepLink } from "@/lib/academy/deepLink";
 import { CoachLayer } from "@/components/academy/CoachLayer";
 import type { AcademyScene } from "@/engine/academy/types";
-import { stepScene, type AcademyStep } from "@/data/academy/course";
+import { BASICS_COURSE, stepScene, type AcademyStep } from "@/data/academy/course";
+import { EntryDoor } from "@/components/academy/EntryDoor";
+import { entryDoorAtBoot, markEntryDoor, shouldOpenEntryDoor, type EntryDoorChoice } from "@/lib/academy/entryDoor";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import { usePowerCatalogLoader, usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
 import { useAssetPackSync } from "@/hooks/useAssetPackSync";
@@ -382,10 +384,22 @@ function SceneRouter() {
     setAcademyRun({ steps, index: 0 });
   }, [openAcademyStep, startAcademyScene]);
 
+  /* --- Porte d'entrée (A5) : un seul passage, puis plus jamais --- */
+  const [entryDoorOpen, setEntryDoorOpen] = useState(false);
+  const answerEntryDoor = useCallback((choice: EntryDoorChoice) => {
+    markEntryDoor(choice);
+    setEntryDoorOpen(false);
+    // « Je découvre » : le chapitre 1 directement. « Je connais » : le guide, futur hub (chapitre 4 à venir).
+    if (choice === "discover") startAcademyCourse(BASICS_COURSE);
+    else if (choice === "known") navigateTo("rules");
+  }, [navigateTo, startAcademyCourse]);
+
   useEffect(() => {
     const link = consumeAcademyDeepLink();
     if (link?.course) startAcademyCourse(link.course);
     else if (link?.scene) startAcademyScene(link.scene);
+    // Tout premier lancement, arrivé sur l'accueil : la porte d'entrée de l'Académie.
+    else if (link?.door || shouldOpenEntryDoor(entryDoorAtBoot())) setEntryDoorOpen(true);
     // Une seule lecture du lien, au démarrage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -885,6 +899,14 @@ function SceneRouter() {
 
         {/* Coach de l'Académie : un seul calque, au-dessus de la table et des écrans. */}
         <CoachLayer />
+
+        {entryDoorOpen && (
+          <EntryDoor
+            onDiscover={() => answerEntryDoor("discover")}
+            onKnown={() => answerEntryDoor("known")}
+            onSkip={() => answerEntryDoor("skipped")}
+          />
+        )}
 
         {/* Écran de file d'attente — au-dessus de la table tant qu'un événement
             PvP n'a pas de groupe (currentMatchId absent du run). */}

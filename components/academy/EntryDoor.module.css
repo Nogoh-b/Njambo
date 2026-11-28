@@ -1,0 +1,127 @@
+/* Porte d'entrée : au-dessus de l'accueil, sous le calque du coach. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 400;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: radial-gradient(circle at 50% 30%, rgba(26, 60, 48, 0.92), rgba(6, 10, 9, 0.96));
+  animation: door-in 320ms ease;
+}
+
+@keyframes door-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.card {
+  display: grid;
+  gap: 12px;
+  justify-items: center;
+  width: min(380px, 100%);
+  padding: 22px 18px 14px;
+  border-radius: 22px;
+  border: 1px solid rgba(255, 212, 92, 0.5);
+  background: linear-gradient(180deg, rgba(34, 24, 17, 0.97), rgba(20, 14, 10, 0.98));
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6);
+  color: #fff8ea;
+}
+
+.guide {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  width: 100%;
+}
+
+.avatar {
+  flex: 0 0 auto;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px rgba(255, 212, 92, 0.7);
+}
+
+.welcome {
+  display: grid;
+  gap: 2px;
+  margin: 0;
+  font-size: 0.95rem;
+  line-height: 1.4;
+}
+
+.welcome strong {
+  font-size: 0.72rem;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #ffd45c;
+}
+
+.choice {
+  display: grid;
+  gap: 3px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: 16px;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+  transition: transform 140ms ease, box-shadow 140ms ease;
+}
+
+.choice strong {
+  font-family: var(--font-display), Georgia, serif;
+  font-size: 1.15rem;
+}
+
+.choice small {
+  font-size: 0.8rem;
+  opacity: 0.85;
+}
+
+.choice:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+.choice:focus-visible,
+.skip:focus-visible {
+  outline: 2px solid #ffd45c;
+  outline-offset: 2px;
+}
+
+.discover {
+  border: 0;
+  color: #2a1a05;
+  background: linear-gradient(180deg, #ffe27a, #e8b52a);
+  box-shadow: 0 4px 0 #7a5410, 0 10px 24px rgba(232, 181, 42, 0.25);
+}
+
+.known {
+  border: 1px solid rgba(77, 245, 216, 0.55);
+  color: #e9fffa;
+  background: rgba(20, 197, 164, 0.14);
+}
+
+.skip {
+  padding: 6px 12px;
+  border: 0;
+  background: transparent;
+  color: rgba(242, 228, 199, 0.7);
+  font: inherit;
+  font-size: 0.82rem;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .backdrop { animation: none; }
+}

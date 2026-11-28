@@ -16,7 +16,7 @@
 | A2 | Coach : bulle, projecteur, refus doux, file « animation → parole → action » | ✅ Terminé |
 | A3 | Chapitres 1 à 3 : les bases du Njambo | ✅ Terminé |
 | A4 | Partie de fin d'Académie (vraie donne, bots faciles, aides) | ✅ Terminé |
-| A5 | Porte d'entrée au premier lancement | ⬜ À faire |
+| A5 | Porte d'entrée au premier lancement | ✅ Terminé |
 | A6 | Hub Académie (remplace « Comment jouer ») + Mémo express | ⬜ À faire |
 | A7 | Mesures + premier test avec de vrais novices | ⬜ À faire |
 | A8 | Chapitre 4 : les 4 gestes des cartes Pouvoir | ⬜ À faire |
@@ -427,15 +427,28 @@ direct** (A12), au niveau « Accompagné ».
 Une victoire immédiate à la donne reste possible (vraie donne) : le coach
 l'explique dans le bilan, et « Rejouer » relance une manche jouée.
 
-## A5 — Porte d'entrée ⬜
+## A5 — Porte d'entrée ✅
 
-- [ ] Premier lancement détecté (aucune progression d'Académie locale ni
-      sur le compte)
-- [ ] Écran à 2 gros boutons + lien « Passer » (D1)
-- [ ] « Je découvre » : chapitre 1 directement, sans écran de plus
-- [ ] Arrivée par un lien de salle : écran sauté
-- [ ] « Passer » ne revient jamais ; le hub reste accessible depuis le Salon
-      et depuis le bouton `?` de la table
+- [x] Premier lancement détecté sur l'appareil (`lib/academy/entryDoor.ts`) :
+      aucune clé « njambo… » au démarrage (photographiées au chargement,
+      avant que l'application n'écrive les siennes) et porte jamais
+      répondue. La session de compte n'est pas une trace fiable (absente
+      du stockage local chez un compte connecté) : vu au navigateur, corrigé.
+      Pas de progression côté compte pour l'instant (A9)
+- [x] Écran à 2 gros boutons + lien « Passer » (D1), avec Tonton René
+      (`components/academy/EntryDoor.tsx`), premier bouton sélectionné
+- [x] « Je découvre » : chapitre 1 directement, sur la table, sans écran de
+      plus (et coach « Accompagné »)
+- [x] « Je connais le Njambo » : le guide des règles (futur hub A6) tant que
+      le chapitre 4 n'existe pas (D1)
+- [x] Arrivée par un lien (salle `#/lobby?room=`, `?event=`, `?academie=`)
+      ou sur un autre écran : porte sautée
+- [x] « Passer » ne revient jamais (réponse gardée dans
+      `njambo-academy-v1`) ; l'accès au hub depuis le Salon et le `?` de la
+      table vient avec A6
+- [x] Lien d'essai `/?academie=porte`
+- [x] Vérifié au navigateur (375 × 812) : les trois choix, et aucune porte
+      au lancement normal d'un joueur déjà venu
 
 ## A6 — Hub Académie ⬜
 
@@ -692,3 +705,4 @@ le joueur clic par clic, avec le calque de A2 (voile percé, bulle,
 | 2026-11-28 | A4 | A4 terminée. Partie de fin = vraie partie `LocalGameSync` (une manche, sans chrono, mise 0, Mado et Ya en bots faciles, pas de pouvoirs), dernière étape du parcours des bases. Coach en direct commencé (`engine/academy/liveCoach.ts`, `useLiveCoach`) : vue du joueur sans les mains adverses, conseils aux moments clés sans voile, carte conseillée par l'IA « hard » après 5 s d'hésitation. Bilan du coach au lieu de l'écran de résultat, puis « En vraie partie… » avec « Rejouer » / « Continuer ». Lien `/?academie=finale`. Vérifié au navigateur (partie entière, bilan, nouvelle donne). 8 tests de plus ; tsc, eslint, suite au vert (527). |
 | 2026-11-28 | A12 | Coach en direct presque fini, branché sur toutes les parties : table des conseils (tendance, pli gagnable ou non, tu lances, avant-dernier et dernier pli, « le 3 peut tenter le ×2 » prouvé par les plis vus, qui gagne le pli, pouvoir subi, chrono bas), 3 niveaux (Options et bouton `?`), règles seulement et bulles courtes contre d'autres joueurs, carte conseillée en Solo IA « Accompagné », retrait après 3 applications ou affichages, proposition de « Conseils » après 5 victoires. Logique pure dans `liveCoach.ts` + `liveCoachSession.ts`. Niveau de départ « Conseils », « Accompagné » après l'Académie. Reste : chrono des tables serveur en « Accompagné », mesures (A7). 23 tests de plus ; tsc, eslint, suite au vert (550). |
 | 2026-11-28 | A12 | Niveau de départ validé : « Conseils » pour un joueur sans réglage, « Accompagné » après l'Académie (complète D12). |
+| 2026-11-28 | A5 | A5 terminée. Porte d'entrée au tout premier lancement (`EntryDoor`) : « Je découvre » ouvre le chapitre 1 sur la table, « Je connais » le guide (futur hub), « Passer » ne revient jamais ; sautée pour toute arrivée par lien ou sur un autre écran. Premier lancement = aucune clé « njambo… » au démarrage (la session de compte n'est pas dans le stockage local : détection corrigée après essai au navigateur). Lien `/?academie=porte`. 5 tests ; tsc, eslint, suite au vert (556 ; deux tests d'images des packs dépassent parfois 30 s sous charge, verts lancés seuls). |
