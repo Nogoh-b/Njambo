@@ -149,9 +149,11 @@ export function CoachLayer() {
         ))}
       </svg>
 
-      <button type="button" data-nj-skin="none" className={styles.skip} onClick={coachDirector.skip}>
-        Passer
-      </button>
+      {!view.live && (
+        <button type="button" data-nj-skin="none" className={styles.skip} onClick={coachDirector.skip}>
+          Passer
+        </button>
+      )}
 
       {view.title && (
         <button type="button" data-nj-skin="none" className={styles.title} onClick={coachDirector.next}>

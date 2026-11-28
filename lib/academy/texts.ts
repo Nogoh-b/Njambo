@@ -19,7 +19,15 @@ export function coachValues(cfg: GameConfig): Record<string, number> {
   };
 }
 
-export function coachText(key: string, cfg: GameConfig, texts: Record<string, string> = ACADEMY_TEXTS_FR): string {
-  const values = coachValues(cfg);
+/** Valeurs propres à un conseil en direct (carte, couleur, joueur…). */
+export const TIP_VARS = ["card", "suit", "suitName", "trick", "name", "power", "effect", "seconds", "wins"] as const;
+
+export function coachText(
+  key: string,
+  cfg: GameConfig,
+  vars: Record<string, string | number> = {},
+  texts: Record<string, string> = ACADEMY_TEXTS_FR,
+): string {
+  const values: Record<string, string | number> = { ...coachValues(cfg), ...vars };
   return (texts[key] ?? key).replace(/\{(\w+)\}/g, (match, name: string) => (name in values ? String(values[name]) : match));
 }

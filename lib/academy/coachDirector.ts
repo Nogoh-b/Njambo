@@ -36,6 +36,8 @@ export interface CoachTitle {
 
 export interface CoachView {
   active: boolean;
+  /** Vraie partie (coach en direct) : ni « Passer », ni voile. */
+  live: boolean;
   /** Titre de chapitre affiché au centre, avant la première réplique. */
   title: CoachTitle | null;
   /** Réplique affichée ; `blocking` = la scène attend sa lecture (bouton « Suivant »). */
@@ -55,7 +57,7 @@ type Beat =
   | { kind: "act"; expect: YourExpectation; prompt: string | null }
   | { kind: "end"; outcome: SceneOutcome; key?: CoachKey };
 
-const IDLE: CoachView = { active: false, title: null, line: null, focus: [], veil: false, end: null, shake: null };
+const IDLE: CoachView = { active: false, live: false, title: null, line: null, focus: [], veil: false, end: null, shake: null };
 
 /** Temps de lecture d'une réplique : environ 20 caractères par seconde, entre 2,6 et 6,5 s. */
 export const readingMs = (text: string) => Math.max(2600, Math.min(6500, 1400 + text.length * 45));
@@ -92,11 +94,12 @@ export class CoachDirector {
 
   getServerSnapshot = () => IDLE;
 
-  /** Une scène commence : le calque s'affiche, avec le titre du chapitre s'il y en a un. */
-  start(controls: CoachControls, options: { title?: CoachTitle } = {}) {
+  /** Une scène commence : le calque s'affiche, avec le titre du chapitre s'il y en a un.
+   *  `live` : vraie partie, le coach ne fait que des conseils en direct. */
+  start(controls: CoachControls, options: { title?: CoachTitle; live?: boolean } = {}) {
     this.reset();
     this.controls = controls;
-    this.set({ ...IDLE, active: true });
+    this.set({ ...IDLE, active: true, live: Boolean(options.live) });
     if (options.title) {
       this.queue.push({ kind: "title", title: options.title });
       this.pump();
@@ -157,7 +160,7 @@ export class CoachDirector {
     const controls = this.controls;
     if (!controls) return;
     this.reset();
-    this.set({ ...IDLE, active: true });
+    this.set({ ...IDLE, active: true, live: this.view.live });
     controls.retry();
   };
 
@@ -173,9 +176,9 @@ export class CoachDirector {
   /* ═══════════════ Vraie partie (coach en direct) ═══════════════ */
 
   /** Conseil en direct : une bulle qui ne fige rien et s'efface seule. Ignoré si le coach parle déjà. */
-  tip = (key: CoachKey) => {
+  tip = (key: CoachKey, vars: Record<string, string | number> = {}) => {
     if (!this.controls || this.current || this.queue.length > 0) return;
-    const text = this.text(key);
+    const text = this.text(key, vars);
     const id = ++this.lineId;
     this.clearTimer();
     this.set({ ...this.view, line: { id, text, blocking: false }, focus: [], veil: false });
@@ -193,8 +196,8 @@ export class CoachDirector {
 
   /* ═══════════════ Interne ═══════════════ */
 
-  private text(key: CoachKey) {
-    return this.controls ? coachText(key, this.controls.cfg) : key;
+  private text(key: CoachKey, vars: Record<string, string | number> = {}) {
+    return this.controls ? coachText(key, this.controls.cfg, vars) : key;
   }
 
   private pump() {

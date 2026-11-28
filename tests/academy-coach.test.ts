@@ -3,7 +3,7 @@ import { GAME_CONFIG } from "../config/gameConfig";
 import { ACADEMY_TEXTS_FR } from "../data/academy/fr";
 import { CoachDirector, HINT_DELAY_MS, readingMs, TITLE_MS, type CoachControls } from "../lib/academy/coachDirector";
 import { placeBubble, type Box } from "../lib/academy/placement";
-import { coachText, coachValues } from "../lib/academy/texts";
+import { coachText, coachValues, TIP_VARS } from "../lib/academy/texts";
 import type { YourExpectation } from "../engine/academy/types";
 
 afterEach(() => vi.useRealTimers());
@@ -36,7 +36,7 @@ describe("textes du coach", () => {
   });
 
   it("n'utilise que des valeurs connues", () => {
-    const known = Object.keys(coachValues(GAME_CONFIG));
+    const known: string[] = [...Object.keys(coachValues(GAME_CONFIG)), ...TIP_VARS];
     for (const text of Object.values(ACADEMY_TEXTS_FR)) {
       for (const [, name] of text.matchAll(/\{(\w+)\}/g)) expect(known).toContain(name);
     }

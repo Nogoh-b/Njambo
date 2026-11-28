@@ -92,6 +92,9 @@ import { AcademyGameSync } from "@/sync/AcademyGameSync";
 import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
 import { LocalGameSync } from "@/sync/LocalGameSync";
 import { coachDirector, type CoachTitle } from "@/lib/academy/coachDirector";
+import { coachPrefs } from "@/lib/academy/coachPrefs";
+import { CoachLevelPicker } from "@/components/academy/CoachLevelPicker";
+import type { CoachLevel, CoachMode } from "@/engine/academy/liveCoach";
 import type { AcademyScene, SceneOutcome } from "@/engine/academy/types";
 import { finalLine } from "@/engine/academy/liveCoach";
 import { FINAL_GAME_BOTS, finalGameConfig } from "@/lib/academy/finalGame";
@@ -101,6 +104,7 @@ import type {
   BotDifficulty,
   Card,
   Flight,
+  GameConfig,
   GameState,
   GameSyncActions,
   Phase,
@@ -550,6 +554,12 @@ export function TableScreen({
      sync et le sourcing des pouvoirs équipés — s'ils divergent, on afficherait
      des pouvoirs locaux sur un match serveur (→ POWER_NOT_EQUIPPED). */
   const isLocalSync = Boolean(academyScene) || Boolean(academyFinal) || (gameMode === "bot" && (!authUser || authUser.isAnonymous));
+  const coachPrefsState = useSyncExternalStore(coachPrefs.subscribe, coachPrefs.getSnapshot, coachPrefs.getServerSnapshot);
+  /* Solo IA local au niveau « Accompagné » : pas de chrono (comme unlimitedTurnsBot). Les tables du serveur
+     gardent leurs règles, figées au lancement. */
+  const coachUntimedRef = useRef(false);
+  coachUntimedRef.current = coachPrefsState.level === "guided" && gameMode === "bot";
+  const soloConfig = (base: GameConfig): GameConfig => (coachUntimedRef.current ? { ...base, unlimitedTurnsBot: true } : base);
   const serverInventory = useInventory();
   const A = cfg.anim;
   const mise = initialMise;
@@ -766,7 +776,30 @@ export function TableScreen({
     isYourTurn && (!motionEnabled || (spotlight.seatIdx === 0 && spotlight.phase === "ready"));
   const isYourTurnReadyRef = useRef(isYourTurnReady);
   isYourTurnReadyRef.current = isYourTurnReady;
-  useLiveCoach({ enabled: Boolean(academyFinal), state: gameState, cfg, ready: isYourTurnReady, registry: zoneRegistry });
+  /* ----- Coach en direct (A12) : niveau du joueur, règles seulement contre d'autres joueurs (D10) ----- */
+  const coachLevel: CoachLevel = academyFinal ? "guided" : coachPrefsState.level;
+  const coachMode: CoachMode = academyFinal ? "academy" : gameMode === "bot" ? "solo" : "versus";
+  const liveCoachOn = !academyScene && (Boolean(academyFinal) || coachLevel !== "off");
+  const liveCoach = useLiveCoach({
+    enabled: liveCoachOn,
+    mode: coachMode,
+    level: coachLevel,
+    state: gameState,
+    cfg,
+    ready: isYourTurnReady,
+    registry: zoneRegistry,
+    timer: timerStore,
+    unlimited: gameState.unlimitedTurns === true || Boolean(isLocalSync && DEV.unlimitedTime),
+  });
+  const liveCoachRef = useRef(liveCoach);
+  liveCoachRef.current = liveCoach;
+  // Vraie partie hors Académie : le calque n'affiche que les conseils (ni « Passer », ni voile).
+  useEffect(() => {
+    if (!liveCoachOn || academyScene || academyFinal) return;
+    const noop = () => {};
+    coachDirector.start({ cfg, hold: noop, retry: noop, skip: noop, finish: noop }, { live: true });
+    return () => coachDirector.stop();
+  }, [liveCoachOn, academyScene, academyFinal, cfg]);
   const yourLegal = useMemo(
     () => yourHand && isYourTurnReady ? legalCards(yourHand, ledSuit) : null,
     [isYourTurnReady, ledSuit, yourHand],
@@ -1763,6 +1796,8 @@ export function TableScreen({
     if (waitForReveal) return;
     let sync: GameSyncActions;
 
+    // Passer par l'Académie : nouveau joueur, coach « Accompagné » (sauf s'il a déjà choisi son niveau).
+    if (academyScene || academyFinal) coachPrefs.guideNewcomer();
     if (academyScene) {
       // Académie : mains servies, pas de mise ; le coach met la scène en pause quand il parle.
       const academySync = new AcademyGameSync({
@@ -1809,8 +1844,8 @@ export function TableScreen({
       sync = new LocalGameSync({
         profile,
         bots: BOTS,
-        cfg,
-        getConfig: () => latestConfigRef.current,
+        cfg: soloConfig(cfg),
+        getConfig: () => soloConfig(latestConfigRef.current),
         mise,
         initialBotCount,
         difficulty: initialDifficulty,
@@ -2050,7 +2085,8 @@ export function TableScreen({
       }
     });
 
-    const unsubRoundEnd = sync.onRoundEnd(() => {
+    const unsubRoundEnd = sync.onRoundEnd((result) => {
+      liveCoachRef.current.onGameEnd(result.winnerIdx === 0);
       // L'écran de fin de match (ResultScreen) prend immédiatement le relais :
       // on fige la table et on coupe tout overlay/son résiduel de la table.
       pausedRef.current = true;
@@ -2089,6 +2125,11 @@ export function TableScreen({
       if (pausedRef.current) return;
       markPerformance("power:activate");
       const mine = activation.activatedByUid === "local" || activation.activatedByUid === authUid;
+      // Pouvoir d'un adversaire contre le joueur (non bloqué) : le coach dit ce qu'il fait.
+      const attacker = uiIndexFromPowerUid(activation.activatedByUid);
+      if (!mine && !activation.blockedByCardId && uiIndexFromPowerUid(activation.targetUid) === 0 && attacker !== null) {
+        liveCoachRef.current.onPower(activation.cardId, playersRef.current[attacker]?.name ?? "");
+      }
       // `activation.used` peut être FAUX si la carte n'a eu aucun effet (ex :
       // Marché de Nuit sans carte plus forte dans la pioche) — dans ce cas
       // elle N'A PAS été consommée, donc on ne doit PAS la griser dans l'UI.
@@ -3245,6 +3286,15 @@ export function TableScreen({
                 Touche tes cartes pouvoir en bas à droite pour voir leur effet.
               </div>
             </div>
+
+            {!academyScene && !academyFinal && (
+              <div className={styles.ruleCard}>
+                <strong className={styles.ruleHeadingGold}>Coach de Tonton René</strong>
+                <div style={{ marginTop: 6 }}>
+                  <CoachLevelPicker compact />
+                </div>
+              </div>
+            )}
 
             <Btn
               tone="gold"

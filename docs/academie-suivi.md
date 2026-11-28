@@ -23,7 +23,7 @@
 | A9 | Récompenses côté serveur | ⬜ À faire |
 | A10 | Dojo des Pouvoirs (« Essayer sur la table ») | ⬜ À faire |
 | A11 | Bulles « juste à temps » (table et hors table) | ⬜ À faire |
-| A12 | Coach en direct : aide en temps réel pendant les vraies parties | ⬜ À faire |
+| A12 | Coach en direct : aide en temps réel pendant les vraies parties | 🟡 Presque fini (reste : chrono des tables serveur, mesures A7) |
 | A13 | Parcours guidé hors table : équiper sa première carte Pouvoir | ⬜ À faire |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
@@ -567,39 +567,58 @@ table et ne demande jamais de toucher la bulle.
 
 ### Règles du coach en direct
 
-- [ ] **Seulement ce que le joueur voit** : sa main, les cartes posées, les
-      défausses tombées, le chrono. Jamais la main d'un adversaire, même en
-      Solo IA où la partie locale la connaît. Le moteur du coach reçoit une
-      « vue du joueur » construite sans ces mains : il ne peut pas tricher
-      par erreur.
-- [ ] **Une bulle par tour au plus**, posée seulement quand la table est au
-      repos (file d'attente de A2), et qui disparaît seule.
-- [ ] **Bulles plus courtes en ligne** (10 mots au plus) : le chrono ne
-      s'arrête pas.
-- [ ] **Solo IA, niveau « Accompagné »** : chrono allongé ou sans limite
-      (comme `unlimitedTurnsBot`).
-- [ ] **Le coach s'efface** : chaque conseil a un compteur ; appliqué sans
-      aide 3 fois de suite, il ne revient plus (D12).
-- [ ] Réglage à 3 niveaux (Accompagné, Conseils, Désactivé) dans les
-      Options **et** dans le bouton `?` de la table, changeable en pleine
-      partie.
+- [x] **Seulement ce que le joueur voit** : `playerView` ne prend que sa
+      main, les cartes posées et les plis vus (gardés au fil de la manche par
+      la session). Jamais la main d'un adversaire : un test le vérifie.
+- [x] **Une bulle par tour au plus**, posée seulement quand c'est au joueur
+      et que la table est au repos (`isYourTurnReady`), sans voile, qui
+      disparaît seule ; plus l'annonce « qui gagne » en fin de pli
+      (Accompagné)
+- [x] **Bulles plus courtes en ligne** : versions `.short`, 10 mots au plus
+      (test) ; contre d'autres joueurs, seulement tendance, « tu lances »,
+      pouvoir subi et chrono bas (D10)
+- [~] **Solo IA, niveau « Accompagné »** : pas de chrono pour les parties
+      locales. Les tables du serveur gardent leurs règles, figées au
+      lancement : y étendre le chrono demanderait un réglage côté serveur
+- [x] **Le coach s'efface** (D12) : conseil d'action retiré après 3
+      applications de suite (bulle affichée ou non, jugé sur la carte posée,
+      ou sur le pli pour « gagne l'avant-dernier ») ; conseil d'information
+      retiré après 3 affichages ; pouvoir subi : compteur par carte.
+      Compteurs gardés sur l'appareil (`lib/academy/coachPrefs.ts`)
+- [x] Réglage à 3 niveaux (Accompagné, Conseils, Désactivé) dans les
+      Options et dans le bouton `?` de la table, changeable en pleine
+      partie (`CoachLevelPicker`)
+- [x] Niveau de départ : **« Conseils »** pour un joueur sans réglage (on
+      ne sait pas s'il est nouveau : pas de compteur de parties côté
+      client) ; passer par l'Académie le met en **« Accompagné »**, sauf
+      s'il a déjà choisi ; après 5 victoires en « Accompagné », le coach
+      propose une fois de passer en « Conseils » (D12). Validé par
+      l'utilisateur le 2026-11-28
 
 ### Technique
 
-- [ ] Moteur pur `engine/academy/liveCoach.ts` : (vue du joueur avant, vue
-      après, compteurs) → une bulle ou rien, avec sa priorité. Testé conseil
-      par conseil. Commencé en A4 : vue du joueur sans les mains adverses,
-      conseils des moments clés et carte conseillée ; reste la table
-      complète ci-dessus, les compteurs de retrait et les niveaux
-- [ ] Les situations se calculent avec les règles du jeu (`legalCards`,
-      `trickWinner`). La carte conseillée (D11) vient de `botChooseCard`
-      (`engine/bot.ts`, niveau « hard » : mémoire des cartes tombées et
-      cartes maîtresses), en lui passant seulement les cartes visibles.
-- [ ] Affichage avec le calque de A2 ; carte conseillée avec le même effet
-      que Main du Griot (`highlightHandCard`, style `recommend`).
-- [ ] Branché sur l'état de la table (`TableScreen.tsx`), pour les parties
-      locales **et** serveur : il ne touche pas à la synchro en ligne.
-- [ ] Mesures (A7) : conseil affiché, conseil suivi ou non, niveau choisi.
+- [x] Moteur pur `engine/academy/liveCoach.ts` (vue du joueur, table des
+      conseils `LIVE_TIPS`, situations du tour, choix selon niveau,
+      adversaires et retrait) et `engine/academy/liveCoachSession.ts` (une
+      partie suivie état par état : plis vus, conseil du tour, application,
+      chrono bas, pouvoir subi). Testés sans navigateur
+      (`academy-live-coach`, `academy-live-session`)
+- [x] Situations calculées avec les règles du jeu ; « le 3 peut tenter le
+      ×2 » seulement si chaque adversaire a montré qu'il n'avait plus la
+      couleur (pli cité). Carte conseillée (D11) : `botChooseCard` « hard »
+      avec les seules cartes visibles
+- [x] Affichage avec le calque de A2 en mode « vraie partie » (ni « Passer »
+      ni voile) ; carte conseillée avec le style `recommend` de Main du
+      Griot
+- [x] Branché sur `TableScreen` pour toutes les parties (locales et
+      serveur) : état de la table, chrono écouté sans re-rendre la table,
+      pouvoirs reçus et fins de partie ; aucune action sur la synchro
+- [ ] Mesures (A7) : conseil affiché, conseil suivi ou non, niveau choisi
+
+Vérifié au navigateur : réglage dans les Options (tient sans défilement à
+375 × 812, choix enregistré). Pas vu en pleine partie hors Académie : le
+serveur local était arrêté (compte connecté) et le panneau masqué ; la
+session est couverte par les tests.
 
 ## A13 — Parcours guidé : équiper sa première carte ⬜
 
@@ -671,3 +690,5 @@ le joueur clic par clic, avec le calque de A2 (voile percé, bulle,
 | 2026-11-27 | A2 | A2 terminée. Calque du coach monté dans l'application (projecteur, bulle de Tonton René, « Suivant », « Passer », fin avec « Réessayer ce pli » / « Rejouer » / « Continuer »), directeur qui met la scène en pause pendant qu'il parle, repères DOM sur la main, les cartes, les dépôts et les avatars, textes avec valeurs de la partie. `TableScreen` reçoit une scène (`academyScene`) ; lien d'essai `/?academie=<scène>` sans écran de chargement. Vu au navigateur sur téléphone et grand écran : chapitres 1 et 2 de bout en bout, refus qui fait trembler la carte, indice, défi raté et rejoué, « Passer ». Corrigé en route : la bulle mordait sur la main (mesure des cartes soulevées), « Passer » couvrait l'en-tête, « Réessayer » laissait la scène en pause. 13 tests de plus ; tsc, eslint, suite au vert (512). |
 | 2026-11-28 | A3 | A3 terminée. Parcours des bases (`BASICS_COURSE`) enchaîné sur la même table, titres de chapitre, « Et si ? » après le chapitre 3, défi de fin joué librement sur 3 plis (fin de manche libre ajoutée au moteur, validation qui joue tous les ordres de cartes). Deux situations de défi trouvées par une recherche ponctuelle (le 3 passe / ne passe pas), figées dans `scenes.ts`. Lien `/?academie=bases`. Parcours entier vérifié au navigateur sur téléphone. 7 tests de plus ; tsc, eslint, suite au vert (519). |
 | 2026-11-28 | A4 | A4 terminée. Partie de fin = vraie partie `LocalGameSync` (une manche, sans chrono, mise 0, Mado et Ya en bots faciles, pas de pouvoirs), dernière étape du parcours des bases. Coach en direct commencé (`engine/academy/liveCoach.ts`, `useLiveCoach`) : vue du joueur sans les mains adverses, conseils aux moments clés sans voile, carte conseillée par l'IA « hard » après 5 s d'hésitation. Bilan du coach au lieu de l'écran de résultat, puis « En vraie partie… » avec « Rejouer » / « Continuer ». Lien `/?academie=finale`. Vérifié au navigateur (partie entière, bilan, nouvelle donne). 8 tests de plus ; tsc, eslint, suite au vert (527). |
+| 2026-11-28 | A12 | Coach en direct presque fini, branché sur toutes les parties : table des conseils (tendance, pli gagnable ou non, tu lances, avant-dernier et dernier pli, « le 3 peut tenter le ×2 » prouvé par les plis vus, qui gagne le pli, pouvoir subi, chrono bas), 3 niveaux (Options et bouton `?`), règles seulement et bulles courtes contre d'autres joueurs, carte conseillée en Solo IA « Accompagné », retrait après 3 applications ou affichages, proposition de « Conseils » après 5 victoires. Logique pure dans `liveCoach.ts` + `liveCoachSession.ts`. Niveau de départ « Conseils », « Accompagné » après l'Académie. Reste : chrono des tables serveur en « Accompagné », mesures (A7). 23 tests de plus ; tsc, eslint, suite au vert (550). |
+| 2026-11-28 | A12 | Niveau de départ validé : « Conseils » pour un joueur sans réglage, « Accompagné » après l'Académie (complète D12). |

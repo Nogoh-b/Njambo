@@ -1,0 +1,48 @@
+/* Même allure que les sélecteurs des Options (OptionsList.module.css, .segmented). */
+.picker {
+  display: grid;
+  gap: 6px;
+  width: 100%;
+}
+
+.segmented {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: minmax(0, 1fr);
+  gap: 4px;
+  padding: 4px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 212, 92, 0.18);
+  background: rgba(6, 10, 9, 0.7);
+}
+
+.option {
+  min-height: 34px;
+  padding: 3px 2px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: #c9dad3;
+  font: inherit;
+  font-size: 11.5px;
+  font-weight: 850;
+  cursor: pointer;
+}
+
+.active {
+  color: #2a1a05;
+  background: linear-gradient(180deg, #ffe27a, #e8b52a);
+  box-shadow: 0 2px 0 #7a5410;
+}
+
+.option:focus-visible {
+  outline: 2px solid #ffd45c;
+  outline-offset: 2px;
+}
+
+.hint {
+  margin: 0;
+  font-size: 11px;
+  line-height: 1.35;
+  color: rgba(242, 228, 199, 0.78);
+}

@@ -9,6 +9,7 @@ import { useGame } from "@/contexts/GameContext";
 import { useSettings, type MotionQualityPreference } from "@/contexts/SettingsContext";
 import { NjamboIcon, type NjamboIconName, type NjamboIconTone } from "@/components/ui/Art";
 import { UI_CLICK_SOUND } from "@/lib/gxeSfx";
+import { CoachLevelPicker } from "@/components/academy/CoachLevelPicker";
 import { useEventAlerts } from "./EventAlertsToggle";
 import styles from "./OptionsList.module.css";
 
@@ -134,6 +135,14 @@ export function OptionsList() {
         <div className={`${styles.groupBody}${m.animationsOn ? "" : ` ${styles.dimmed}`}`}>
           <Segmented items={QUALITY} value={m.motionQuality} onChange={m.setMotionQuality} tone="pink" label="Qualité des animations" />
           <p className={styles.hint}>{m.qualityHint}</p>
+        </div>
+      </section>
+
+      <section className={styles.group} aria-label="Coach de Tonton René">
+        <h2 className={styles.groupTitle}>Coach de Tonton René</h2>
+        <div className={styles.groupBody}>
+          {/* Compact : la page tient sur un écran de téléphone, sans défilement. */}
+          <CoachLevelPicker compact />
         </div>
       </section>
 
