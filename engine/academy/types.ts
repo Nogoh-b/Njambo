@@ -84,6 +84,10 @@ export interface AcademyScene {
   equipped?: Partial<Record<number, PowerCardId[]>>;
   /** Coups de la scène, dans l'ordre de la table. */
   actions: SceneAction[];
+  /** Fin de manche jouée librement (défi sur plusieurs plis) : une fois les coups écrits
+   *  joués, les bots suivent `bots` et le joueur pose la carte légale de son choix
+   *  jusqu'au dernier pli. `solution` = une suite de cartes du joueur qui gagne. */
+  open?: { bots: BotRule; solution: CardCode[]; coach?: SceneCoach };
   goal: SceneGoal;
   /** Répliques d'ouverture, puis de fin (`done` : fin d'un rejeu à regarder). */
   coach?: { intro?: CoachKey[]; success?: CoachKey; failure?: CoachKey; done?: CoachKey };
@@ -92,7 +96,8 @@ export interface AcademyScene {
 /** Coup attendu du joueur, tel que le calque du coach (A2) l'affiche. */
 export type YourExpectation =
   | { kind: "card"; card: CardCode; coach?: SceneCoach }
-  | { kind: "free"; solution: CardCode; coach?: SceneCoach }
+  /** `open` : fin de manche libre ; `solution` y est la carte de la suite gagnante (ou une carte légale hors de cette suite). */
+  | { kind: "free"; solution: CardCode; open?: boolean; coach?: SceneCoach }
   | { kind: "power"; power: PowerCardId; target?: number; choose?: Record<string, CardCode[]>; coach?: SceneCoach };
 
 export type SceneOutcome = "success" | "failure" | "done";

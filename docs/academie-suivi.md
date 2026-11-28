@@ -14,7 +14,7 @@
 | A0 | Corriger les textes de règles qui contredisent le moteur | ✅ Terminé |
 | A1 | Moteur de scènes : donne imposée, bots scriptés, sans chrono ni mise | ✅ Terminé |
 | A2 | Coach : bulle, projecteur, refus doux, file « animation → parole → action » | ✅ Terminé |
-| A3 | Chapitres 1 à 3 : les bases du Njambo | ⬜ À faire |
+| A3 | Chapitres 1 à 3 : les bases du Njambo | ✅ Terminé |
 | A4 | Partie de fin d'Académie (vraie donne, bots faciles, aides) | ⬜ À faire |
 | A5 | Porte d'entrée au premier lancement | ⬜ À faire |
 | A6 | Hub Académie (remplace « Comment jouer ») + Mémo express | ⬜ À faire |
@@ -301,17 +301,35 @@ donc le cas n'arrive pas ; l'Académie passe par `resolvePlay`.
 fenêtres des pouvoirs (aperçu, choix de cible, choix de cartes) doivent
 rester lisibles et touchables pendant le geste attendu.
 
-## A3 — Chapitres 1 à 3 : les bases ⬜
+## A3 — Chapitres 1 à 3 : les bases ✅
 
-Scènes déjà écrites et testées en A1 (`data/academy/scenes.ts` :
-`CH1_FOLLOW`, `CH2_LEAD`, `CH3_LAST_TRICK`, `CH3_WHAT_IF`), et jouables
-avec le coach depuis A2 (`/?academie=ch1-follow`). Reste : l'enchaînement
-des chapitres (« Continuer » mène aujourd'hui au menu), le « Et si ? »
-juste après le chapitre 3, et les variantes du défi de fin de chapitre 3.
-Au chapitre 3, l'historique des plis 1 à 3 est complet et rejoué : les
-dépôts de chaque joueur contiennent bien leurs 3 cartes. Reste à voir à
-l'écran si l'on y lit le Trèfle non suivi au 2e pli, sinon la ligne de
-résumé suffit.
+- [x] Parcours `BASICS_COURSE` (`data/academy/course.ts`) : chapitre 1 →
+      chapitre 2 → chapitre 3 → « Et si ? » → défi ; « Continuer » mène à
+      l'étape suivante **sur la même table** (pas de rechargement : la fin
+      du chapitre 1 est exactement le début du chapitre 2), puis au menu
+- [x] Titre de chapitre au centre (« Chapitre 1 — Suis la tendance »…),
+      2,2 s ou un toucher, scène en pause pendant ce temps
+- [x] « Et si ? » juste après le chapitre 3 (rejeu automatique)
+- [x] Défi de fin du chapitre 3 : plis 3 à 5 **joués librement** avec
+      10♦ 6♥ 3♣ contre des bots « smart » (nouvelle fin de manche libre du
+      moteur, `scene.open`). Deux situations tirées au sort, trouvées par
+      recherche puis figées, chacune avec sa suite gagnante et ses pièges
+      (la validation joue les 6 ordres possibles) :
+  - **le 3 passe** (au 2e pli, personne n'a suivi le Trèfle) : 6♥, 10♦ pour
+    reprendre la main, puis 3♣ doublé ; commencer par le 10♦ perd ;
+  - **le 3 ne passe pas** (Mado a suivi le Trèfle) : 6♥, 3♣, puis 10♦ au
+    dernier pli ; garder le 3 pour la fin perd.
+  Indice propre à chaque situation après 5 s ; raté → « Réessayer ce pli »
+  (même situation)
+- [x] Lien d'essai `/?academie=bases` (parcours entier)
+- [x] Vérifié au navigateur (375 × 812) : parcours entier, titres,
+      enchaînement sans coupure, « tu lanceras le 5e » calculé depuis la
+      config, rejeu « Et si ? », défi joué jusqu'au bout avec l'indice, puis
+      retour au menu
+
+Au chapitre 3, les dépôts contiennent bien les 3 plis de l'historique ; la
+ligne de résumé dit l'essentiel. La progression n'est pas encore gardée :
+elle viendra avec le hub (A6) et les récompenses (A9).
 
 Trois joueurs, dans cet ordre de jeu : toi, Mado Biyem, Ya Pauline. Les
 mains sont servies dès le départ. Les répliques ci-dessous sont des
@@ -633,3 +651,4 @@ le joueur clic par clic, avec le calque de A2 (voile percé, bulle,
 | 2026-11-27 | A13 | Demande : un tuto interactif aussi hors de la table. Ajout de l'étape A13, parcours guidé clic par clic pour équiper sa première carte (fin du chapitre 4 → Collection → fiche → « Équiper dans mon deck » → éventail de l'écran Jouer). A2 doit donc pouvoir viser des éléments hors table (calque au niveau de l'application, ancres). Relevé au passage : « remplace slot III » écrit en dur dans la Collection. |
 | 2026-11-27 | A1 | A1 terminée, D9 confirmée. `engine/academy/` : type de scène (donne + historique rejoué avec les vraies règles), table pure qui suit le chemin de `LocalGameSync` pour les cartes et les pouvoirs, validation qui joue la solution (ordre de la table, piège du défi, carte imposée non remplacée), repli des pouvoirs par geste sans hasard. `sync/AcademyGameSync.ts` (interface `GameSyncActions`, rythme du jeu, événements du coach). 8 scènes écrites dans `data/academy/scenes.ts` (chapitres 1 à 4 et « Et si ? ») et leurs répliques brouillons dans `data/academy/fr.ts`. Geste 4 sur 2 plis (pouvoir seulement à son tour). 34 tests ; tsc, eslint, suite au vert (499). Rien n'est encore branché sur l'écran (A3). |
 | 2026-11-27 | A2 | A2 terminée. Calque du coach monté dans l'application (projecteur, bulle de Tonton René, « Suivant », « Passer », fin avec « Réessayer ce pli » / « Rejouer » / « Continuer »), directeur qui met la scène en pause pendant qu'il parle, repères DOM sur la main, les cartes, les dépôts et les avatars, textes avec valeurs de la partie. `TableScreen` reçoit une scène (`academyScene`) ; lien d'essai `/?academie=<scène>` sans écran de chargement. Vu au navigateur sur téléphone et grand écran : chapitres 1 et 2 de bout en bout, refus qui fait trembler la carte, indice, défi raté et rejoué, « Passer ». Corrigé en route : la bulle mordait sur la main (mesure des cartes soulevées), « Passer » couvrait l'en-tête, « Réessayer » laissait la scène en pause. 13 tests de plus ; tsc, eslint, suite au vert (512). |
+| 2026-11-28 | A3 | A3 terminée. Parcours des bases (`BASICS_COURSE`) enchaîné sur la même table, titres de chapitre, « Et si ? » après le chapitre 3, défi de fin joué librement sur 3 plis (fin de manche libre ajoutée au moteur, validation qui joue tous les ordres de cartes). Deux situations de défi trouvées par une recherche ponctuelle (le 3 passe / ne passe pas), figées dans `scenes.ts`. Lien `/?academie=bases`. Parcours entier vérifié au navigateur sur téléphone. 7 tests de plus ; tsc, eslint, suite au vert (519). |

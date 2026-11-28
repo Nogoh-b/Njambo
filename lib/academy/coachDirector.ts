@@ -29,8 +29,15 @@ export interface CoachControls {
   finish(outcome: SceneOutcome): void;
 }
 
+export interface CoachTitle {
+  kicker: string;
+  title: string;
+}
+
 export interface CoachView {
   active: boolean;
+  /** Titre de chapitre affiché au centre, avant la première réplique. */
+  title: CoachTitle | null;
   /** Réplique affichée ; `blocking` = la scène attend sa lecture (bouton « Suivant »). */
   line: { id: number; text: string; blocking: boolean } | null;
   /** Zones éclairées par le projecteur (le reste est assombri). */
@@ -43,14 +50,18 @@ export interface CoachView {
 }
 
 type Beat =
+  | { kind: "title"; title: CoachTitle }
   | { kind: "line"; key: CoachKey; focus: AcademyAnchor[] }
   | { kind: "act"; expect: YourExpectation; prompt: string | null }
   | { kind: "end"; outcome: SceneOutcome; key?: CoachKey };
 
-const IDLE: CoachView = { active: false, line: null, focus: [], veil: false, end: null, shake: null };
+const IDLE: CoachView = { active: false, title: null, line: null, focus: [], veil: false, end: null, shake: null };
 
 /** Temps de lecture d'une réplique : environ 20 caractères par seconde, entre 2,6 et 6,5 s. */
 export const readingMs = (text: string) => Math.max(2600, Math.min(6500, 1400 + text.length * 45));
+
+/** Durée d'affichage d'un titre de chapitre. */
+export const TITLE_MS = 2200;
 
 /** Délai avant l'indice quand le joueur hésite (plan : 5 s). */
 export const HINT_DELAY_MS = 5000;
@@ -81,11 +92,15 @@ export class CoachDirector {
 
   getServerSnapshot = () => IDLE;
 
-  /** Une scène commence : le calque s'affiche. */
-  start(controls: CoachControls) {
+  /** Une scène commence : le calque s'affiche, avec le titre du chapitre s'il y en a un. */
+  start(controls: CoachControls, options: { title?: CoachTitle } = {}) {
     this.reset();
     this.controls = controls;
     this.set({ ...IDLE, active: true });
+    if (options.title) {
+      this.queue.push({ kind: "title", title: options.title });
+      this.pump();
+    }
   }
 
   /** La scène quitte l'écran. */
@@ -132,9 +147,9 @@ export class CoachDirector {
     this.pump();
   }
 
-  /** « Suivant » : passe la réplique en cours. */
+  /** « Suivant » : passe la réplique (ou le titre) en cours. */
   next = () => {
-    if (this.current?.kind === "line") this.finishBeat();
+    if (this.current?.kind === "line" || this.current?.kind === "title") this.finishBeat();
   };
 
   /** « Réessayer ce pli ». */
@@ -171,6 +186,12 @@ export class CoachDirector {
       return;
     }
     this.current = beat;
+    if (beat.kind === "title") {
+      this.controls.hold(true);
+      this.set({ ...this.view, title: beat.title, line: null, focus: [], veil: true, end: null });
+      this.timer = setTimeout(() => this.finishBeat(), TITLE_MS);
+      return;
+    }
     if (beat.kind === "line") {
       this.controls.hold(true);
       const text = this.text(beat.key);
@@ -210,6 +231,7 @@ export class CoachDirector {
     this.clearTimer();
     this.current = null;
     if (beat.kind === "act") this.set({ ...this.view, line: null, focus: [] });
+    if (beat.kind === "title") this.set({ ...this.view, title: null });
     this.pump();
   }
 

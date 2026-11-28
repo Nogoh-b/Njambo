@@ -91,7 +91,7 @@ import { REACTION_EMOJIS, listenReactions, sendReaction } from "@/lib/reactions"
 import { AcademyGameSync } from "@/sync/AcademyGameSync";
 import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
 import { LocalGameSync } from "@/sync/LocalGameSync";
-import { coachDirector } from "@/lib/academy/coachDirector";
+import { coachDirector, type CoachTitle } from "@/lib/academy/coachDirector";
 import type { AcademyScene, SceneOutcome } from "@/engine/academy/types";
 import { stabilizeGameState } from "@/sync/stateIdentity";
 import type {
@@ -139,6 +139,8 @@ interface TableScreenProps {
   waitForReveal?: boolean;
   /** Scène de l'Académie : la table joue cette situation figée (AcademyGameSync), guidée par le coach. */
   academyScene?: AcademyScene;
+  /** Titre montré par le coach avant la scène (début de chapitre). */
+  academyTitle?: CoachTitle;
   /** Fin d'une scène de l'Académie (« Continuer » du coach). */
   onAcademyDone?: (outcome: SceneOutcome) => void;
 }
@@ -505,8 +507,14 @@ export function TableScreen({
   paused = false,
   waitForReveal = false,
   academyScene,
+  academyTitle,
   onAcademyDone,
 }: TableScreenProps) {
+  // Lus au moment voulu : la scène suivante arrive sans recréer la table.
+  const academyTitleRef = useRef(academyTitle);
+  academyTitleRef.current = academyTitle;
+  const onAcademyDoneRef = useRef(onAcademyDone);
+  onAcademyDoneRef.current = onAcademyDone;
   const wasHeldForRevealRef = useRef(waitForReveal);
   if (waitForReveal) wasHeldForRevealRef.current = true;
   useEffect(() => {
@@ -1762,8 +1770,8 @@ export function TableScreen({
         hold: academySync.hold,
         retry: () => onNextRoundRef.current?.(),
         skip: onMenu,
-        finish: (outcome) => (onAcademyDone ?? (() => onMenu()))(outcome),
-      });
+        finish: (outcome) => (onAcademyDoneRef.current ?? (() => onMenu()))(outcome),
+      }, { title: academyTitleRef.current });
       sync = academySync;
     } else if (isLocalSync) {
       sync = new LocalGameSync({

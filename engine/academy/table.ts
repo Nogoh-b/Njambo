@@ -93,6 +93,11 @@ export class AcademyTable {
   private effects: ActivePowerEffect[] = [];
   private runtime = new PowerRuntimeState();
   private cursor = 0;
+  /** Coups joués dans la fin de manche libre (scene.open). */
+  private openMoves = 0;
+  private yourOpenPlays: CardCode[] = [];
+  /** Plis de l'historique en cours de rejeu : la scène ne peut pas encore finir. */
+  private replaying = true;
   private activationCount = 0;
   private lastWinner: number | null = null;
   private roundEndInfo: RoundEnd | null = null;
@@ -133,6 +138,7 @@ export class AcademyTable {
       this.closeTrick();
     }
     if (this.trickNo > cfg.cardsPerPlayer) fail("L'historique joue toute la manche : plus aucune carte en main.");
+    this.replaying = false;
   }
 
   /* ═══════════════ Lecture ═══════════════ */
@@ -142,7 +148,13 @@ export class AcademyTable {
     if (this.result) return { kind: "end", outcome: this.result };
     if (this.phase === "trickEnd") return { kind: "closeTrick", winnerIdx: this.dominantIdx ?? fail("Pli sans vainqueur.") };
     const action = this.scene.actions[this.cursor];
-    if (!action) return fail(this.trickPlays.length ? "La scène s'arrête au milieu d'un pli." : "La scène n'a aucun coup.");
+    if (!action) {
+      const open = this.scene.open;
+      if (!open) return fail(this.trickPlays.length ? "La scène s'arrête au milieu d'un pli." : "La scène n'a aucun coup.");
+      // Fin de manche libre : les bots suivent leur règle, le joueur choisit.
+      if (this.turnIdx !== 0) return { kind: "auto", seat: this.turnIdx };
+      return { kind: "you", expect: { kind: "free", open: true, solution: this.openSolution(), coach: open.coach } };
+    }
     if (action.seat !== this.turnIdx) {
       fail(`Coup ${this.cursor + 1} : c'est à ${this.players[this.turnIdx].name} de jouer, pas à ${this.players[action.seat]?.name ?? `siège ${action.seat}`}.`);
     }
@@ -158,8 +170,8 @@ export class AcademyTable {
 
   get outcome(): SceneOutcome | null { return this.result; }
   get roundEnd(): RoundEnd | null { return this.roundEndInfo; }
-  /** Index du coup courant dans scene.actions. */
-  get actionIndex(): number { return this.cursor; }
+  /** Numéro du coup courant : index dans scene.actions, puis coups de la fin de manche libre. */
+  get actionIndex(): number { return this.cursor + this.openMoves; }
 
   /** Cartes que le joueur peut légalement poser maintenant. */
   legalForYou(): CardCode[] {
@@ -198,26 +210,21 @@ export class AcademyTable {
     const step = this.next();
     if (step.kind !== "auto") return fail("Aucun coup automatique attendu.");
     const action = this.scene.actions[this.cursor];
-    const seat = action.seat;
+    const seat = step.seat;
+    if (!action) {
+      // Fin de manche libre : le bot suit la règle de la scène.
+      const play = this.botPlays(seat, this.pickByRule(seat, this.scene.open!.bots));
+      this.openMoves += 1;
+      return { type: "play", play };
+    }
     if ("power" in action) {
       const outcome = this.activate(action.power, seat, action.target, action.choose);
       if (!outcome.ok) return fail(`${this.players[seat].name} ne peut pas activer ${action.power} : ${outcome.message}`);
       this.cursor += 1;
       return { type: "power", seat, activation: outcome.activation, secret: outcome.secret, coach: action.coach?.after };
     }
-    const hand = this.players[seat].hand;
-    const led = this.ledSuit();
-    const legal = legalCards(hand, led);
     const wanted = "card" in action ? this.indexOf(seat, action.card) : "rule" in action ? this.pickByRule(seat, action.rule) : -1;
-    if (!legal.includes(wanted)) fail(`${this.players[seat].name} ne peut pas jouer ${hand[wanted]?.id ?? "?"} : il faut suivre ${led}.`);
-    // Restrictions des pouvoirs (Coupe-Circuit, Sceau…) : comme un bot du jeu, il bascule sur une carte permise.
-    let index = this.runtime.resolvePlay(seat, hand, led, wanted);
-    for (const alternative of legal) {
-      if (index !== null) break;
-      if (alternative !== wanted) index = this.runtime.resolvePlay(seat, hand, led, alternative);
-    }
-    if (index === null) return fail(`${this.players[seat].name} n'a aucune carte permise.`);
-    const play = this.commit(seat, index);
+    const play = this.botPlays(seat, wanted);
     this.cursor += 1;
     return { type: "play", play, coach: action.coach?.after };
   }
@@ -241,7 +248,12 @@ export class AcademyTable {
 
     const index = this.runtime.resolvePlay(0, hand, led, cardIdx) ?? preview;
     const play = this.commit(0, index);
-    this.cursor += 1;
+    if (expect.kind === "free" && expect.open) {
+      this.openMoves += 1;
+      this.yourOpenPlays.push(play.card.id);
+    } else {
+      this.cursor += 1;
+    }
     return { ok: true, event: { type: "play", play, coach: expect.coach?.after } };
   }
 
@@ -282,7 +294,8 @@ export class AcademyTable {
     this.leader = winnerIdx;
     this.turnIdx = winnerIdx;
     this.phase = "turns";
-    if (this.cursor >= this.scene.actions.length) this.result = this.evaluate();
+    // Fin des coups écrits ; une fin de manche libre, elle, se joue jusqu'au dernier pli.
+    if (!this.replaying && !this.scene.open && this.cursor >= this.scene.actions.length) this.result = this.evaluate();
     return { winnerIdx, roundEnd: null };
   }
 
@@ -304,6 +317,30 @@ export class AcademyTable {
 
   private ledSuit(): string | null {
     return this.trickPlays[0]?.card.suit ?? null;
+  }
+
+  /** Carte suivante de la suite gagnante, tant que le joueur la suit ; sinon une carte légale. */
+  private openSolution(): CardCode {
+    const solution = this.scene.open?.solution ?? [];
+    const legal = this.legalForYou();
+    const onPath = this.yourOpenPlays.every((code, index) => code === solution[index]);
+    const next = solution[this.yourOpenPlays.length];
+    return onPath && next && legal.includes(next) ? next : legal[0];
+  }
+
+  /** Coup d'un bot : carte voulue, ou une carte permise si un pouvoir l'en empêche (comme un bot du jeu). */
+  private botPlays(seat: number, wanted: number): AcademyPlay {
+    const hand = this.players[seat].hand;
+    const led = this.ledSuit();
+    const legal = legalCards(hand, led);
+    if (!legal.includes(wanted)) fail(`${this.players[seat].name} ne peut pas jouer ${hand[wanted]?.id ?? "?"} : il faut suivre ${led}.`);
+    let index = this.runtime.resolvePlay(seat, hand, led, wanted);
+    for (const alternative of legal) {
+      if (index !== null) break;
+      if (alternative !== wanted) index = this.runtime.resolvePlay(seat, hand, led, alternative);
+    }
+    if (index === null) return fail(`${this.players[seat].name} n'a aucune carte permise.`);
+    return this.commit(seat, index);
   }
 
   private pickByRule(seat: number, rule: "lowest" | "highest" | "smart"): number {

@@ -153,6 +153,13 @@ export function CoachLayer() {
         Passer
       </button>
 
+      {view.title && (
+        <button type="button" data-nj-skin="none" className={styles.title} onClick={coachDirector.next}>
+          <span className={styles.kicker}>{view.title.kicker}</span>
+          <strong className={styles.titleText}>{view.title.title}</strong>
+        </button>
+      )}
+
       {showBubble && (
         <div
           ref={bubbleRef}

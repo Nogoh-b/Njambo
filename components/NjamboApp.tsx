@@ -9,6 +9,7 @@ import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepL
 import { consumeAcademyDeepLink } from "@/lib/academy/deepLink";
 import { CoachLayer } from "@/components/academy/CoachLayer";
 import type { AcademyScene } from "@/engine/academy/types";
+import { stepScene, type AcademyStep } from "@/data/academy/course";
 import { useMyCosmetics } from "@/hooks/useMyCosmetics";
 import { usePowerCatalogLoader, usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
 import { useAssetPackSync } from "@/hooks/useAssetPackSync";
@@ -212,6 +213,8 @@ function SceneRouter() {
   const [launchNonce, setLaunchNonce] = useState(0);
   /** Scène de l'Académie jouée sur la table (null : partie normale). */
   const [academyScene, setAcademyScene] = useState<AcademyScene | null>(null);
+  /** Parcours en cours (chapitres enchaînés) ; null pour une scène seule. */
+  const [academyRun, setAcademyRun] = useState<{ steps: AcademyStep[]; index: number } | null>(null);
 
   /* Refs d'interception du bouton Retour */
   const nextRoundRef = useRef<(() => void) | null>(null);
@@ -227,7 +230,8 @@ function SceneRouter() {
   const roomId = currentRoom?.id ?? null;
   const roomPlayers = useMemo(() => currentRoom?.players ?? [], [currentRoom?.players]);
   const roomHostId = currentRoom?.hostId ?? "";
-  const tableKey = `${launchNonce}-${gameMode}-${gameBotCount}-${gameMise}-${gameDifficulty}-${isRoomMode && roomId ? roomId : ""}-${eventRunId ?? ""}-${reconnectMatchId ?? ""}-${academyScene?.id ?? ""}`;
+  // Sans la scène de l'Académie : les chapitres s'enchaînent sur la même table.
+  const tableKey = `${launchNonce}-${gameMode}-${gameBotCount}-${gameMise}-${gameDifficulty}-${isRoomMode && roomId ? roomId : ""}-${eventRunId ?? ""}-${reconnectMatchId ?? ""}`;
 
   const displayPlayerCount = isRoomMode
     ? Math.max(2, roomPlayers.length || currentRoom?.maxPlayers || 2)
@@ -324,6 +328,7 @@ function SceneRouter() {
   const enterTable = useCallback((options?: { replace?: boolean; resuming?: boolean; reconnectId?: string | null }) => {
     tableRestoreAttemptedRef.current = true;
     setAcademyScene(null);
+    setAcademyRun(null);
     setResumingMatch(Boolean(options?.resuming));
     setReconnectMatchId(options?.reconnectId ?? null);
     setLaunchNonce((n) => n + 1);
@@ -359,9 +364,16 @@ function SceneRouter() {
     navigateTo("table");
   }, [navigateTo]);
 
+  /** Parcours : la première étape s'ouvre sur la table, les suivantes viennent avec « Continuer ». */
+  const startAcademyCourse = useCallback((steps: AcademyStep[]) => {
+    startAcademyScene(stepScene(steps[0]));
+    setAcademyRun({ steps, index: 0 });
+  }, [startAcademyScene]);
+
   useEffect(() => {
-    const academy = consumeAcademyDeepLink();
-    if (academy) startAcademyScene(academy);
+    const link = consumeAcademyDeepLink();
+    if (link?.course) startAcademyCourse(link.course);
+    else if (link?.scene) startAcademyScene(link.scene);
     // Une seule lecture du lien, au démarrage.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -614,6 +626,7 @@ function SceneRouter() {
     setReconnectMatchId(null);
     setEventMatchmaking(false);
     setAcademyScene(null);
+    setAcademyRun(null);
     nextRoundRef.current = null;
     if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
     if (gameMode === "event" && eventDetailId) {
@@ -622,6 +635,17 @@ function SceneRouter() {
     }
     navigateTo("menu", { replace: true, resetStack: true });
   }, [navigateTo, currentRoom, leaveRoom, refreshActiveRoomHint, gameMode, eventDetailId]);
+
+  /** « Continuer » en fin de scène : étape suivante sur la même table, ou retour au menu. */
+  const handleAcademyDone = useCallback(() => {
+    const next = academyRun?.steps[academyRun.index + 1];
+    if (!academyRun || !next) {
+      handleMenu();
+      return;
+    }
+    setAcademyRun({ steps: academyRun.steps, index: academyRun.index + 1 });
+    setAcademyScene(stepScene(next));
+  }, [academyRun, handleMenu]);
 
   const handleLobbyBack = useCallback(() => {
     clearRestoredRoomId();
@@ -840,6 +864,8 @@ function SceneRouter() {
             paused={Boolean(gameResult)}
             waitForReveal={!tableUnlocked}
             academyScene={academyScene ?? undefined}
+            academyTitle={academyRun?.steps[academyRun.index]?.title}
+            onAcademyDone={handleAcademyDone}
           />
         )}
 

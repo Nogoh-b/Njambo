@@ -40,6 +40,11 @@ export const ACADEMY_TEXTS_FR = {
   "ch3.success": "Ngata avec un 3 ! Chaque perdant paie une mise de plus : tes gains sont doublés.",
   "ch3.etSi.mado": "Et si Mado avait gardé un Trèfle ? Son 5♣ bat ton 3.",
   "ch3.etSi.lecon": "Le 3 est un pari. Tente-le seulement quand personne ne peut suivre ta couleur.",
+  "ch3.defi.intro": "Défi : gagne le dernier pli. Regarde les dépôts : qui peut encore suivre le Trèfle ?",
+  "ch3.defi.hintSafe": "Au 2e pli, personne n'a suivi le Trèfle : ton 3♣ passera. Reprends la main juste avant, avec ton 10♦.",
+  "ch3.defi.hintUnsafe": "Mado a suivi le Trèfle au 1er pli : elle en a peut-être encore. Garde ton 10♦ pour la fin.",
+  "ch3.defi.success": "Dernier pli gagné : le pot est à toi !",
+  "ch3.defi.failure": "Le dernier pli t'a échappé. Regarde bien les dépôts, et réessaie !",
 
   /* Chapitre 4 — Les 4 gestes des pouvoirs */
   "ch4.direct.intro": "Mado lance 9♥ et tu n'as que 8♥ : tu vas perdre… sauf avec l'Éclair du Mfoundi. Touche-le !",

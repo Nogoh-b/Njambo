@@ -1,7 +1,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { GAME_CONFIG } from "../config/gameConfig";
 import { ACADEMY_TEXTS_FR } from "../data/academy/fr";
-import { CoachDirector, HINT_DELAY_MS, readingMs, type CoachControls } from "../lib/academy/coachDirector";
+import { CoachDirector, HINT_DELAY_MS, readingMs, TITLE_MS, type CoachControls } from "../lib/academy/coachDirector";
 import { placeBubble, type Box } from "../lib/academy/placement";
 import { coachText, coachValues } from "../lib/academy/texts";
 import type { YourExpectation } from "../engine/academy/types";
@@ -130,6 +130,19 @@ describe("directeur du coach", () => {
     director.dispatch({ type: "end", outcome: "success", roundEnd: null, coach: "ch2.success" });
     director.finish();
     expect(controls.finish).toHaveBeenCalledWith("success");
+  });
+
+  it("ouvre un chapitre par son titre, scène en pause, puis laisse parler la scène", () => {
+    vi.useFakeTimers();
+    const holds: boolean[] = [];
+    const director = new CoachDirector();
+    director.start({ cfg: GAME_CONFIG, hold: (on) => holds.push(on), retry: vi.fn(), skip: vi.fn(), finish: vi.fn() }, { title: { kicker: "Chapitre 1", title: "Suis la tendance" } });
+    expect(director.getSnapshot()).toMatchObject({ title: { kicker: "Chapitre 1" }, veil: true, line: null });
+    expect(holds).toEqual([true]);
+    director.dispatch({ type: "coach", key: "ch3.recap" });
+    expect(director.getSnapshot().line).toBeNull(); // la réplique attend la fin du titre
+    vi.advanceTimersByTime(TITLE_MS);
+    expect(director.getSnapshot()).toMatchObject({ title: null, line: { text: ACADEMY_TEXTS_FR["ch3.recap"] } });
   });
 
   it("disparaît quand la scène quitte l'écran", () => {

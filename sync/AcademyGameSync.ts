@@ -89,8 +89,6 @@ export class AcademyGameSync implements GameSyncActions {
   start() {
     this.clearHandle();
     this.clearCoachTimers();
-    // Nouveau départ (ou « Réessayer ») : la pause posée par le coach en fin de scène ne compte plus.
-    this.held = false;
     this.deferred = null;
     this.ended = false;
     this.announcedAction = -1;
@@ -100,8 +98,10 @@ export class AcademyGameSync implements GameSyncActions {
     this.advance();
   }
 
-  /** Rejouer : la scène repart de son état figé. */
+  /** Rejouer : la scène repart de son état figé. La pause posée par le coach en fin de scène
+   *  ne compte plus (au premier départ, elle est gardée : le titre du chapitre s'affiche). */
   nextRound() {
+    this.held = false;
     this.table = this.createTable();
     this.start();
   }

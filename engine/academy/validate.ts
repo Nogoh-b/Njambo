@@ -50,7 +50,11 @@ export function validateScene(scene: AcademyScene, cfg: GameConfig = GAME_CONFIG
     seen.add(code);
   }
   if (!Number.isInteger(scene.firstLeader) || scene.firstLeader < 0 || scene.firstLeader >= seats) push("firstLeader", "Meneur hors de la table.");
-  if (scene.actions.length === 0) push("actions", "La scène n'a aucun coup.");
+  if (scene.actions.length === 0 && !scene.open) push("actions", "La scène n'a aucun coup.");
+  if (scene.open) {
+    if (scene.goal !== "winRound") push("open", "Une fin de manche libre se joue pour gagner la manche (but winRound).");
+    for (const code of scene.open.solution) if (!byCode.has(code)) push("open", `Carte inconnue dans la solution : ${code}.`);
+  }
 
   for (const [seat, cards] of Object.entries(scene.equipped ?? {})) {
     for (const cardId of cards ?? []) if (!POWER_CARDS_BY_ID[cardId]) push(`equipped.${seat}`, `Carte Pouvoir inconnue : ${cardId}.`);
@@ -77,7 +81,13 @@ export function validateScene(scene: AcademyScene, cfg: GameConfig = GAME_CONFIG
 
   /* ── Jeu de la solution par le moteur ── */
   const freeSteps: { actionIndex: number; trickNo: number; legal: CardCode[]; solution: CardCode }[] = [];
+  /** Main du joueur au début de la fin de manche libre. */
+  const openStart: { hand: CardCode[] | null } = { hand: null };
   const checking: MovePolicy = (expect, table) => {
+    if (expect.kind === "free" && expect.open) {
+      openStart.hand ??= table.state().players[0].hand.map((card) => card.id);
+      return solutionMove(expect, table);
+    }
     if (expect.kind === "card") {
       const legal = table.legalForYou();
       for (const code of Object.keys(expect.coach?.wrong ?? {})) {
@@ -106,7 +116,7 @@ export function validateScene(scene: AcademyScene, cfg: GameConfig = GAME_CONFIG
   }
   for (const { actionIndex, event } of run.events) {
     const action = scene.actions[actionIndex];
-    if (event.type === "play" && "card" in action && action.card !== event.play.card.id) {
+    if (event.type === "play" && action && "card" in action && action.card !== event.play.card.id) {
       push(`actions.${actionIndex}`, `${action.card} est remplacée par ${event.play.card.id} (pouvoir en cours) : écrire la carte jouée.`);
     }
   }
@@ -131,5 +141,24 @@ export function validateScene(scene: AcademyScene, cfg: GameConfig = GAME_CONFIG
     });
     if (!trapped) push(`actions.${free.actionIndex}`, "Défi sans piège : toutes les cartes gagnent.");
   }
+
+  /* ── Fin de manche libre : toutes les façons de jouer ses cartes, au moins une qui perd ── */
+  if (scene.open && openStart.hand) {
+    const outcomes = openOrders(openStart.hand).map((order) => playScene(scene, cfg, playInOrder(order)));
+    const played = outcomes.filter((outcome) => !outcome.refusal);
+    if (!played.some((outcome) => outcome.outcome === "failure")) push("open", "Défi sans piège : toutes les façons de jouer gagnent.");
+  }
   return issues;
+}
+
+/** Tous les ordres possibles de pose des cartes (les illégaux seront refusés par le moteur). */
+function openOrders(hand: CardCode[]): CardCode[][] {
+  if (hand.length <= 1) return [hand];
+  return hand.flatMap((card, index) => openOrders([...hand.slice(0, index), ...hand.slice(index + 1)]).map((rest) => [card, ...rest]));
+}
+
+/** Joue la solution des coups écrits, puis les cartes dans cet ordre pendant la fin de manche libre. */
+export function playInOrder(order: CardCode[]): MovePolicy {
+  let next = 0;
+  return (expect, table) => (expect.kind === "free" && expect.open ? { card: order[next++] ?? expect.solution } : solutionMove(expect, table));
 }

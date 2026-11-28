@@ -105,6 +105,52 @@ export const CH3_WHAT_IF: AcademyScene = {
   coach: { done: "ch3.etSi.lecon" },
 };
 
+/* Défi du chapitre 3 : plis 3 à 5 joués librement avec 10♦ 6♥ 3♣, bots « smart ».
+   Une des deux situations est tirée au sort ; chacune a une suite gagnante et des pièges
+   (vérifié en jouant les 6 ordres possibles). */
+
+/** Le 3 passe : au 2e pli, Mado et Ya n'ont pas suivi le Trèfle. 6♥, puis 10♦ pour reprendre la main, puis 3♣ (×2). */
+export const CH3_CHALLENGE_SAFE_THREE: AcademyScene = {
+  id: "ch3-challenge-safe-three",
+  seats: TABLE,
+  deal: [
+    ["10♦", "6♥", "3♣", "10♥", "6♣"],
+    ["8♦", "9♥", "3♥", "7♦", "4♦"],
+    ["3♠", "9♠", "5♦", "6♦", "3♦"],
+  ],
+  firstLeader: 1,
+  history: [
+    ["3♥", "3♠", "10♥"], // Ya n'a pas de Cœur
+    ["6♣", "4♦", "3♦"], // tu lances le Trèfle : ni Mado ni Ya ne suivent
+  ],
+  actions: [],
+  open: { bots: "smart", solution: ["6♥", "10♦", "3♣"], coach: { hint: "ch3.defi.hintSafe" } },
+  goal: "winRound",
+  coach: { intro: ["ch3.defi.intro"], success: "ch3.defi.success", failure: "ch3.defi.failure" },
+};
+
+/** Le 3 ne passe pas : Mado a suivi le Trèfle au 1er pli et en a encore. Garder le 10♦ pour le dernier pli. */
+export const CH3_CHALLENGE_UNSAFE_THREE: AcademyScene = {
+  id: "ch3-challenge-unsafe-three",
+  seats: TABLE,
+  deal: [
+    ["10♦", "6♥", "3♣", "10♣", "10♥"],
+    ["5♥", "9♦", "4♣", "7♣", "5♣"],
+    ["4♦", "6♣", "6♦", "7♠", "7♦"],
+  ],
+  firstLeader: 1,
+  history: [
+    ["4♣", "6♣", "10♣"], // Mado et Ya suivent le Trèfle
+    ["10♥", "5♥", "4♦"], // Ya n'a pas de Cœur
+  ],
+  actions: [],
+  open: { bots: "smart", solution: ["6♥", "3♣", "10♦"], coach: { hint: "ch3.defi.hintUnsafe" } },
+  goal: "winRound",
+  coach: { intro: ["ch3.defi.intro"], success: "ch3.defi.success", failure: "ch3.defi.failure" },
+};
+
+export const CH3_CHALLENGES: AcademyScene[] = [CH3_CHALLENGE_SAFE_THREE, CH3_CHALLENGE_UNSAFE_THREE];
+
 /** Chapitre 4, geste 1 — effet direct : l'Éclair fait compter ton 8♥ pour 10. */
 export const CH4_DIRECT: AcademyScene = {
   id: "ch4-direct",
@@ -198,6 +244,6 @@ export const CH4_DEFENSE: AcademyScene = {
 };
 
 export const ACADEMY_SCENES: AcademyScene[] = [
-  CH1_FOLLOW, CH2_LEAD, CH3_LAST_TRICK, CH3_WHAT_IF,
+  CH1_FOLLOW, CH2_LEAD, CH3_LAST_TRICK, CH3_WHAT_IF, ...CH3_CHALLENGES,
   CH4_DIRECT, CH4_TARGETED, CH4_CHOICE, CH4_DEFENSE,
 ];
