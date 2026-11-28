@@ -9,6 +9,9 @@ const MADO: AcademySeat = { name: "Mado Biyem", emoji: "mado-biyem" };
 const YA: AcademySeat = { name: "Ya Pauline", emoji: "ya-pauline" };
 const TABLE = [YOU, MADO, YA];
 
+/** Les adversaires de l'Académie (Tonton René, le guide, ne joue pas contre toi). */
+export const ACADEMY_OPPONENTS: AcademySeat[] = [MADO, YA];
+
 /* Chapitres 1 et 2 : une seule manche, les mêmes mains. */
 const BASICS_DEAL = [
   ["9♥", "5♥", "4♥", "7♦", "6♣"], // toi : aucun Pique

@@ -87,12 +87,14 @@ describe("scènes de l'Académie", () => {
     expect(new Set(yours.map(({ actionIndex }) => actionIndex)).size).toBe(3);
   });
 
-  it("le parcours des bases enchaîne des scènes valides, titre en tête de chaque chapitre", () => {
-    expect(BASICS_COURSE.map((step) => step.id)).toEqual(["ch1", "ch2", "ch3", "ch3-what-if", "ch3-challenge"]);
+  it("le parcours des bases enchaîne des scènes valides puis la partie de fin, titre en tête de chaque chapitre", () => {
+    expect(BASICS_COURSE.map((step) => step.id)).toEqual(["ch1", "ch2", "ch3", "ch3-what-if", "ch3-challenge", "final-game"]);
     for (const step of BASICS_COURSE) {
       for (const scene of step.scenes) expect(validateScene(scene, GAME_CONFIG, ACADEMY_TEXTS_FR)).toEqual([]);
+      expect(step.final ? step.scenes.length === 0 : step.scenes.length > 0).toBe(true);
     }
-    expect(BASICS_COURSE.filter((step) => step.title).map((step) => step.title?.kicker)).toEqual(["Chapitre 1", "Chapitre 2", "Chapitre 3", "Défi"]);
+    expect(BASICS_COURSE.at(-1)?.final).toBe(true);
+    expect(BASICS_COURSE.filter((step) => step.title).map((step) => step.title?.kicker)).toEqual(["Chapitre 1", "Chapitre 2", "Chapitre 3", "Défi", "Partie de fin"]);
     const challenge = BASICS_COURSE[4];
     expect(stepScene(challenge, 0)).toBe(CH3_CHALLENGE_SAFE_THREE);
     expect(stepScene(challenge, 0.99)).toBe(CH3_CHALLENGE_UNSAFE_THREE);

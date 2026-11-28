@@ -1,12 +1,13 @@
 /* Lien direct vers l'Académie, en attendant le hub (A6) ; consommé une fois au démarrage :
-   - `/?academie=bases` : parcours des chapitres 1 à 3 ;
+   - `/?academie=bases` : parcours des chapitres 1 à 3, puis la partie de fin ;
+   - `/?academie=finale` : la partie de fin seule ;
    - `/?academie=ch1-follow` : une scène seule. */
 
-import { BASICS_COURSE, type AcademyStep } from "@/data/academy/course";
+import { BASICS_COURSE, FINAL_GAME_STEP, type AcademyStep } from "@/data/academy/course";
 import { ACADEMY_SCENES } from "@/data/academy/scenes";
 import type { AcademyScene } from "@/engine/academy/types";
 
-const COURSES: Record<string, AcademyStep[]> = { bases: BASICS_COURSE };
+const COURSES: Record<string, AcademyStep[]> = { bases: BASICS_COURSE, finale: [FINAL_GAME_STEP] };
 
 export function consumeAcademyDeepLink(): { course?: AcademyStep[]; scene?: AcademyScene } | null {
   if (typeof window === "undefined") return null;

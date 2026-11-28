@@ -170,6 +170,27 @@ export class CoachDirector {
     this.controls?.skip();
   };
 
+  /* ═══════════════ Vraie partie (coach en direct) ═══════════════ */
+
+  /** Conseil en direct : une bulle qui ne fige rien et s'efface seule. Ignoré si le coach parle déjà. */
+  tip = (key: CoachKey) => {
+    if (!this.controls || this.current || this.queue.length > 0) return;
+    const text = this.text(key);
+    const id = ++this.lineId;
+    this.clearTimer();
+    this.set({ ...this.view, line: { id, text, blocking: false }, focus: [], veil: false });
+    this.timer = setTimeout(() => {
+      if (!this.current && this.view.line?.id === id) this.set({ ...this.view, line: null });
+    }, readingMs(text));
+  };
+
+  /** Fin d'une partie guidée : la réplique du résultat, puis l'explication avec « Rejouer » et « Continuer ». */
+  finale(key: CoachKey, then: CoachKey) {
+    if (!this.controls) return;
+    this.queue.push({ kind: "line", key, focus: [] }, { kind: "end", outcome: "done", key: then });
+    this.pump();
+  }
+
   /* ═══════════════ Interne ═══════════════ */
 
   private text(key: CoachKey) {
@@ -179,6 +200,8 @@ export class CoachDirector {
   private pump() {
     if (this.current || !this.controls) return;
     const beat = this.queue.shift();
+    // Un conseil en direct encore affiché laisse la place.
+    this.clearTimer();
     if (!beat) {
       // Plus rien à dire : la scène reprend, le voile se lève.
       this.set({ ...this.view, line: null, focus: [], veil: false });

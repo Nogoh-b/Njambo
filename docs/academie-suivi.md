@@ -15,7 +15,7 @@
 | A1 | Moteur de scènes : donne imposée, bots scriptés, sans chrono ni mise | ✅ Terminé |
 | A2 | Coach : bulle, projecteur, refus doux, file « animation → parole → action » | ✅ Terminé |
 | A3 | Chapitres 1 à 3 : les bases du Njambo | ✅ Terminé |
-| A4 | Partie de fin d'Académie (vraie donne, bots faciles, aides) | ⬜ À faire |
+| A4 | Partie de fin d'Académie (vraie donne, bots faciles, aides) | ✅ Terminé |
 | A5 | Porte d'entrée au premier lancement | ⬜ À faire |
 | A6 | Hub Académie (remplace « Comment jouer ») + Mémo express | ⬜ À faire |
 | A7 | Mesures + premier test avec de vrais novices | ⬜ À faire |
@@ -394,22 +394,38 @@ Le joueur n'agit pas : on l'explique **quand ça arrive** (A11), sur l'écran
 de résultat, avec la somme animée carte par carte
 (« 3 + 4 + 4 + 5 + 5 = 21 → doublé ! »). Le Mémo express garde la fiche.
 
-## A4 — Partie de fin d'Académie ⬜
+## A4 — Partie de fin d'Académie ✅
 
 C'est le passage le plus risqué : beaucoup de novices décrochent à leur
 première vraie partie. C'est aussi la **première partie avec le coach en
 direct** (A12), au niveau « Accompagné ».
 
-- [ ] Vraie donne aléatoire, 3 joueurs, bots **faciles** (sans pouvoirs)
-- [ ] Gratuite (D8) : ni Énergie ni mise
-- [ ] Pas de chrono (comme `unlimitedTurnsBot`), ou un chrono large annoncé
-- [ ] Aide si tu hésites plus de 5 s : la meilleure carte légale s'éclaire,
-      comme le fait la carte Main du Griot
-- [ ] Le coach ne parle qu'aux moments clés : 4e pli (« prends la main »),
-      5e pli, victoire instantanée éventuelle
-- [ ] À la fin : explication courte de ce qui change en vraie partie
-      (« En vraie partie, tu as {turnSeconds} s par tour. Si le temps
-      finit, ta plus petite carte part toute seule. »)
+- [x] Vraie donne aléatoire, 3 joueurs, bots **faciles** du jeu
+      (`LocalGameSync`, difficulté `easy`, donc sans pouvoirs), contre
+      **Mado et Ya** (pas Tonton René, qui est le guide) ; le joueur n'a pas
+      de carte Pouvoir non plus (le chapitre 4 vient après)
+- [x] Gratuite et locale pour tout le monde, compte ou invité (D8) : mise 0,
+      pas d'Énergie, aucun appel serveur
+- [x] Une seule manche et pas de chrono, quels que soient les réglages de
+      l'admin (`lib/academy/finalGame.ts`, y compris après « Rejouer »)
+- [x] Hésitation de 5 s : la carte conseillée s'éclaire (style
+      « recommandée » de Main du Griot) et le coach le dit. Conseil donné
+      par l'IA « hard » du jeu avec les **seules cartes visibles**
+      (`engine/academy/liveCoach.ts`, jamais les mains adverses)
+- [x] Le coach ne parle qu'aux moments clés, une fois par manche : premier
+      tour, avant-dernier pli (« gagne-le pour lancer le dernier »), dernier
+      pli ; bulles sans voile, qui ne figent rien et s'effacent seules
+- [x] Fin : pas d'écran de résultat classique (gain de 0) mais le bilan du
+      coach (gagné, gagné doublé, perdu, ou victoire immédiate avec sa
+      raison), puis « En vraie partie, tu as {turnSeconds} s par tour… »,
+      avec « Rejouer » (nouvelle donne) et « Continuer »
+- [x] Dernière étape du parcours des bases ; lien d'essai `/?academie=finale`
+- [x] Vérifié au navigateur (375 × 812) : partie jouée jusqu'au bout en
+      suivant les conseils (10♦ maître éclairé en tête, conseils des deux
+      derniers plis), bilan, « Rejouer » avec nouvelle donne, ∞ au chrono
+
+Une victoire immédiate à la donne reste possible (vraie donne) : le coach
+l'explique dans le bilan, et « Rejouer » relance une manche jouée.
 
 ## A5 — Porte d'entrée ⬜
 
@@ -572,7 +588,9 @@ table et ne demande jamais de toucher la bulle.
 
 - [ ] Moteur pur `engine/academy/liveCoach.ts` : (vue du joueur avant, vue
       après, compteurs) → une bulle ou rien, avec sa priorité. Testé conseil
-      par conseil.
+      par conseil. Commencé en A4 : vue du joueur sans les mains adverses,
+      conseils des moments clés et carte conseillée ; reste la table
+      complète ci-dessus, les compteurs de retrait et les niveaux
 - [ ] Les situations se calculent avec les règles du jeu (`legalCards`,
       `trickWinner`). La carte conseillée (D11) vient de `botChooseCard`
       (`engine/bot.ts`, niveau « hard » : mémoire des cartes tombées et
@@ -652,3 +670,4 @@ le joueur clic par clic, avec le calque de A2 (voile percé, bulle,
 | 2026-11-27 | A1 | A1 terminée, D9 confirmée. `engine/academy/` : type de scène (donne + historique rejoué avec les vraies règles), table pure qui suit le chemin de `LocalGameSync` pour les cartes et les pouvoirs, validation qui joue la solution (ordre de la table, piège du défi, carte imposée non remplacée), repli des pouvoirs par geste sans hasard. `sync/AcademyGameSync.ts` (interface `GameSyncActions`, rythme du jeu, événements du coach). 8 scènes écrites dans `data/academy/scenes.ts` (chapitres 1 à 4 et « Et si ? ») et leurs répliques brouillons dans `data/academy/fr.ts`. Geste 4 sur 2 plis (pouvoir seulement à son tour). 34 tests ; tsc, eslint, suite au vert (499). Rien n'est encore branché sur l'écran (A3). |
 | 2026-11-27 | A2 | A2 terminée. Calque du coach monté dans l'application (projecteur, bulle de Tonton René, « Suivant », « Passer », fin avec « Réessayer ce pli » / « Rejouer » / « Continuer »), directeur qui met la scène en pause pendant qu'il parle, repères DOM sur la main, les cartes, les dépôts et les avatars, textes avec valeurs de la partie. `TableScreen` reçoit une scène (`academyScene`) ; lien d'essai `/?academie=<scène>` sans écran de chargement. Vu au navigateur sur téléphone et grand écran : chapitres 1 et 2 de bout en bout, refus qui fait trembler la carte, indice, défi raté et rejoué, « Passer ». Corrigé en route : la bulle mordait sur la main (mesure des cartes soulevées), « Passer » couvrait l'en-tête, « Réessayer » laissait la scène en pause. 13 tests de plus ; tsc, eslint, suite au vert (512). |
 | 2026-11-28 | A3 | A3 terminée. Parcours des bases (`BASICS_COURSE`) enchaîné sur la même table, titres de chapitre, « Et si ? » après le chapitre 3, défi de fin joué librement sur 3 plis (fin de manche libre ajoutée au moteur, validation qui joue tous les ordres de cartes). Deux situations de défi trouvées par une recherche ponctuelle (le 3 passe / ne passe pas), figées dans `scenes.ts`. Lien `/?academie=bases`. Parcours entier vérifié au navigateur sur téléphone. 7 tests de plus ; tsc, eslint, suite au vert (519). |
+| 2026-11-28 | A4 | A4 terminée. Partie de fin = vraie partie `LocalGameSync` (une manche, sans chrono, mise 0, Mado et Ya en bots faciles, pas de pouvoirs), dernière étape du parcours des bases. Coach en direct commencé (`engine/academy/liveCoach.ts`, `useLiveCoach`) : vue du joueur sans les mains adverses, conseils aux moments clés sans voile, carte conseillée par l'IA « hard » après 5 s d'hésitation. Bilan du coach au lieu de l'écran de résultat, puis « En vraie partie… » avec « Rejouer » / « Continuer ». Lien `/?academie=finale`. Vérifié au navigateur (partie entière, bilan, nouvelle donne). 8 tests de plus ; tsc, eslint, suite au vert (527). |

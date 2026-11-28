@@ -213,6 +213,8 @@ function SceneRouter() {
   const [launchNonce, setLaunchNonce] = useState(0);
   /** Scène de l'Académie jouée sur la table (null : partie normale). */
   const [academyScene, setAcademyScene] = useState<AcademyScene | null>(null);
+  /** Partie de fin d'Académie en cours sur la table (vraie donne locale). */
+  const [academyFinal, setAcademyFinal] = useState(false);
   /** Parcours en cours (chapitres enchaînés) ; null pour une scène seule. */
   const [academyRun, setAcademyRun] = useState<{ steps: AcademyStep[]; index: number } | null>(null);
 
@@ -329,6 +331,7 @@ function SceneRouter() {
     tableRestoreAttemptedRef.current = true;
     setAcademyScene(null);
     setAcademyRun(null);
+    setAcademyFinal(false);
     setResumingMatch(Boolean(options?.resuming));
     setReconnectMatchId(options?.reconnectId ?? null);
     setLaunchNonce((n) => n + 1);
@@ -340,14 +343,22 @@ function SceneRouter() {
     navigateTo("table", { replace: options?.replace });
   }, [navigateTo]);
 
+  /** Étape de l'Académie sur la table déjà ouverte : une scène, ou la partie de fin (vraie donne). */
+  const openAcademyStep = useCallback((step: AcademyStep) => {
+    setAcademyFinal(Boolean(step.final));
+    setAcademyScene(step.final ? null : stepScene(step));
+  }, []);
+
   /* --- Académie : une scène sur la table, sans écran de chargement ni mise --- */
-  const startAcademyScene = useCallback((academy: AcademyScene) => {
+  const startAcademyScene = useCallback((academy: AcademyScene | null) => {
     // Rien à reprendre après actualisation : une scène se rejoue depuis le début.
     clearActiveGameSession();
     tableRestoreAttemptedRef.current = true;
     setAcademyScene(academy);
+    setAcademyFinal(false);
     setGameMode("bot");
-    setGameBotCount(academy.seats.length - 1);
+    // Trois joueurs : toi, Mado et Ya (aussi pour la partie de fin).
+    setGameBotCount(academy ? academy.seats.length - 1 : 2);
     setGameMise(0);
     setGameDifficulty("easy");
     setEventRunId(null);
@@ -366,9 +377,10 @@ function SceneRouter() {
 
   /** Parcours : la première étape s'ouvre sur la table, les suivantes viennent avec « Continuer ». */
   const startAcademyCourse = useCallback((steps: AcademyStep[]) => {
-    startAcademyScene(stepScene(steps[0]));
+    startAcademyScene(null);
+    openAcademyStep(steps[0]);
     setAcademyRun({ steps, index: 0 });
-  }, [startAcademyScene]);
+  }, [openAcademyStep, startAcademyScene]);
 
   useEffect(() => {
     const link = consumeAcademyDeepLink();
@@ -627,6 +639,7 @@ function SceneRouter() {
     setEventMatchmaking(false);
     setAcademyScene(null);
     setAcademyRun(null);
+    setAcademyFinal(false);
     nextRoundRef.current = null;
     if (currentRoom) void leaveRoom().finally(() => refreshActiveRoomHint());
     if (gameMode === "event" && eventDetailId) {
@@ -644,8 +657,8 @@ function SceneRouter() {
       return;
     }
     setAcademyRun({ steps: academyRun.steps, index: academyRun.index + 1 });
-    setAcademyScene(stepScene(next));
-  }, [academyRun, handleMenu]);
+    openAcademyStep(next);
+  }, [academyRun, handleMenu, openAcademyStep]);
 
   const handleLobbyBack = useCallback(() => {
     clearRestoredRoomId();
@@ -865,6 +878,7 @@ function SceneRouter() {
             waitForReveal={!tableUnlocked}
             academyScene={academyScene ?? undefined}
             academyTitle={academyRun?.steps[academyRun.index]?.title}
+            academyFinal={academyFinal}
             onAcademyDone={handleAcademyDone}
           />
         )}

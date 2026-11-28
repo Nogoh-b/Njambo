@@ -46,6 +46,20 @@ export const ACADEMY_TEXTS_FR = {
   "ch3.defi.success": "Dernier pli gagné : le pot est à toi !",
   "ch3.defi.failure": "Le dernier pli t'a échappé. Regarde bien les dépôts, et réessaie !",
 
+  /* Partie de fin d'Académie (A4) : coach en direct, puis bilan */
+  "live.start": "Vraie donne, vraies adversaires. Si tu hésites, je t'éclaire une bonne carte.",
+  "live.beforeLast": "Avant-dernier pli : gagne-le pour lancer le dernier.",
+  "live.lastTrick": "Dernier pli : c'est lui qui rafle le pot !",
+  "live.advice": "Tu hésites ? La carte éclairée est un bon choix.",
+  "final.win": "Bravo, tu as gagné le dernier pli et le pot !",
+  "final.winDouble": "Ngata avec un 3 : gagné, et doublé ! Tu as tout compris.",
+  "final.lose": "Pas cette fois : le dernier pli t'a échappé. Rejoue, tu y es presque !",
+  "final.instant.win.under21": "Victoire immédiate : tes {cardsPerPlayer} cartes font moins de {sumBelow}, tu gagnes sans jouer !",
+  "final.instant.win.exact21": "Victoire immédiate et doublée : tes cartes font exactement {sumExact} !",
+  "final.instant.win.flush": "Victoire immédiate : tes {cardsPerPlayer} cartes sont de la même couleur !",
+  "final.instant.lose": "Une adversaire gagne dès la donne : ça arrive ! Rejoue pour une vraie partie.",
+  "final.realGame": "En vraie partie, tu as {turnSeconds} s par tour. Si le temps finit, ta plus petite carte part toute seule.",
+
   /* Chapitre 4 — Les 4 gestes des pouvoirs */
   "ch4.direct.intro": "Mado lance 9♥ et tu n'as que 8♥ : tu vas perdre… sauf avec l'Éclair du Mfoundi. Touche-le !",
   "ch4.direct.wrong": "Sans éclair, ton 8♥ perd contre le 9♥. Touche d'abord l'Éclair du Mfoundi.",

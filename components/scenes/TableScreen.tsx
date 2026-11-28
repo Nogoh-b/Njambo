@@ -93,6 +93,9 @@ import { AuthoritativeGameSync } from "@/sync/AuthoritativeGameSync";
 import { LocalGameSync } from "@/sync/LocalGameSync";
 import { coachDirector, type CoachTitle } from "@/lib/academy/coachDirector";
 import type { AcademyScene, SceneOutcome } from "@/engine/academy/types";
+import { finalLine } from "@/engine/academy/liveCoach";
+import { FINAL_GAME_BOTS, finalGameConfig } from "@/lib/academy/finalGame";
+import { useLiveCoach } from "@/components/academy/useLiveCoach";
 import { stabilizeGameState } from "@/sync/stateIdentity";
 import type {
   BotDifficulty,
@@ -141,6 +144,8 @@ interface TableScreenProps {
   academyScene?: AcademyScene;
   /** Titre montré par le coach avant la scène (début de chapitre). */
   academyTitle?: CoachTitle;
+  /** Partie de fin d'Académie : vraie donne locale gratuite, avec le coach en direct. */
+  academyFinal?: boolean;
   /** Fin d'une scène de l'Académie (« Continuer » du coach). */
   onAcademyDone?: (outcome: SceneOutcome) => void;
 }
@@ -508,6 +513,7 @@ export function TableScreen({
   waitForReveal = false,
   academyScene,
   academyTitle,
+  academyFinal,
   onAcademyDone,
 }: TableScreenProps) {
   // Lus au moment voulu : la scène suivante arrive sans recréer la table.
@@ -543,7 +549,7 @@ export function TableScreen({
   /* Prédicat UNIQUE de sélection du sync : partagé entre l'instanciation du
      sync et le sourcing des pouvoirs équipés — s'ils divergent, on afficherait
      des pouvoirs locaux sur un match serveur (→ POWER_NOT_EQUIPPED). */
-  const isLocalSync = Boolean(academyScene) || (gameMode === "bot" && (!authUser || authUser.isAnonymous));
+  const isLocalSync = Boolean(academyScene) || Boolean(academyFinal) || (gameMode === "bot" && (!authUser || authUser.isAnonymous));
   const serverInventory = useInventory();
   const A = cfg.anim;
   const mise = initialMise;
@@ -760,6 +766,7 @@ export function TableScreen({
     isYourTurn && (!motionEnabled || (spotlight.seatIdx === 0 && spotlight.phase === "ready"));
   const isYourTurnReadyRef = useRef(isYourTurnReady);
   isYourTurnReadyRef.current = isYourTurnReady;
+  useLiveCoach({ enabled: Boolean(academyFinal), state: gameState, cfg, ready: isYourTurnReady, registry: zoneRegistry });
   const yourLegal = useMemo(
     () => yourHand && isYourTurnReady ? legalCards(yourHand, ledSuit) : null,
     [isYourTurnReady, ledSuit, yourHand],
@@ -1773,6 +1780,31 @@ export function TableScreen({
         finish: (outcome) => (onAcademyDoneRef.current ?? (() => onMenu()))(outcome),
       }, { title: academyTitleRef.current });
       sync = academySync;
+    } else if (academyFinal) {
+      // Partie de fin d'Académie : vraie donne locale, gratuite, une manche sans chrono, Mado et Ya en bots faciles.
+      const finalCfg = finalGameConfig(cfg);
+      sync = new LocalGameSync({
+        profile: { ...profile, equippedPowers: [] },
+        bots: FINAL_GAME_BOTS,
+        cfg: finalCfg,
+        getConfig: () => finalGameConfig(latestConfigRef.current),
+        mise: 0,
+        initialBotCount: FINAL_GAME_BOTS.length,
+        difficulty: "easy",
+        onResult: (result) => coachDirector.finale(
+          finalLine({ ...result, reason: result.type === "instant" ? result.reason : undefined }),
+          "final.realGame",
+        ),
+        onUpdateBalance: handleUpdateBalance,
+        onBanner: handleBanner,
+      });
+      coachDirector.start({
+        cfg: finalCfg,
+        hold: () => {},
+        retry: () => onNextRoundRef.current?.(),
+        skip: onMenu,
+        finish: (outcome) => (onAcademyDoneRef.current ?? (() => onMenu()))(outcome),
+      }, { title: academyTitleRef.current });
     } else if (isLocalSync) {
       sync = new LocalGameSync({
         profile,
@@ -2098,7 +2130,7 @@ export function TableScreen({
       sync.start();
     };
 
-    if (animationsOnRef.current && isLocalSync && !academyScene && !wasHeldForRevealRef.current) {
+    if (animationsOnRef.current && isLocalSync && !academyScene && !academyFinal && !wasHeldForRevealRef.current) {
       setRoundIntro(true);
       gxeSfxRef.current.playChime(ROUND_START_SOUND);
       showMomentOverlay({
@@ -2154,12 +2186,12 @@ export function TableScreen({
       animatedPlayIds.clear();
       syncRef.current = null;
       sync.destroy();
-      if (academyScene) coachDirector.stop();
+      if (academyScene || academyFinal) coachDirector.stop();
     };
     // Le sync doit vivre pour toute la session. On le relance seulement quand
     // l'identite de session arrive/change (ou au feu vert après l'ouverture de scène).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [gameMode, roomId, roomSessionReady, sessionAuthKey, waitForReveal, academyScene]);
+  }, [gameMode, roomId, roomSessionReady, sessionAuthKey, waitForReveal, academyScene, academyFinal]);
 
   /* ----- Bouton Retour (navigateur / matériel Android / Échap) exposé au router ----- */
   useEffect(() => {
