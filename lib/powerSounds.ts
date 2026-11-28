@@ -85,22 +85,28 @@ export function resolvePowerSoundUrl(ref: string | null | undefined): string | n
   return ref;
 }
 
-export function playPowerSound(ref: string | null | undefined, volume = 1) {
-  if (!ref) return;
+/** Durée max de chargement tolérée pour un son de pouvoir s'il n'était pas encore décodé en RAM.
+ *  Les animations de pouvoir durent 1,5 à 3,5 s : couper à 450 ms (défaut UI) faisait rater
+ *  les sons uploadés (.wav / VPS) dès que le téléchargement + décodage dépassait 0,45 s. */
+const POWER_SOUND_MAX_LOAD_DELAY_MS = 3000;
+
+export function playPowerSound(ref: string | null | undefined, volume = 1): Promise<boolean> {
+  if (!ref) return Promise.resolve(false);
   if (isPresetSound(ref)) {
     const entry = POWER_SOUND_PRESETS[ref.slice("preset:".length)];
-    if (!entry) return;
-    playAudioSample(entry.sampleUrl, volume, {
+    if (!entry) return Promise.resolve(false);
+    return playAudioSample(entry.sampleUrl, volume, {
       duckMusicMs: entry.duckMusicMs,
       duckDepth: 0.35,
       maxPolyphony: 3,
+      maxLoadDelayMs: POWER_SOUND_MAX_LOAD_DELAY_MS,
     });
-    return;
   }
-  playAudioSample(ref, volume, {
+  return playAudioSample(ref, volume, {
     duckMusicMs: 1400,
     duckDepth: 0.35,
     maxPolyphony: 3,
+    maxLoadDelayMs: POWER_SOUND_MAX_LOAD_DELAY_MS,
   });
 }
 

@@ -9,6 +9,9 @@ import {
   isAssetPackId,
   isAssetPackForScope,
   isAssetPackScope,
+  isPowerBorderId,
+  isPowerBorderParticlesMode,
+  isPowerCardTextLayout,
   COSMETIC_DEFAULTS_DOC,
   COSMETIC_RARITIES,
   COSMETIC_SLOT,
@@ -22,6 +25,7 @@ import {
   type CosmeticSlot,
   type DefaultCosmeticChoice,
   type DefaultCosmeticsConfig,
+  type PowerBorderConfig,
 } from "../../domain";
 import { asObject, db, requireAdmin, requireUid, requiredString, runIdempotent } from "./core";
 import { loadImportedPowerPacks } from "./powerPackCommands";
@@ -126,6 +130,25 @@ export async function saveAssetPackHandler(request: CallableRequest<unknown>) {
     transaction.set(db.doc(`runtime_config/${ASSET_PACK_DOC}`), { [field]: pack, updatedAt: now, updatedBy: uid }, { merge: true });
     transaction.create(db.collection("admin_audit").doc(), { uid, action: "asset_pack_update", scope, pack, createdAt: now });
     return { pack, scope };
+  });
+}
+
+/** Style de bordure, particules et texte global des cartes Pouvoir (`runtime_config/asset_pack.powerBorder`). */
+export async function savePowerBorderHandler(request: CallableRequest<unknown>) {
+  const uid = requireAdmin(request);
+  const data = asObject(request.data);
+  const border = data.border;
+  const particles = data.particles ?? "normal";
+  const onPortrait = typeof data.onPortrait === "boolean" ? data.onPortrait : true;
+  const textLayout = data.textLayout ?? "classique";
+  if (!isPowerBorderId(border)) throw new HttpsError("invalid-argument", "POWER_BORDER_UNKNOWN");
+  if (!isPowerBorderParticlesMode(particles)) throw new HttpsError("invalid-argument", "POWER_BORDER_PARTICLES_INVALID");
+  if (!isPowerCardTextLayout(textLayout)) throw new HttpsError("invalid-argument", "POWER_TEXT_LAYOUT_INVALID");
+  const powerBorder: PowerBorderConfig = { border, particles, onPortrait, textLayout };
+  return runIdempotent(uid, "savePowerBorder", data.idempotencyKey, async (transaction, now) => {
+    transaction.set(db.doc(`runtime_config/${ASSET_PACK_DOC}`), { powerBorder, updatedAt: now, updatedBy: uid }, { merge: true });
+    transaction.create(db.collection("admin_audit").doc(), { uid, action: "power_border_update", ...powerBorder, createdAt: now });
+    return { powerBorder };
   });
 }
 

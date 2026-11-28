@@ -10,7 +10,8 @@ import { useOnlinePlayers } from "@/hooks/useOnlinePlayers";
 import { BOTS, NKAP } from "@/data/mock";
 import { MAX_EQUIPPED_POWERS, POWER_CARDS_BY_ID } from "@/config/powerCards";
 import { matchCountFor } from "@/domain/gameplayConfig";
-import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
+import { CATEGORY_MOTIF_PALETTE } from "@/components/power/PowerCardMotif";
+import { PowerCardFrame } from "@/components/power/PowerCardFrame";
 import { PlayCard } from "@/components/cards/PlayCard";
 import { AvatarIllustration, NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { AuthGate } from "@/components/ui/AuthGate";
@@ -655,12 +656,16 @@ export function PlayArenaScreen({ initialMode = "bot", onBotStart }: PlayArenaSc
                       {def ? (
                         <>
                           <span className={styles.powerMiniArtMask}>
-                            <Image src={def.art} alt="" fill sizes="46px" className={styles.powerMiniImg} />
+                            <Image src={def.art} powerArtSize="small" alt="" fill sizes="46px" className={styles.powerMiniImg} />
                           </span>
-                          <PowerCardMotif
+                          <PowerCardFrame
                             category={def.category}
                             rarity={def.rarity}
+                            art={def.art}
+                            cardBorder={def.border}
+                            cardParticles={def.borderParticles}
                             className={styles.powerMiniMotif}
+                            compact
                           />
                         </>
                       ) : (

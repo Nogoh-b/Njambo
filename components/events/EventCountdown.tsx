@@ -34,8 +34,7 @@ function pad2(value: number): string {
   return String(value).padStart(2, "0");
 }
 
-function formatDeadlineHint(timestamp: number): string {
-  if (!Number.isFinite(timestamp) || timestamp <= 0) return "";
+const DEADLINE_FORMATTER = (() => {
   try {
     return new Intl.DateTimeFormat("fr-FR", {
       day: "numeric",
@@ -43,7 +42,16 @@ function formatDeadlineHint(timestamp: number): string {
       hour: "2-digit",
       minute: "2-digit",
       timeZone: "Africa/Douala",
-    }).format(timestamp);
+    });
+  } catch {
+    return null;
+  }
+})();
+
+function formatDeadlineHint(timestamp: number): string {
+  if (!Number.isFinite(timestamp) || timestamp <= 0 || !DEADLINE_FORMATTER) return "";
+  try {
+    return DEADLINE_FORMATTER.format(timestamp);
   } catch {
     return "";
   }
@@ -80,10 +88,16 @@ export function EventCountdown({
     prevPhaseRef.current = phase;
   }, [phase]);
 
-  /* Tick 1 s tant que l'événement n'est pas terminé. */
+  /* Tick 1 s tant que l'événement n'est pas terminé. Pas de setNow synchrone
+     au montage initial (useState initialise déjà à Date.now()) : évite un double
+     rendu immédiat de chaque carte d'événement à l'entrée de l'écran. */
+  const boundsRef = useRef({ startsAt, endsAt });
   useEffect(() => {
+    if (boundsRef.current.startsAt !== startsAt || boundsRef.current.endsAt !== endsAt) {
+      boundsRef.current = { startsAt, endsAt };
+      setNow(Date.now());
+    }
     if (phase === "ended") return;
-    setNow(Date.now());
     const id = window.setInterval(() => {
       setNow(Date.now());
     }, 1_000);
@@ -126,13 +140,14 @@ export function EventCountdown({
     return Math.max(12, Math.round(((60 - parts.seconds) / 60) * 100));
   }, [endsAt, parts.seconds, phase, remainingMs, startsAt]);
 
+  const withinOneYear = remainingMs < 365 * 86_400_000;
   const deadlineHint = useMemo(() => {
     if (phase === "ended") return "";
     if (phase === "upcoming") return formatDeadlineHint(startsAt);
     // N'afficher la date d'échéance précise que si elle est à moins d'un an
-    if (remainingMs < 365 * 86_400_000) return `Jusqu'au ${formatDeadlineHint(endsAt)}`;
+    if (withinOneYear) return `Jusqu'au ${formatDeadlineHint(endsAt)}`;
     return "Saison active";
-  }, [endsAt, phase, remainingMs, startsAt]);
+  }, [endsAt, phase, startsAt, withinOneYear]);
 
   const animated = motionProfile.enabled && motionProfile.allowDecorativeLoop && pageActive && phase !== "ended";
 
@@ -205,7 +220,7 @@ export function EventCountdown({
                 )}
                 <span className={`${styles.unitBox}${unit.isSeconds ? ` ${styles.unitSeconds}` : ""}`}>
                   <span
-                    key={unit.isSeconds ? `s-${parts.seconds}` : unit.id}
+                    key={unit.isSeconds && animated ? `s-${parts.seconds}` : unit.id}
                     className={`${styles.unitValue}${unit.isSeconds ? ` ${styles.secPop}` : ""}`}
                   >
                     {unit.value}

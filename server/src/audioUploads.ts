@@ -1,12 +1,16 @@
-/* ═══════════════ Upload de sons (cartes pouvoir, chorégraphies) ═══════════════
+/* ═══════════════ Upload de sons (Sons & Audio, cartes pouvoir, chorégraphies) ═══════════════
    POST /admin/upload-audio — en-tête Authorization: Bearer <idToken admin>,
-   corps = fichier brut (MP3 / OGG / WAV / M4A), 500 Ko max.
-   → { url, path, durationMs, bytes, converted }
-   Contrôle de la signature binaire, durée lue par ffprobe (source ≤ 60 s),
-   puis ffmpeg : MP3 mono 44,1 kHz 96 kb/s, volume normalisé (loudnorm),
-   coupé à 5 s avec fondu de fin. Sans ffmpeg sur la machine : fichier gardé
-   tel quel (extension d'origine). Stockage UPLOAD_DIR/audio/<uuid>.<ext>,
-   servi par /uploads (cache immuable) ; bibliothèque admin_uploads (kind audio). */
+   corps = fichier brut (MP3 / OGG / WAV / M4A), 5 Mo max (SFX) / 12 Mo max (musique).
+   Paramètres query optionnels :
+     - kind=sfx|music (défaut sfx)
+     - rawGain=1 (conserve le gain édité dans le studio sans loudnorm, avec limiteur doux)
+     - name=<nom d'affichage court> (stocké dans admin_uploads.label)
+   → { url, path, durationMs, bytes, converted, role, label }
+   Contrôle de la signature binaire, durée & canaux lus par ffprobe (source ≤ 60 s SFX / 240 s musique),
+   puis ffmpeg : MP3 44,1 kHz (préserve mono/stéréo jusqu'à 2 canaux : 128 kb/s SFX stéréo, 96 kb/s mono,
+   160 kb/s musique), volume normalisé (loudnorm sauf rawGain=1), coupé à 5 s (SFX) avec fondu de fin.
+   Sans ffmpeg sur la machine : fichier gardé tel quel (extension d'origine).
+   Stockage UPLOAD_DIR/audio/<uuid>.<ext>, servi par /uploads (cache immuable) ; bibliothèque admin_uploads. */
 
 import { execFile } from "node:child_process";
 import { randomUUID } from "node:crypto";
@@ -22,8 +26,8 @@ import { sendError } from "./httpError";
 import { uploadDir } from "./uploads";
 
 const run = promisify(execFile);
-const MAX_SFX_BYTES = 500 * 1024;
-const MAX_MUSIC_BYTES = 6 * 1024 * 1024;
+const MAX_SFX_BYTES = 5 * 1024 * 1024;
+const MAX_MUSIC_BYTES = 12 * 1024 * 1024;
 const MAX_SFX_SOURCE_SECONDS = 60;
 const MAX_MUSIC_SOURCE_SECONDS = 240;
 const MAX_SFX_SECONDS = 5;
@@ -39,15 +43,29 @@ export function sniffAudio(buffer: Buffer): "mp3" | "ogg" | "wav" | "m4a" | null
   return null;
 }
 
-async function probeSeconds(file: string): Promise<number | null> {
+async function probeAudio(file: string): Promise<{ seconds: number; channels: number } | "missing" | null> {
   try {
-    const { stdout } = await run("ffprobe", ["-v", "error", "-show_entries", "format=duration", "-of", "default=nw=1:nk=1", file], { timeout: 10_000 });
-    const seconds = Number.parseFloat(stdout.trim());
-    return Number.isFinite(seconds) ? seconds : null;
+    const { stdout } = await run(
+      "ffprobe",
+      ["-v", "error", "-select_streams", "a:0", "-show_entries", "format=duration:stream=channels", "-of", "json", file],
+      { timeout: 10_000 },
+    );
+    const parsed = JSON.parse(stdout) as { format?: { duration?: string }; streams?: Array<{ channels?: number }> };
+    const seconds = Number.parseFloat(parsed.format?.duration ?? "");
+    if (!Number.isFinite(seconds)) return null;
+    const rawCh = parsed.streams?.[0]?.channels;
+    const channels = typeof rawCh === "number" && rawCh >= 1 ? Math.min(2, rawCh) : 1;
+    return { seconds, channels };
   } catch (error) {
-    if ((error as NodeJS.ErrnoException).code === "ENOENT") return -1; // ffprobe absent
+    if ((error as NodeJS.ErrnoException).code === "ENOENT") return "missing";
     return null;
   }
+}
+
+function sanitizeLabel(raw: unknown): string | undefined {
+  if (typeof raw !== "string") return undefined;
+  const trimmed = raw.trim().replace(/[^\w\-. ()[\]]+/g, "_").slice(0, 96);
+  return trimmed || undefined;
 }
 
 function publicBase(req: Request) {
@@ -64,6 +82,8 @@ export function mountAudioUploads(app: Express) {
       const request = await buildCallableRequest(req.header("authorization"), {});
       const uid = requireAdmin(request);
       const role = req.query.kind === "music" ? "music" : "sfx";
+      const rawGain = req.query.rawGain === "1" || req.query.rawGain === "true";
+      const label = sanitizeLabel(req.query.name);
       const maxBytes = role === "music" ? MAX_MUSIC_BYTES : MAX_SFX_BYTES;
       const maxSourceSeconds = role === "music" ? MAX_MUSIC_SOURCE_SECONDS : MAX_SFX_SOURCE_SECONDS;
 
@@ -81,8 +101,10 @@ export function mountAudioUploads(app: Express) {
       work = await mkdtemp(join(tmpdir(), "njambo-audio-"));
       const input = join(work, `in.${format}`);
       await writeFile(input, body);
-      const seconds = await probeSeconds(input);
-      if (seconds === null) throw new HttpsError("invalid-argument", "UNREADABLE_AUDIO");
+      const probed = await probeAudio(input);
+      if (probed === null) throw new HttpsError("invalid-argument", "UNREADABLE_AUDIO");
+      const seconds = probed === "missing" ? -1 : probed.seconds;
+      const sourceChannels = probed === "missing" ? 1 : probed.channels;
       if (seconds > maxSourceSeconds) throw new HttpsError("invalid-argument", "AUDIO_TOO_LONG");
 
       let data: Buffer = body;
@@ -92,16 +114,19 @@ export function mountAudioUploads(app: Express) {
       let converted = false;
       if (seconds !== -1) {
         const output = join(work, "out.mp3");
+        const outChannels = role === "music" ? 2 : sourceChannels;
+        const bitrate = role === "music" ? "160k" : outChannels === 2 ? "128k" : "96k";
         const fade = role === "sfx" && seconds > MAX_SFX_SECONDS ? `,afade=t=out:st=${MAX_SFX_SECONDS - 0.25}:d=0.25` : "";
+        const baseFilter = rawGain ? "alimiter=limit=0.95:attack=3:release=40" : "loudnorm=I=-16:TP=-1.5:LRA=11";
         const ffmpegArgs = [
           "-v", "error", "-y", "-i", input,
           ...(role === "sfx" ? ["-t", String(MAX_SFX_SECONDS)] : []),
           "-vn",
-          "-ac", role === "music" ? "2" : "1",
+          "-ac", String(outChannels),
           "-ar", "44100",
-          "-af", `loudnorm=I=-16:TP=-1.5:LRA=11${fade}`,
+          "-af", `${baseFilter}${fade}`,
           "-codec:a", "libmp3lame",
-          "-b:a", role === "music" ? "128k" : "96k",
+          "-b:a", bitrate,
           output,
         ];
         try {
@@ -109,8 +134,10 @@ export function mountAudioUploads(app: Express) {
           data = await readFile(output);
           extension = "mp3";
           converted = true;
-          const outSeconds = await probeSeconds(output);
-          if (outSeconds && outSeconds > 0) durationMs = Math.round(outSeconds * 1000);
+          const outProbed = await probeAudio(output);
+          if (outProbed && outProbed !== "missing" && outProbed.seconds > 0) {
+            durationMs = Math.round(outProbed.seconds * 1000);
+          }
         } catch (error) {
           if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw new HttpsError("invalid-argument", "UNREADABLE_AUDIO");
         }
@@ -124,10 +151,20 @@ export function mountAudioUploads(app: Express) {
       const url = `${publicBase(req)}${path}`;
       const now = Date.now();
       await db.doc(`admin_uploads/${name.replace(/\.\w+$/, "")}`).set({
-        kind: "audio", audioRole: role, path, url, durationMs, bytes: data.length, originalBytes: body.length, converted, uploadedBy: uid, createdAt: now,
+        kind: "audio",
+        audioRole: role,
+        ...(label ? { label } : {}),
+        path,
+        url,
+        durationMs,
+        bytes: data.length,
+        originalBytes: body.length,
+        converted,
+        uploadedBy: uid,
+        createdAt: now,
       });
-      await db.collection("admin_audit").doc().set({ uid, action: "upload_audio", role, path, createdAt: now });
-      res.status(200).json({ url, path, durationMs, bytes: data.length, converted, role });
+      await db.collection("admin_audit").doc().set({ uid, action: "upload_audio", role, path, ...(label ? { label } : {}), createdAt: now });
+      res.status(200).json({ url, path, durationMs, bytes: data.length, converted, role, ...(label ? { label } : {}) });
     } catch (error) {
       if ((error as { type?: string }).type === "entity.too.large") {
         res.status(413).json({ code: "invalid-argument", message: "FILE_TOO_LARGE" });

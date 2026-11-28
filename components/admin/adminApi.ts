@@ -53,6 +53,7 @@ export interface AdminUpload {
   id: string;
   kind: string;
   audioRole?: "sfx" | "music";
+  label?: string;
   path: string;
   url: string;
   width: number;
@@ -172,6 +173,8 @@ export const adminApi = {
   saveCosmeticDefaults: (defaults: { cardBack?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null; handArc?: { cosmeticId?: string | null; imageUrl?: string | null; name?: string | null } | null }) =>
     call<{ defaults: DefaultCosmeticsConfig }>("saveCosmeticDefaults", { defaults }),
   saveAssetPack: (pack: string, scope: "system" | "interface" | "powers") => call<{ pack: string; scope: string }>("saveAssetPack", { pack, scope }),
+  savePowerBorder: (config: import("@/domain/powerBorders").PowerBorderConfig) =>
+    call<{ powerBorder: import("@/domain/powerBorders").PowerBorderConfig }>("savePowerBorder", { ...config }),
   savePowerPack: (pack: { id?: string; name: string; description: string; portrait: boolean }) =>
     call<{ pack: import("@/domain/assetPacks").ImportedPowerPack }>("savePowerPack", { pack }),
   deletePowerPack: (packId: string) => call<{ packId: string }>("deletePowerPack", { packId }),
@@ -310,20 +313,51 @@ export async function uploadPowerPackArt(packId: string, card: string, image: Bl
   return body as { card: string; art: import("@/domain/assetPacks").ImportedPowerArt; pack: import("@/domain/assetPacks").ImportedPowerPack };
 }
 
-export async function uploadAudio(file: File, role: "sfx" | "music" = "sfx") {
+export async function uploadPowerPackArchive(archive: Blob, idempotencyKey: string) {
   const user = auth.currentUser;
   if (!user) throw new BackendError("unauthenticated", "AUTH_REQUIRED");
-  const maxBytes = role === "music" ? 6 * 1024 * 1024 : 500 * 1024;
+  const send = async (refresh: boolean) => fetch(`${BACKEND_URL}/admin/power-pack-import`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${await user.getIdToken(refresh)}`, "Content-Type": "application/zip", "Idempotency-Key": idempotencyKey },
+    body: archive,
+  });
+  let response = await send(false);
+  if (response.status === 401) response = await send(true);
+  const body = await response.json().catch(() => ({}));
+  if (!response.ok) throw new BackendError(body.code ?? "internal", body.message ?? `HTTP_${response.status}`);
+  return body as { pack: import("@/domain/assetPacks").ImportedPowerPack };
+}
+
+export async function uploadAudio(
+  file: File,
+  role: "sfx" | "music" = "sfx",
+  options: { rawGain?: boolean; label?: string } = {},
+) {
+  const user = auth.currentUser;
+  if (!user) throw new BackendError("unauthenticated", "AUTH_REQUIRED");
+  const maxBytes = role === "music" ? 12 * 1024 * 1024 : 5 * 1024 * 1024;
   if (file.size > maxBytes) throw new BackendError("invalid-argument", "FILE_TOO_LARGE");
-  const query = role === "music" ? "?kind=music" : "";
+  const params = new URLSearchParams();
+  if (role === "music") params.set("kind", "music");
+  if (options.rawGain) params.set("rawGain", "1");
+  const name = (options.label ?? file.name ?? "").trim();
+  if (name) params.set("name", name.slice(0, 96));
+  const query = params.toString() ? `?${params.toString()}` : "";
+  const contentType = file.type || (file.name.toLowerCase().endsWith(".wav")
+    ? "audio/wav"
+    : file.name.toLowerCase().endsWith(".ogg")
+      ? "audio/ogg"
+      : file.name.toLowerCase().endsWith(".m4a")
+        ? "audio/mp4"
+        : "audio/mpeg");
   const response = await fetch(`${BACKEND_URL}/admin/upload-audio${query}`, {
     method: "POST",
-    headers: { Authorization: `Bearer ${await user.getIdToken()}`, "Content-Type": file.type || "audio/mpeg" },
+    headers: { Authorization: `Bearer ${await user.getIdToken()}`, "Content-Type": contentType },
     body: file,
   });
   const body = await response.json().catch(() => ({}));
   if (!response.ok) throw new BackendError(body.code ?? "internal", body.message ?? `HTTP_${response.status}`);
-  return body as { url: string; path: string; durationMs: number | null; bytes: number; converted: boolean; role?: "sfx" | "music" };
+  return body as { url: string; path: string; durationMs: number | null; bytes: number; converted: boolean; role?: "sfx" | "music"; label?: string };
 }
 
 const ERROR_LABELS: Record<string, string> = {
@@ -354,7 +388,7 @@ const ERROR_LABELS: Record<string, string> = {
   EVENT_ID_TAKEN: "Cet identifiant est déjà utilisé.",
   NOTHING_SCHEDULED: "Aucune publication programmée.",
   ADMIN_REQUIRED: "Droits admin requis.",
-  FILE_TOO_LARGE: "Fichier trop lourd (image : 2 Mo, SFX : 500 Ko, musique : 6 Mo).",
+  FILE_TOO_LARGE: "Fichier trop lourd (image : 2 Mo, SFX : 5 Mo, musique : 12 Mo).",
   INVALID_AUDIO_CONFIG: "La configuration audio contient une valeur invalide.",
   NOT_AN_AUDIO_FILE: "Ce fichier n’est pas un son MP3, OGG, WAV ou M4A.",
   UNREADABLE_AUDIO: "Son illisible.",
@@ -362,6 +396,12 @@ const ERROR_LABELS: Record<string, string> = {
   NOT_AN_IMAGE: "Ce fichier n'est pas une image PNG, JPEG ou WebP.",
   UNSUPPORTED_TYPE: "Format accepté : PNG, JPEG ou WebP.",
   UNREADABLE_IMAGE: "Image illisible.",
+  IMAGE_TOO_DETAILED: "Image trop détaillée pour le budget du pack.",
+  POWER_PACK_LIMIT_REACHED: "La limite de packs importés est atteinte.",
+  POWER_PACK_UNKNOWN: "Ce pack est introuvable.",
+  POWER_PACK_ACTIVE: "Activez un autre pack avant de supprimer celui-ci.",
+  POWER_PACK_FORMAT_LOCKED: "Le format est verrouillé dès qu’une illustration a été importée.",
+  POWER_PACK_NAME_INVALID: "Indiquez un nom de pack de 2 à 40 caractères.",
   INVALID_EVENTID: "Identifiant invalide (a-z, 0-9, _ ; 3 à 64 caractères).",
   EVENT_REQUIRED_FOR_AUDIENCE: "Choisis un événement pour cibler ses participants.",
   CAMPAIGN_NOT_SCHEDULED: "Cette campagne n’est plus en attente.",

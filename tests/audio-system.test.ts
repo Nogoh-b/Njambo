@@ -1,7 +1,8 @@
 import { existsSync, statSync } from "node:fs";
 import path from "node:path";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { CODE_POWER_MODULES } from "../config/powers";
+import { audioEngine } from "../lib/audio/AudioEngine";
 import {
   DEFAULT_AUDIO_SETTINGS,
   normalizeAudioSettings,
@@ -30,6 +31,7 @@ import {
   DEFAULT_CARD_POWER_SOUNDS,
   POWER_SOUND_PRESETS,
   defaultPowerSoundRef,
+  playPowerSound,
   resolvePowerSoundUrl,
 } from "../lib/powerSounds";
 import { isSoundRef } from "../engine/power/validate";
@@ -196,5 +198,35 @@ describe("catalogue audio administrable (Admin → Sons & Audio)", () => {
     const salon = resolveMusicTrack("music_salon", customConfig);
     expect(salon.enabled).toBe(false);
     expect(salon.trackUrl).toBeNull();
+  });
+
+  it("playPowerSound tolère le chargement d'un fichier custom (≥ 3 s) et retourne le résultat de lecture", async () => {
+    const spy = vi.spyOn(audioEngine, "playSfx").mockResolvedValue(true);
+    try {
+      const okCustom = await playPowerSound("http://localhost:8081/uploads/audio/oeil.wav", 0.85);
+      expect(okCustom).toBe(true);
+      expect(spy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          url: "http://localhost:8081/uploads/audio/oeil.wav",
+          volume: 0.85,
+          maxLoadDelayMs: 3000,
+        }),
+      );
+
+      const okPreset = await playPowerSound("preset:magie", 1);
+      expect(okPreset).toBe(true);
+      expect(spy).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          url: "/assets/njambo/audio/powers/magie.mp3",
+          volume: 1,
+          maxLoadDelayMs: 3000,
+        }),
+      );
+
+      expect(await playPowerSound("preset:inconnu")).toBe(false);
+      expect(await playPowerSound(null)).toBe(false);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });

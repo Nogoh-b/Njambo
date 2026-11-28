@@ -198,14 +198,14 @@ export function preloadAudioSample(url: string): Promise<boolean> {
   return audioEngine.preloadSample(url);
 }
 
-/** Joue un son préchargé (ou le charge puis le joue). Volume 0-1. */
+/** Joue un son préchargé (ou le charge puis le joue). Volume 0-1. Retourne true si joué. */
 export function playAudioSample(
   url: string,
   volume = 1,
   options: Omit<SfxPlayOptions, "url" | "volume"> = {},
-) {
-  if (!url || audioEngine.isMuted("sfx")) return;
-  void audioEngine.playSfx({ url, volume, ...options });
+): Promise<boolean> {
+  if (!url || audioEngine.isMuted("sfx")) return Promise.resolve(false);
+  return audioEngine.playSfx({ url, volume, ...options });
 }
 
 /** Abaisse temporairement la musique de fond pour laisser ressortir un événement fort. */

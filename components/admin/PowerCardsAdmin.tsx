@@ -11,6 +11,13 @@ import { PowerSandbox } from "./PowerSandbox";
 import { PowerArtPackPanel } from "./AssetPackPanel";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { ChangelogAdminSection } from "@/domain";
+import {
+  POWER_BORDERS,
+  POWER_BORDER_PARTICLE_LABELS,
+  POWER_BORDER_PARTICLE_MODES,
+  type PowerBorderId,
+  type PowerBorderParticlesMode,
+} from "@/domain/powerBorders";
 import { PowerCardView } from "@/components/power/PowerCardView";
 import { CODE_POWER_MODULES } from "@/config/powers";
 import { NJAMBO_ICON_NAMES } from "@/components/ui/Art";
@@ -36,7 +43,7 @@ const stableJson = (value: unknown): string => JSON.stringify(value, (_key, item
 type Tab = "identity" | "target" | "effect" | "animation" | "economy" | "sandbox";
 
 const TABS: Array<{ key: Tab; label: string; prefixes: string[] }> = [
-  { key: "identity", label: "Identité", prefixes: ["def.id", "def.name", "def.description", "def.activationTitle", "def.activationText", "def.category", "def.rarity", "def.icon", "def.tone", "def.art", "def.targetMode", "def.animTags", "def.sound", "script.id"] },
+  { key: "identity", label: "Identité", prefixes: ["def.id", "def.name", "def.description", "def.activationTitle", "def.activationText", "def.category", "def.rarity", "def.icon", "def.tone", "def.art", "def.border", "def.borderParticles", "def.targetMode", "def.animTags", "def.sound", "script.id"] },
   { key: "target", label: "Cible", prefixes: ["script.target", "script.conditions"] },
   { key: "effect", label: "Effet", prefixes: ["script.steps"] },
   { key: "animation", label: "Animation", prefixes: ["def.animV2"] },
@@ -355,6 +362,32 @@ export function PowerCardEditor({ initial, isNew, published, revision, onClose, 
                 <label className={styles.field}><span>Rareté</span><select value={def.rarity} onChange={(e) => patchDef({ rarity: e.target.value as PowerCardDef["rarity"] })}>{POWER_RARITIES.map((key) => <option key={key} value={key}>{RARITY_LABELS[key]}</option>)}</select></label>
                 <label className={styles.field}><span>Teinte</span><select value={def.tone} onChange={(e) => patchDef({ tone: e.target.value as PowerCardDef["tone"] })}>{POWER_TONES.map((key) => <option key={key} value={key}>{TONE_LABELS[key]}</option>)}</select></label>
                 <label className={styles.field}><span>Icône</span><select value={def.icon} onChange={(e) => patchDef({ icon: e.target.value })}>{[...new Set([def.icon, ...NJAMBO_ICON_NAMES])].map((key) => <option key={key} value={key}>{key}</option>)}</select></label>
+                <label className={`${styles.field} ${errorFor("def.border") ? styles.invalid : ""}`}>
+                  <span>Bordure de la carte</span>
+                  <select
+                    value={def.border ?? ""}
+                    onChange={(e) => patchDef({ border: (e.target.value || undefined) as PowerBorderId | undefined })}
+                  >
+                    <option value="">Bordure globale (réglage général)</option>
+                    {POWER_BORDERS.map((item) => (
+                      <option key={item.id} value={item.id}>{item.name} ({item.badge})</option>
+                    ))}
+                  </select>
+                  {errorFor("def.border") && <span className={styles.fieldError}>{errorFor("def.border")}</span>}
+                </label>
+                <label className={`${styles.field} ${errorFor("def.borderParticles") ? styles.invalid : ""}`}>
+                  <span>Particules de la carte</span>
+                  <select
+                    value={def.borderParticles ?? ""}
+                    onChange={(e) => patchDef({ borderParticles: (e.target.value || undefined) as PowerBorderParticlesMode | undefined })}
+                  >
+                    <option value="">Réglage global</option>
+                    {POWER_BORDER_PARTICLE_MODES.map((mode) => (
+                      <option key={mode} value={mode}>{POWER_BORDER_PARTICLE_LABELS[mode]}</option>
+                    ))}
+                  </select>
+                  {errorFor("def.borderParticles") && <span className={styles.fieldError}>{errorFor("def.borderParticles")}</span>}
+                </label>
                 <label className={styles.field}><span>Affichage de la cible (boutique)</span><select value={def.targetMode} onChange={(e) => patchDef({ targetMode: e.target.value as PowerCardDef["targetMode"] })}>{POWER_TARGET_MODES.map((key) => <option key={key} value={key}>{TARGET_MODE_LABELS[key]}</option>)}</select></label>
                 {text("Titre d'activation (en grand)", "activationTitle", 24)}
                 {text("Texte d'activation", "activationText", 80)}

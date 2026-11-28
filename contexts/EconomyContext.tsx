@@ -163,6 +163,11 @@ export function useEconomy() {
   return value;
 }
 
+/** Variante tolérante pour les écrans ou tests montés hors <EconomyProvider>. */
+export function useOptionalEconomy() {
+  return useContext(EconomyContext);
+}
+
 export function useInventory() {
   const value = useContext(InventoryContext);
   if (!value) throw new Error("useInventory doit être utilisé sous <EconomyProvider>");

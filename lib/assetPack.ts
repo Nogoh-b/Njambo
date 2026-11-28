@@ -14,6 +14,8 @@ import {
   DEFAULT_ASSET_PACKS,
   crispAssetUrl,
   isAssetPackForScope,
+  powerPackSmallUrl,
+  powerPackThumbUrl,
   readAssetPacks,
   readImportedPowerPacks,
   resolveAssetUrl,
@@ -96,7 +98,38 @@ function start() {
     } catch { /* stockage indisponible */ }
   }
   current = saved;
-  applyCss(current);
+
+  window.addEventListener("storage", (event) => {
+    if (event.key === IMPORTED_STORAGE_KEY) {
+      try {
+        setImportedPowerPacks(event.newValue ? readImportedPowerPacks(JSON.parse(event.newValue)) : []);
+        if (lastPackDoc) {
+          current = { ...readAssetPacks(lastPackDoc.data) };
+        } else {
+          const savedPower = localStorage.getItem(STORAGE_KEY.powers);
+          current = {
+            ...current,
+            ...(isAssetPackForScope(savedPower, "powers") ? { powers: savedPower } : {}),
+          };
+        }
+        applyCss(current);
+        listeners.forEach((listener) => listener());
+      } catch { /* cache illisible */ }
+      return;
+    }
+    for (const scope of ASSET_PACK_SCOPES) {
+      if (event.key === STORAGE_KEY[scope]) {
+        const value = event.newValue;
+        const nextPack = isAssetPackForScope(value, scope) ? value : DEFAULT_ASSET_PACKS[scope];
+        if (nextPack !== current[scope]) {
+          current = { ...current, [scope]: nextPack };
+          applyCss(current);
+          listeners.forEach((listener) => listener());
+        }
+        return;
+      }
+    }
+  });
 }
 
 start();
@@ -106,13 +139,21 @@ export function sysAsset(path: string): string {
   return crispAssetUrl(resolveAssetUrl(path, current));
 }
 
+export function powerCardImage(path: string, size: "thumb" | "small" | "full" = "full"): string {
+  if (size === "small") return powerPackSmallUrl(path, current.powers);
+  if (size === "thumb") return powerPackThumbUrl(path, current.powers);
+  return sysAsset(path);
+}
+
 export function currentAssetPacks(): AssetPackSelection {
   return current;
 }
 
 function subscribe(listener: () => void) {
-  listeners.add(listener);
   start();
+  listeners.add(listener);
+  // Les variables CSS sont appliquées après l'hydratation de la racine.
+  if (listeners.size === 1) applyCss(current);
   return () => { listeners.delete(listener); };
 }
 

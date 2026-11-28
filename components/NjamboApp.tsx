@@ -8,7 +8,8 @@ import { GameProvider, useGame } from "@/contexts/GameContext";
 import { consumeEventDeepLink, eventIdFromWorkerMessage } from "@/lib/eventDeepLink";
 import { consumeAcademyDeepLink } from "@/lib/academy/deepLink";
 import { CoachLayer } from "@/components/academy/CoachLayer";
-import type { AcademyScene } from "@/engine/academy/types";
+import type { AcademyScene, SceneOutcome } from "@/engine/academy/types";
+import { academyProgress } from "@/lib/academy/academyProgress";
 import { BASICS_COURSE, stepScene, type AcademyStep } from "@/data/academy/course";
 import { EntryDoor } from "@/components/academy/EntryDoor";
 import { entryDoorAtBoot, markEntryDoor, shouldOpenEntryDoor, type EntryDoorChoice } from "@/lib/academy/entryDoor";
@@ -30,6 +31,7 @@ import { prefetchAssets } from "@/lib/assets/AssetLoader";
 import { sceneManifest, tableManifest, TABLE_APPROACH_SCENES } from "@/lib/assets/manifests";
 import {
   clearActiveGameSession,
+  closeTopModal,
   loadActiveGameSession,
   saveActiveGameSession,
   updateActiveGameMatchId,
@@ -48,7 +50,6 @@ const SCENE_GATES: Record<string, string> = {
   shop: "Ouverture du marché",
   power_shop: "Ouverture du marché",
   power_collection: "Ta collection arrive",
-  events: "Chargement des événements",
   minigames: "Préparation des mini-jeux",
   wallet: "Ouverture du coffre",
   profile: "Chargement de ton profil",
@@ -136,17 +137,19 @@ function SceneRouter() {
      (51 calques, 7,6 × la surface de l'écran) : sur téléphone, écran vide ~1 s au retour.
      Il reste donc monté dans un calque fixe SOUS les autres scènes : masqué (visibility),
      inerte et animations en pause dès qu'une scène l'a entièrement recouvert. */
+  const allowCrossfade = motionProfile.allowNavigationMotion;
   const [menuMounted, setMenuMounted] = useState(scene === "menu");
-  const [menuCovered, setMenuCovered] = useState(scene !== "menu");
+  const [menuCovered, setMenuCovered] = useState(scene !== "menu" || !allowCrossfade);
   const onMenu = scene === "menu";
   if (onMenu && !menuMounted) setMenuMounted(true);
-  if (onMenu && menuCovered) setMenuCovered(false);
-  // Visible pendant le fondu d'entrée de la scène suivante (fondu enchaîné), masqué ensuite.
-  const menuVisible = onMenu || !menuCovered;
+  if (onMenu && allowCrossfade && menuCovered) setMenuCovered(false);
+  if (onMenu && !allowCrossfade && !menuCovered) setMenuCovered(true);
   /* Calque de scène : ni pour l'accueil (calque permanent ci-dessus), ni pour la table (rendue par
      les overlays MatchLoadingScreen/TableScreen/ResultScreen). Un calque VIDE de 100dvh en z-index 1
      recouvrait sinon la table et captait tous les appuis (cartes, boutons) pendant la partie. */
   const sceneLayer = !onMenu && scene !== "table";
+  // Visible pendant le fondu d'entrée de la scène suivante (fondu enchaîné), masqué immédiatement sinon.
+  const menuVisible = onMenu || (sceneLayer && allowCrossfade && !menuCovered);
   const sceneRefForPerf = useRef(scene);
   sceneRefForPerf.current = scene;
   const coverMenu = useCallback(() => {
@@ -156,13 +159,13 @@ function SceneRouter() {
   }, [endTransition]);
   /* Mesure de navigation (?perf=1) : écran validé ; sans fondu, il est complet dès sa 1re image. */
   useLayoutEffect(() => {
-    navCommitted(scene, !motionProfile.allowNavigationMotion || !(sceneLayer || onMenu));
+    navCommitted(scene, !allowCrossfade || !(sceneLayer || onMenu));
   }, [scene]); // eslint-disable-line react-hooks/exhaustive-deps -- une mesure par changement d'écran
   useEffect(() => {
     // Sans fondu d'entrée (pas de calque de scène, ou animations de navigation coupées),
-    // rien ne signale la fin du recouvrement : on masque l'accueil tout de suite.
-    if (!onMenu && (!sceneLayer || !motionProfile.allowNavigationMotion)) setMenuCovered(true);
-  }, [onMenu, sceneLayer, motionProfile.allowNavigationMotion]);
+    // rien ne signale la fin du recouvrement : on garantit l'état couvert sans re-rendu superflu.
+    if (!onMenu && (!sceneLayer || !allowCrossfade)) setMenuCovered(true);
+  }, [onMenu, sceneLayer, allowCrossfade]);
   const {
     currentRoom,
     resumeActiveRoom,
@@ -218,7 +221,7 @@ function SceneRouter() {
   /** Partie de fin d'Académie en cours sur la table (vraie donne locale). */
   const [academyFinal, setAcademyFinal] = useState(false);
   /** Parcours en cours (chapitres enchaînés) ; null pour une scène seule. */
-  const [academyRun, setAcademyRun] = useState<{ steps: AcademyStep[]; index: number } | null>(null);
+  const [academyRun, setAcademyRun] = useState<{ steps: AcademyStep[]; index: number; returnTo?: "rules" } | null>(null);
 
   /* Refs d'interception du bouton Retour */
   const nextRoundRef = useRef<(() => void) | null>(null);
@@ -266,13 +269,17 @@ function SceneRouter() {
   );
 
   /* Préchargement d'approche : dès qu'on s'approche de la table (choix du
-     mode, lobby, détail d'événement), on charge ses assets au repos. */
+     mode, lobby, détail d'événement), on charge ses assets au repos après
+     la transition d'entrée (évite getComputedStyle + 30+ requêtes pendant le montage). */
   const approachingTable = TABLE_APPROACH_SCENES.has(scene);
   const powersKey = myEquippedPowers.join(",");
   useEffect(() => {
     if (!approachingTable) return;
-    const manifest = tableManifest({ myPowers: powersKey ? powersKey.split(",") : [], participants: [myCosmetics] });
-    prefetchAssets([...manifest.critical, ...manifest.background]);
+    const timer = window.setTimeout(() => {
+      const manifest = tableManifest({ myPowers: powersKey ? powersKey.split(",") : [], participants: [myCosmetics] });
+      prefetchAssets([...manifest.critical, ...manifest.background]);
+    }, 1000);
+    return () => window.clearTimeout(timer);
   }, [approachingTable, powersKey, myCosmetics]);
 
   /* Approche des autres écrans riches : profil → collection, menu → boutique. */
@@ -286,6 +293,7 @@ function SceneRouter() {
   useEffect(() => {
     const open = (id: string | null) => {
       if (!id) return;
+      closeTopModal();
       setEventDetailId(id);
       navigateTo("event_detail", { eventDetailId: id });
     };
@@ -309,12 +317,20 @@ function SceneRouter() {
   }, [setProfile, user]);
 
   useEffect(() => {
-    if (!["play", "bot_setup", "online_setup", "friends_invite", "lobby", "events", "event_detail"].includes(scene)) return;
-    // Après la transition d'entrée : ~500 Ko de JS à parser ne doivent pas voler le CPU au fondu.
+    if (scene === "events") {
+      // Sur le hub Événements, la prochaine étape probable est le détail d'un événement (pas la table).
+      // Différé après la stabilisation de l'écran (le survol/appui sur une carte précharge déjà plus tôt).
+      const timer = window.setTimeout(() => {
+        void SCENE_IMPORTS.EventDetailScreen();
+      }, 1200);
+      return () => window.clearTimeout(timer);
+    }
+    if (!["play", "bot_setup", "online_setup", "friends_invite", "lobby", "event_detail"].includes(scene)) return;
+    // Après la stabilisation complète : ~500 Ko de JS + CSS à parser ne doivent pas voler le CPU à la transition.
     const timer = window.setTimeout(() => {
       void SCENE_IMPORTS.TableScreen();
       void SCENE_IMPORTS.ResultScreen();
-    }, 700);
+    }, 1200);
     return () => window.clearTimeout(timer);
   }, [scene]);
 
@@ -378,10 +394,10 @@ function SceneRouter() {
   }, [navigateTo]);
 
   /** Parcours : la première étape s'ouvre sur la table, les suivantes viennent avec « Continuer ». */
-  const startAcademyCourse = useCallback((steps: AcademyStep[]) => {
+  const startAcademyCourse = useCallback((steps: AcademyStep[], returnTo?: "rules") => {
     startAcademyScene(null);
     openAcademyStep(steps[0]);
-    setAcademyRun({ steps, index: 0 });
+    setAcademyRun({ steps, index: 0, returnTo });
   }, [openAcademyStep, startAcademyScene]);
 
   /* --- Porte d'entrée (A5) : un seul passage, puis plus jamais --- */
@@ -663,16 +679,19 @@ function SceneRouter() {
     navigateTo("menu", { replace: true, resetStack: true });
   }, [navigateTo, currentRoom, leaveRoom, refreshActiveRoomHint, gameMode, eventDetailId]);
 
-  /** « Continuer » en fin de scène : étape suivante sur la même table, ou retour au menu. */
-  const handleAcademyDone = useCallback(() => {
+  /** « Continuer » en fin de scène : étape suivante sur la même table, ou retour (hub ou menu). */
+  const handleAcademyDone = useCallback((outcome?: SceneOutcome) => {
+    // Étape finie (réussie, ou rejeu regardé) : elle compte pour la progression du hub.
+    if (academyRun && outcome !== "failure") academyProgress.stepDone(academyRun.steps[academyRun.index].id);
     const next = academyRun?.steps[academyRun.index + 1];
     if (!academyRun || !next) {
       handleMenu();
+      if (academyRun?.returnTo === "rules") navigateTo("rules");
       return;
     }
-    setAcademyRun({ steps: academyRun.steps, index: academyRun.index + 1 });
+    setAcademyRun({ ...academyRun, index: academyRun.index + 1 });
     openAcademyStep(next);
-  }, [academyRun, handleMenu, openAcademyStep]);
+  }, [academyRun, handleMenu, navigateTo, openAcademyStep]);
 
   const handleLobbyBack = useCallback(() => {
     clearRestoredRoomId();
@@ -757,7 +776,7 @@ function SceneRouter() {
       case "public_profile": return <PublicProfileScreen />;
       case "options": return <OptionsScreen />;
       case "history": return <HistoryScreen />;
-      case "rules": return <RulesScreen />;
+      case "rules": return <RulesScreen onPlayChapter={(chapter) => startAcademyCourse(chapter.steps, "rules")} />;
       case "power_shop": return <ShopScreen />;
       case "power_collection": return <PowerCollectionScreen />;
       case "play": return <PlayHubScreen onBotStart={handleBotStart} />;
@@ -801,7 +820,7 @@ function SceneRouter() {
             inert={!onMenu}
             style={{ position: "fixed", inset: 0, zIndex: 0, visibility: menuVisible ? "visible" : "hidden" }}
           >
-            <MenuScreen resumeRoomType={resumeRoomType} onResumeGame={handleResumeGame} dormant={!menuVisible} />
+            <MenuScreen resumeRoomType={resumeRoomType} onResumeGame={handleResumeGame} />
           </div>
         )}
 

@@ -68,6 +68,7 @@ import {
   saveCosmeticHandler,
   saveCosmeticDefaultsHandler,
   saveAssetPackHandler,
+  savePowerBorderHandler,
   getCosmeticCollectionHandler,
   equipCosmeticHandler,
 } from "./cosmeticCommands";
@@ -201,6 +202,7 @@ export const listCosmetics = onCall(callable, listCosmeticsHandler);
 export const saveCosmetic = onCall(callable, saveCosmeticHandler);
 export const saveCosmeticDefaults = onCall(callable, saveCosmeticDefaultsHandler);
 export const saveAssetPack = onCall(callable, saveAssetPackHandler);
+export const savePowerBorder = onCall(callable, savePowerBorderHandler);
 export const savePowerPack = onCall(callable, savePowerPackHandler);
 export const deletePowerPack = onCall(callable, deletePowerPackHandler);
 export const getCosmeticCollection = onCall(callable, getCosmeticCollectionHandler);

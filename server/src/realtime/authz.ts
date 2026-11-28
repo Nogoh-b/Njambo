@@ -10,7 +10,8 @@ import type { DocumentData } from "../../../functions/src/firestoreTypes";
 import type { SubscribeTarget } from "./protocol";
 
 export interface AuthInfo {
-  uid: string;
+  /** null = connexion publique (lecture seule sur runtime_config et collections publiées). */
+  uid: string | null;
   admin: boolean;
 }
 
@@ -41,7 +42,21 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
   const isDoc = target.kind === "doc";
   if (segments.length === 0 || segments.length > 4) return { kind: "deny" };
   const [root, second, third, fourth] = segments;
-  const owner = (uid: string | undefined) => uid === auth.uid || auth.admin;
+
+  // Lectures publiques (accessibles même sans compte connecté, aligné sur firestore.rules) :
+  // runtime_config/{id} (packs, catalogue audio, règles gameplay, cosmétiques par défaut)
+  // et collections publiées filtrées sur `published === true`.
+  if (root === "runtime_config") {
+    return segments.length <= 2 ? { kind: "allow" } : { kind: "deny" };
+  }
+  if (PUBLISHED_COLLECTIONS.has(root) && segments.length <= 2) {
+    return publishedOnly;
+  }
+
+  // Tout le reste exige un utilisateur authentifié (compte ou invité signé).
+  const uid = auth.uid;
+  if (!uid) return { kind: "deny" };
+  const owner = (targetUid: string | undefined) => targetUid === uid || auth.admin;
 
   switch (root) {
     case "users": {
@@ -50,7 +65,7 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
     }
     case "players":
     case "players_presence":
-      return { kind: "allow" }; // signedIn (la connexion WS est déjà authentifiée)
+      return { kind: "allow" }; // signedIn
     case "economies": {
       // economies/{uid} + economies/{uid}/ledger
       if (!owner(second)) return { kind: "deny" };
@@ -63,18 +78,18 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
       return owner(second) ? { kind: "allow" } : { kind: "deny" };
     case "friendRequests": {
       if (isDoc) {
-        return { kind: "filter", predicate: (data) => data.fromUid === auth.uid || data.toUid === auth.uid };
+        return { kind: "filter", predicate: (data) => data.fromUid === uid || data.toUid === uid };
       }
-      return hasEq(target, "fromUid", auth.uid) || hasEq(target, "toUid", auth.uid)
+      return hasEq(target, "fromUid", uid) || hasEq(target, "toUid", uid)
         ? { kind: "allow" }
         : { kind: "deny" };
     }
     case "conversations": {
       if (segments.length === 1 && !isDoc) {
-        return hasArrayContains(target, "participants", auth.uid) ? { kind: "allow" } : { kind: "deny" };
+        return hasArrayContains(target, "participants", uid) ? { kind: "allow" } : { kind: "deny" };
       }
       if (segments.length === 2 && isDoc) {
-        return { kind: "filter", predicate: (data) => Array.isArray(data.participants) && data.participants.includes(auth.uid) };
+        return { kind: "filter", predicate: (data) => Array.isArray(data.participants) && data.participants.includes(uid) };
       }
       if (segments.length === 3 && third === "messages" && !isDoc) {
         // Vérification du participant faite au subscribe (lecture du doc parent) par le serveur.
@@ -92,7 +107,7 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
     }
     case "matches": {
       if (segments.length === 2 && isDoc) {
-        return { kind: "filter", predicate: (data) => Array.isArray(data.participantUids) && data.participantUids.includes(auth.uid) };
+        return { kind: "filter", predicate: (data) => Array.isArray(data.participantUids) && data.participantUids.includes(uid) };
       }
       if (segments.length === 4 && third === "private") {
         return owner(fourth) ? { kind: "allow" } : { kind: "deny" };
@@ -100,16 +115,14 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
       return { kind: "deny" };
     }
     case "event_runs": {
-      if (isDoc) return { kind: "filter", predicate: (data) => data.uid === auth.uid || auth.admin };
-      return hasEq(target, "uid", auth.uid) || auth.admin ? { kind: "allow" } : { kind: "deny" };
+      if (isDoc) return { kind: "filter", predicate: (data) => data.uid === uid || auth.admin };
+      return hasEq(target, "uid", uid) || auth.admin ? { kind: "allow" } : { kind: "deny" };
     }
     case "daily_rotations": {
       // daily_rotations/{day}/players/{uid}
       if (segments.length === 4 && third === "players") return owner(fourth) ? { kind: "allow" } : { kind: "deny" };
       return { kind: "deny" };
     }
-    case "runtime_config":
-      return { kind: "allow" };
     case "admin_drafts":
     case "event_drafts":
     case "admin_uploads":
@@ -125,7 +138,6 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
     case "admin_audit":
       return auth.admin ? { kind: "allow" } : { kind: "deny" };
     default:
-      if (PUBLISHED_COLLECTIONS.has(root) && segments.length <= 2) return publishedOnly;
       return { kind: "deny" };
   }
 }
@@ -134,17 +146,19 @@ export function authorizeTarget(auth: AuthInfo, target: SubscribeTarget): AuthzD
 export type ParentCheck = { path: string; predicate: (data: DocumentData) => boolean } | null;
 
 export function parentCheckFor(auth: AuthInfo, target: SubscribeTarget): ParentCheck {
+  const uid = auth.uid;
+  if (!uid) return null;
   const segments = target.path.split("/").filter((segment) => segment.length > 0);
   if (segments[0] === "conversations" && segments.length === 3 && segments[2] === "messages") {
     return {
       path: `conversations/${segments[1]}`,
-      predicate: (data) => Array.isArray(data.participants) && data.participants.includes(auth.uid),
+      predicate: (data) => Array.isArray(data.participants) && data.participants.includes(uid),
     };
   }
   if (segments[0] === "rooms" && segments.length === 3 && ["reactions", "game", "takeoverRequests"].includes(segments[2])) {
     return {
       path: `rooms/${segments[1]}`,
-      predicate: (data) => Array.isArray(data.playerUids) && data.playerUids.includes(auth.uid),
+      predicate: (data) => Array.isArray(data.playerUids) && data.playerUids.includes(uid),
     };
   }
   return null;

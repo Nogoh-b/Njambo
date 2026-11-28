@@ -9,7 +9,7 @@ import {
 } from "@/domain/assetPacks";
 import { currentAssetPacks, setAssetPacks, sysAsset } from "@/lib/assetPack";
 import { CODE_POWER_MODULES } from "@/config/powers";
-import { powerCardAssets } from "@/lib/assets/manifests";
+import { powerCardAssets, sceneManifest } from "@/lib/assets/manifests";
 
 afterEach(() => setAssetPacks(DEFAULT_ASSET_PACKS));
 
@@ -49,6 +49,8 @@ describe("packs des cartes Pouvoir", () => {
     expect(currentAssetPacks()).toEqual({ system: "raphia-prestige", interface: "porcelaine-mboa", powers: "jade-astral" });
     expect(sysAsset(CODE_POWER_MODULES.oeil_sorcier.def.art)).toBe(expected);
     expect(powerCardAssets("oeil_sorcier").images.some((asset) => asset.url === expected)).toBe(true);
+    expect(powerCardAssets("oeil_sorcier", "small").images[0]?.url).toBe(expected.replace(".webp", "-128.webp"));
+    expect(sceneManifest("power_collection").critical.map((asset) => asset.url)).toContain(expected.replace(".webp", "-256.webp"));
     expect(resolveAssetUrl("/assets/njambo/economy/nkap-256.webp", currentAssetPacks())).toContain("/packs/raphia-prestige/");
     setAssetPacks({ powers: "classique" });
     expect(sysAsset(CODE_POWER_MODULES.oeil_sorcier.def.art)).toBe("/assets/power-cards/v2/oeil_sorcier.webp");
@@ -63,12 +65,21 @@ describe("packs des cartes Pouvoir", () => {
           if (!existsSync(file)) { missing.push(file); continue; }
           const metadata = await sharp(file).metadata();
           expect([metadata.width, metadata.height], file).toEqual([size, isPortraitPowerPack(pack.id) ? size * 1.5 : size]);
-          expect(readFileSync(file).byteLength, file).toBeLessThan(size === 720 ? 400_000 : 80_000);
+          expect(readFileSync(file).byteLength, file).toBeLessThanOrEqual(size === 720 ? 115_000 : size === 256 ? 28_000 : 12_000);
         }
       }
     }
     expect(missing).toEqual([]);
   }, 30_000);
+
+  it("livre les deux tailles de vignettes du pack classique", async () => {
+    for (const card of BUILTIN_POWER_ART_IDS) {
+      for (const width of [128, 256]) {
+        const file = join(process.cwd(), "public/assets/power-cards/v2", `${card}-${width}.webp`);
+        expect((await sharp(file).metadata()).width, file).toBe(width);
+      }
+    }
+  });
 
   it("fournit une illustration distincte par pack pour chaque pouvoir", () => {
     const packs = assetPacksForScope("powers").filter((pack) => pack.id !== "classique");

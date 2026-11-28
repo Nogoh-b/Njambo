@@ -628,6 +628,35 @@
   transition: transform 280ms ease;
 }
 
+/* 6 nouvelles mises en page de texte : illustration plein cadre 100 % sans masque bas */
+.cardFullBleed .artCanvas,
+.cardFullBleed .heroArtMask,
+.cardFullBleed .slottedArtWrap {
+  inset: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.cardFullBleed .cardArtImg,
+.cardFullBleed .heroArtImg,
+.cardFullBleed .slotArt {
+  object-fit: cover;
+  object-position: center center;
+}
+
+.cardFullBleed .slotName {
+  bottom: 4px;
+  left: 4px;
+  right: 4px;
+  padding: 2px 5px;
+  border-radius: 6px;
+  background: rgba(8, 10, 18, 0.78);
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(255, 240, 195, 0.25);
+  z-index: 7;
+}
+
 .artifactCard:hover .cardArtImg {
   transform: scale(1.08);
 }
@@ -721,8 +750,8 @@
 /* Haut de carte épuré (laisse le grand blason central 100% dégagé) */
 .cardTopMeta {
   position: relative;
-  z-index: 5;
-  padding: 5px 5px 0;
+  z-index: 8;
+  padding: 7px 7px 0;
   display: flex;
   align-items: center;
   justify-content: flex-end;

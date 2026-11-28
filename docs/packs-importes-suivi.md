@@ -18,28 +18,19 @@ d'uploads.
 | 4 | Jeu : images des packs importés, repli sur l'illustration d'origine | ✅ Terminé |
 | 5 | Admin : créer un pack, déposer les images, renommer, supprimer | 🟡 Code et tests faits, à voir avec un compte admin |
 | 6 | Sortir aussi `public/assets/power-cards/packs/` de git (packs intégrés) | ⬜ Plus tard, à décider |
+| 7 | Compresser les packs intégrés et charger des vignettes dans le jeu | ✅ Terminé |
+| 8 | Importer et exporter un ZIP, ouvrir un pack et éditer une illustration | ✅ Terminé |
 
 Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
 ## Fonctionnement
 
-- **Créer** : Admin → Cartes de pouvoir (ou Cosmétiques) → « Importer un pack de
-  cartes Pouvoir » : nom, description, format (carré ou portrait 2:3). L'id est
-  dérivé du nom : `import-<nom>`.
-- **Déposer les images** : une image par carte intégrée, nommée comme la carte
-  (`vent_nord.png`, `oeil_sorcier.webp`…), par glisser-déposer ou sélection
-  multiple. Le navigateur la réduit à 1 080 px (sous la limite Nginx de 3 Mo),
-  puis `POST /admin/power-pack-art` la décline en 720 / 256 / 128 px comme
-  `scripts/build-power-art-packs.mjs` (recadrage, fond `#072c22`, budgets
-  400 Ko / 80 Ko).
-- **Stockage** : `UPLOAD_DIR/power-packs/<pack>/<carte>-<empreinte>[-256|-128].webp`,
-  servi par `/uploads/` (cache immuable : chaque nouvelle image a un nouveau nom).
-  Sauvegardé avec l'archive de `/www/njambo-uploads`.
-- **Activer** : dans « Pack de cartes Pouvoir », comme les packs intégrés. Une
-  carte sans image garde son illustration d'origine.
-- **Format** : verrouillé dès la première image (elles sont recadrées pour lui).
-- **Supprimer** : refusé tant que le pack est actif ; les fichiers restent sur le
-  disque.
+- Ouvrez « Packs de cartes » dans la régie (`/admin/packs-cartes`). Les pages « Cartes de pouvoir » et « Cosmétiques » y donnent aussi accès.
+- Créez un pack vide ou importez le ZIP d’un pack Njambo. Un ZIP d’images PNG, JPEG ou WebP est également accepté si chaque fichier porte le nom d’une carte, par exemple `vent_nord.png`. L’import crée un nouveau pack.
+- Ouvrez un pack pour l’activer, exporter son ZIP ou sélectionner une carte. Les packs importés permettent de remplacer une illustration et d’ajouter des images par glisser-déposer ou sélection multiple. Dupliquez un pack intégré pour modifier sa copie.
+- L’archive contient le nom, la description, le format et une image par carte. À l’import, le serveur génère des WebP de 720, 256 et 128 px, plafonnés respectivement à 115, 28 et 12 Ko. L’envoi complet reste sous la limite Nginx de 3 Mo. Le jeu utilise les vignettes sur les galeries et les petits emplacements.
+- Le serveur publie le pack importé une fois toutes ses illustrations validées et écrites. Les WebP sont stockés dans `UPLOAD_DIR/power-packs/` et servis par `/uploads/`. Le chemin inclut une empreinte pour le cache.
+- Une carte sans illustration dans le pack actif utilise l’image d’origine. Le format du pack est verrouillé dès la première image. Pour supprimer un pack importé, activez d’abord un autre pack.
 
 ## Cases
 
@@ -51,6 +42,8 @@ Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 - [x] Client : `useAssetPackSync` suit `runtime_config/power_packs`, cache local
 - [x] Admin : `PowerPackImporter` (création, dépôt, progression, renommage, suppression)
 - [x] Tests : `imported-power-packs` (6, dont le découpage sharp), `smoke-power-packs`, suite complète 437
+- [x] ZIP réimportable, routes des rubriques et liens directs vers les illustrations
+- [x] Vérification du poids des WebP et test HTTP de l’import et du remplacement ciblé
 - [ ] Essai avec un compte admin : créer un pack, importer les 21 images, l'activer en partie
 - [ ] Production : redéployer le serveur (nouvelle route) ; `UPLOAD_DIR` accessible en écriture
 
@@ -58,5 +51,6 @@ Légende : ⬜ à faire · 🟡 en cours · ✅ terminé · ⛔ bloqué
 
 | Date | Étape | Avancée |
 | --- | --- | --- |
+| 2026-11-28 | 7–8 | Budgets WebP diminués, vignettes utilisées dans le jeu, échange de packs en ZIP et édition d’une illustration depuis sa propre URL. |
 | 2026-11-27 | 2–5 | Import de packs depuis l'admin écrit : modèle, commandes, route d'import (3 tailles), images dans le jeu, écran d'admin. 437 tests, `tsc` front et serveur, `eslint`, `smoke-power-packs` au vert. Pas encore essayé avec un compte admin. |
 | 2026-11-27 | 1 | 279 images (622 Mo) retirées du push : commit d'images recréé sans elles, `output/imagegen/` ignoré, master poussé (`9f10477`). Ancien historique dans `backup/avant-retrait-images`. |

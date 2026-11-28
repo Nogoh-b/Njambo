@@ -233,11 +233,16 @@ export function usePowerFxOrchestrator(deps: OrchestratorDeps): {
     const noEffect = mine && !activation.used && !blocked;
 
     /* ── Intro commune (toutes cartes) ── */
-    // Si la carte possède son propre son d'activation (Admin → Cartes de pouvoir), on le joue ;
-    // sinon on joue le seul son commun de lancement d'une carte pouvoir (Admin → Sons & Audio → power_play).
+    // Si la carte possède son propre son d'activation (Admin → Cartes de pouvoir / Sons & Audio),
+    // on le joue ; en cas d'échec réseau/décodage uniquement, on retombe sur le son commun (`power_play`).
     // Les effets multi-sons propres à la carte vivent dans les pistes son de sa chorégraphie.
-    if (def.sound?.ref) playPowerSound(def.sound.ref, def.sound.volume ?? 1);
-    else playGameSound("power_play");
+    if (def.sound?.ref) {
+      void playPowerSound(def.sound.ref, def.sound.volume ?? 1).then((played) => {
+        if (!played) playGameSound("power_play", { maxLoadDelayMs: 3000 });
+      });
+    } else {
+      playGameSound("power_play", { maxLoadDelayMs: 3000 });
+    }
     triggerFx((def.tone as PowerTone) ?? "gold");
     const activatorUi = d.uiIndexFromUid(activation.activatedByUid);
     const targetUi = d.uiIndexFromUid(activation.targetUid);

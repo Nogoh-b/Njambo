@@ -19,7 +19,10 @@ import { useAuth } from "@/hooks/useAuth";
 import { usePowerCatalogRevision } from "@/hooks/usePowerCatalog";
 import { POWER_CARDS, POWER_CARDS_BY_ID, MAX_EQUIPPED_POWERS } from "@/config/powerCards";
 import { useMotionProfile } from "@/lib/motion";
-import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
+import { CATEGORY_MOTIF_PALETTE, RARITY_METAL_PALETTE } from "@/components/power/PowerCardMotif";
+import { PowerCardFrame } from "@/components/power/PowerCardFrame";
+import { PowerCardExternalCaption, PowerCardTextOverlay } from "@/components/power/PowerCardTextOverlay";
+import { usePowerBorderConfig } from "@/lib/powerBorderStore";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { GameShell } from "@/components/ui/GameShell";
 import { GameModal } from "@/components/ui/GameModal";
@@ -78,6 +81,8 @@ export function PowerCollectionScreen() {
   const { user } = useAuth();
   const { inventory: serverInventory, command, pendingBoosterOpening } = useEconomy();
   const motionProfile = useMotionProfile();
+  const { textLayout } = usePowerBorderConfig();
+  const useCustomTextLayout = textLayout !== "classique";
   const storedObjects = useMemo(() => countStoredCollectionItems(serverInventory), [serverInventory]);
 
   const [filter, setFilter] = useState<BinderFilter>("all");
@@ -674,7 +679,7 @@ export function PowerCollectionScreen() {
                       <div
                         role="button"
                         tabIndex={0}
-                        className={`${styles.slottedCard}${selectedId === card.id ? ` ${styles.slottedSelected}` : ""}`}
+                        className={`${styles.slottedCard}${selectedId === card.id ? ` ${styles.slottedSelected}` : ""}${useCustomTextLayout ? ` ${styles.cardFullBleed}` : ""}`}
                         style={
                           {
                             "--c-primary": cardPal.primary,
@@ -682,6 +687,7 @@ export function PowerCollectionScreen() {
                             "--c-glow": cardPal.glow,
                             "--c-top": cardPal.clothTop,
                             "--c-bot": cardPal.clothBot,
+                            "--r-metal": RARITY_METAL_PALETTE[card.rarity].metal,
                           } as CSSProperties
                         }
                         onPointerDown={(e) => startMouseDrag(e, card, "slot", slotIdx)}
@@ -693,9 +699,9 @@ export function PowerCollectionScreen() {
                         aria-label={`Emplacement ${slotIdx + 1} : ${card.name}. Glisser pour réordonner ou retirer.`}
                       >
                         <div className={styles.slottedArtWrap}>
-                          <Image src={card.art} alt="" fill sizes="100px" className={styles.slotArt} />
+                          <Image src={card.art} powerArtSize="small" alt="" fill sizes="100px" className={styles.slotArt} />
                         </div>
-                        <PowerCardMotif category={card.category} rarity={card.rarity} className={styles.slotMotifSvg} />
+                        <PowerCardFrame category={card.category} rarity={card.rarity} art={card.art} cardBorder={card.border} cardParticles={card.borderParticles} className={styles.slotMotifSvg} compact />
                         <span className={styles.slotName}>{card.name}</span>
 
                         <button
@@ -752,7 +758,7 @@ export function PowerCollectionScreen() {
                 }
               >
                 <div
-                  className={`${styles.heroArtifactCard} ${styles[inspectedRarity.className]}`}
+                  className={`${styles.heroArtifactCard} nj-card-hover-host ${styles[inspectedRarity.className]}${useCustomTextLayout ? ` ${styles.cardFullBleed}` : ""}`}
                   style={
                     {
                       "--c-primary": inspectedPal.primary,
@@ -760,25 +766,38 @@ export function PowerCollectionScreen() {
                       "--c-glow": inspectedPal.glow,
                       "--c-top": inspectedPal.clothTop,
                       "--c-bot": inspectedPal.clothBot,
+                      "--r-metal": RARITY_METAL_PALETTE[inspected.rarity].metal,
                     } as CSSProperties
                   }
                 >
                   <div className={styles.heroArtMask}>
                     <Image src={inspected.art} alt={inspected.name} fill sizes="220px" className={styles.heroArtImg} />
                   </div>
-                  <PowerCardMotif category={inspected.category} rarity={inspected.rarity} className={styles.heroMotifSvg} />
+                  <PowerCardFrame category={inspected.category} rarity={inspected.rarity} art={inspected.art} cardBorder={inspected.border} cardParticles={inspected.borderParticles} className={styles.heroMotifSvg} />
                   <span className={styles.specularGlare} aria-hidden="true" />
 
-                  <div className={styles.heroBottomInfo}>
-                    <span className={styles.heroIconHalo}>
-                      <NjamboIcon name={inspected.icon as NjamboIconName} tone={inspected.tone} size={18} />
-                    </span>
-                    <span className={styles.heroCatLabel}>
-                      {inspectedPal.label} · {inspectedRarity.label}
-                    </span>
-                    <strong>{inspected.name}</strong>
-                  </div>
+                  {useCustomTextLayout ? (
+                    <PowerCardTextOverlay
+                      layout={textLayout}
+                      card={inspected}
+                      size="hero"
+                      showMeta
+                    />
+                  ) : (
+                    <div className={styles.heroBottomInfo}>
+                      <span className={styles.heroIconHalo}>
+                        <NjamboIcon name={inspected.icon as NjamboIconName} tone={inspected.tone} size={18} />
+                      </span>
+                      <span className={styles.heroCatLabel}>
+                        {inspectedPal.label} · {inspectedRarity.label}
+                      </span>
+                      <strong>{inspected.name}</strong>
+                    </div>
+                  )}
                 </div>
+                {textLayout === "externe" && (
+                  <PowerCardExternalCaption card={inspected} hero showMeta />
+                )}
               </div>
             </div>
 
@@ -914,11 +933,13 @@ export function PowerCollectionScreen() {
                         tabIndex={0}
                         className={[
                           styles.artifactCard,
+                          "nj-card-hover-host",
                           styles[rarity.className],
                           owned ? styles.cardOwned : styles.cardLocked,
                           isEquipped ? styles.cardEquipped : "",
                           isSelected ? styles.cardSelected : "",
                           isSourceDragging ? styles.cardGhostOrigin : "",
+                          useCustomTextLayout ? styles.cardFullBleed : "",
                         ]
                           .filter(Boolean)
                           .join(" ")}
@@ -929,6 +950,7 @@ export function PowerCollectionScreen() {
                             "--c-glow": pal.glow,
                             "--c-top": pal.clothTop,
                             "--c-bot": pal.clothBot,
+                            "--r-metal": RARITY_METAL_PALETTE[card.rarity].metal,
                             "--sheen-delay": `${(idx % 6) * 0.65}s`,
                           } as CSSProperties
                         }
@@ -940,10 +962,11 @@ export function PowerCollectionScreen() {
                         }}
                         aria-label={`${card.name}, ${pal.label}, ${rarity.label}, ${owned ? (isEquipped ? "équipée" : "possédée") : "verrouillée"}`}
                       >
-                        {/* Artwork fondu organiquement dans la carte (sans cadre plastique) */}
+                        {/* Artwork plein cadre (6 nouvelles itérations) ou fondu classique */}
                         <div className={styles.artCanvas}>
                           <Image
                             src={card.art}
+                            powerArtSize="thumb"
                             alt=""
                             fill
                             sizes="(max-width: 600px) 32vw, 150px"
@@ -952,7 +975,7 @@ export function PowerCollectionScreen() {
                         </div>
 
                         {/* GRAND MOTIF NDOP & SYMBOLIQUE COLORÉ PAR TYPE + ARCHITECTURE DE RARETÉ */}
-                        <PowerCardMotif category={card.category} rarity={card.rarity} className={styles.cardMotifSvg} />
+                        <PowerCardFrame category={card.category} rarity={card.rarity} art={card.art} cardBorder={card.border} cardParticles={card.borderParticles} className={styles.cardMotifSvg} />
 
                         {/* Balayage holographique subtil */}
                         <span className={styles.cardHoloSweep} aria-hidden="true" />
@@ -979,15 +1002,28 @@ export function PowerCollectionScreen() {
                           )}
                         </div>
 
-                        {/* Bas de carte flottant sur le grand motif coloré */}
-                        <div className={styles.cardBottomInfo}>
-                          <span className={styles.typeEmblem}>
-                            <NjamboIcon name={card.icon as NjamboIconName} tone={card.tone} size={15} />
-                          </span>
-                          <span className={styles.cardTypeName}>{pal.label}</span>
-                          <strong className={styles.cardTitle}>{card.name}</strong>
-                        </div>
+                        {/* Texte : rendu classique OU l'une des 6 itérations sans gros ombrage */}
+                        {useCustomTextLayout ? (
+                          <PowerCardTextOverlay
+                            layout={textLayout}
+                            card={card}
+                            size="default"
+                            revealed={isSelected}
+                            reserveTopRight
+                          />
+                        ) : (
+                          <div className={styles.cardBottomInfo}>
+                            <span className={styles.typeEmblem}>
+                              <NjamboIcon name={card.icon as NjamboIconName} tone={card.tone} size={15} />
+                            </span>
+                            <span className={styles.cardTypeName}>{pal.label}</span>
+                            <strong className={styles.cardTitle}>{card.name}</strong>
+                          </div>
+                        )}
                       </div>
+                      {textLayout === "externe" && (
+                        <PowerCardExternalCaption card={card} showMeta={false} />
+                      )}
                     </motion.div>
                   );
                 })}
@@ -1016,9 +1052,9 @@ export function PowerCollectionScreen() {
           aria-hidden="true"
         >
           <div className={styles.slottedArtWrap}>
-            <Image src={drag.card.art} alt="" fill sizes="120px" className={styles.slotArt} />
+            <Image src={drag.card.art} powerArtSize="small" alt="" fill sizes="120px" className={styles.slotArt} />
           </div>
-          <PowerCardMotif category={drag.card.category} rarity={drag.card.rarity} className={styles.slotMotifSvg} />
+          <PowerCardFrame category={drag.card.category} rarity={drag.card.rarity} art={drag.card.art} cardBorder={drag.card.border} className={styles.slotMotifSvg} compact disableParticles />
           <strong className={styles.ghostTitle}>{drag.card.name}</strong>
         </div>
       )}
@@ -1071,7 +1107,7 @@ export function PowerCollectionScreen() {
           >
             <span className={styles.inspectorSunburst} aria-hidden="true" />
             <div
-              className={`${styles.heroArtifactCard} ${styles[inspectedRarity.className]}`}
+              className={`${styles.heroArtifactCard} nj-card-hover-host ${styles[inspectedRarity.className]}${useCustomTextLayout ? ` ${styles.cardFullBleed}` : ""}`}
               style={
                 {
                   "--c-primary": inspectedPal.primary,
@@ -1079,23 +1115,36 @@ export function PowerCollectionScreen() {
                   "--c-glow": inspectedPal.glow,
                   "--c-top": inspectedPal.clothTop,
                   "--c-bot": inspectedPal.clothBot,
+                  "--r-metal": RARITY_METAL_PALETTE[inspected.rarity].metal,
                 } as CSSProperties
               }
             >
               <div className={styles.heroArtMask}>
                 <Image src={inspected.art} alt={inspected.name} fill sizes="200px" className={styles.heroArtImg} />
               </div>
-              <PowerCardMotif category={inspected.category} rarity={inspected.rarity} className={styles.heroMotifSvg} />
-              <div className={styles.heroBottomInfo}>
-                <span className={styles.heroIconHalo}>
-                  <NjamboIcon name={inspected.icon as NjamboIconName} tone={inspected.tone} size={18} />
-                </span>
-                <span className={styles.heroCatLabel}>
-                  {inspectedPal.label} · {inspectedRarity.label}
-                </span>
-                <strong>{inspected.name}</strong>
-              </div>
+              <PowerCardFrame category={inspected.category} rarity={inspected.rarity} art={inspected.art} cardBorder={inspected.border} cardParticles={inspected.borderParticles} className={styles.heroMotifSvg} />
+              {useCustomTextLayout ? (
+                <PowerCardTextOverlay
+                  layout={textLayout}
+                  card={inspected}
+                  size="hero"
+                  showMeta
+                />
+              ) : (
+                <div className={styles.heroBottomInfo}>
+                  <span className={styles.heroIconHalo}>
+                    <NjamboIcon name={inspected.icon as NjamboIconName} tone={inspected.tone} size={18} />
+                  </span>
+                  <span className={styles.heroCatLabel}>
+                    {inspectedPal.label} · {inspectedRarity.label}
+                  </span>
+                  <strong>{inspected.name}</strong>
+                </div>
+              )}
             </div>
+            {textLayout === "externe" && (
+              <PowerCardExternalCaption card={inspected} hero showMeta />
+            )}
           </div>
 
           <p className={styles.mobileInspectDesc}>{inspected.description}</p>

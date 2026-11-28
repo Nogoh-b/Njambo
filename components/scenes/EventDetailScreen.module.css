@@ -217,7 +217,7 @@
   inset: 0;
   background: var(--event-art) center / cover no-repeat;
   opacity: 0.28;
-  filter: saturate(1.12);
+  /* Pas de filter saturate() : invisible sous .mapVignette à 28 % d'opacité, coûteux en GPU mobile. */
   pointer-events: none;
   z-index: 0;
 }
@@ -348,6 +348,8 @@
   font-size: 10.5px;
   font-weight: 900;
   letter-spacing: 0.02em;
+}
+.decorOn .endingSoonPill {
   animation: soonPulse 1.6s ease-in-out infinite;
 }
 @keyframes soonPulse {
@@ -1065,8 +1067,11 @@
   width: 34%;
   background: linear-gradient(108deg, transparent, rgba(255, 255, 255, 0.5) 50%, transparent);
   transform: translateX(-140%);
-  animation: detailSweep 4.2s ease-in-out infinite;
   pointer-events: none;
+}
+
+.decorOn .ctaSheen {
+  animation: detailSweep 4.2s ease-in-out infinite;
 }
 
 @keyframes detailSweep {

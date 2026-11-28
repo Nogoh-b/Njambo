@@ -3,6 +3,7 @@
 // Import type-only (aucun cycle à l'exécution) : le modèle de script générique
 // des cartes pouvoir vit dans engine/power/types.ts.
 import type { PlayerCosmetics } from "../domain";
+import type { PowerBorderId, PowerBorderParticlesMode } from "../domain/powerBorders";
 import type {
   PowerChoices,
   PowerFxPreset,
@@ -182,6 +183,10 @@ export interface PowerCardDef {
   disabled?: boolean;
   /** Son d'activation : « preset:<nom> » (synthèse) ou URL d'un son uploadé ; volume 0-1. Absent = son par défaut. */
   sound?: { ref: string; volume?: number };
+  /** Bordure visuelle propre à cette carte (surcharge le réglage global des bordures). */
+  border?: PowerBorderId;
+  /** Intensité / coupure des particules propre à cette carte (`off` pour désactiver sur cette carte). */
+  borderParticles?: PowerBorderParticlesMode;
   /** Animation V2 (zones intelligentes) : identifiant du modèle qui anime les vols de cartes de la carte
    *  (cues « flyCards » des étapes sans chorégraphie). Absent ou inconnu = vols habituels. */
   animV2?: string;

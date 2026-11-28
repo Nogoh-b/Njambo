@@ -25,7 +25,7 @@ export interface WireDoc {
 }
 
 type ServerMessage =
-  | { type: "ready"; uid: string }
+  | { type: "ready"; uid: string | null }
   | { type: "doc"; id: number; doc: WireDoc }
   | { type: "docs"; id: number; docs: WireDoc[] }
   | { type: "error"; id?: number; code: string; message: string };
@@ -51,11 +51,24 @@ let socket: WebSocket | null = null;
 let ready = false;
 let connecting = false;
 let retryDelay = 1_000;
+let reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 let nextId = 1;
 let authWatcherStarted = false;
+let stopAuthWatcher: (() => void) | null = null;
+let stopOnlineWatcher: (() => void) | null = null;
+let lastAuthUid: string | null = null;
+let connectionGen = 0;
+let forceRefreshNextAuth = false;
 
 const subscriptions = new Map<number, Subscription>();
 const pendingGets = new Map<number, PendingGet>();
+
+function clearReconnectTimer() {
+  if (reconnectTimer !== null) {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = null;
+  }
+}
 
 function realtimeError(code: string, message: string): Error {
   const error = new Error(message);
@@ -113,51 +126,128 @@ function handleMessage(message: ServerMessage) {
   }
 }
 
-function scheduleReconnect() {
+function scheduleReconnect(delayOverride?: number) {
   if (subscriptions.size === 0 && pendingGets.size === 0) return;
-  const delay = retryDelay;
-  retryDelay = Math.min(retryDelay * 2, 30_000);
-  setTimeout(() => { void ensureConnection(); }, delay);
+  clearReconnectTimer();
+  const delay = delayOverride ?? retryDelay;
+  if (delayOverride === undefined) retryDelay = Math.min(retryDelay * 2, 30_000);
+  reconnectTimer = setTimeout(() => {
+    reconnectTimer = null;
+    void ensureConnection();
+  }, delay);
+}
+
+function resetConnection(immediateReconnect: boolean) {
+  connectionGen += 1;
+  clearReconnectTimer();
+  ready = false;
+  connecting = false;
+  retryDelay = 1_000;
+  for (const pending of pendingGets.values()) pending.sent = false;
+  const previous = socket;
+  socket = null;
+  previous?.close();
+  if (immediateReconnect && (subscriptions.size > 0 || pendingGets.size > 0)) {
+    void ensureConnection();
+  }
 }
 
 async function ensureConnection() {
-  if (typeof window === "undefined" || connecting || socket?.readyState === WebSocket.OPEN) return;
-  const user = auth.currentUser;
-  if (!user) return; // reconnexion retentée au prochain subscribe/get ou au login
-  connecting = true;
+  if (typeof window === "undefined") return;
   watchAuthChanges();
+  if (connecting || socket?.readyState === WebSocket.OPEN) return;
+  if (subscriptions.size === 0 && pendingGets.size === 0) return;
+  clearReconnectTimer();
+  connecting = true;
+  const gen = ++connectionGen;
+  const user = auth.currentUser;
+  const useForceRefresh = forceRefreshNextAuth && Boolean(user);
+  forceRefreshNextAuth = false;
   try {
-    const token = await user.getIdToken();
-    // Une connexion concurrente a pu aboutir pendant l'attente du token.
-    if (socket?.readyState === WebSocket.OPEN) { connecting = false; return; }
+    // Sans utilisateur connecté, on ouvre la socket en mode lecture publique (`token: null`)
+    // pour recevoir runtime_config/* (packs, sons, règles) et les catalogues publiés.
+    const token = user ? await user.getIdToken(useForceRefresh) : null;
+    // Un changement de session ou une autre connexion a pu survenir pendant l'attente du jeton.
+    if (gen !== connectionGen || socket?.readyState === WebSocket.OPEN) {
+      if (gen === connectionGen) connecting = false;
+      return;
+    }
     const ws = new WebSocket(WS_URL);
     socket = ws;
-    ws.onopen = () => { ws.send(JSON.stringify({ type: "auth", token })); };
+    ws.onopen = () => {
+      if (socket !== ws) { ws.close(); return; }
+      ws.send(JSON.stringify({ type: "auth", token }));
+    };
     ws.onmessage = (event) => {
+      if (socket !== ws) return;
       try { handleMessage(JSON.parse(String(event.data)) as ServerMessage); } catch { /* message illisible : ignoré */ }
     };
-    ws.onclose = () => {
-      if (socket === ws) { socket = null; ready = false; }
+    ws.onclose = (event) => {
+      if (socket !== ws) return;
+      socket = null;
+      ready = false;
       connecting = false;
       for (const pending of pendingGets.values()) pending.sent = false;
+      // Jeton d'accès refusé (redémarrage serveur, secret changé, horloge décalée) :
+      // un nouvel essai immédiat en forçant le renouvellement du JWT.
+      if (event.code === 4401 && token !== null && !useForceRefresh && auth.currentUser) {
+        forceRefreshNextAuth = true;
+        scheduleReconnect(50);
+        return;
+      }
       scheduleReconnect();
     };
     ws.onerror = () => { ws.close(); };
   } catch {
+    if (gen !== connectionGen) return;
     connecting = false;
+    scheduleReconnect();
   }
 }
 
-/* Déconnexion/reconnexion quand l'utilisateur change (nouveau token requis). */
+/* Déconnexion/reconnexion quand l'utilisateur change (passage public ↔ connecté ou changement de compte). */
 function watchAuthChanges() {
   if (authWatcherStarted || typeof window === "undefined") return;
   authWatcherStarted = true;
-  onAuthStateChanged(auth, () => {
-    ready = false;
-    socket?.close();
-    socket = null;
-    if (auth.currentUser) void ensureConnection();
+  lastAuthUid = auth.currentUser?.uid ?? null;
+  stopAuthWatcher = onAuthStateChanged(auth, (user) => {
+    const nextUid = user?.uid ?? null;
+    if (nextUid === lastAuthUid) return;
+    lastAuthUid = nextUid;
+    forceRefreshNextAuth = false;
+    resetConnection(true);
   });
+  const onOnline = () => {
+    if (!ready && !connecting && (subscriptions.size > 0 || pendingGets.size > 0)) {
+      retryDelay = 1_000;
+      clearReconnectTimer();
+      void ensureConnection();
+    }
+  };
+  window.addEventListener("online", onOnline);
+  stopOnlineWatcher = () => window.removeEventListener("online", onOnline);
+}
+
+/** Tests uniquement : réinitialise l'état interne du client temps réel. */
+export function __resetRealtimeForTest() {
+  connectionGen += 1;
+  clearReconnectTimer();
+  stopAuthWatcher?.();
+  stopAuthWatcher = null;
+  stopOnlineWatcher?.();
+  stopOnlineWatcher = null;
+  const previous = socket;
+  socket = null;
+  ready = false;
+  connecting = false;
+  retryDelay = 1_000;
+  nextId = 1;
+  authWatcherStarted = false;
+  lastAuthUid = null;
+  forceRefreshNextAuth = false;
+  subscriptions.clear();
+  pendingGets.clear();
+  previous?.close();
 }
 
 export function subscribe(

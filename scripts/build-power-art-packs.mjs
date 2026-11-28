@@ -10,10 +10,46 @@ const results = JSON.parse(await fs.readFile(path.join(sources, "results.json"),
 const partial = process.argv.includes("--partial");
 const originals = new Map(results.filter((result) => result.status === "fulfilled").map((result) => [result.id, result.source]));
 const portraitPacks = new Set(manifest.packs.filter((pack) => pack.format === "portrait").map((pack) => pack.id));
+const variants = [
+  { width: 720, suffix: "", budget: 115_000, quality: 86 },
+  { width: 256, suffix: "-256", budget: 28_000, quality: 82 },
+  { width: 128, suffix: "-128", budget: 12_000, quality: 80 },
+];
 let built = 0;
 
 async function exists(file) {
   try { await fs.access(file); return true; } catch { return false; }
+}
+
+async function writeVariant(source, target, variant, resize, flatten = false) {
+  const previous = await fs.stat(target).catch(() => null);
+  if (previous && previous.mtimeMs >= (await fs.stat(source)).mtimeMs && previous.size <= variant.budget) return;
+  const artwork = sharp(source).resize(resize);
+  if (flatten) artwork.flatten({ background: "#072c22" });
+  let quality = variant.quality;
+  let encoded = await artwork.webp({ quality }).toBuffer();
+  while (encoded.length > variant.budget && quality > 38) {
+    quality -= 6;
+    encoded = await artwork.webp({ quality }).toBuffer();
+  }
+  if (encoded.length > variant.budget) {
+    artwork.blur(1.25);
+    quality = 56;
+    encoded = await artwork.webp({ quality }).toBuffer();
+    while (encoded.length > variant.budget && quality > 8) {
+      quality -= 6;
+      encoded = await artwork.webp({ quality }).toBuffer();
+    }
+  }
+  if (encoded.length > variant.budget) throw new Error("WebP exceeds size budget: " + target);
+  await fs.writeFile(target, encoded);
+}
+
+const classic = path.join(root, "public/assets/power-cards/v2");
+for (const { id } of manifest.subjects) {
+  for (const variant of variants.slice(1)) {
+    await writeVariant(path.join(classic, `${id}.webp`), path.join(classic, `${id}${variant.suffix}.webp`), variant, { width: variant.width });
+  }
 }
 
 for (const job of manifest.jobs) {
@@ -27,22 +63,10 @@ for (const job of manifest.jobs) {
     else if (partial) continue;
     else throw new Error("Missing artwork: " + job.id);
   }
-  const masterTime = (await fs.stat(master)).mtimeMs;
-  for (const size of [720, 256, 128]) {
-    const file = path.join(target, job.card + (size === 720 ? "" : "-" + size) + ".webp");
-    const budget = size === 720 ? 400_000 : 80_000;
-    const previous = await fs.stat(file).catch(() => null);
-    if (previous && previous.mtimeMs >= masterTime && previous.size < budget) continue;
-    const height = portraitPacks.has(job.pack) ? size * 1.5 : size;
-    const artwork = sharp(master).resize(size, height, { fit: "cover" }).flatten({ background: "#072c22" });
-    let quality = size === 720 ? 88 : 84;
-    let encoded = await artwork.webp({ quality }).toBuffer();
-    while (encoded.length >= budget && quality > 50) {
-      quality -= 5;
-      encoded = await artwork.webp({ quality }).toBuffer();
-    }
-    if (encoded.length >= budget) throw new Error("WebP exceeds size budget: " + file);
-    await fs.writeFile(file, encoded);
+  for (const variant of variants) {
+    const { width, suffix } = variant;
+    const height = portraitPacks.has(job.pack) ? width * 1.5 : width;
+    await writeVariant(master, path.join(target, `${job.card}${suffix}.webp`), variant, { width, height, fit: "cover" }, true);
   }
   built++;
 }

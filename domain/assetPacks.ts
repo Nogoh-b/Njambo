@@ -228,13 +228,23 @@ export function assetPackUrl(path: string, pack: AssetPackId, scope: AssetPackSc
   return path.replace(pattern, `/assets/njambo/packs/${pack}/$1/`);
 }
 
-/** Vignette 256 px d'une illustration Pouvoir dans un pack (aperçus de l'admin). */
-export function powerPackThumbUrl(path: string, pack: AssetPackId): string {
+function powerPackVariant(path: string, pack: AssetPackId, variant: "thumb" | "small"): string {
+  const card = SCOPE_PATH.powers.exec(path)?.[1];
+  if (!card || !BUILTIN_POWER_ART_IDS.some((id) => id === card)) return path;
+  const suffix = variant === "thumb" ? "-256.webp" : "-128.webp";
   const url = assetPackUrl(path, pack, "powers");
-  if (url === path) return path;
-  const imported = importedPack(pack);
-  if (imported) return Object.values(imported.art).find((art) => art?.url === url)?.thumb ?? url;
-  return url.replace(/\.webp$/, "-256.webp");
+  if (url === path) return path.startsWith("/assets/power-cards/v2/") ? path.replace(/\.webp$/, suffix) : path;
+  return importedPack(pack)?.art[card]?.[variant] ?? url.replace(/\.webp$/, suffix);
+}
+
+/** Illustration 256 px pour les galeries. */
+export function powerPackThumbUrl(path: string, pack: AssetPackId): string {
+  return powerPackVariant(path, pack, "thumb");
+}
+
+/** Illustration 128 px pour les miniatures. */
+export function powerPackSmallUrl(path: string, pack: AssetPackId): string {
+  return powerPackVariant(path, pack, "small");
 }
 
 /** Vrai si l'URL résolue d'une illustration Pouvoir vient d'un pack (intégré ou importé). */

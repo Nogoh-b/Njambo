@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "@/components/ui/GameImage";
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { AnimatePresence, motion } from "motion/react";
 import { useSfx } from "@gxe/react";
 import { canRevive, normalizeEventVersion, type EventStage, type EventVersion } from "@/domain";
@@ -12,7 +12,7 @@ import { useGame } from "@/contexts/GameContext";
 import { useLiveOpsContent, usePlayerEventRuns } from "@/hooks/useLiveOpsContent";
 import { useMotionProfile, usePageActive } from "@/lib/motion";
 import { EventCountdown } from "@/components/events/EventCountdown";
-import { LoadingGate } from "@/components/ui/LoadingGate";
+import { prefetchAssets } from "@/lib/assets/AssetLoader";
 import { eventDetailManifest } from "@/lib/assets/manifests";
 import { AuthGate } from "@/components/ui/AuthGate";
 import { GameModal } from "@/components/ui/GameModal";
@@ -51,17 +51,18 @@ const DIFFICULTY_META: Record<
   elite: { label: "Élite", stars: "★★★★", className: "diffElite" },
 };
 
+const DETAIL_DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "short",
+  timeZone: "Africa/Douala",
+});
+
 function eventDates(event: EventVersion) {
-  const format = new Intl.DateTimeFormat("fr-FR", {
-    day: "numeric",
-    month: "short",
-    timeZone: "Africa/Douala",
-  });
-  const start = event.startsAt <= 0 ? "Dès maintenant" : format.format(event.startsAt);
-  return `${start} — ${format.format(event.endsAt)}`;
+  const start = event.startsAt <= 0 ? "Dès maintenant" : DETAIL_DATE_FORMATTER.format(event.startsAt);
+  return `${start} — ${DETAIL_DATE_FORMATTER.format(event.endsAt)}`;
 }
 
-export function EventDetailScreen({
+export const EventDetailScreen = memo(function EventDetailScreen({
   onStart,
   previewEvent,
 }: {
@@ -78,7 +79,8 @@ export function EventDetailScreen({
   const gxeSfx = useSfx();
   const { user } = useAuth();
   const { economy, inventory, loading: economyLoading, command, refresh: refreshEconomy } = useEconomy();
-  const { events, loading: contentLoading, error: contentError } = useLiveOpsContent();
+  const { events, eventsLoaded, error: contentError } = useLiveOpsContent();
+  const contentLoading = !eventsLoaded;
   const { runs, error: runsError } = usePlayerEventRuns(
     user && !user.isAnonymous ? user.uid : undefined,
   );
@@ -320,6 +322,11 @@ export function EventDetailScreen({
     void enter();
   };
 
+  useEffect(() => {
+    if (!event) return;
+    prefetchAssets(eventDetailManifest(event).critical);
+  }, [event]);
+
   /* État chargement ou introuvable */
   if ((contentLoading && !preview) || !event) {
     return (
@@ -471,10 +478,9 @@ export function EventDetailScreen({
   const themeClass = isPvp ? styles.themeTeal : styles.themeGold;
   const mapBgStyle = { "--event-art": `url(${art})` } as CSSProperties;
 
-  /* Porte de chargement : l'illustration (fond CSS, donc hors next/image)
-     et les avatars de boss sont prêts avant l'affichage du parcours. */
+  /* Affichage immédiat du plateau : l'illustration de fond (28 % d'opacité)
+     et les avatars de boss se préchargent sans bloquer l'ouverture. */
   return (
-    <LoadingGate key={`${event.eventId}:${event.revision}:${event.imageUrl ?? ""}`} name="event_detail" title="Ouverture du Ter" maxWaitMs={6000} manifest={() => eventDetailManifest(event)}>
     <GameShell
       active="events"
       dock={false}
@@ -687,7 +693,7 @@ export function EventDetailScreen({
                             <span className={styles.miniCardChip} />
                           </span>
                           <span className={styles.miniStageMedal}>
-                            {state === "completed" ? "✓" : isBoss ? "👑" : stage.order}
+                            {state === "completed" ? "✓" : isBoss ? <NjamboIcon name="crown" tone="gold" size={14} /> : stage.order}
                           </span>
                         </span>
                       </span>
@@ -810,18 +816,27 @@ export function EventDetailScreen({
                     </span>
                   )}
                   {(inspectedStage.modifiers.includes("no_powers") || !inspectedStage.powersAllowed) && (
-                    <span className={`${styles.specPill} ${styles.specRule}`}>🚫 Sans pouvoirs</span>
+                    <span className={`${styles.specPill} ${styles.specRule}`}>✕ Sans pouvoirs</span>
                   )}
                   {inspectedStage.modifiers.includes("double_stake") && (
                     <span className={`${styles.specPill} ${styles.specRule}`}>×2 Mise doublée</span>
                   )}
-                  <span className={`${styles.specPill} ${styles.specRule}`}>⏱ {inspectedStage.modifiers.includes("turn_timer") ? inspectedStage.turnTimerSeconds ?? cfg.turnSeconds : cfg.turnSeconds} s par tour</span>
+                  <span className={`${styles.specPill} ${styles.specRule}`}>
+                    <NjamboIcon name="hourglass" tone="gold" size={13} />
+                    <span>{inspectedStage.modifiers.includes("turn_timer") ? inspectedStage.turnTimerSeconds ?? cfg.turnSeconds : cfg.turnSeconds} s par tour</span>
+                  </span>
                   <span className={styles.specPill}>{inspectedStage.matchCount ?? 1} manche(s)</span>
                   {event.seasonId && inspectedStage.seasonPoints > 0 && (
-                    <span className={`${styles.specPill} ${styles.specGold}`}>🏵️ +{inspectedStage.seasonPoints} pts de saison</span>
+                    <span className={`${styles.specPill} ${styles.specGold}`}>
+                      <NjamboIcon name="trophy" tone="gold" size={13} />
+                      <span>+{inspectedStage.seasonPoints} pts de saison</span>
+                    </span>
                   )}
                   {inspectedStage.boss && (
-                    <span className={`${styles.specPill} ${styles.specBoss}`}>👑 Boss : {inspectedStage.boss.name}</span>
+                    <span className={`${styles.specPill} ${styles.specBoss}`}>
+                      <NjamboIcon name="crown" tone="gold" size={13} />
+                      <span>Boss : {inspectedStage.boss.name}</span>
+                    </span>
                   )}
                 </div>
 
@@ -904,7 +919,7 @@ export function EventDetailScreen({
 
           {challengesEnabled && (
             <button data-nj-skin="none" type="button" className={styles.challengeBtn} onClick={() => setChallengesOpen(true)}>
-              <span aria-hidden="true">⚔️</span>
+              <NjamboIcon name="users" tone={isPvp ? "teal" : "gold"} size={15} />
               <span>{challengesToHandle > 0 ? `${challengesToHandle} défi${challengesToHandle > 1 ? "s" : ""} reçu${challengesToHandle > 1 ? "s" : ""} !` : challengesLive > 0 ? `${challengesLive} duel${challengesLive > 1 ? "s" : ""} en cours` : "Défier un ami"}</span>
               {challengesToHandle > 0 && <span className={styles.challengeDot} aria-hidden="true" />}
             </button>
@@ -972,18 +987,21 @@ export function EventDetailScreen({
       )}
 
       {/* Modale connexion en place (zéro sortie du plateau) */}
-      <GameModal
-        open={authModalOpen}
-        onClose={() => setAuthModalOpen(false)}
-        kicker={event.title}
-        title="Connecte-toi pour entrer"
-        tone={isPvp ? "teal" : "gold"}
-      >
-        <AuthGate tone={isPvp ? "teal" : "gold"} accountBar="none">
-          <div className={styles.authDone}>Compte connecté ! Tu peux composter ton billet.</div>
-        </AuthGate>
-      </GameModal>
+      {(isGuest || authModalOpen) && (
+        <GameModal
+          open={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          kicker={event.title}
+          title="Connecte-toi pour entrer"
+          tone={isPvp ? "teal" : "gold"}
+        >
+          {authModalOpen && (
+            <AuthGate tone={isPvp ? "teal" : "gold"} accountBar="none">
+              <div className={styles.authDone}>Compte connecté ! Tu peux composter ton billet.</div>
+            </AuthGate>
+          )}
+        </GameModal>
+      )}
     </GameShell>
-    </LoadingGate>
   );
-}
+});

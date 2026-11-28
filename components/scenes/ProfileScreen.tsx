@@ -8,7 +8,8 @@ import { useGame } from "@/contexts/GameContext";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { MAX_EQUIPPED_POWERS, POWER_CARDS_BY_ID } from "@/config/powerCards";
-import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
+import { CATEGORY_MOTIF_PALETTE } from "@/components/power/PowerCardMotif";
+import { PowerCardFrame } from "@/components/power/PowerCardFrame";
 import { getPlayerLevel } from "@/lib/playerLevel";
 import { resolveRank } from "@/lib/playerRank";
 import { listenPlayer } from "@/lib/socialData";
@@ -332,12 +333,16 @@ export function ProfileScreen() {
                       {def ? (
                         <>
                           <span className={styles.deckSlotArtMask}>
-                            <Image src={def.art} alt="" fill sizes="44px" className={styles.deckSlotImg} />
+                            <Image src={def.art} powerArtSize="small" alt="" fill sizes="44px" className={styles.deckSlotImg} />
                           </span>
-                          <PowerCardMotif
+                          <PowerCardFrame
                             category={def.category}
                             rarity={def.rarity}
+                            art={def.art}
+                            cardBorder={def.border}
+                            cardParticles={def.borderParticles}
                             className={styles.deckSlotMotif}
+                            compact
                           />
                         </>
                       ) : (

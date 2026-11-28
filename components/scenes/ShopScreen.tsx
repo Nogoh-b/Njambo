@@ -24,8 +24,11 @@ import { GameShell } from "@/components/ui/GameShell";
 import { GameModal } from "@/components/ui/GameModal";
 import { NjamboIcon, type NjamboIconName } from "@/components/ui/Art";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
-import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
+import { CATEGORY_MOTIF_PALETTE, RARITY_METAL_PALETTE } from "@/components/power/PowerCardMotif";
+import { PowerCardFrame } from "@/components/power/PowerCardFrame";
+import { PowerCardTextOverlay } from "@/components/power/PowerCardTextOverlay";
 import { PowerCardView } from "@/components/power/PowerCardView";
+import { usePowerBorderConfig } from "@/lib/powerBorderStore";
 import {
   BOOSTER_RARITY_LABELS as RARITY_LABELS,
   OFFER_KIND_LABELS as OFFER_KIND_LABEL,
@@ -114,6 +117,8 @@ export function ShopScreen() {
   const { economy, inventory, loading: economyLoading, command, pendingBoosterOpening } = useEconomy();
   const { offers: publishedOffers, boosters, error: contentError } = useLiveOpsContent();
   const motionProfile = useMotionProfile();
+  const { textLayout } = usePowerBorderConfig();
+  const useCustomTextLayout = textLayout !== "classique";
   const {
     day: gridDay,
     purchased: gridRewards,
@@ -1006,7 +1011,7 @@ export function ShopScreen() {
                             initial={cascadeOn ? { rotateY: 180, scale: 0.84 } : false}
                             animate={{ rotateY: 0, scale: 1 }}
                             transition={{ type: "spring", stiffness: 280, damping: 22 }}
-                            className={`${styles.gridRevealedCell} ${styles.clickableCard}`}
+                            className={`${styles.gridRevealedCell} nj-card-hover-host ${styles.clickableCard}${useCustomTextLayout ? ` ${styles.gridFullBleed}` : ""}`}
                             style={
                               {
                                 "--c-primary": pal.primary,
@@ -1014,19 +1019,35 @@ export function ShopScreen() {
                                 "--c-glow": pal.glow,
                                 "--c-top": pal.clothTop,
                                 "--c-bot": pal.clothBot,
+                                "--r-metal": RARITY_METAL_PALETTE[powerCard.rarity].metal,
                               } as CSSProperties
                             }
                           >
                             <div className={styles.gridArtMask} aria-hidden="true">
                               <Image src={powerCard.art} alt={powerCard.name} fill sizes="120px" className={styles.gridCardImg} />
                             </div>
-                            <PowerCardMotif
+                            <PowerCardFrame
                               category={powerCard.category}
                               rarity={powerCard.rarity}
+                              art={powerCard.art}
+                              cardBorder={powerCard.border}
+                              cardParticles={powerCard.borderParticles}
                               className={styles.gridMotifSvg}
                             />
-                            <span className={styles.gridCellShade} aria-hidden="true" />
-                            <strong className={styles.gridCellName}>{powerCard.name}</strong>
+                            {useCustomTextLayout ? (
+                              <PowerCardTextOverlay
+                                layout={textLayout}
+                                card={powerCard}
+                                size="compact"
+                                reserveTopRight={dup > 0}
+                                fallbackInlineWhenCompact
+                              />
+                            ) : (
+                              <>
+                                <span className={styles.gridCellShade} aria-hidden="true" />
+                                <strong className={styles.gridCellName}>{powerCard.name}</strong>
+                              </>
+                            )}
                             {dup > 0 && <span className={styles.gridDupPill}>+{dup} cauris</span>}
                           </motion.div>
                         );

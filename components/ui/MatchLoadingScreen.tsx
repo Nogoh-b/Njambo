@@ -15,7 +15,7 @@ import { markPerformance, measurePerformance, recordGateResult } from "@/lib/per
 import { NjamboIcon, NjamboMark, type NjamboIconName } from "@/components/ui/Art";
 import type { BotDifficulty, GameMode, PowerCardId } from "@/types/game";
 import styles from "./MatchLoadingScreen.module.css";
-import { sysAsset } from "@/lib/assetPack";
+import { powerCardImage, sysAsset } from "@/lib/assetPack";
 import { playGameSound } from "@/lib/audio/audioCatalogStore";
 import { SCENE_IMPORTS, loadPowerParticles } from "@/lib/scenePreload";
 
@@ -969,7 +969,7 @@ export function MatchLoadingScreen({
               {powerThumbs.map((card) => (
                 <span key={card.id} className={styles.powerBadge}>
                   <img
-                    src={card.art}
+                    src={powerCardImage(card.art, "small")}
                     alt=""
                     className={styles.powerThumb}
                     draggable={false}

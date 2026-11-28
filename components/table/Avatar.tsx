@@ -4,7 +4,8 @@ import { memo, useEffect, useRef, useState } from "react";
 import { T } from "@/config/theme";
 import { NKAP } from "@/data/mock";
 import { POWER_CARDS_BY_ID } from "@/config/powerCards";
-import { CATEGORY_MOTIF_PALETTE, PowerCardMotif } from "@/components/power/PowerCardMotif";
+import { CATEGORY_MOTIF_PALETTE } from "@/components/power/PowerCardMotif";
+import { PowerCardFrame } from "@/components/power/PowerCardFrame";
 import { AvatarIllustration } from "@/components/ui/Art";
 import { useRegisterZone, type ZoneKey } from "@/components/table/zones/ZoneRegistry";
 import type { Player, PowerCardId } from "@/types/game";
@@ -438,10 +439,14 @@ export const Avatar = memo(function Avatar({
               >
                 {def ? (
                   <>
-                    <PowerCardMotif
+                    <PowerCardFrame
                       category={def.category}
                       rarity={def.rarity}
+                      art={def.art}
+                      cardBorder={def.border}
                       className="nj-opp-power-motif"
+                      compact
+                      disableParticles
                     />
                     {slot.used && (
                       <span

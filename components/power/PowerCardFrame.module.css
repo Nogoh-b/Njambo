@@ -1,0 +1,190 @@
+/* ═══════════════ Calque universel de bordure & particules (PowerCardFrame) ═══════════════
+   Utilisé partout où une carte Pouvoir est rendue (Collection, Boutique, Hub Jouer,
+   Profil, Avatar adversaire, et PowerCardView) pour garantir 100 % de cohérence visuelle. */
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  z-index: 6;
+}
+
+.svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.particlesContained {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 9;
+  pointer-events: none;
+}
+
+/* Faisceau lumineux orbital sur le pourtour (Prisme, Foudre, Solaire) */
+.orbitBeam {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 2.2px;
+  z-index: 8;
+  pointer-events: none;
+  overflow: hidden;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.compact .orbitBeam {
+  padding: 1.5px;
+}
+
+.orbitBeam::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  animation: pcfOrbitSpin var(--nj-orbit-speed, 4.2s) linear infinite;
+}
+
+@keyframes pcfOrbitSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* Styles & animations par itération */
+.bOrfevre .svg {
+  filter: drop-shadow(0 0 5px color-mix(in srgb, var(--r-glow, var(--c-glow)) 70%, transparent));
+}
+
+.bBraise .svg :global(.nj-border-lava) {
+  animation: pcfLavaPulse 2.4s ease-in-out infinite;
+}
+@keyframes pcfLavaPulse {
+  0%, 100% { opacity: 0.65; filter: drop-shadow(0 0 3px var(--c-primary)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 8px var(--c-secondary)); }
+}
+
+.bPrisme .orbitBeam {
+  --nj-orbit-speed: 4.5s;
+}
+.bPrisme .orbitBeam::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.95) 24deg,
+    var(--c-secondary) 64deg,
+    rgba(170, 235, 255, 0.72) 105deg,
+    transparent 145deg,
+    transparent 185deg,
+    var(--r-bright, #fffce4) 225deg,
+    var(--c-primary) 265deg,
+    transparent 310deg
+  );
+}
+
+.bNdopEnergy .svg {
+  filter: drop-shadow(0 0 5px var(--c-glow));
+}
+.bNdopEnergy .svg :global(.nj-border-ndop-flow) {
+  stroke-dasharray: 18 18;
+  animation: pcfNdopFlow 3.2s linear infinite;
+}
+@keyframes pcfNdopFlow {
+  to { stroke-dashoffset: -72; }
+}
+
+.bRelique .svg {
+  filter: drop-shadow(0 0 5px rgba(50, 232, 181, 0.45));
+}
+
+.bFoudre .orbitBeam {
+  --nj-orbit-speed: 2.1s;
+}
+.bFoudre .orbitBeam::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    #ffffff 12deg,
+    var(--c-secondary) 32deg,
+    var(--c-primary) 54deg,
+    transparent 80deg,
+    transparent 180deg,
+    #ffffff 192deg,
+    var(--r-metal, #ffe260) 216deg,
+    transparent 250deg
+  );
+}
+
+.bMonolithe .svg {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.75));
+}
+.bMonolithe .svg :global(.nj-border-monolith-glow) {
+  animation: pcfMonolithGlow 3s ease-in-out infinite;
+}
+@keyframes pcfMonolithGlow {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+
+.bSolaire .orbitBeam {
+  --nj-orbit-speed: 3.4s;
+}
+.bSolaire .orbitBeam::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--r-bright, #fffce4) 22deg,
+    var(--r-metal, #ffe359) 56deg,
+    var(--c-primary) 92deg,
+    transparent 138deg,
+    transparent 180deg,
+    var(--c-secondary) 214deg,
+    var(--r-bright, #fffce4) 248deg,
+    transparent 296deg
+  );
+}
+
+.bKente .svg {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.72));
+}
+
+.bEclipse .svg {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.85));
+}
+.bEclipse .orbitBeam {
+  --nj-orbit-speed: 6s;
+  padding: 1.6px;
+}
+.bEclipse .orbitBeam::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--r-bright, #fffce4) 16deg,
+    var(--c-primary) 42deg,
+    transparent 78deg,
+    transparent 180deg,
+    var(--c-secondary) 202deg,
+    transparent 242deg
+  );
+}
+
+:global(.nj-animations-disabled) .orbitBeam::before,
+:global(.nj-animations-disabled) .bBraise .svg :global(.nj-border-lava),
+:global(.nj-animations-disabled) .bNdopEnergy .svg :global(.nj-border-ndop-flow),
+:global(.nj-animations-disabled) .bMonolithe .svg :global(.nj-border-monolith-glow) {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .orbitBeam::before,
+  .bBraise .svg :global(.nj-border-lava),
+  .bNdopEnergy .svg :global(.nj-border-ndop-flow),
+  .bMonolithe .svg :global(.nj-border-monolith-glow) {
+    animation: none;
+  }
+}

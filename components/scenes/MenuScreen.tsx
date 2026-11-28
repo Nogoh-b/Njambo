@@ -7,7 +7,7 @@ import { GameShell } from "@/components/ui/GameShell";
 import { GameModal } from "@/components/ui/GameModal";
 import { AvatarIllustration, NjamboIcon, type NjamboIconName, type NjamboIconTone } from "@/components/ui/Art";
 import { MAX_EQUIPPED_POWERS, POWER_CARDS_BY_ID } from "@/config/powerCards";
-import { useGame } from "@/contexts/GameContext";
+import { useGameStable } from "@/contexts/GameContext";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { DEFAULT_EVENTS, doualaDayKey, totalFreePlaysLeft, type Reward } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
@@ -298,8 +298,8 @@ function ModeChipButton({
   );
 }
 
-export function MenuScreen({ resumeRoomType = null, onResumeGame, dormant = false }: MenuScreenProps) {
-  const { profile, navigateTo, cfg, setCollectionTab } = useGame();
+export const MenuScreen = memo(function MenuScreen({ resumeRoomType = null, onResumeGame, dormant = false }: MenuScreenProps) {
+  const { profile, navigateTo, cfg, setCollectionTab } = useGameStable();
   const powerLimit = cfg?.maxEquippedPowers ?? MAX_EQUIPPED_POWERS;
   const motionProfile = useMotionProfile();
   const pageActive = usePageActive() && !dormant;
@@ -872,6 +872,8 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame, dormant = fals
           className={styles.eventBanner}
           onClick={() => openLink("events")}
           onPointerEnter={() => preloadScene("events")}
+          onPointerDown={() => preloadScene("events")}
+          onFocus={() => preloadScene("events")}
           aria-label={`Événement en cours : ${featuredEvent.title}, récompense ${featuredReward}`}
         >
           <span className={styles.bannerSheen} aria-hidden="true" />
@@ -1018,4 +1020,4 @@ export function MenuScreen({ resumeRoomType = null, onResumeGame, dormant = fals
       </GameModal>
     </GameShell>
   );
-}
+});

@@ -15,6 +15,8 @@ interface ResultLayoutProps {
   reducedMotion?: boolean;
   scriptedMotion?: boolean;
   decoration?: ReactNode;
+  /** Couche festive au premier plan (confettis de victoire), sans bloquer les clics. */
+  foregroundDecoration?: ReactNode;
   main: ReactNode;
   rail?: ReactNode;
   panelRef?: Ref<HTMLElement>;
@@ -40,6 +42,7 @@ export const ResultLayout = forwardRef<HTMLDivElement, ResultLayoutProps>(functi
     reducedMotion = false,
     scriptedMotion = false,
     decoration,
+    foregroundDecoration,
     main,
     rail,
     panelRef,
@@ -82,6 +85,11 @@ export const ResultLayout = forwardRef<HTMLDivElement, ResultLayoutProps>(functi
           )}
         </div>
       </section>
+      {foregroundDecoration && (
+        <div className={styles.foreground} aria-hidden="true">
+          {foregroundDecoration}
+        </div>
+      )}
     </div>
   );
 });

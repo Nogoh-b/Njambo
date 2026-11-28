@@ -10,8 +10,10 @@ import { ScreenHeader, Surface } from "@/components/ui/Shell";
 import { useGame } from "@/contexts/GameContext";
 import { NKAP } from "@/data/mock";
 import { getInstantWinRules } from "@/lib/gamePresentation";
+import { AcademyChapters } from "@/components/academy/AcademyChapters";
+import type { AcademyChapter } from "@/data/academy/course";
 
-/* ═══════════════ RulesScreen — Guide interactif en 5 cartes (zéro scroll) ═══════════════ */
+/* ═══════════════ RulesScreen — Académie : chapitres + Mémo express en 5 cartes (zéro scroll) ═══════════════ */
 
 interface RuleStep {
   id: string;
@@ -23,8 +25,14 @@ interface RuleStep {
   render: () => ReactNode;
 }
 
-export function RulesScreen() {
+interface RulesScreenProps {
+  /** Lance un chapitre de l'Académie sur la table. */
+  onPlayChapter?: (chapter: AcademyChapter) => void;
+}
+
+export function RulesScreen({ onPlayChapter }: RulesScreenProps) {
   const { navigateTo, goBack, backLabelFor, cfg } = useGame();
+  const [tab, setTab] = useState<"chapters" | "memo">("chapters");
   const [stepIndex, setStepIndex] = useState(0);
   const deckSize = (cfg.ranks.max - cfg.ranks.min + 1) * cfg.suits.length;
   const instantWins = getInstantWinRules(cfg);
@@ -203,14 +211,33 @@ export function RulesScreen() {
     <BottomNavScene narrow dock={false} scroll={false}>
       <div className="nj-phone">
         <ScreenHeader
-          title="Comment jouer"
-          kicker="Guide du Njambo"
+          title="Académie"
+          kicker="Apprendre le Njambo"
           icon="cards"
           tone="gold"
           onBack={() => goBack("menu")}
           backLabel={backLabelFor("menu")}
         />
 
+        <div role="tablist" aria-label="Académie" style={{ flex: "0 0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6 }}>
+          {([["chapters", "Chapitres"], ["memo", "Mémo express"]] as const).map(([id, label]) => (
+            <Btn
+              key={id}
+              tone={id === "chapters" ? "gold" : "teal"}
+              fill={tab === id ? "solid" : "soft"}
+              size="sm"
+              ariaPressed={tab === id}
+              onClick={() => setTab(id)}
+            >
+              {label}
+            </Btn>
+          ))}
+        </div>
+
+        {tab === "chapters" ? (
+          <AcademyChapters onPlay={onPlayChapter} />
+        ) : (
+        <>
         {/* Sélecteur rapide des 5 cartes de règles */}
         <nav
           aria-label="Étapes des règles"
@@ -319,6 +346,8 @@ export function RulesScreen() {
             Cartes Pouvoir
           </Btn>
         </div>
+        </>
+        )}
       </div>
     </BottomNavScene>
   );

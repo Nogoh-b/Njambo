@@ -4,8 +4,9 @@
    Accès réservé aux comptes `admin` (auth_users.admin, porté par le jeton
    d'accès et vérifié aussi côté serveur sur chaque commande). */
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import Link from "next/link";
+import { usePathname, useRouter } from "next/navigation";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { auth, getIdTokenResult } from "@/lib/authClient";
 import { db } from "@/lib/firebase";
@@ -26,55 +27,28 @@ import { GameplayAdmin } from "./GameplayAdmin";
 import { ChangelogAdmin } from "./ChangelogAdmin";
 import type { ChangelogAdminSection } from "@/domain";
 import { LIFECYCLE_LABELS, LifecycleBadge, formatDateTime } from "./adminUi";
+import { ADMIN_NAV, ADMIN_SECTIONS, adminHref, type AdminSection } from "./adminRoutes";
 import styles from "./AdminConsole.module.css";
 
-type Section = ChangelogAdminSection;
-
-const NAV: Array<{ key: Section; label: string; soon?: string }> = [
-  { key: "dashboard", label: "Tableau de bord" },
-  { key: "changelog", label: "Nouveautés" },
-  { key: "events", label: "Événements" },
-  { key: "gameplay", label: "Règles des parties" },
-  { key: "seasons", label: "Saisons" },
-  { key: "cosmetics", label: "Cosmétiques" },
-  { key: "powers", label: "Cartes de pouvoir" },
-  { key: "animations", label: "Animations" },
-  { key: "audio", label: "Sons & Audio" },
-  { key: "assistant", label: "Assistant IA" },
-  { key: "notifications", label: "Notifications" },
-  { key: "players", label: "Joueurs" },
-  { key: "audit", label: "Audit" },
-  { key: "tools", label: "Outils" },
-];
-
-function ConsoleBody() {
+function ConsoleBody({ children }: { children: ReactNode }) {
   const { user, loading } = useAuth();
+  const pathname = usePathname();
   // Modèles d'animation publiés : bibliothèque de l'atelier, chorégraphies et validation des cartes.
   useMotifCatalogLoader();
-  const [allowed, setAllowed] = useState<boolean | null>(null);
-  const [section, setSection] = useState<Section>("dashboard");
-  const [events, setEvents] = useState<AdminEventSummary[] | null>(null);
-  const [loadError, setLoadError] = useState<string | null>(null);
-
+  const [access, setAccess] = useState<{ uid: string; allowed: boolean } | null>(null);
   useEffect(() => {
-    if (!auth.currentUser) { setAllowed(false); return; }
-    void getIdTokenResult(auth.currentUser, true).then((token) => setAllowed(token.claims.admin === true)).catch(() => setAllowed(false));
-  }, [user]);
+    const current = auth.currentUser;
+    if (!current || current.isAnonymous || current.uid !== user?.uid) return;
+    let cancelled = false;
+    void getIdTokenResult(current, true).then(
+      (token) => { if (!cancelled) setAccess({ uid: current.uid, allowed: token.claims.admin === true }); },
+      () => { if (!cancelled) setAccess({ uid: current.uid, allowed: false }); },
+    );
+    return () => { cancelled = true; };
+  }, [user?.uid]);
 
-  const reload = useCallback(async () => {
-    try {
-      const result = await adminApi.listEvents();
-      setEvents(result.events);
-      setLoadError(null);
-    } catch (cause) {
-      setLoadError(adminErrorText(cause));
-    }
-  }, []);
-
-  useEffect(() => { if (allowed) void reload(); }, [allowed, reload]);
-
-  if (loading || allowed === null) return <main className="nj-admin"><p>Vérification des droits…</p></main>;
-  if (!user || user.isAnonymous || !allowed) {
+  if (loading || (user && !user.isAnonymous && access?.uid !== user.uid)) return <main className="nj-admin"><p>Vérification des droits…</p></main>;
+  if (!user || user.isAnonymous || !access?.allowed) {
     return (
       <main className="nj-admin">
         <h1>Régie du Ter</h1>
@@ -89,35 +63,65 @@ function ConsoleBody() {
     <div className={styles.shell}>
       <nav className={styles.sidebar} aria-label="Sections de la console">
         <div className={styles.brand}><small>BACK-OFFICE</small><strong>Régie du Ter</strong></div>
-        {NAV.map((item) => (
-          <button key={item.key} type="button" className={styles.navItem} aria-current={section === item.key ? "page" : undefined} disabled={Boolean(item.soon)} onClick={() => setSection(item.key)}>
-            {item.label}{item.soon && <span className={styles.soon}>{item.soon}</span>}
-          </button>
-        ))}
+        {ADMIN_NAV.map((section) => {
+          const href = adminHref(section);
+          const current = pathname === href || (section !== "dashboard" && pathname.startsWith(`${href}/`));
+          return <Link key={section} href={href} className={styles.navItem} aria-current={current ? "page" : undefined}>{ADMIN_SECTIONS[section].label}</Link>;
+        })}
         <div className={styles.sidebarFoot}>{user.email}<br /><Link href="/">← Retour au jeu</Link></div>
       </nav>
-      <main className={styles.main}>
-        {loadError && <div className={`${styles.notice} ${styles.error}`}>{loadError} <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => void reload()}>Réessayer</button></div>}
-        {section === "dashboard" && <Dashboard events={events} openEvents={() => setSection("events")} />}
-        {section === "changelog" && <ChangelogAdmin onOpenSection={setSection} />}
-        {section === "events" && <EventsAdmin events={events} reload={reload} />}
-        {section === "gameplay" && <GameplayAdmin />}
-        {section === "notifications" && <NotificationsAdmin events={events} />}
-        {section === "seasons" && <SeasonsAdmin />}
-        {section === "cosmetics" && <CosmeticsAdmin />}
-        {section === "powers" && <PowerCardsAdmin onOpenSection={setSection} />}
-        {section === "animations" && <AnimationsAdmin onOpenSection={setSection} />}
-        {section === "audio" && <AudioAdmin onOpenSection={setSection} />}
-        {section === "assistant" && <AssistantAdmin onOpenSection={setSection} />}
-        {section === "players" && <PlayersAdmin />}
-        {section === "audit" && <AuditLog />}
-        {section === "tools" && <Tools />}
-      </main>
+      <main className={styles.main}>{children}</main>
     </div>
   );
 }
 
-function Dashboard({ events, openEvents }: { events: AdminEventSummary[] | null; openEvents: () => void }) {
+export function AdminSectionContent({ section }: { section: Exclude<AdminSection, "packs"> }) {
+  const router = useRouter();
+  const openSection = (key: ChangelogAdminSection) => router.push(adminHref(key));
+
+  switch (section) {
+    case "dashboard":
+    case "events":
+    case "notifications": return <EventSection section={section} />;
+    case "changelog": return <ChangelogAdmin onOpenSection={openSection} />;
+    case "gameplay": return <GameplayAdmin />;
+    case "seasons": return <SeasonsAdmin />;
+    case "cosmetics": return <CosmeticsAdmin />;
+    case "powers": return <PowerCardsAdmin onOpenSection={openSection} />;
+    case "animations": return <AnimationsAdmin onOpenSection={openSection} />;
+    case "audio": return <AudioAdmin onOpenSection={openSection} />;
+    case "assistant": return <AssistantAdmin onOpenSection={openSection} />;
+    case "players": return <PlayersAdmin />;
+    case "audit": return <AuditLog />;
+    case "tools": return <Tools />;
+  }
+}
+
+function EventSection({ section }: { section: "dashboard" | "events" | "notifications" }) {
+  const [events, setEvents] = useState<AdminEventSummary[] | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const reload = useCallback(async () => {
+    try {
+      const result = await adminApi.listEvents();
+      setEvents(result.events);
+      setLoadError(null);
+    } catch (cause) {
+      setLoadError(adminErrorText(cause));
+    }
+  }, []);
+  useEffect(() => { void reload(); }, [reload]);
+
+  return (
+    <>
+      {loadError && <div className={`${styles.notice} ${styles.error}`}>{loadError} <button type="button" className={`${styles.btn} ${styles.small}`} onClick={() => void reload()}>Réessayer</button></div>}
+      {section === "dashboard" && <Dashboard events={events} />}
+      {section === "events" && <EventsAdmin events={events} reload={reload} />}
+      {section === "notifications" && <NotificationsAdmin events={events} />}
+    </>
+  );
+}
+
+function Dashboard({ events }: { events: AdminEventSummary[] | null }) {
   const list = events ?? [];
   const live = list.filter((event) => event.lifecycle === "live");
   const upcoming = list.filter((event) => event.lifecycle === "scheduled" || (event.scheduledAt ?? 0) > 0);
@@ -153,7 +157,7 @@ function Dashboard({ events, openEvents }: { events: AdminEventSummary[] | null;
             ))}
           </tbody></table>
         )}
-        <div className={styles.row} style={{ marginTop: 12 }}><button type="button" className={`${styles.btn} ${styles.primary}`} onClick={openEvents}>Gérer les événements</button></div>
+        <div className={styles.row} style={{ marginTop: 12 }}><Link className={`${styles.btn} ${styles.primary}`} href={adminHref("events")}>Gérer les événements</Link></div>
       </section>
     </div>
   );
@@ -252,4 +256,6 @@ function Tools() {
   );
 }
 
-export function AdminConsole() { return <AuthProvider><ConsoleBody /></AuthProvider>; }
+export function AdminConsole({ children }: { children: ReactNode }) {
+  return <AuthProvider><ConsoleBody>{children}</ConsoleBody></AuthProvider>;
+}

@@ -132,8 +132,8 @@ pm2 restart njambo-server
 Deux points dans `/etc/nginx/sites-available/njambo-back` (bloc complet dans
 `docs/deploiement.md`) :
 
-1. `client_max_body_size 3m;` au niveau du `server` : les uploads font
-   jusqu'à 2 Mo pour une image et 500 Ko pour un son.
+1. `client_max_body_size 14m;` au niveau du `server` : les uploads font
+   jusqu'à 2 Mo pour une image, 5 Mo pour un SFX (WAV brut avant conversion MP3) et 12 Mo pour une musique.
 2. Dans `location /uploads/`, les en-têtes **CORS**. Sans eux, le front (sur
    Vercel, une autre origine) ne peut pas lire les sons uploadés en WebAudio,
    ni les précharger. Résultat : **cartes muettes à la table**.
@@ -166,7 +166,7 @@ curl -sI https://njambo-back.bysoft-corp.com/uploads/<dossier>/<fichier> | grep 
 > Les mêmes en-têtes sont aussi envoyés par Express (`server/src/uploads.ts`)
 > si Nginx laisse un jour passer `/uploads/` vers le Node.
 
-- [ ] `client_max_body_size 3m`
+- [ ] `client_max_body_size 14m`
 - [ ] En-têtes CORS sur `/uploads/`
 - [ ] `nginx -t` OK et rechargé
 

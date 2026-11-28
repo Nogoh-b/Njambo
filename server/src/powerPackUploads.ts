@@ -4,31 +4,29 @@
      - corps : l'image brute (png / jpeg / webp), ≤ 3 Mo (l'admin la réduit
        à 1 080 px avant l'envoi, sous la limite Nginx client_max_body_size 3m)
      → { card, art, pack }
-   Comme scripts/build-power-art-packs.mjs : recadrage « cover » en 720 / 256 /
-   128 px de large (hauteur × 1,5 pour un pack portrait), fond #072c22, WebP sous
-   400 Ko (720) et 80 Ko (vignettes). Fichiers dans UPLOAD_DIR/power-packs/<pack>/,
-   nommés avec l'empreinte de l'image (cache immuable), puis URL enregistrées dans
-   runtime_config/power_packs. */
+   POST /admin/power-pack-import : ZIP optimisé, enregistré en une fois.
+   Les fichiers WebP sont servis en 720 / 256 / 128 px (cache immuable). */
 
-import { createHash } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { createHash, randomUUID } from "node:crypto";
+import { mkdir, rename, rm, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import express, { type Express } from "express";
+import express, { type Express, type Request } from "express";
 import sharp from "sharp";
 import { HttpsError } from "firebase-functions/v2/https";
-import { BUILTIN_POWER_ART_IDS, isImportedPowerPackId, type ImportedPowerArt } from "../../domain/assetPacks";
+import { BUILTIN_POWER_ART_IDS, isImportedPowerPackId, type ImportedPowerArt, type ImportedPowerPack } from "../../domain/assetPacks";
 import { requireAdmin } from "../../functions/src/core";
-import { loadImportedPowerPacks, recordPowerPackArt } from "../../functions/src/powerPackCommands";
+import { loadImportedPowerPacks, recordImportedPowerPack, recordPowerPackArt } from "../../functions/src/powerPackCommands";
+import { POWER_PACK_IMAGE_BUDGET, POWER_PACK_UPLOAD_LIMIT, readPowerPackArchive } from "../../lib/powerPackArchive";
 import { buildCallableRequest } from "./auth";
 import { sendError } from "./httpError";
 import { publicBase, sniffImage, uploadDir } from "./uploads";
 
-const MAX_BYTES = 3 * 1024 * 1024;
 export const POWER_PACK_ART_SIZES = [
-  { size: 720, suffix: "", budget: 400_000, quality: 88 },
-  { size: 256, suffix: "-256", budget: 80_000, quality: 84 },
-  { size: 128, suffix: "-128", budget: 80_000, quality: 84 },
+  { size: 720, suffix: "", budget: POWER_PACK_IMAGE_BUDGET, quality: 86 },
+  { size: 256, suffix: "-256", budget: 28_000, quality: 82 },
+  { size: 128, suffix: "-128", budget: 12_000, quality: 80 },
 ] as const;
+const ART_ENCODING_VERSION = "webp-2";
 
 /** Décline une image source en 3 WebP recadrés pour le format du pack. */
 export async function renderPowerPackArt(source: Buffer, portrait: boolean): Promise<Array<{ suffix: string; data: Buffer; width: number; height: number }>> {
@@ -45,21 +43,51 @@ export async function renderPowerPackArt(source: Buffer, portrait: boolean): Pro
     let data: Buffer;
     try {
       data = await artwork.webp({ quality }).toBuffer();
-      while (data.length >= budget && quality > 50) {
-        quality -= 5;
+      while (data.length > budget && quality > 38) {
+        quality -= 6;
         data = await artwork.webp({ quality }).toBuffer();
+      }
+      if (data.length > budget) {
+        artwork.blur(1.25);
+        quality = 56;
+        data = await artwork.webp({ quality }).toBuffer();
+        while (data.length > budget && quality > 8) {
+          quality -= 6;
+          data = await artwork.webp({ quality }).toBuffer();
+        }
       }
     } catch {
       throw new HttpsError("invalid-argument", "UNREADABLE_IMAGE");
     }
-    if (data.length >= budget) throw new HttpsError("invalid-argument", "IMAGE_TOO_DETAILED");
+    if (data.length > budget) throw new HttpsError("invalid-argument", "IMAGE_TOO_DETAILED");
     outputs.push({ suffix, data, width: size, height });
   }
   return outputs;
 }
 
+async function writePowerPackArt(req: Request, folderName: string, card: string, body: Buffer, portrait: boolean, prepared?: Awaited<ReturnType<typeof renderPowerPackArt>>): Promise<ImportedPowerArt> {
+  const outputs = prepared ?? await renderPowerPackArt(body, portrait);
+  const v = createHash("sha256").update(body).update(portrait ? "portrait" : "square").update(ART_ENCODING_VERSION).digest("hex").slice(0, 16);
+  const folder = join(uploadDir(), "power-packs", folderName);
+  await mkdir(folder, { recursive: true });
+  const base = `${publicBase(req)}/uploads/power-packs/${folderName}/${card}-${v}`;
+  for (const output of outputs) {
+    const destination = join(folder, `${card}-${v}${output.suffix}.webp`);
+    const temp = join(folder, `.${randomUUID()}.tmp`);
+    try {
+      await writeFile(temp, output.data, { flag: "wx" });
+      await rename(temp, destination);
+    } catch (error) {
+      await rm(temp, { force: true }).catch(() => {});
+      throw error;
+    }
+  }
+  return { url: `${base}.webp`, thumb: `${base}-256.webp`, small: `${base}-128.webp`, v, updatedAt: Date.now() };
+}
+
 export function mountPowerPackUploads(app: Express) {
-  app.post("/admin/power-pack-art", express.raw({ type: () => true, limit: MAX_BYTES }), async (req, res) => {
+  const raw = express.raw({ type: () => true, limit: POWER_PACK_UPLOAD_LIMIT });
+  app.post("/admin/power-pack-art", raw, async (req, res) => {
     try {
       const request = await buildCallableRequest(req.header("authorization"), {});
       const uid = requireAdmin(request);
@@ -73,22 +101,46 @@ export function mountPowerPackUploads(app: Express) {
       if (!Buffer.isBuffer(body) || body.length === 0) throw new HttpsError("invalid-argument", "EMPTY_FILE");
       if (!sniffImage(body)) throw new HttpsError("invalid-argument", "NOT_AN_IMAGE");
 
-      const outputs = await renderPowerPackArt(body, pack.portrait);
-      const v = createHash("sha1").update(body).update(pack.portrait ? "portrait" : "square").digest("hex").slice(0, 10);
-      const folder = join(uploadDir(), "power-packs", packId);
-      await mkdir(folder, { recursive: true });
-      const base = `${publicBase(req)}/uploads/power-packs/${packId}/${card}-${v}`;
-      for (const output of outputs) await writeFile(join(folder, `${card}-${v}${output.suffix}.webp`), output.data);
-      const art: ImportedPowerArt = { url: `${base}.webp`, thumb: `${base}-256.webp`, small: `${base}-128.webp`, v, updatedAt: Date.now() };
-      const updated = await recordPowerPackArt(uid, packId, card, art);
+      const art = await writePowerPackArt(req, packId, card, body, pack.portrait);
+      const updated = await recordPowerPackArt(uid, packId, card, art, pack.portrait);
       res.status(200).json({ card, art, pack: updated });
     } catch (error) {
       sendError(res, error);
     }
   });
 
-  /* Fichier > 3 Mo : refusé par express.raw avant le handler. */
-  app.use("/admin/power-pack-art", ((error, _req, res, next) => {
+  app.post("/admin/power-pack-import", raw, async (req, res) => {
+    try {
+      const request = await buildCallableRequest(req.header("authorization"), {});
+      const uid = requireAdmin(request);
+      const key = req.header("Idempotency-Key");
+      if (!key || key.length < 8 || key.length > 160) throw new HttpsError("invalid-argument", "INVALID_IDEMPOTENCY_KEY");
+      if (!Buffer.isBuffer(req.body)) throw new HttpsError("invalid-argument", "EMPTY_FILE");
+      const { details, images } = await readPowerPackArchive(req.body, true).catch((error: Error) => {
+        throw new HttpsError("invalid-argument", error.message);
+      });
+      if (!details) throw new HttpsError("invalid-argument", "POWER_PACK_MANIFEST_REQUIRED");
+      const art: ImportedPowerPack["art"] = {};
+      const prepared = [];
+      for (const { card, data } of images) {
+        const source = Buffer.from(data);
+        if (sniffImage(source) !== "webp") throw new HttpsError("invalid-argument", `Illustration WebP requise pour ${card}.`);
+        try {
+          prepared.push({ card, source, outputs: await renderPowerPackArt(source, details.portrait) });
+        } catch (error) {
+          if (error instanceof HttpsError) throw new HttpsError("invalid-argument", `${card} – ${error.message}`);
+          throw error;
+        }
+      }
+      const folder = createHash("sha256").update(`${uid}:${key}:`).update(req.body).digest("hex").slice(0, 24);
+      for (const { card, source, outputs } of prepared) art[card] = await writePowerPackArt(req, folder, card, source, details.portrait, outputs);
+      res.status(201).json(await recordImportedPowerPack(uid, key, details, art));
+    } catch (error) {
+      sendError(res, error);
+    }
+  });
+
+  app.use(["/admin/power-pack-art", "/admin/power-pack-import"], ((error, _req, res, next) => {
     if ((error as { type?: string })?.type === "entity.too.large") {
       res.status(413).json({ code: "invalid-argument", message: "FILE_TOO_LARGE" });
       return;

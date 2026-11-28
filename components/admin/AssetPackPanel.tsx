@@ -6,14 +6,18 @@
    cartes de modes de jeu), et illustrations des cartes Pouvoir. */
 
 import { useState } from "react";
-import { assetPackUrl, assetPacksForScope, isPortraitPowerPack, powerPackThumbUrl, type AssetPackId, type AssetPackScope } from "@/domain/assetPacks";
-import { setAssetPacks, useAssetPacks } from "@/lib/assetPack";
+import Link from "next/link";
+import { assetPackUrl, assetPacksForScope, type AssetPackId, type AssetPackScope } from "@/domain/assetPacks";
+import { setAssetPacks } from "@/lib/assetPack";
 import { useAssetPackSync } from "@/hooks/useAssetPackSync";
 import { adminApi, adminErrorText } from "./adminApi";
-import { PowerPackImporter } from "./PowerPackImporter";
+import { adminHref } from "./adminRoutes";
+import { PowerBorderPanel } from "./PowerBorderPanel";
 import styles from "./AdminConsole.module.css";
 
-const SECTIONS: Record<AssetPackScope, { title: string; hint: string; preview: string[] }> = {
+type CosmeticPackScope = Exclude<AssetPackScope, "powers">;
+
+const SECTIONS: Record<CosmeticPackScope, { title: string; hint: string; preview: string[] }> = {
   system: {
     title: "Pack d'assets système",
     hint: "Monnaies, énergie, roue, packs boutique, tickets, livres et rangs.",
@@ -38,21 +42,9 @@ const SECTIONS: Record<AssetPackScope, { title: string; hint: string; preview: s
       "/assets/njambo/ui/buttons/icon-plate-128.webp",
     ],
   },
-  powers: {
-    title: "Pack de cartes Pouvoir",
-    hint: "Illustrations des 21 cartes Pouvoir intégrées, packs importés compris. Les images personnalisées restent prioritaires.",
-    preview: [
-      "/assets/power-cards/v2/oeil_sorcier.webp",
-      "/assets/power-cards/v2/tambour_appel.webp",
-      "/assets/power-cards/v2/bouclier_village.webp",
-      "/assets/power-cards/v2/masque_bluffeur.webp",
-      "/assets/power-cards/v2/cauris_chanceux.webp",
-      "/assets/power-cards/v2/totem_ancetres.webp",
-    ],
-  },
 };
 
-function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPackId }) {
+function PackSection({ scope, active }: { scope: CosmeticPackScope; active: AssetPackId }) {
   const section = SECTIONS[scope];
   const [saving, setSaving] = useState<AssetPackId | null>(null);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
@@ -92,10 +84,10 @@ function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPa
             >
               <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 6, background: "#0c0906", borderRadius: 8, padding: 6 }}>
                 {section.preview.map((path) => {
-                  const thumbnail = scope === "powers" ? powerPackThumbUrl(path, pack.id) : assetPackUrl(path, pack.id, scope);
+                  const thumbnail = assetPackUrl(path, pack.id, scope);
                   return (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img key={path} src={thumbnail} alt="" loading="lazy" width={64} height={isPortraitPowerPack(pack.id) ? 96 : 64} style={{ width: "100%", height: "auto" }} />
+                    <img key={path} src={thumbnail} alt="" loading="lazy" width={64} height={64} style={{ width: "100%", height: "auto" }} />
                   );
                 })}
               </div>
@@ -120,26 +112,32 @@ function PackSection({ scope, active }: { scope: AssetPackScope; active: AssetPa
 }
 
 export function AssetPackPanel() {
-  useAssetPackSync();
-  const active = useAssetPacks();
+  const active = useAssetPackSync();
   return (
     <>
       <PackSection scope="system" active={active.system} />
       <PackSection scope="interface" active={active.interface} />
-      <PackSection scope="powers" active={active.powers} />
-      <PowerPackImporter />
+      <PowerPackLink active={active.powers} />
+      <PowerBorderPanel />
     </>
   );
 }
 
-/** Même sélecteur dans la section Cartes de pouvoir. */
+function PowerPackLink({ active }: { active: AssetPackId }) {
+  const name = assetPacksForScope("powers").find((pack) => pack.id === active)?.name;
+  return <section className={styles.panel}>
+    <h2>Packs de cartes Pouvoir</h2>
+    {name && <p className={styles.hint}>Pack actif · {name}</p>}
+    <Link className={styles.btn} href={adminHref("packs")}>Gérer les packs de cartes</Link>
+  </section>;
+}
+
 export function PowerArtPackPanel() {
-  useAssetPackSync();
-  const active = useAssetPacks();
+  const active = useAssetPackSync();
   return (
     <>
-      <PackSection scope="powers" active={active.powers} />
-      <PowerPackImporter />
+      <PowerPackLink active={active.powers} />
+      <PowerBorderPanel />
     </>
   );
 }

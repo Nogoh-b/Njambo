@@ -21,6 +21,21 @@ import { asObject, db, requireAdmin, runIdempotent } from "./core";
 
 const packsRef = () => db.doc(`runtime_config/${POWER_PACKS_DOC}`);
 
+export async function recordImportedPowerPack(uid: string, key: string, details: Pick<ImportedPowerPack, "name" | "description" | "portrait">, art: ImportedPowerPack["art"]) {
+  return runIdempotent(uid, "importPowerPack", key, async (transaction, now) => {
+    const snapshot = await transaction.get(packsRef());
+    const packs = readImportedPowerPacks(snapshot.exists ? snapshot.data() : undefined);
+    if (packs.length >= IMPORTED_POWER_PACK_LIMITS.packs) throw new HttpsError("failed-precondition", "POWER_PACK_LIMIT_REACHED");
+    const pack: ImportedPowerPack = {
+      ...details, id: importedPowerPackIdFor(details.name, packs.map((item) => item.id)),
+      scopes: ["powers"], art, createdAt: now, updatedAt: now,
+    };
+    transaction.set(packsRef(), { packs: [...packs, pack], updatedAt: now, updatedBy: uid });
+    transaction.create(db.collection("admin_audit").doc(), { uid, action: "power_pack_import", pack: pack.id, cards: Object.keys(art).length, createdAt: now });
+    return { pack };
+  });
+}
+
 /** Packs importés tels qu'enregistrés (lecture hors transaction). */
 export async function loadImportedPowerPacks(): Promise<ImportedPowerPack[]> {
   const snapshot = await packsRef().get();
@@ -80,13 +95,14 @@ export async function deletePowerPackHandler(request: CallableRequest<unknown>) 
 }
 
 /** Enregistre l'illustration importée d'une carte (appelé après l'écriture des fichiers). */
-export async function recordPowerPackArt(uid: string, packId: string, card: string, art: ImportedPowerArt): Promise<ImportedPowerPack> {
+export async function recordPowerPackArt(uid: string, packId: string, card: string, art: ImportedPowerArt, portrait?: boolean): Promise<ImportedPowerPack> {
   if (!BUILTIN_POWER_ART_IDS.some((id) => id === card)) throw new HttpsError("invalid-argument", "POWER_PACK_CARD_UNKNOWN");
   return db.runTransaction(async (transaction) => {
     const snapshot = await transaction.get(packsRef());
     const packs = readImportedPowerPacks(snapshot.exists ? snapshot.data() : undefined);
     const index = packs.findIndex((pack) => pack.id === packId);
     if (index < 0) throw new HttpsError("not-found", "POWER_PACK_UNKNOWN");
+    if (portrait !== undefined && packs[index].portrait !== portrait) throw new HttpsError("failed-precondition", "POWER_PACK_FORMAT_LOCKED");
     const updated: ImportedPowerPack = { ...packs[index], art: { ...packs[index].art, [card]: art }, updatedAt: art.updatedAt };
     packs[index] = updated;
     transaction.set(packsRef(), { packs, updatedAt: art.updatedAt, updatedBy: uid });

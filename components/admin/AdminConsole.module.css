@@ -24,7 +24,7 @@
 .sidebar {
   position: sticky; top: 0; height: 100svh;
   display: flex; flex-direction: column; gap: 4px;
-  padding: 22px 14px; border-right: 1px solid var(--line); background: #0d0a07cc;
+  padding: 22px 14px; border-right: 1px solid var(--line); background: #0d0a07cc; overflow: auto;
 }
 .brand { padding: 0 10px 18px; }
 .brand small { color: var(--faint); letter-spacing: .14em; font-size: 10px; font-weight: 800; }
@@ -32,13 +32,10 @@
 .navItem {
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
   width: 100%; padding: 10px 12px; border: 0; border-radius: 10px;
-  background: transparent; color: var(--muted); font: inherit; font-weight: 700; text-align: left; cursor: pointer;
+  background: transparent; color: var(--muted); font: inherit; font-weight: 700; text-align: left; text-decoration: none;
 }
 .navItem:hover { background: var(--panel-2); color: var(--ink); }
 .navItem[aria-current="page"] { background: #f2bb4522; color: var(--gold); }
-.navItem:disabled { cursor: default; opacity: .5; }
-.navItem:disabled:hover { background: transparent; color: var(--muted); }
-.soon { font-size: 10px; font-weight: 800; letter-spacing: .06em; color: var(--faint); text-transform: uppercase; }
 .sidebarFoot { margin-top: auto; padding: 10px; color: var(--faint); font-size: 12px; }
 .sidebarFoot a { color: var(--muted); }
 
@@ -74,7 +71,7 @@
 .btn {
   display: inline-flex; align-items: center; justify-content: center; gap: 6px;
   padding: 9px 14px; border: 1px solid var(--line); border-radius: 10px;
-  background: var(--panel-2); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; white-space: nowrap;
+  background: var(--panel-2); color: var(--ink); font: inherit; font-weight: 800; cursor: pointer; text-decoration: none; white-space: nowrap;
 }
 .btn:hover:not(:disabled) { border-color: var(--gold); }
 .btn:disabled { opacity: .45; cursor: not-allowed; }

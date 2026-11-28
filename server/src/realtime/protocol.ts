@@ -14,7 +14,7 @@ export interface SubscribeTarget {
 }
 
 export type ClientMessage =
-  | { type: "auth"; token: string }
+  | { type: "auth"; token?: string | null }
   | { type: "subscribe"; id: number; target: SubscribeTarget }
   | { type: "unsubscribe"; id: number }
   | { type: "get"; id: number; target: SubscribeTarget };
@@ -26,7 +26,7 @@ export interface WireDoc {
 }
 
 export type ServerMessage =
-  | { type: "ready"; uid: string }
+  | { type: "ready"; uid: string | null }
   | { type: "doc"; id: number; doc: WireDoc }
   | { type: "docs"; id: number; docs: WireDoc[] }
   | { type: "error"; id?: number; code: string; message: string };

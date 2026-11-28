@@ -3,11 +3,12 @@
 import Image from "@/components/ui/GameImage";
 import { eventArt } from "@/lib/eventArt";
 import { eventCountdown } from "@/lib/eventCountdown";
+import { TICKET_ART, rewardVisual } from "@/lib/eventRewards";
 import { useSeasons } from "@/hooks/useSeasons";
 import { canClaimTier, reachedTiers } from "@/domain";
-import { useCallback, useEffect, useState, type CSSProperties } from "react";
+import { memo, useCallback, useEffect, useState, type CSSProperties } from "react";
 import { motion } from "motion/react";
-import { type EventVersion, type Reward } from "@/domain";
+import { type EventVersion } from "@/domain";
 import { useAuth } from "@/hooks/useAuth";
 import { useEconomy } from "@/contexts/EconomyContext";
 import { useGame } from "@/contexts/GameContext";
@@ -22,7 +23,7 @@ import { t } from "@/lib/i18n";
 import styles from "./EventsScreen.module.css";
 import { prefetchAssets } from "@/lib/assets/AssetLoader";
 import { eventDetailManifest, eventsManifest } from "@/lib/assets/manifests";
-import { sysAsset } from "@/lib/assetPack";
+import { preloadScene } from "@/lib/scenePreload";
 
 const TER_SPARKS: Array<{ x: string; size: string; dur: string; delay: string; sway: string; color: string }> = [
   { x: "9%", size: "4px", dur: "8.4s", delay: "-1.2s", sway: "18px", color: "#ffcf40" },
@@ -45,51 +46,14 @@ const EVENT_STATES: Record<EventState, { label: string; className: string }> = {
   eliminated: { label: "Éliminé", className: "stateEliminated" },
 };
 
-const TICKET_ART: Record<"bronze" | "argent" | "or", string> = {
-  get bronze() { return sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"); },
-  get argent() { return sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"); },
-  get or() { return sysAsset("/assets/njambo/tickets/ticket-or-64.webp"); },
-};
+const EVENT_DATE_FORMATTER = new Intl.DateTimeFormat("fr-FR", {
+  day: "numeric",
+  month: "short",
+  timeZone: "Africa/Douala",
+});
 
-function rewardVisual(reward: Reward): { src: string; label: string } {
-  if (reward.type === "nkap") {
-    return {
-      src: sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
-      label: `${reward.amount.toLocaleString("fr-FR")} Nkap`,
-    };
-  }
-  if (reward.type === "cauris") {
-    return {
-      src: sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
-      label: `${reward.amount} cauris`,
-    };
-  }
-  if (reward.type === "booster_book") {
-    const bookId = ["normal", "rare", "exceptionnel"].includes(reward.boosterId)
-      ? reward.boosterId
-      : "normal";
-    return {
-      src: sysAsset(`/assets/njambo/books/book-${bookId}-128.webp`),
-      label: `Livre ${reward.boosterId}`,
-    };
-  }
-  if (reward.type === "ticket") {
-    return {
-      src: TICKET_ART[reward.tier] ?? TICKET_ART.bronze,
-      label: `Ticket ${reward.tier}`,
-    };
-  }
-  if (reward.type === "energy_pass") {
-    return {
-      src: sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
-      label: `Énergie ${reward.durationMinutes / 60}h`,
-    };
-  }
-  return {
-    src: sysAsset("/assets/njambo/books/card-back-128.webp"),
-    label: `Carte ${reward.rarity}`,
-  };
-}
+/** Nombre de cartes montées dès la 1re image (au-delà : après la transition d'entrée). */
+const EVENTS_INITIAL_BATCH = 4;
 
 function eventState(event: EventVersion, now: number): EventState {
   const capacity = event as EventVersion & { full?: boolean; capacityReached?: boolean };
@@ -100,16 +64,15 @@ function eventState(event: EventVersion, now: number): EventState {
 }
 
 function eventDates(event: EventVersion) {
-  const format = new Intl.DateTimeFormat("fr-FR", { day: "numeric", month: "short", timeZone: "Africa/Douala" });
-  const start = event.startsAt <= 0 ? "Maintenant" : format.format(event.startsAt);
-  return `${start} – ${format.format(event.endsAt)}`;
+  const start = event.startsAt <= 0 ? "Maintenant" : EVENT_DATE_FORMATTER.format(event.startsAt);
+  return `${start} – ${EVENT_DATE_FORMATTER.format(event.endsAt)}`;
 }
 
-export function EventsScreen() {
+export const EventsScreen = memo(function EventsScreen() {
   const { navigateTo, goBack, backLabelFor, setEventDetailId } = useGame();
   const { user } = useAuth();
   const { inventory } = useEconomy();
-  const { events, error: contentError } = useLiveOpsContent();
+  const { events, eventsLoaded, error: contentError } = useLiveOpsContent();
   const { runs, error: runsError } = usePlayerEventRuns(user && !user.isAnonymous ? user.uid : undefined);
   const motionProfile = useMotionProfile();
   const pageActive = usePageActive();
@@ -121,17 +84,35 @@ export function EventsScreen() {
     canClaimTier(activeSeason.season, activeSeason.progress, index, "free", now).ok
     || canClaimTier(activeSeason.season, activeSeason.progress, index, "premium", now).ok));
   const [authOpen, setAuthOpen] = useState(false);
+  const [showAllEvents, setShowAllEvents] = useState(() => events.length <= EVENTS_INITIAL_BATCH);
   const isGuest = !user || user.isAnonymous;
   const decorOn = motionProfile.enabled && motionProfile.allowDecorativeLoop && pageActive;
   const cascadeOn = motionProfile.enabled && motionProfile.allowEntranceCascade;
+  const hoverOn = motionProfile.enabled && motionProfile.level !== "lite";
 
   const refreshNow = useCallback(() => setNow(Date.now()), []);
 
-  /* Chargeur d'assets : vignettes de la liste, puis illustrations plein
-     format (détail d'un événement) en arrière-plan. */
   useEffect(() => {
-    prefetchAssets([...eventsManifest(events).background, ...events.flatMap((event) => eventDetailManifest(event).critical)]);
-  }, [events]);
+    if (showAllEvents || events.length <= EVENTS_INITIAL_BATCH) return;
+    const timer = window.setTimeout(() => setShowAllEvents(true), 320);
+    return () => window.clearTimeout(timer);
+  }, [events.length, showAllEvents]);
+
+  /* Chargeur d'assets : différé après la transition d'entrée et seulement une
+     fois les événements réels connus (évite de télécharger les affiches des
+     événements par défaut puis de tout remplacer). */
+  useEffect(() => {
+    if (!eventsLoaded) return;
+    const timer = window.setTimeout(() => {
+      prefetchAssets([
+        ...eventsManifest(events).background,
+        ...events.flatMap((event) => eventDetailManifest(event).critical),
+      ]);
+    }, 1100);
+    return () => window.clearTimeout(timer);
+  }, [events, eventsLoaded]);
+
+  const visibleEvents = showAllEvents ? events : events.slice(0, EVENTS_INITIAL_BATCH);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(Date.now()), 60_000);
@@ -191,7 +172,7 @@ export function EventsScreen() {
             className={styles.backBtn}
             onClick={() => goBack("menu")}
             aria-label={`Retour à ${backLabelFor("menu")}`}
-            whileHover={motionProfile.enabled ? { y: -1, scale: 1.03 } : undefined}
+            whileHover={hoverOn ? { y: -1, scale: 1.03 } : undefined}
             whileTap={motionProfile.enabled ? { scale: 0.94 } : undefined}
           >
             <span aria-hidden="true">←</span>
@@ -211,7 +192,7 @@ export function EventsScreen() {
               type="button"
               className={styles.guestMiniBtn}
               onClick={() => setAuthOpen(true)}
-              whileHover={motionProfile.enabled ? { y: -1, scale: 1.03 } : undefined}
+              whileHover={hoverOn ? { y: -1, scale: 1.03 } : undefined}
               whileTap={motionProfile.enabled ? { scale: 0.94 } : undefined}
             >
               <NjamboIcon name="profile" tone="teal" size={15} />
@@ -228,7 +209,7 @@ export function EventsScreen() {
                 className={`${styles.ticketStubPill} ${styles[`tier_${tier}`]}`}
                 onClick={() => navigateTo("shop")}
                 title={`Tickets ${tier} : ${tickets[tier]} — Ouvrir la boutique`}
-                whileHover={motionProfile.enabled ? { y: -2, scale: 1.05 } : undefined}
+                whileHover={hoverOn ? { y: -2, scale: 1.05 } : undefined}
                 whileTap={motionProfile.enabled ? { scale: 0.93 } : undefined}
               >
                 <Image src={TICKET_ART[tier]} alt="" width={19} height={19} />
@@ -246,9 +227,11 @@ export function EventsScreen() {
       {/* ═══ PASSE DE SAISON (phase 6) ═══ */}
       {activeSeason && (
         <button data-nj-skin="none" type="button" className={styles.seasonBanner} onClick={() => navigateTo("season")}>
-          <span className={styles.seasonIcon} aria-hidden="true">🏵️</span>
+          <span className={styles.seasonIcon} aria-hidden="true">
+            <NjamboIcon name="trophy" tone="gold" size={22} />
+          </span>
           <span className={styles.seasonCopy}>
-            <small>Passe de saison{activeSeason.progress.premium ? " · Premium 👑" : ""}</small>
+            <small>Passe de saison{activeSeason.progress.premium ? " · Premium" : ""}</small>
             <strong>{activeSeason.season.title}</strong>
           </span>
           <span className={styles.seasonPoints}>
@@ -262,7 +245,7 @@ export function EventsScreen() {
       {/* ═══ VITRINE DES BILLETS & AFFICHES DE GALA ═══ */}
       <section className={styles.galaStage} aria-label="Événements et tournois disponibles">
         <div className={styles.galaGrid}>
-          {events.map((event, index) => {
+          {visibleEvents.map((event, index) => {
             const availability = eventState(event, now);
             const run = runs.find(
               (candidate) =>
@@ -285,15 +268,17 @@ export function EventsScreen() {
                 className={`${styles.galaTicket} ${isPvp ? styles.themeTeal : styles.themeGold}`}
                 style={{ "--foil-delay": `${0.7 + index * 2.1}s` } as CSSProperties}
                 onClick={() => openDetail(event.eventId)}
-                initial={cascadeOn ? { opacity: 0, y: 24, scale: 0.97 } : false}
+                onPointerEnter={() => preloadScene("event_detail")}
+                onPointerDown={() => preloadScene("event_detail")}
+                initial={cascadeOn && index < EVENTS_INITIAL_BATCH ? { opacity: 0, y: 24, scale: 0.97 } : false}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 transition={{
                   type: "spring",
                   stiffness: 340,
                   damping: 26,
-                  delay: cascadeOn ? Math.min(index, 4) * 0.09 : 0,
+                  delay: cascadeOn && index < EVENTS_INITIAL_BATCH ? Math.min(index, 4) * 0.09 : 0,
                 }}
-                whileHover={motionProfile.enabled ? { y: -5 } : undefined}
+                whileHover={hoverOn ? { y: -5 } : undefined}
                 whileTap={motionProfile.enabled ? { scale: 0.988 } : undefined}
               >
                 <span className={styles.ticketFoilSheen} aria-hidden="true" />
@@ -455,17 +440,21 @@ export function EventsScreen() {
       </section>
 
       {/* Modale de connexion sans quitter la vitrine */}
-      <GameModal
-        open={authOpen}
-        onClose={() => setAuthOpen(false)}
-        kicker="Événements du Ter"
-        title="Connecte ton compte"
-        tone="gold"
-      >
-        <AuthGate tone="gold" accountBar="none">
-          <div className={styles.authDone}>Compte connecté ! Choisis ton événement.</div>
-        </AuthGate>
-      </GameModal>
+      {(isGuest || authOpen) && (
+        <GameModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          kicker="Événements du Ter"
+          title="Connecte ton compte"
+          tone="gold"
+        >
+          {authOpen && (
+            <AuthGate tone="gold" accountBar="none">
+              <div className={styles.authDone}>Compte connecté ! Choisis ton événement.</div>
+            </AuthGate>
+          )}
+        </GameModal>
+      )}
     </GameShell>
   );
-}
+});

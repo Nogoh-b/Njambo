@@ -138,7 +138,32 @@ export interface EventReturnSnapshot {
   takenAt: number;
 }
 
+export type GameStableContextValue = Pick<
+  GameContextValue,
+  | "navigateTo"
+  | "goBack"
+  | "registerBackInterceptor"
+  | "endTransition"
+  | "setSocialTarget"
+  | "setEventDetailId"
+  | "eventReturn"
+  | "setEventReturn"
+  | "setCollectionTab"
+  | "profile"
+  | "setProfile"
+  | "musicOn"
+  | "setMusicOn"
+  | "sfxOn"
+  | "setSfxOn"
+  | "musicVolume"
+  | "setMusicVolume"
+  | "sfxVolume"
+  | "setSfxVolume"
+  | "cfg"
+>;
+
 const GameContext = createContext<GameContextValue | null>(null);
+const GameStableContext = createContext<GameStableContextValue | null>(null);
 
 const STORAGE_KEY = "njambo-profile";
 const MAX_STACK_LENGTH = 40;
@@ -235,7 +260,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const initialEntry = initial.entries[initial.index];
 
   const [scene, setScene] = useState<SceneName>(initialEntry.scene);
-  const [transitioning, setTransitioning] = useState(false);
   const [profile, setProfileRaw] = useState<Profile>(() => applyDevProfile(loadStoredProfile()));
   const [socialTarget, setSocialTargetRaw] = useState<SocialTarget>(() => initialEntry.socialTarget ?? {});
   const [eventDetailId, setEventDetailIdRaw] = useState<string | null>(() => initialEntry.eventDetailId ?? null);
@@ -295,7 +319,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, []);
 
   /** Applique une entrée de pile vers l'état React + les refs synchrones. */
-  const applyEntryToState = useCallback((entry: NavEntry, animate: boolean) => {
+  const applyEntryToState = useCallback((entry: NavEntry) => {
     const nextEventId = entry.eventDetailId !== undefined ? entry.eventDetailId : (entry.scene === "events" ? null : eventDetailIdRef.current);
     eventDetailIdRef.current = nextEventId ?? null;
     setEventDetailIdRaw(nextEventId ?? null);
@@ -316,7 +340,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     if (entry.scene !== sceneRef.current) {
       navStart(sceneRef.current, entry.scene);
-      if (animate) setTransitioning(true);
       sceneRef.current = entry.scene;
       setScene(entry.scene);
     }
@@ -433,7 +456,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       stackIndexRef.current = 0;
       saveNavStack(stackRef.current, 0);
       writeHistory(newEntry, "replace", historyDepthRef.current, 0);
-      applyEntryToState(newEntry, true);
+      applyEntryToState(newEntry);
       return;
     }
 
@@ -444,7 +467,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       stackRef.current = nextStack;
       saveNavStack(nextStack, idx);
       writeHistory(newEntry, "replace", historyDepthRef.current, idx);
-      applyEntryToState(newEntry, true);
+      applyEntryToState(newEntry);
       return;
     }
 
@@ -461,7 +484,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
     saveNavStack(trimmed, nextIdx);
     writeHistory(newEntry, "push", historyDepthRef.current, nextIdx);
-    applyEntryToState(newEntry, true);
+    applyEntryToState(newEntry);
   }, [applyEntryToState, syncMeta, updateCurrentEntry]);
 
   const triggerBack = useCallback((fallback?: SceneName, fromHardware = false) => {
@@ -489,7 +512,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       stackIndexRef.current = nextIdx;
       saveNavStack(stackRef.current, nextIdx);
       writeHistory(prevEntry, "replace", historyDepthRef.current, nextIdx);
-      applyEntryToState(prevEntry, true);
+      applyEntryToState(prevEntry);
       return;
     }
 
@@ -656,7 +679,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       if (sanitized) {
         writeHistory(targetEntry, "replace", historyDepthRef.current, stackIndexRef.current);
       }
-      applyEntryToState(targetEntry, true);
+      applyEntryToState(targetEntry);
     };
 
     const onHashChange = () => {
@@ -724,8 +747,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [updateCurrentEntry]);
 
-  /** Appelé par AnimatePresence quand l'ancienne scène a fini de sortir. */
-  const endTransition = useCallback(() => setTransitioning(false), []);
+  /** Conservé pour compatibilité API ; aucun consommateur ne lit `transitioning`
+   *  et déclencher deux setState par navigation provoquait un double re-rendu global. */
+  const endTransition = useCallback(() => {}, []);
 
   const setSocialTarget = useCallback((target: SocialTarget | ((prev: SocialTarget) => SocialTarget)) => {
     const next = typeof target === "function" ? target(socialTargetRef.current) : target;
@@ -736,9 +760,52 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [updateCurrentEntry]);
 
+  const stableValue = useMemo<GameStableContextValue>(() => ({
+    navigateTo,
+    goBack,
+    registerBackInterceptor,
+    endTransition,
+    setSocialTarget,
+    setEventDetailId,
+    eventReturn,
+    setEventReturn,
+    setCollectionTab,
+    profile,
+    setProfile,
+    musicOn,
+    setMusicOn,
+    sfxOn,
+    setSfxOn,
+    musicVolume,
+    setMusicVolume,
+    sfxVolume,
+    setSfxVolume,
+    cfg,
+  }), [
+    navigateTo,
+    goBack,
+    registerBackInterceptor,
+    endTransition,
+    setSocialTarget,
+    setEventDetailId,
+    eventReturn,
+    setCollectionTab,
+    profile,
+    setProfile,
+    musicOn,
+    setMusicOn,
+    sfxOn,
+    setSfxOn,
+    musicVolume,
+    setMusicVolume,
+    sfxVolume,
+    setSfxVolume,
+    cfg,
+  ]);
+
   const value = useMemo<GameContextValue>(() => ({
     scene,
-    transitioning,
+    transitioning: false,
     navigateTo,
     goBack,
     canGoBack: navMeta.canGoBack,
@@ -770,7 +837,6 @@ export function GameProvider({ children }: { children: ReactNode }) {
     cfg,
   }), [
     scene,
-    transitioning,
     navigateTo,
     goBack,
     navMeta.canGoBack,
@@ -802,14 +868,23 @@ export function GameProvider({ children }: { children: ReactNode }) {
   ]);
 
   return (
-    <GameContext.Provider value={value}>
-      {children}
-    </GameContext.Provider>
+    <GameStableContext.Provider value={stableValue}>
+      <GameContext.Provider value={value}>
+        {children}
+      </GameContext.Provider>
+    </GameStableContext.Provider>
   );
 }
 
 export function useGame(): GameContextValue {
   const ctx = useContext(GameContext);
   if (!ctx) throw new Error("useGame must be used inside <GameProvider>");
+  return ctx;
+}
+
+/** Sous-ensemble stable de GameContext (ne re-rend pas sur changement de scène). */
+export function useGameStable(): GameStableContextValue {
+  const ctx = useContext(GameStableContext);
+  if (!ctx) throw new Error("useGameStable must be used inside <GameProvider>");
   return ctx;
 }

@@ -489,7 +489,7 @@ class NjamboAudioEngine {
   playMusic(url: string, options: MusicPlayOptions = {}): void {
     if (typeof window === "undefined" || !url) return;
     const resolved: Required<MusicPlayOptions> = {
-      volume: Math.max(0, Math.min(1, options.volume ?? 0.8)),
+      volume: Math.max(0, Math.min(1.5, options.volume ?? 0.8)),
       crossfadeMs: Math.max(150, options.crossfadeMs ?? 1200),
     };
     const sameTrack = this.desiredMusic?.url === url;
@@ -499,7 +499,13 @@ class NjamboAudioEngine {
     void this.preloadSample(url);
 
     if (this.musicMuted || this.pageHidden) return;
-    if (sameTrack && this.activeMusic?.url === url) return;
+    if (sameTrack && this.activeMusic?.url === url) {
+      if (Math.abs(this.activeMusic.baseVolume - resolved.volume) > 0.001) {
+        this.activeMusic.baseVolume = resolved.volume;
+        this.applyBusGain(this.activeMusic.gain, Math.max(MIN_GAIN, resolved.volume), 0.12);
+      }
+      return;
+    }
     void this.syncMusicPlayback(resolved.crossfadeMs);
   }
 

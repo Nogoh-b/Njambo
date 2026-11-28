@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useSfx } from "@gxe/react";
 import { useGame } from "@/contexts/GameContext";
 import { useSettings, type MotionQualityPreference } from "@/contexts/SettingsContext";
+import { setPlayerCardParticlesEnabled, usePlayerCardParticlesEnabled } from "@/lib/powerBorderStore";
 import { NjamboIcon, type NjamboIconName, type NjamboIconTone } from "@/components/ui/Art";
 import { UI_CLICK_SOUND } from "@/lib/gxeSfx";
 import { CoachLevelPicker } from "@/components/academy/CoachLevelPicker";
@@ -32,12 +33,14 @@ function useOptionsModel() {
     musicVolume, setMusicVolume, sfxVolume, setSfxVolume,
   } = useGame();
   const { animationsOn, setAnimationsOn, motionQuality, setMotionQuality } = useSettings();
+  const cardParticlesOn = usePlayerCardParticlesEnabled();
   const alerts = useEventAlerts();
   const [language, setLanguage] = useState("Français");
   const qualityHint = QUALITY.find((q) => q.id === motionQuality)?.hint ?? "";
   return {
     navigateTo, musicOn, setMusicOn, sfxOn, setSfxOn, musicVolume, setMusicVolume,
     sfxVolume, setSfxVolume, animationsOn, setAnimationsOn,
+    cardParticlesOn, setCardParticlesOn: setPlayerCardParticlesEnabled,
     motionQuality, setMotionQuality, alerts, language, setLanguage, qualityHint,
   };
 }
@@ -132,6 +135,7 @@ export function OptionsList() {
       <section className={styles.group} aria-label="Animations">
         <h2 className={styles.groupTitle}>Animations</h2>
         <Row icon="spark" tone="pink" label="Animations" caption="Mouvements de cartes et effets" on={m.animationsOn} onToggle={() => m.setAnimationsOn(!m.animationsOn)} />
+        <Row icon="sparkle" tone="gold" label="Particules des cartes" caption="Étincelles et halos animés sur les cartes pouvoir" on={m.animationsOn && m.cardParticlesOn} disabled={!m.animationsOn} onToggle={() => m.setCardParticlesOn(!m.cardParticlesOn)} />
         <div className={`${styles.groupBody}${m.animationsOn ? "" : ` ${styles.dimmed}`}`}>
           <Segmented items={QUALITY} value={m.motionQuality} onChange={m.setMotionQuality} tone="pink" label="Qualité des animations" />
           <p className={styles.hint}>{m.qualityHint}</p>

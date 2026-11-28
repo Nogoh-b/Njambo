@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useSyncExternalStore } from "react";
 import { collection, doc, getDoc, onSnapshot, query, where } from "@/lib/firestoreClient";
 import {
   DEFAULT_BOOSTERS,
@@ -15,11 +15,12 @@ import {
 } from "@/domain";
 import { db } from "@/lib/firebase";
 
-interface LiveOpsContent {
+export interface LiveOpsContent {
   offers: OfferDefinition[];
   boosters: BoosterDefinition[];
   events: EventVersion[];
   loading: boolean;
+  eventsLoaded: boolean;
   error: string | null;
 }
 
@@ -48,121 +49,277 @@ export interface PlayerEventRun {
   updatedAt?: number;
 }
 
+/* ═══════════════ Store partagé LiveOps (offers, boosters, events) ═══════════════
+   Un seul jeu d'abonnements WebSocket partagé entre MenuScreen (gardé monté),
+   EventsScreen, EventDetailScreen, ShopScreen et CollectionItems.
+   Évite :
+   - de réouvrir 3 abonnements + N getDoc(event_versions) à chaque changement d'écran ;
+   - d'afficher DEFAULT_EVENTS puis de tout démonter/repeindre 50 ms plus tard ;
+   - de bloquer EventDetailScreen derrière « Chargement… » alors que les événements
+     sont déjà en mémoire. */
+
+const LIVE_OPS_RELEASE_GRACE_MS = 5_000;
+
+interface LiveOpsInternal {
+  offers: OfferDefinition[];
+  boosters: BoosterDefinition[];
+  events: EventVersion[];
+  loaded: { offers: boolean; boosters: boolean; events: boolean };
+  error: string | null;
+}
+
+const initialInternal: LiveOpsInternal = {
+  offers: DEFAULT_OFFERS,
+  boosters: DEFAULT_BOOSTERS,
+  events: DEFAULT_EVENTS,
+  loaded: { offers: false, boosters: false, events: false },
+  error: null,
+};
+
+function toPublicSnapshot(state: LiveOpsInternal): LiveOpsContent {
+  return {
+    offers: state.offers,
+    boosters: state.boosters,
+    events: state.events,
+    loading: !state.loaded.offers || !state.loaded.boosters || !state.loaded.events,
+    eventsLoaded: state.loaded.events,
+    error: state.error,
+  };
+}
+
+let liveOpsState: LiveOpsInternal = {
+  ...initialInternal,
+  loaded: { ...initialInternal.loaded },
+};
+let liveOpsSnapshot: LiveOpsContent = toPublicSnapshot(liveOpsState);
+const SERVER_LIVE_OPS_SNAPSHOT: LiveOpsContent = toPublicSnapshot(initialInternal);
+
+const liveOpsListeners = new Set<() => void>();
+const eventVersionCache = new Map<string, EventVersion>();
+let stopLiveOpsSockets: (() => void) | null = null;
+let liveOpsReleaseTimer: ReturnType<typeof setTimeout> | null = null;
+let eventsSeq = 0;
+
+function updateLiveOps(patch: (current: LiveOpsInternal) => LiveOpsInternal) {
+  liveOpsState = patch(liveOpsState);
+  liveOpsSnapshot = toPublicSnapshot(liveOpsState);
+  liveOpsListeners.forEach((listener) => listener());
+}
+
+function startLiveOpsSockets() {
+  if (stopLiveOpsSockets || typeof window === "undefined") return;
+  let active = true;
+  const fallbackTimer = window.setTimeout(() => {
+    if (!active) return;
+    updateLiveOps((current) => {
+      if (current.loaded.offers && current.loaded.boosters && current.loaded.events) return current;
+      return { ...current, loaded: { offers: true, boosters: true, events: true } };
+    });
+  }, 1_200);
+
+  const fail = () => {
+    if (!active) return;
+    updateLiveOps((current) => ({
+      ...current,
+      error: "Le contenu en ligne est momentanément indisponible. Les données locales sont affichées.",
+      loaded: { offers: true, boosters: true, events: true },
+    }));
+  };
+
+  const stopOffers = onSnapshot(
+    query(collection(db, "offers"), where("published", "==", true)),
+    (snapshot) => {
+      if (!active) return;
+      const next = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as OfferDefinition);
+      updateLiveOps((current) => ({
+        ...current,
+        offers: next.length ? next : current.offers,
+        loaded: { ...current.loaded, offers: true },
+        error: null,
+      }));
+    },
+    fail,
+  );
+
+  const stopBoosters = onSnapshot(
+    query(collection(db, "booster_definitions"), where("published", "==", true)),
+    (snapshot) => {
+      if (!active) return;
+      const next = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as BoosterDefinition);
+      updateLiveOps((current) => ({
+        ...current,
+        boosters: next.length ? next : current.boosters,
+        loaded: { ...current.loaded, boosters: true },
+        error: null,
+      }));
+    },
+    fail,
+  );
+
+  const stopEvents = onSnapshot(
+    query(collection(db, "events"), where("published", "==", true)),
+    async (snapshot) => {
+      const seq = ++eventsSeq;
+      try {
+        const versions = await Promise.all(snapshot.docs.map(async (item) => {
+          const revision = Number(item.get("activeRevision") ?? 1);
+          const versionKey = `${item.id}_v${revision}`;
+          // Les révisions publiées (`event_versions/{id}_v{rev}`) sont immuables.
+          const cached = eventVersionCache.get(versionKey);
+          if (cached) return cached;
+          const version = await getDoc(doc(db, "event_versions", versionKey));
+          if (!version.exists()) return null;
+          const normalized = normalizeEventVersion({ eventId: item.id, ...version.data() });
+          eventVersionCache.set(versionKey, normalized);
+          return normalized;
+        }));
+        if (!active || seq !== eventsSeq) return;
+        const next = versions.filter((event): event is EventVersion => Boolean(event?.published));
+        updateLiveOps((current) => ({
+          ...current,
+          events: next.length ? next : current.events,
+          loaded: { ...current.loaded, events: true },
+          error: null,
+        }));
+      } catch {
+        if (seq === eventsSeq) fail();
+      }
+    },
+    fail,
+  );
+
+  stopLiveOpsSockets = () => {
+    active = false;
+    window.clearTimeout(fallbackTimer);
+    stopOffers();
+    stopBoosters();
+    stopEvents();
+    stopLiveOpsSockets = null;
+  };
+}
+
+function subscribeLiveOps(listener: () => void) {
+  if (liveOpsReleaseTimer !== null) {
+    clearTimeout(liveOpsReleaseTimer);
+    liveOpsReleaseTimer = null;
+  }
+  liveOpsListeners.add(listener);
+  startLiveOpsSockets();
+  return () => {
+    liveOpsListeners.delete(listener);
+    if (liveOpsListeners.size === 0 && stopLiveOpsSockets) {
+      liveOpsReleaseTimer = setTimeout(() => {
+        liveOpsReleaseTimer = null;
+        if (liveOpsListeners.size === 0) stopLiveOpsSockets?.();
+      }, LIVE_OPS_RELEASE_GRACE_MS);
+    }
+  };
+}
+
 /**
- * Flux public du contenu publié. Les valeurs embarquées gardent l'application
- * utilisable hors ligne et sont remplacées dès que Firestore répond.
+ * Flux public du contenu publié, partagé en mémoire entre tous les écrans.
+ * Les valeurs embarquées gardent l'application utilisable hors ligne et sont
+ * remplacées dès que le backend répond.
  */
 export function useLiveOpsContent(): LiveOpsContent {
-  const [offers, setOffers] = useState<OfferDefinition[]>(DEFAULT_OFFERS);
-  const [boosters, setBoosters] = useState<BoosterDefinition[]>(DEFAULT_BOOSTERS);
-  const [events, setEvents] = useState<EventVersion[]>(DEFAULT_EVENTS);
-  const [loaded, setLoaded] = useState({ offers: false, boosters: false, events: false });
-  const [error, setError] = useState<string | null>(null);
+  return useSyncExternalStore(subscribeLiveOps, () => liveOpsSnapshot, () => SERVER_LIVE_OPS_SNAPSHOT);
+}
 
-  useEffect(() => {
+/* ═══════════════ Store partagé des parcours d'événements du joueur ═══════════════ */
+
+interface RunsSnapshot {
+  runs: PlayerEventRun[];
+  loading: boolean;
+  error: string | null;
+}
+
+interface RunsEntry {
+  snapshot: RunsSnapshot;
+  listeners: Set<() => void>;
+  stop: (() => void) | null;
+  releaseTimer: ReturnType<typeof setTimeout> | null;
+}
+
+const EMPTY_RUNS_SNAPSHOT: RunsSnapshot = { runs: [], loading: false, error: null };
+const runsEntries = new Map<string, RunsEntry>();
+
+function getRunsEntry(uid: string): RunsEntry {
+  let entry = runsEntries.get(uid);
+  if (!entry) {
+    entry = {
+      snapshot: { runs: [], loading: true, error: null },
+      listeners: new Set(),
+      stop: null,
+      releaseTimer: null,
+    };
+    runsEntries.set(uid, entry);
+  }
+  return entry;
+}
+
+function setRunsSnapshot(entry: RunsEntry, next: RunsSnapshot) {
+  entry.snapshot = next;
+  entry.listeners.forEach((listener) => listener());
+}
+
+function subscribeRuns(uid: string | undefined, listener: () => void) {
+  if (!uid || typeof window === "undefined") return () => {};
+  const entry = getRunsEntry(uid);
+  if (entry.releaseTimer !== null) {
+    clearTimeout(entry.releaseTimer);
+    entry.releaseTimer = null;
+  }
+  entry.listeners.add(listener);
+  if (!entry.stop) {
     let active = true;
     const fallbackTimer = window.setTimeout(() => {
-      if (active) setLoaded({ offers: true, boosters: true, events: true });
-    }, 1_200);
-    const fail = () => {
-      if (active) {
-        setError("Le contenu en ligne est momentanément indisponible. Les données locales sont affichées.");
-        setLoaded({ offers: true, boosters: true, events: true });
+      if (active && entry.snapshot.loading) {
+        setRunsSnapshot(entry, { ...entry.snapshot, loading: false });
       }
-    };
-
-    const stopOffers = onSnapshot(
-      query(collection(db, "offers"), where("published", "==", true)),
+    }, 1_200);
+    const stopSocket = onSnapshot(
+      query(collection(db, "event_runs"), where("uid", "==", uid)),
       (snapshot) => {
         if (!active) return;
-        const next = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as OfferDefinition);
-        if (next.length) setOffers(next);
-        setLoaded((current) => ({ ...current, offers: true }));
+        setRunsSnapshot(entry, {
+          runs: snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as PlayerEventRun),
+          loading: false,
+          error: null,
+        });
       },
-      fail,
-    );
-
-    const stopBoosters = onSnapshot(
-      query(collection(db, "booster_definitions"), where("published", "==", true)),
-      (snapshot) => {
+      () => {
         if (!active) return;
-        const next = snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as BoosterDefinition);
-        if (next.length) setBoosters(next);
-        setLoaded((current) => ({ ...current, boosters: true }));
+        setRunsSnapshot(entry, {
+          ...entry.snapshot,
+          loading: false,
+          error: "Ta progression du Ter ne peut pas être chargée pour le moment.",
+        });
       },
-      fail,
     );
-
-    const stopEvents = onSnapshot(
-      query(collection(db, "events"), where("published", "==", true)),
-      async (snapshot) => {
-        try {
-          const versions = await Promise.all(snapshot.docs.map(async (item) => {
-            const revision = Number(item.get("activeRevision") ?? 1);
-            const version = await getDoc(doc(db, "event_versions", `${item.id}_v${revision}`));
-            return version.exists() ? normalizeEventVersion({ eventId: item.id, ...version.data() }) : null;
-          }));
-          if (!active) return;
-          const next = versions.filter((event): event is EventVersion => Boolean(event?.published));
-          if (next.length) setEvents(next);
-          setLoaded((current) => ({ ...current, events: true }));
-        } catch {
-          fail();
-        }
-      },
-      fail,
-    );
-
-    return () => {
+    entry.stop = () => {
       active = false;
       window.clearTimeout(fallbackTimer);
-      stopOffers();
-      stopBoosters();
-      stopEvents();
+      stopSocket();
+      entry.stop = null;
     };
-  }, []);
-
-  return {
-    offers,
-    boosters,
-    events,
-    loading: !loaded.offers || !loaded.boosters || !loaded.events,
-    error,
+  }
+  return () => {
+    entry.listeners.delete(listener);
+    if (entry.listeners.size === 0 && entry.stop) {
+      entry.releaseTimer = setTimeout(() => {
+        entry.releaseTimer = null;
+        if (entry.listeners.size === 0) entry.stop?.();
+      }, LIVE_OPS_RELEASE_GRACE_MS);
+    }
   };
 }
 
 export function usePlayerEventRuns(uid?: string) {
-  const [runs, setRuns] = useState<PlayerEventRun[]>([]);
-  const [loading, setLoading] = useState(Boolean(uid));
-  const [error, setError] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (!uid) {
-      setRuns([]);
-      setLoading(false);
-      return;
-    }
-    setLoading(true);
-    const fallbackTimer = window.setTimeout(() => setLoading(false), 1_200);
-    const stop = onSnapshot(
-      query(collection(db, "event_runs"), where("uid", "==", uid)),
-      (snapshot) => {
-        setRuns(snapshot.docs.map((item) => ({ id: item.id, ...item.data() }) as PlayerEventRun));
-        setLoading(false);
-        setError(null);
-      },
-      () => {
-        setLoading(false);
-        setError("Ta progression du Ter ne peut pas être chargée pour le moment.");
-      },
-    );
-    return () => {
-      window.clearTimeout(fallbackTimer);
-      stop();
-    };
-  }, [uid]);
-
-  return { runs, loading, error };
+  return useSyncExternalStore(
+    (listener) => subscribeRuns(uid, listener),
+    () => (uid ? getRunsEntry(uid).snapshot : EMPTY_RUNS_SNAPSHOT),
+    () => EMPTY_RUNS_SNAPSHOT,
+  );
 }
 
 export function useDailyGrid(uid?: string) {

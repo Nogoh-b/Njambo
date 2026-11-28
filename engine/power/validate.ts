@@ -6,6 +6,7 @@
    montants, multiplicateurs, nombre d'étapes…). Erreurs { path, message }. */
 
 import type { PowerCardDef } from "../../types/game";
+import { isPowerBorderId, isPowerBorderParticlesMode } from "../../domain/powerBorders";
 import { validateChoreography } from "./choreography";
 import type { AnimCue, CardSelector, ChoiceRequest, PowerModule, PowerOp, PowerStep, ZoneRef } from "./types";
 
@@ -95,6 +96,12 @@ export function validatePowerDef(def: PowerCardDef, issues: PowerValidationIssue
     const sound = obj(def.sound);
     if (!isSoundRef(sound.ref)) push("sound.ref", "Son : préréglage connu ou fichier uploadé.");
     if (sound.volume !== undefined && !isNum(sound.volume, 0, 1)) push("sound.volume", "Volume : 0 à 100 %.");
+  }
+  if (def.border !== undefined && !isPowerBorderId(def.border)) {
+    push("border", "Bordure inconnue.");
+  }
+  if (def.borderParticles !== undefined && !isPowerBorderParticlesMode(def.borderParticles)) {
+    push("borderParticles", "Mode de particules inconnu.");
   }
   return issues;
 }

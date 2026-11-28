@@ -17,21 +17,63 @@ import {
 } from "@/domain/audioCatalog";
 import { audioEngine, type SfxPlayOptions } from "./AudioEngine";
 
+const AUDIO_CATALOG_STORAGE_KEY = "njambo-audio-catalog";
+
 let currentConfig: AudioCatalogConfig = EMPTY_AUDIO_CATALOG_CONFIG;
 const listeners = new Set<() => void>();
+let started = false;
+
+function sameCatalog(a: AudioCatalogConfig, b: AudioCatalogConfig): boolean {
+  return a.updatedAt === b.updatedAt && JSON.stringify(a.slots) === JSON.stringify(b.slots);
+}
+
+function readStoredCatalog(): AudioCatalogConfig | null {
+  try {
+    const raw = window.localStorage.getItem(AUDIO_CATALOG_STORAGE_KEY);
+    if (!raw) return null;
+    return normalizeAudioCatalogConfig(JSON.parse(raw));
+  } catch {
+    return null;
+  }
+}
+
+function start() {
+  if (started || typeof window === "undefined") return;
+  started = true;
+  const cached = readStoredCatalog();
+  if (cached) currentConfig = cached;
+  window.addEventListener("storage", (event) => {
+    if (event.key !== AUDIO_CATALOG_STORAGE_KEY) return;
+    const next = readStoredCatalog() ?? EMPTY_AUDIO_CATALOG_CONFIG;
+    if (sameCatalog(currentConfig, next)) return;
+    currentConfig = next;
+    listeners.forEach((listener) => listener());
+  });
+}
+
+start();
 
 export function getAudioCatalogConfig(): AudioCatalogConfig {
   return currentConfig;
 }
 
-export function setAudioCatalogConfig(next: AudioCatalogConfig): void {
+export function setAudioCatalogConfig(next: AudioCatalogConfig, persist = true): void {
   const normalized = normalizeAudioCatalogConfig(next);
+  if (persist && typeof window !== "undefined") {
+    try {
+      window.localStorage.setItem(AUDIO_CATALOG_STORAGE_KEY, JSON.stringify(normalized));
+    } catch {
+      /* stockage indisponible (navigation privée / quota) */
+    }
+  }
+  if (sameCatalog(currentConfig, normalized)) return;
   currentConfig = normalized;
   listeners.forEach((listener) => listener());
 }
 
 function subscribe(listener: () => void) {
   listeners.add(listener);
+  start();
   return () => {
     listeners.delete(listener);
   };

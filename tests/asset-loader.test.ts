@@ -58,13 +58,18 @@ describe("AssetLoader", () => {
     vi.unstubAllGlobals();
   });
 
-  it("dédoublonne, ignore les sons de synthèse et les entrées vides", async () => {
+  it("dédoublonne, résout les préréglages audio MP3 et ignore les entrées vides ou inconnues", async () => {
     const { normalizeAssets } = await import("../lib/assets/AssetLoader");
     const list = normalizeAssets([
       { kind: "image", url: "/a.webp" }, { kind: "image", url: "/a.webp" }, null, false,
-      { kind: "audio", url: "preset:gong" }, { kind: "audio", url: "/s.mp3" }, { kind: "image", url: "" },
+      { kind: "audio", url: "preset:gong" }, { kind: "audio", url: "/assets/njambo/audio/powers/gong.mp3" },
+      { kind: "audio", url: "preset:inconnu" }, { kind: "audio", url: "/s.mp3" }, { kind: "image", url: "" },
     ]);
-    expect(list).toEqual([{ kind: "image", url: "/a.webp" }, { kind: "audio", url: "/s.mp3" }]);
+    expect(list).toEqual([
+      { kind: "image", url: "/a.webp" },
+      { kind: "audio", url: "/assets/njambo/audio/powers/gong.mp3" },
+      { kind: "audio", url: "/s.mp3" },
+    ]);
   });
 
   it("limite la concurrence critique à 6 et suit la progression", async () => {
@@ -112,6 +117,28 @@ describe("AssetLoader", () => {
     await vi.runAllTimersAsync();
     expect((await done).failed).toBe(0);
     expect(isAssetReady({ kind: "image", url: "/x.webp" })).toBe(true);
+    vi.useRealTimers();
+  });
+
+  it("met en pause un préchargement d'arrière-plan en échec pour éviter de marteler une URL 404", async () => {
+    vi.useFakeTimers();
+    const { prefetchAssets } = await import("../lib/assets/AssetLoader");
+    const url = "/broken-event.webp";
+    failOnce.add(url);
+    prefetchAssets([{ kind: "image", url }]);
+    await vi.advanceTimersByTimeAsync(10);
+    expect(pending.map((item) => item.src)).toEqual([url]);
+    // 1er échec puis 2e tentative en échec
+    failOnce.add(url);
+    settle(url);
+    await vi.advanceTimersByTimeAsync(700);
+    expect(pending.map((item) => item.src)).toEqual([url]);
+    settle(url);
+    await vi.advanceTimersByTimeAsync(50);
+    // Un nouvel appel prefetchAssets pendant le cooldown ne doit plus relancer de requête
+    prefetchAssets([{ kind: "image", url }]);
+    await vi.advanceTimersByTimeAsync(50);
+    expect(pending).toHaveLength(0);
     vi.useRealTimers();
   });
 });

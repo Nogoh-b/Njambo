@@ -11,7 +11,7 @@
    - Une nouvelle tentative en cas d'échec.
    - Un asset en échec ne bloque jamais : il compte comme « terminé ». */
 
-import { preloadPowerSound } from "../powerSounds";
+import { preloadPowerSound, resolvePowerSoundUrl } from "../powerSounds";
 
 export type AssetKind = "image" | "audio";
 export interface AssetRef { kind: AssetKind; url: string }
@@ -20,12 +20,14 @@ export type AssetPriority = "critical" | "background";
 const CONCURRENCY = 6;
 const BG_CONCURRENCY = 3;
 const RETRY_DELAY_MS = 600;
+const FAILED_PREFETCH_COOLDOWN_MS = 30_000;
 const MAX_KEPT_IMAGES = 320;
 
 type Entry = { promise: Promise<boolean>; done: boolean; ok: boolean };
 type Job = { ref: AssetRef; priority: AssetPriority; resolve: (ok: boolean) => void };
 
 const entries = new Map<string, Entry>();
+const failedPrefetchAt = new Map<string, number>();
 const keptImages = new Map<string, HTMLImageElement>();
 const queue: Job[] = [];
 const queued = new Map<string, Job>();
@@ -39,11 +41,16 @@ export function normalizeAssets(list: Array<AssetRef | null | undefined | false>
   const out: AssetRef[] = [];
   for (const ref of list) {
     if (!ref || typeof ref.url !== "string" || !ref.url) continue;
-    if (ref.kind === "audio" && ref.url.startsWith("preset:")) continue; // son de synthèse : rien à charger
-    const key = keyOf(ref);
+    let normalizedRef: AssetRef = ref;
+    if (ref.kind === "audio" && ref.url.startsWith("preset:")) {
+      const resolved = resolvePowerSoundUrl(ref.url);
+      if (!resolved) continue;
+      normalizedRef = { kind: "audio", url: resolved };
+    }
+    const key = keyOf(normalizedRef);
     if (seen.has(key)) continue;
     seen.add(key);
-    out.push(ref);
+    out.push(normalizedRef);
   }
   return out;
 }
@@ -118,7 +125,12 @@ function enqueue(ref: AssetRef, priority: AssetPriority): Promise<boolean> {
   void entry.promise.then((ok) => {
     entry.done = true;
     entry.ok = ok;
-    if (!ok) entries.delete(key); // nouvel essai possible plus tard
+    if (ok) {
+      failedPrefetchAt.delete(key);
+    } else {
+      entries.delete(key); // nouvel essai possible plus tard
+      failedPrefetchAt.set(key, Date.now());
+    }
   });
   const job: Job = { ref, priority, resolve: resolveJob };
   queued.set(key, job);
@@ -179,7 +191,13 @@ export function loadAssets(
 /** Préchargement discret (priorité basse, démarré au repos du navigateur). */
 export function prefetchAssets(list: Array<AssetRef | null | undefined | false>): void {
   if (typeof window === "undefined") return;
-  const refs = normalizeAssets(list).filter((ref) => !entries.has(keyOf(ref)));
+  const now = Date.now();
+  const refs = normalizeAssets(list).filter((ref) => {
+    const key = keyOf(ref);
+    if (entries.has(key)) return false;
+    const failedAt = failedPrefetchAt.get(key);
+    return failedAt === undefined || now - failedAt >= FAILED_PREFETCH_COOLDOWN_MS;
+  });
   if (!refs.length) return;
   const start = () => { for (const ref of refs) void enqueue(ref, "background"); };
   const requestIdle = (window as unknown as { requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number }).requestIdleCallback;
@@ -193,6 +211,7 @@ export const audioAsset = (url: string | null | undefined): AssetRef | null => (
 /** Tests uniquement. */
 export function __resetAssetLoader() {
   entries.clear();
+  failedPrefetchAt.clear();
   keptImages.clear();
   queue.length = 0;
   queued.clear();

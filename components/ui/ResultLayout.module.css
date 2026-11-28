@@ -14,63 +14,78 @@
   overflow: hidden;
   overscroll-behavior: contain;
   padding:
-    max(12px, env(safe-area-inset-top))
-    max(12px, env(safe-area-inset-right))
-    max(12px, env(safe-area-inset-bottom))
-    max(12px, env(safe-area-inset-left));
+    max(8px, env(safe-area-inset-top))
+    max(8px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(8px, env(safe-area-inset-left));
   color: #fff8ea;
   background:
-    radial-gradient(ellipse 68% 44% at 50% 14%, rgba(255, 207, 64, 0.24), transparent 62%),
-    radial-gradient(ellipse 72% 58% at 50% 62%, rgba(24, 158, 126, 0.18), transparent 66%),
-    linear-gradient(160deg, rgba(6, 26, 20, 0.96) 0%, rgba(3, 14, 11, 0.99) 100%);
+    radial-gradient(ellipse 74% 46% at 50% 10%, rgba(255, 207, 64, 0.3), transparent 60%),
+    radial-gradient(ellipse 78% 58% at 50% 70%, rgba(29, 228, 190, 0.2), transparent 66%),
+    linear-gradient(162deg, rgba(6, 30, 22, 0.96) 0%, rgba(3, 14, 11, 0.99) 100%);
   isolation: isolate;
   animation: resultLayoutFade var(--nj-motion-navigation, 240ms) ease-out both;
 }
 
 .root[data-outcome="loss"] {
   background:
-    radial-gradient(ellipse 64% 42% at 50% 18%, rgba(112, 162, 184, 0.18), transparent 60%),
-    radial-gradient(ellipse 70% 56% at 50% 66%, rgba(14, 72, 62, 0.2), transparent 66%),
-    linear-gradient(160deg, rgba(6, 20, 19, 0.95) 0%, rgba(3, 10, 12, 0.99) 100%);
+    radial-gradient(ellipse 68% 42% at 50% 14%, rgba(226, 116, 90, 0.2), transparent 58%),
+    radial-gradient(ellipse 72% 58% at 50% 72%, rgba(20, 116, 108, 0.22), transparent 66%),
+    linear-gradient(162deg, rgba(8, 22, 24, 0.96) 0%, rgba(3, 10, 13, 0.99) 100%);
+}
+
+/* Couche de célébration au premier plan (confettis de victoire), jamais bloquante */
+.foreground {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+  overflow: hidden;
 }
 
 .root .panel {
   position: relative;
   z-index: 2;
-  width: min(100%, 456px);
-  height: calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom)));
-  max-height: min(760px, calc(100dvh - max(24px, env(safe-area-inset-top) + env(safe-area-inset-bottom))));
+  width: min(100%, 480px);
+  height: 100%;
+  max-height: 100%;
   min-width: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: clamp(12px, 2.4vh, 22px) clamp(14px, 3.4vw, 24px);
-  border-radius: clamp(22px, 4.2vw, 30px);
+  padding: clamp(16px, 2.6vh, 26px) clamp(14px, 3.6vw, 24px);
+  border-radius: clamp(24px, 4.4vw, 30px);
   background:
-    radial-gradient(ellipse 80% 42% at 50% 0%, rgba(255, 207, 64, 0.14), transparent 62%),
-    radial-gradient(ellipse 90% 60% at 50% 55%, rgba(18, 92, 70, 0.24), transparent 72%),
-    linear-gradient(170deg, rgba(14, 46, 36, 0.96) 0%, rgba(8, 27, 21, 0.98) 54%, rgba(5, 16, 13, 0.99) 100%);
-  border: 1.5px solid rgba(242, 187, 69, 0.44);
+    radial-gradient(circle at 14px 14px, rgba(255, 214, 96, 0.06) 1.3px, transparent 1.5px) 0 0 / 28px 28px,
+    linear-gradient(45deg, rgba(255, 214, 96, 0.025) 25%, transparent 25%, transparent 75%, rgba(255, 214, 96, 0.025) 75%) 0 0 / 28px 28px,
+    linear-gradient(-45deg, rgba(255, 214, 96, 0.025) 25%, transparent 25%, transparent 75%, rgba(255, 214, 96, 0.025) 75%) 0 0 / 28px 28px,
+    radial-gradient(circle at 50% 14%, rgba(255, 207, 64, 0.36), transparent 52%),
+    radial-gradient(circle at 82% 86%, rgba(29, 228, 190, 0.22), transparent 54%),
+    linear-gradient(165deg, #0b2d22 0%, #04120e 100%);
+  border: 2px solid rgba(255, 214, 96, 0.44);
   box-shadow:
-    0 26px 64px rgba(0, 0, 0, 0.68),
-    0 0 0 1px rgba(74, 42, 20, 0.65),
-    0 0 38px rgba(242, 187, 69, 0.16),
-    inset 0 1px 0 rgba(255, 238, 184, 0.24),
-    inset 0 -18px 34px rgba(0, 0, 0, 0.34);
+    0 28px 68px rgba(0, 0, 0, 0.74),
+    0 0 0 1px rgba(74, 42, 20, 0.68),
+    0 0 46px rgba(255, 207, 64, 0.22),
+    inset 0 1px 0 rgba(255, 244, 196, 0.32),
+    inset 0 -18px 34px rgba(0, 0, 0, 0.36);
   outline: none;
 }
 
 .root[data-outcome="loss"] .panel {
   background:
-    radial-gradient(ellipse 76% 40% at 50% 0%, rgba(146, 188, 196, 0.12), transparent 60%),
-    radial-gradient(ellipse 86% 58% at 50% 55%, rgba(14, 62, 54, 0.22), transparent 72%),
-    linear-gradient(170deg, rgba(12, 34, 31, 0.96) 0%, rgba(7, 21, 20, 0.98) 54%, rgba(4, 13, 14, 0.99) 100%);
-  border-color: rgba(168, 204, 196, 0.32);
+    radial-gradient(circle at 14px 14px, rgba(255, 214, 96, 0.05) 1.2px, transparent 1.4px) 0 0 / 28px 28px,
+    linear-gradient(45deg, rgba(255, 214, 96, 0.02) 25%, transparent 25%, transparent 75%, rgba(255, 214, 96, 0.02) 75%) 0 0 / 28px 28px,
+    linear-gradient(-45deg, rgba(255, 214, 96, 0.02) 25%, transparent 25%, transparent 75%, rgba(255, 214, 96, 0.02) 75%) 0 0 / 28px 28px,
+    radial-gradient(circle at 50% 14%, rgba(226, 112, 86, 0.24), transparent 52%),
+    radial-gradient(circle at 20% 86%, rgba(29, 228, 190, 0.18), transparent 54%),
+    linear-gradient(165deg, #0d1d22 0%, #040a0d 100%);
+  border-color: rgba(168, 208, 202, 0.36);
   box-shadow:
-    0 24px 58px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(42, 58, 56, 0.6),
-    inset 0 1px 0 rgba(220, 240, 236, 0.16),
-    inset 0 -18px 34px rgba(0, 0, 0, 0.36);
+    0 24px 60px rgba(0, 0, 0, 0.74),
+    0 0 0 1px rgba(42, 58, 58, 0.6),
+    inset 0 1px 0 rgba(220, 240, 238, 0.18),
+    inset 0 -18px 34px rgba(0, 0, 0, 0.38);
 }
 
 /* Liseré intérieur doré discret */
@@ -220,6 +235,22 @@
     padding-inline:
       max(20px, env(safe-area-inset-left))
       max(20px, env(safe-area-inset-right));
+  }
+}
+
+@media (min-width: 720px) {
+  .root {
+    padding:
+      max(18px, env(safe-area-inset-top))
+      max(22px, env(safe-area-inset-right))
+      max(18px, env(safe-area-inset-bottom))
+      max(22px, env(safe-area-inset-left));
+  }
+
+  .root .panel {
+    width: min(100%, 720px);
+    height: min(100%, 760px);
+    max-height: 100%;
   }
 }
 

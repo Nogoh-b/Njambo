@@ -1,7 +1,12 @@
-/* Packs de cartes Pouvoir importés depuis l'admin, sans accès réseau ni base réelle.
+/* Packs de cartes Pouvoir importés depuis l'admin, sans réseau externe ni base réelle.
    Usage : npm --prefix server run build && node server/scripts/smoke-power-packs.cjs */
 const assert = require("node:assert/strict");
+const { once } = require("node:events");
+const { mkdtemp, realpath, rm } = require("node:fs/promises");
+const { tmpdir } = require("node:os");
 const path = require("node:path");
+const express = require("express");
+const sharp = require("sharp");
 const dist = path.join(__dirname, "../dist");
 const core = require(path.join(dist, "functions/src/core.js"));
 const data = new Map();
@@ -31,8 +36,63 @@ const store = {
 core.setDbBackend(store);
 const { savePowerPackHandler, deletePowerPackHandler, recordPowerPackArt } = require(path.join(dist, "functions/src/powerPackCommands.js"));
 const { saveAssetPackHandler } = require(path.join(dist, "functions/src/cosmeticCommands.js"));
+const { createPowerPackArchive } = require(path.join(dist, "lib/powerPackArchive.js"));
+const { signAccessToken } = require(path.join(dist, "server/src/authTokens.js"));
+const { mountPowerPackUploads } = require(path.join(dist, "server/src/powerPackUploads.js"));
+const { mountUploads } = require(path.join(dist, "server/src/uploads.js"));
 const request = (uid, payload, admin = false) => ({ auth: { uid, token: { admin } }, data: { idempotencyKey: `test_key_${++serial}`, ...payload } });
 const art = (v) => ({ url: `https://back.example/uploads/power-packs/x/vent_nord-${v}.webp`, thumb: `https://back.example/t-${v}.webp`, small: `https://back.example/s-${v}.webp`, v, updatedAt: Date.now() });
+
+async function checkArchiveUpload() {
+  const tempRoot = await realpath(tmpdir());
+  const target = await mkdtemp(path.join(tempRoot, "njambo-power-packs-"));
+  process.env.UPLOAD_DIR = target;
+  process.env.PUBLIC_BASE_URL = "";
+  process.env.AUTH_JWT_SECRET = "local-smoke-power-packs-signing-secret";
+  const app = express();
+  app.use(express.json());
+  mountUploads(app);
+  mountPowerPackUploads(app);
+  const server = app.listen(0, "127.0.0.1");
+  try {
+    await once(server, "listening");
+    const base = `http://127.0.0.1:${server.address().port}`;
+    const token = (admin) => signAccessToken({ uid: "archive-tester", sid: "test", admin, anonymous: false, email: null }).token;
+    const makeImage = (background) => sharp({ create: { width: 320, height: 480, channels: 3, background } }).webp().toBuffer();
+    const image = await makeImage("#185448");
+    const details = { name: "Pack ZIP", description: "Deux cartes", portrait: true };
+    const archive = createPowerPackArchive(details, [{ card: "vent_nord", data: image }, { card: "feu_camp", data: image }]);
+    const importZip = (body, key, admin = true) => fetch(`${base}/admin/power-pack-import`, {
+      method: "POST", body, headers: { "Content-Type": "application/zip", "Idempotency-Key": key, Authorization: `Bearer ${token(admin)}` },
+    });
+    assert.equal((await importZip(archive, "smoke_zip_admin", false)).status, 403);
+    assert.equal((await importZip(archive.slice(0, -1), "smoke_zip_invalid")).status, 400);
+    const invalidImage = createPowerPackArchive(details, [{ card: "vent_nord", data: image }, { card: "feu_camp", data: Uint8Array.of(0) }]);
+    assert.equal((await importZip(invalidImage, "smoke_zip_bad_art")).status, 400);
+    assert.equal(data.get("runtime_config/power_packs").packs.length, 1, "un ZIP invalide ne crée aucun pack");
+    const response = await importZip(archive, "smoke_zip_valid");
+    assert.equal(response.status, 201);
+    const { pack } = await response.json();
+    assert.equal(pack.id, "import-pack-zip");
+    assert.match(pack.art.vent_nord.url, /\/uploads\/power-packs\//);
+    assert.equal((await (await importZip(archive, "smoke_zip_valid")).json()).pack.id, pack.id);
+    assert.equal(data.get("runtime_config/power_packs").packs.length, 2, "une nouvelle tentative ne duplique pas le pack");
+    const thumb = await fetch(pack.art.vent_nord.small);
+    assert.equal(thumb.status, 200);
+    assert.equal((await sharp(Buffer.from(await thumb.arrayBuffer())).metadata()).width, 128);
+    const replacement = await fetch(`${base}/admin/power-pack-art?pack=${pack.id}&card=vent_nord`, {
+      method: "POST", body: await makeImage("#e6cb3d"), headers: { "Content-Type": "image/webp", Authorization: `Bearer ${token(true)}` },
+    });
+    assert.equal(replacement.status, 200);
+    const { pack: edited } = await replacement.json();
+    assert.notEqual(edited.art.vent_nord.url, pack.art.vent_nord.url);
+    assert.deepEqual(edited.art.feu_camp, pack.art.feu_camp);
+  } finally {
+    server.close();
+    assert.equal(path.dirname(target), tempRoot);
+    await rm(target, { force: true, recursive: true });
+  }
+}
 
 async function main() {
   await assert.rejects(() => savePowerPackHandler(request("user", { pack: { name: "Masques" } })), /ADMIN_REQUIRED/);
@@ -67,6 +127,7 @@ async function main() {
   await deletePowerPackHandler(request("admin", { packId: pack.id }, true));
   assert.deepEqual(data.get("runtime_config/power_packs").packs.map((item) => item.id), ["import-masques-du-nde-2"]);
   await assert.rejects(() => saveAssetPackHandler(request("admin", { pack: pack.id, scope: "powers" }, true)), /ASSET_PACK_UNKNOWN/);
+  await checkArchiveUpload();
   console.log("smoke-power-packs OK");
 }
 

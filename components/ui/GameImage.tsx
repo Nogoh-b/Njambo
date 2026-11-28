@@ -3,7 +3,7 @@
 import NextImage, { type ImageProps } from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isImageUrlReady, markImageUrlReady } from "@/lib/assets/AssetLoader";
-import { sysAsset, useAssetPacks } from "@/lib/assetPack";
+import { powerCardImage, sysAsset, useAssetPacks } from "@/lib/assetPack";
 
 /**
  * Image UI alignée sur le pipeline AssetLoader :
@@ -19,10 +19,11 @@ export function GameImage({
   className,
   onLoad,
   onError,
+  powerArtSize,
   ...rest
-}: ImageProps) {
+}: ImageProps & { powerArtSize?: "thumb" | "small" }) {
   useAssetPacks();
-  const src = typeof originalSrc === "string" ? sysAsset(originalSrc) : originalSrc;
+  const src = typeof originalSrc === "string" ? (powerArtSize ? powerCardImage(originalSrc, powerArtSize) : sysAsset(originalSrc)) : originalSrc;
   const url = typeof src === "string" ? src : null;
   const preloaded = typeof window === "undefined" || !url || isImageUrlReady(url);
   const [fadeUrl, setFadeUrl] = useState<string | null>(() => (preloaded ? null : url));

@@ -1,7 +1,7 @@
 /* ═══════════════════════════════════════════════════════════════════════════
-   PowerCardView — Carte Pouvoir unifiée sans bordure (Grand Motif Ndop coloré
-   par type + architecture ornementale par rareté), utilisée en partie, dans
-   les cinématiques et les aperçus.
+   PowerCardView — Carte Pouvoir unifiée (Ndop Classique + 6 bordures
+   personnalisables avec particules animées), utilisée en partie, dans
+   les cinématiques, la boutique, la collection et l'admin.
    ═══════════════════════════════════════════════════════════════════════════ */
 
 .card {
@@ -26,6 +26,24 @@
   color: #fffaf0;
   text-align: center;
   isolation: isolate;
+}
+
+.customBorder {
+  overflow: visible;
+}
+
+/* Couche interne clippée aux coins arrondis pour laisser les particules déborder librement */
+.clip {
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background:
+    radial-gradient(ellipse 90% 65% at 50% 82%, color-mix(in srgb, var(--c-primary) 30%, transparent), transparent 72%),
+    linear-gradient(172deg, var(--c-top, #1a1628) 0%, var(--c-bot, #090a12) 100%);
 }
 
 .compact {
@@ -68,6 +86,35 @@
   object-position: center 22%;
 }
 
+/* 6 nouvelles mises en page de texte : illustration plein cadre 100 % sans masque bas */
+.fullBleedArt .artMask {
+  inset: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.fullBleedArt .artImg {
+  object-fit: cover;
+  object-position: center center;
+}
+
+.externeWrap {
+  width: 100%;
+  min-width: 152px;
+  max-width: 184px;
+  margin-inline: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.externeWrap > .card {
+  width: 100%;
+  min-width: 0;
+  max-width: none;
+  margin-inline: 0;
+}
+
 /* Les packs illustrés mettent leur sujet au premier plan ; les motifs de type
    restent un décor discret et les noms conservent leur contraste. */
 .packedArt .artMask {
@@ -100,7 +147,7 @@
 }
 
 /* Les cartes portrait se lisent par leur illustration. Conserver le nom,
-   le type et la rareté pour les lecteurs d’écran. */
+   le type et la rareté pour les lecteurs d'écran. */
 .portraitArt .bottomInfo {
   position: absolute;
   width: 1px;
@@ -129,21 +176,267 @@
   to { transform: rotate(360deg); }
 }
 
-.rCommon {
+/* ═══════════════ 6 BORDURES PERSONNALISABLES + PARTICULES ═══════════════ */
+
+.borderSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 6;
+  pointer-events: none;
+}
+
+.particlesCanvas {
+  position: absolute;
+  inset: -18px;
+  width: calc(100% + 36px);
+  height: calc(100% + 36px);
+  z-index: 10;
+  pointer-events: none;
+}
+
+.compact .particlesCanvas {
+  inset: -8px;
+  width: calc(100% + 16px);
+  height: calc(100% + 16px);
+}
+
+/* Faisceau lumineux tournant autour du périmètre (Prisme & Foudre) */
+.orbitBeam {
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 2.2px;
+  z-index: 8;
+  pointer-events: none;
+  overflow: hidden;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+}
+
+.compact .orbitBeam {
+  padding: 1.5px;
+}
+
+.orbitBeam::before {
+  content: "";
+  position: absolute;
+  inset: -50%;
+  animation: pcvOrbitSpin var(--nj-orbit-speed, 4.2s) linear infinite;
+}
+
+@keyframes pcvOrbitSpin {
+  to { transform: rotate(360deg); }
+}
+
+/* 1. Orfèvre Royal */
+.bOrfevre {
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.72),
+    0 0 24px color-mix(in srgb, var(--r-glow, var(--c-glow)) 60%, var(--c-glow)),
+    inset 0 0 18px color-mix(in srgb, var(--r-metal, #ffe260) 24%, transparent);
+}
+.bOrfevre .borderSvg {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--r-glow, var(--c-glow)) 72%, transparent));
+}
+
+/* 2. Braise du Mont Cameroun */
+.bBraise {
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.8),
+    0 0 26px color-mix(in srgb, var(--c-primary) 62%, #ff5a1f),
+    inset 0 0 20px color-mix(in srgb, var(--c-primary) 32%, transparent);
+}
+.bBraise .borderSvg :global(.nj-border-lava) {
+  animation: pcvLavaPulse 2.4s ease-in-out infinite;
+}
+@keyframes pcvLavaPulse {
+  0%, 100% { opacity: 0.65; filter: drop-shadow(0 0 3px var(--c-primary)); }
+  50% { opacity: 1; filter: drop-shadow(0 0 8px var(--c-secondary)); }
+}
+
+/* 3. Prisme Cristal & Aurore */
+.bPrisme {
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.72),
+    0 0 26px color-mix(in srgb, var(--c-secondary) 52%, rgba(160, 232, 255, 0.5)),
+    inset 0 0 18px rgba(220, 248, 255, 0.2);
+}
+.bPrisme .orbitBeam {
+  --nj-orbit-speed: 4.5s;
+}
+.bPrisme .orbitBeam::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    rgba(255, 255, 255, 0.95) 24deg,
+    var(--c-secondary) 64deg,
+    rgba(170, 235, 255, 0.72) 105deg,
+    transparent 145deg,
+    transparent 185deg,
+    var(--r-bright, #fffce4) 225deg,
+    var(--c-primary) 265deg,
+    transparent 310deg
+  );
+}
+
+/* 4. Talisman Ndop Énergisé */
+.bNdopEnergy {
+  box-shadow:
+    0 14px 28px rgba(0, 0, 0, 0.74),
+    0 0 22px color-mix(in srgb, var(--c-glow) 68%, var(--r-glow, var(--c-glow))),
+    inset 0 0 16px color-mix(in srgb, var(--c-primary) 26%, transparent);
+}
+.bNdopEnergy .borderSvg {
+  filter: drop-shadow(0 0 6px var(--c-glow));
+}
+.bNdopEnergy .borderSvg :global(.nj-border-ndop-flow) {
+  stroke-dasharray: 18 18;
+  animation: pcvNdopFlow 3.2s linear infinite;
+}
+@keyframes pcvNdopFlow {
+  to { stroke-dashoffset: -72; }
+}
+
+/* 5. Relique Bronze & Émeraude */
+.bRelique {
+  box-shadow:
+    0 16px 30px rgba(0, 0, 0, 0.78),
+    0 0 24px color-mix(in srgb, #2ee6b4 42%, var(--r-glow, var(--c-glow))),
+    inset 0 0 18px rgba(46, 230, 180, 0.16);
+}
+.bRelique .borderSvg {
+  filter: drop-shadow(0 0 5px rgba(50, 232, 181, 0.48));
+}
+
+/* 6. Foudre & Flux Astral */
+.bFoudre {
+  box-shadow:
+    0 14px 30px rgba(0, 0, 0, 0.76),
+    0 0 28px color-mix(in srgb, var(--c-primary) 62%, var(--r-glow, var(--c-glow))),
+    inset 0 0 18px color-mix(in srgb, var(--c-secondary) 24%, transparent);
+}
+.bFoudre .orbitBeam {
+  --nj-orbit-speed: 2.1s;
+}
+.bFoudre .orbitBeam::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    #ffffff 12deg,
+    var(--c-secondary) 32deg,
+    var(--c-primary) 54deg,
+    transparent 80deg,
+    transparent 180deg,
+    #ffffff 192deg,
+    var(--r-metal, #ffe260) 216deg,
+    transparent 250deg
+  );
+}
+
+/* 7. Armure Royale Massive (bordure pleine et épaisse) */
+.bMonolithe {
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.84),
+    0 0 24px color-mix(in srgb, var(--r-glow, var(--c-glow)) 66%, var(--c-glow));
+}
+.bMonolithe .borderSvg {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.72));
+}
+.bMonolithe .borderSvg :global(.nj-border-monolith-glow) {
+  animation: pcvMonolithGlow 3s ease-in-out infinite;
+}
+@keyframes pcvMonolithGlow {
+  0%, 100% { opacity: 0.72; }
+  50% { opacity: 1; }
+}
+
+/* 8. Aurore Solaire Impériale (cadre plein satiné + comètes) */
+.bSolaire {
+  box-shadow:
+    0 16px 34px rgba(0, 0, 0, 0.8),
+    0 0 30px color-mix(in srgb, var(--r-glow, var(--c-glow)) 72%, var(--c-primary));
+}
+.bSolaire .orbitBeam {
+  --nj-orbit-speed: 3.4s;
+}
+.bSolaire .orbitBeam::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--r-bright, #fffce4) 22deg,
+    var(--r-metal, #ffe359) 56deg,
+    var(--c-primary) 92deg,
+    transparent 138deg,
+    transparent 180deg,
+    var(--c-secondary) 214deg,
+    var(--r-bright, #fffce4) 248deg,
+    transparent 296deg
+  );
+}
+
+/* 9. Kente Royal Tissé (bordure pleine épaisse africaine) */
+.bKente {
+  box-shadow:
+    0 16px 32px rgba(0, 0, 0, 0.82),
+    0 0 24px color-mix(in srgb, var(--c-glow) 60%, rgba(255, 217, 94, 0.45));
+}
+.bKente .borderSvg {
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.72));
+}
+
+/* 10. Éclipse d'Obsidienne (cadre plein noir laqué + double liseré luxe) */
+.bEclipse {
+  box-shadow:
+    0 18px 36px rgba(0, 0, 0, 0.88),
+    0 0 22px color-mix(in srgb, var(--c-primary) 50%, rgba(255, 255, 255, 0.25));
+}
+.bEclipse .borderSvg {
+  filter: drop-shadow(0 2px 8px rgba(0, 0, 0, 0.85));
+}
+.bEclipse .orbitBeam {
+  --nj-orbit-speed: 6s;
+  padding: 1.6px;
+}
+.bEclipse .orbitBeam::before {
+  background: conic-gradient(
+    from 0deg,
+    transparent 0deg,
+    var(--r-bright, #fffce4) 16deg,
+    var(--c-primary) 42deg,
+    transparent 78deg,
+    transparent 180deg,
+    var(--c-secondary) 202deg,
+    transparent 242deg
+  );
+}
+
+/* Compact : halo mesuré pour rester lisible sur la table */
+.compact.customBorder {
+  box-shadow:
+    0 8px 16px rgba(0, 0, 0, 0.62),
+    0 0 14px color-mix(in srgb, var(--c-glow) 52%, transparent);
+}
+
+/* ═══════════════ PALIERS DE RARETÉ (CLASSIQUE) ═══════════════ */
+
+.rCommon:not(.customBorder) {
   box-shadow: 0 12px 24px rgba(0, 0, 0, 0.62), 0 0 14px color-mix(in srgb, var(--c-glow) 28%, transparent);
 }
 
-.rRare {
+.rRare:not(.customBorder) {
   box-shadow: 0 14px 28px rgba(0, 0, 0, 0.65), 0 0 24px rgba(150, 212, 255, 0.42), inset 0 0 16px rgba(185, 224, 255, 0.14);
 }
 .rRare .motifSvg { filter: drop-shadow(0 0 8px rgba(164, 218, 255, 0.6)); }
 
-.rEpic {
+.rEpic:not(.customBorder) {
   box-shadow: 0 16px 30px rgba(0, 0, 0, 0.7), 0 0 28px color-mix(in srgb, var(--c-glow) 60%, rgba(255, 214, 110, 0.48)), inset 0 0 20px rgba(255, 217, 114, 0.18);
 }
 .rEpic .motifSvg { filter: drop-shadow(0 0 10px rgba(255, 214, 110, 0.68)); }
 
-.rLegendary {
+.rLegendary:not(.customBorder) {
   box-shadow: 0 18px 36px rgba(0, 0, 0, 0.78), 0 0 36px rgba(255, 224, 90, 0.68), inset 0 0 28px rgba(255, 224, 90, 0.24);
 }
 .rLegendary .motifSvg { filter: drop-shadow(0 0 13px rgba(255, 226, 92, 0.88)); }
@@ -273,7 +566,22 @@
   -webkit-line-clamp: 2;
 }
 
+:global(.nj-animations-disabled) .sheen,
+:global(.nj-animations-disabled) .orbitBeam::before,
+:global(.nj-animations-disabled) .motifSvg :global(.nj-motif-sunburst),
+:global(.nj-animations-disabled) .bBraise .borderSvg :global(.nj-border-lava),
+:global(.nj-animations-disabled) .bNdopEnergy .borderSvg :global(.nj-border-ndop-flow),
+:global(.nj-animations-disabled) .bMonolithe .borderSvg :global(.nj-border-monolith-glow) {
+  animation: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .sheen,
-  .motifSvg :global(.nj-motif-sunburst) { animation: none; }
+  .orbitBeam::before,
+  .motifSvg :global(.nj-motif-sunburst),
+  .bBraise .borderSvg :global(.nj-border-lava),
+  .bNdopEnergy .borderSvg :global(.nj-border-ndop-flow),
+  .bMonolithe .borderSvg :global(.nj-border-monolith-glow) {
+    animation: none;
+  }
 }

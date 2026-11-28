@@ -27,7 +27,7 @@ const ok = (c, m) => { if (!c) { console.error("ÉCHEC:", m); process.exit(1); }
   let r = await post("user", "audio/wav", fs.readFileSync(path.join(work, "short.mp3"))); ok(r.status === 403, "non-admin refusé");
   r = await post("admin", "image/png", wav); ok(r.status === 400, "type non audio refusé");
   r = await post("admin", "audio/mpeg", Buffer.from("ceci n'est pas un mp3, juste du texte")); ok(r.status === 400 && (await r.json()).message === "NOT_AN_AUDIO_FILE", "faux MP3 refusé (signature)");
-  r = await post("admin", "audio/wav", Buffer.concat([wav, wav, wav])); ok(r.status === 413, "fichier > 500 Ko refusé (413)");
+  r = await post("admin", "audio/wav", Buffer.alloc(5 * 1024 * 1024 + 64)); ok(r.status === 413, "fichier > 5 Mo refusé (413)");
   r = await post("admin", "audio/wav", wav); const body = await r.json();
   ok(r.status === 200 && body.converted && /\/uploads\/audio\/[0-9a-f-]{36}\.mp3$/.test(body.url), "WAV de 8 s accepté et converti en MP3 : " + body.path);
   ok(body.durationMs >= 4800 && body.durationMs <= 5200, `coupé à 5 s (${body.durationMs} ms)`);

@@ -260,8 +260,8 @@
   border: 2px solid color-mix(in srgb, var(--ev-accent) 76%, #fff4cc);
   background: linear-gradient(180deg, #1b1310 0%, #140f0d 65%, #0c1a15 100%);
   box-shadow:
-    0 20px 44px rgba(0, 0, 0, 0.56),
-    0 0 32px color-mix(in srgb, var(--ev-glow) 70%, transparent);
+    0 10px 22px rgba(0, 0, 0, 0.56),
+    0 0 16px color-mix(in srgb, var(--ev-glow) 70%, transparent);
   overflow: hidden;
   cursor: pointer;
   transition: box-shadow 220ms ease, border-color 220ms ease;
@@ -741,7 +741,10 @@
 
 .prizeItemChip img {
   object-fit: contain;
-  filter: drop-shadow(0 3px 6px rgba(0, 0, 0, 0.5));
+}
+
+.decorOn .prizeItemChip img {
+  filter: drop-shadow(0 2px 4px rgba(0, 0, 0, 0.45));
 }
 
 .galaCta {
@@ -777,8 +780,11 @@
   width: 34%;
   background: linear-gradient(108deg, transparent, rgba(255, 255, 255, 0.48) 50%, transparent);
   transform: translateX(-140%);
-  animation: galaSweep 4.4s ease-in-out infinite;
   pointer-events: none;
+}
+
+.decorOn .ctaSheen {
+  animation: galaSweep 4.4s ease-in-out infinite;
 }
 
 @keyframes galaSweep {

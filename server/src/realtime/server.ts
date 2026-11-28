@@ -142,7 +142,21 @@ export function attachRealtime(httpServer: HttpServer) {
         return;
       }
       if (message.type === "auth") {
-        if (typeof message.token !== "string") { fail(undefined, "unauthenticated", "INVALID_TOKEN"); return; }
+        // Si une identité était déjà posée sur cette socket, on coupe d'abord tous les anciens abonnements.
+        for (const unsubscribe of subscriptions.values()) unsubscribe();
+        subscriptions.clear();
+
+        if (message.token === null || message.token === undefined) {
+          auth = { uid: null, admin: false };
+          clearTimeout(authTimer);
+          send({ type: "ready", uid: null });
+          return;
+        }
+        if (typeof message.token !== "string") {
+          fail(undefined, "unauthenticated", "INVALID_TOKEN");
+          socket.close(4401, "INVALID_TOKEN");
+          return;
+        }
         const decoded = verifyAccessToken(message.token);
         if (!decoded) {
           fail(undefined, "unauthenticated", "INVALID_TOKEN");

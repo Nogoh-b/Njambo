@@ -27,6 +27,11 @@ interface BottomNavSceneProps {
   contentClassName?: string;
 }
 
+function ActiveBottomNav({ active }: { active?: BottomNavKey }) {
+  const { scene } = useGame();
+  return <BottomNav active={active ?? resolveSceneBottomNav(scene)} />;
+}
+
 /**
  * Scène de base pour tous les écrans avec navigation principale.
  * Elle occupe exactement le viewport : le dock reste fixé au viewport
@@ -41,16 +46,13 @@ export function BottomNavScene({
   className,
   contentClassName,
 }: BottomNavSceneProps) {
-  const { scene } = useGame();
-  const resolvedActive = active ?? resolveSceneBottomNav(scene);
-
   return (
     <Shell>
       <div className={`nj-safe nj-bottom-nav-scene ${styles.scene}${narrow ? ` nj-bottom-nav-scene--narrow ${styles.narrow}` : ""}${dock ? "" : ` ${styles.noDock}`}${scroll ? "" : ` ${styles.locked}`}${className ? ` ${className}` : ""}`}>
         <div className={`nj-bottom-nav-scene-scroll ${styles.scroll}${scroll ? "" : ` ${styles.scrollLocked}`}${contentClassName ? ` ${contentClassName}` : ""}`}>
           {children}
         </div>
-        {dock && <BottomNav active={resolvedActive} />}
+        {dock && <ActiveBottomNav active={active} />}
       </div>
     </Shell>
   );

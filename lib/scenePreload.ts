@@ -106,9 +106,9 @@ const SCENE_LOADERS: Record<string, SceneLoader> = {
 /** Scènes préchargées au repos (les plus visitées depuis le home). */
 export const IDLE_PREFETCH_SCENES = [
   "play",
+  "events",
   "shop",
   "power_collection",
-  "events",
   "minigames",
   "wallet",
   "profile",

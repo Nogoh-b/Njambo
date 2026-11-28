@@ -7,6 +7,7 @@ import {
   isAssetPackForScope,
   isPackedPowerArt,
   isPortraitPowerPack,
+  powerPackSmallUrl,
   powerPackThumbUrl,
   readAssetPacks,
   readImportedPowerPacks,
@@ -14,6 +15,8 @@ import {
 } from "../domain/assetPacks";
 import { cardIdFromFileName } from "../components/admin/PowerPackImporter";
 import { renderPowerPackArt } from "../server/src/powerPackUploads";
+import { createZip } from "../lib/audio/audioZip";
+import { createPowerPackArchive, readPowerPackArchive } from "../lib/powerPackArchive";
 
 const base = "https://back.example/uploads/power-packs/import-masques/vent_nord-abc123";
 const art = { url: `${base}.webp`, thumb: `${base}-256.webp`, small: `${base}-128.webp`, v: "abc123", updatedAt: 1 };
@@ -57,6 +60,9 @@ describe("packs de cartes Pouvoir importés depuis l'admin", () => {
     expect(assetPackUrl("/assets/power-cards/v2/vent_nord.webp", "import-masques", "powers")).toBe(art.url);
     expect(assetPackUrl("/assets/power-cards/v2/feu_camp.webp", "import-masques", "powers")).toBe("/assets/power-cards/v2/feu_camp.webp");
     expect(powerPackThumbUrl("/assets/power-cards/v2/vent_nord.webp", "import-masques")).toBe(art.thumb);
+    expect(powerPackSmallUrl("/assets/power-cards/v2/vent_nord.webp", "import-masques")).toBe(art.small);
+    expect(powerPackSmallUrl("/assets/power-cards/v2/feu_camp.webp", "import-masques")).toBe("/assets/power-cards/v2/feu_camp-128.webp");
+    expect(powerPackThumbUrl("https://example.com/feu_camp.webp", "import-masques")).toBe("https://example.com/feu_camp.webp");
     expect(powerPackThumbUrl("/assets/power-cards/v2/vent_nord.webp", "ndop-mystique")).toBe("/assets/power-cards/packs/ndop-mystique/vent_nord-256.webp");
     expect(isPackedPowerArt(art.url)).toBe(true);
     expect(isPackedPowerArt("/assets/power-cards/v2/feu_camp.webp")).toBe(false);
@@ -76,7 +82,25 @@ describe("packs de cartes Pouvoir importés depuis l'admin", () => {
     const portrait = await renderPowerPackArt(source, true);
     const meta = await sharp(portrait[0].data).metadata();
     expect([meta.format, meta.width, meta.height]).toEqual(["webp", 720, 1080]);
-    expect(portrait[0].data.length).toBeLessThan(400_000);
-    expect(portrait[1].data.length).toBeLessThan(80_000);
+    expect(portrait[0].data.length).toBeLessThanOrEqual(115_000);
+    expect(portrait[1].data.length).toBeLessThanOrEqual(28_000);
+    expect(portrait[2].data.length).toBeLessThanOrEqual(12_000);
+  });
+
+  it("exporte le nom, le format et les illustrations d'un pack dans un ZIP réimportable", async () => {
+    const details = { name: "Masques du Ndé", description: "Bois sculpté", portrait: true };
+    const images = [{ card: "vent_nord", data: Uint8Array.of(1, 2, 3) }];
+    await expect(readPowerPackArchive(createPowerPackArchive(details, images), true)).resolves.toEqual({ details, images });
+    await expect(readPowerPackArchive(createPowerPackArchive(details, []), true)).resolves.toEqual({ details, images: [] });
+  });
+
+  it("lit un ZIP de fichiers nommés et signale deux images pour la même carte", async () => {
+    const data = Uint8Array.of(1, 2, 3);
+    const entry = { name: "Dossier/Vent-Nord.PNG", data };
+    await expect(readPowerPackArchive(createZip([entry]))).resolves.toEqual({ details: null, images: [{ card: "vent_nord", data }] });
+    await expect(readPowerPackArchive(createZip([entry, { name: "vent_nord.webp", data }]))).rejects.toThrow("Plusieurs illustrations");
+    await expect(readPowerPackArchive(createPowerPackArchive({ name: "Masques", description: "", portrait: true }, [
+      { card: "vent_nord", data: new Uint8Array(115_001) },
+    ]), true)).rejects.toThrow("trop volumineux");
   });
 });

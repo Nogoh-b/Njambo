@@ -1,0 +1,22 @@
+.back { display: inline-block; margin-bottom: 10px; color: var(--muted); }
+.form { display: grid; gap: 12px; margin-top: 14px; }
+.drop { border: 1px dashed var(--faint); border-radius: 8px; padding: 12px; }
+.packGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 190px), 1fr)); gap: 12px; }
+.cardGrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 106px), 1fr)); gap: 10px; }
+.packTile, .cardTile {
+  min-width: 0; display: grid; align-content: start; gap: 8px;
+  padding: 10px; border: 1px solid var(--line); border-radius: 10px;
+  background: var(--panel-2); color: var(--ink); text-decoration: none;
+}
+.packTile[data-active="true"], .cardTile:hover { border-color: var(--gold); }
+.active { color: var(--gold); margin-left: 4px; }
+.previewStrip { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-items: center; gap: 6px; min-height: 56px; }
+.thumb { aspect-ratio: 1; overflow: hidden; border: 1px solid var(--line); border-radius: 6px; background: #0c0906; }
+.thumb[data-portrait="true"] { aspect-ratio: 2 / 3; }
+.thumb img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.editor { display: grid; grid-template-columns: minmax(0, 360px) minmax(0, 1fr); align-items: start; gap: 16px; }
+.art { display: block; width: 100%; height: auto; border-radius: 10px; object-fit: contain; }
+
+@media (max-width: 640px) {
+  .editor { grid-template-columns: minmax(0, 1fr); }
+}

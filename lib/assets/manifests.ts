@@ -12,7 +12,7 @@ import { eventArt } from "../eventArt";
 import { rewardVisual } from "../eventRewards";
 import type { Reward } from "../../domain";
 import { audioAsset, imageAsset, type AssetRef } from "./AssetLoader";
-import { sysAsset } from "@/lib/assetPack";
+import { powerCardImage, sysAsset } from "@/lib/assetPack";
 import { MENU_SFX_URLS, TABLE_SFX_URLS } from "@/lib/gxeSfx";
 import { defaultPowerSoundRef, resolvePowerSoundUrl } from "@/lib/powerSounds";
 
@@ -29,7 +29,7 @@ export function cssVarUrl(name: string): string | null {
 }
 
 /** Visuel, son d'activation et sons de chorégraphie d'une carte de pouvoir. */
-export function powerCardAssets(cardId: PowerCardId): { images: AssetRef[]; sounds: AssetRef[] } {
+export function powerCardAssets(cardId: PowerCardId, size: "thumb" | "small" | "full" = "full"): { images: AssetRef[]; sounds: AssetRef[] } {
   const entry = getPowerModule(cardId);
   if (!entry) return { images: [], sounds: [] };
   const primaryRef = entry.def.sound?.ref ?? defaultPowerSoundRef(entry.def.id);
@@ -40,14 +40,14 @@ export function powerCardAssets(cardId: PowerCardId): { images: AssetRef[]; soun
     }
   }
   return {
-    images: [imageAsset(sysAsset(entry.def.art))].filter(Boolean) as AssetRef[],
+    images: [imageAsset(powerCardImage(entry.def.art, size))].filter(Boolean) as AssetRef[],
     sounds: sounds.filter(Boolean) as AssetRef[],
   };
 }
 
 function catalogPowerAssets(): AssetRef[] {
   return listPowerModules().flatMap((entry) => {
-    const assets = powerCardAssets(entry.def.id);
+    const assets = powerCardAssets(entry.def.id, "thumb");
     return [...assets.images, ...assets.sounds];
   });
 }
@@ -80,29 +80,29 @@ export interface TableAssetGroups {
   background: AssetRef[];
 }
 
-const TABLE_UI_CRITICAL = [
+const TABLE_UI_CRITICAL_PATHS = [
   DEFAULT_CARD_BACK_ASSET,
   DEFAULT_HAND_ARC_ASSET,
-  sysAsset("/assets/njambo/books/card-back-128.webp"),
+  "/assets/njambo/books/card-back-128.webp",
   "/assets/njambo/ui/brand/njambo-mark-64.webp",
   "/assets/njambo/ui/brand/njambo-mark-128.webp",
-  sysAsset("/assets/njambo/economy/nkap-64.webp"),
-  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/cards-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/crown-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/trophy-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/coin-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/check-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/sparkle-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/home-64.webp"),
+  "/assets/njambo/economy/nkap-64.webp",
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/ui/icons/cards-64.webp",
+  "/assets/njambo/ui/icons/crown-64.webp",
+  "/assets/njambo/ui/icons/trophy-64.webp",
+  "/assets/njambo/ui/icons/coin-64.webp",
+  "/assets/njambo/ui/icons/check-64.webp",
+  "/assets/njambo/ui/icons/sparkle-64.webp",
+  "/assets/njambo/ui/icons/home-64.webp",
 ] as const;
 
-const TABLE_UI_BACKGROUND = [
-  sysAsset("/assets/njambo/ui/icons/hourglass-64.webp"),
-  sysAsset("/assets/njambo/ui/buttons/gold-frame.webp"),
-  sysAsset("/assets/njambo/ui/buttons/teal-frame.webp"),
-  sysAsset("/assets/njambo/ui/buttons/pink-frame.webp"),
-  sysAsset("/assets/njambo/ui/buttons/dark-frame.webp"),
+const TABLE_UI_BACKGROUND_PATHS = [
+  "/assets/njambo/ui/icons/hourglass-64.webp",
+  "/assets/njambo/ui/buttons/gold-frame.webp",
+  "/assets/njambo/ui/buttons/teal-frame.webp",
+  "/assets/njambo/ui/buttons/pink-frame.webp",
+  "/assets/njambo/ui/buttons/dark-frame.webp",
 ] as const;
 
 /**
@@ -117,13 +117,13 @@ export function tableAssetGroups(input: TableManifestInput = {}): TableAssetGrou
     imageAsset(cssVarUrl("--nj-table-image")),
     imageAsset(cssVarUrl("--nj-card-back") ?? DEFAULT_CARD_BACK_ASSET),
     imageAsset(cssVarUrl("--nj-hand-arc") ?? DEFAULT_HAND_ARC_ASSET),
-    ...TABLE_UI_CRITICAL.map((url) => imageAsset(url)),
+    ...TABLE_UI_CRITICAL_PATHS.map((url) => imageAsset(sysAsset(url))),
   ];
   const powersRaw: Array<AssetRef | null> = [
     ...TABLE_SFX_URLS.map((url) => audioAsset(url)),
   ];
   for (const cardId of input.myPowers ?? []) {
-    const assets = powerCardAssets(cardId);
+    const assets = powerCardAssets(cardId, "small");
     powersRaw.push(...assets.images, ...assets.sounds);
   }
   for (const cosmetics of input.participants ?? []) {
@@ -138,7 +138,7 @@ export function tableAssetGroups(input: TableManifestInput = {}): TableAssetGrou
     powersRaw.push(imageAsset(avatarUrl));
   }
   const backgroundRaw: Array<AssetRef | null> = [
-    ...TABLE_UI_BACKGROUND.map((url) => imageAsset(url)),
+    ...TABLE_UI_BACKGROUND_PATHS.map((url) => imageAsset(sysAsset(url))),
     ...catalogPowerAssets(),
   ];
   return {
@@ -229,44 +229,45 @@ export function menuManifest(): AssetManifest {
   };
 }
 
-const SHOP_STATIC = [
-  sysAsset("/assets/njambo/economy/pack-mboa-256.webp"),
-  sysAsset("/assets/njambo/economy/pack-quartier-256.webp"),
-  sysAsset("/assets/njambo/economy/pack-chefferie-256.webp"),
-  sysAsset("/assets/njambo/economy/cauris-pouch-256.webp"),
-  sysAsset("/assets/njambo/economy/nkap-stack-256.webp"),
-  sysAsset("/assets/njambo/economy/energy-flask-256.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-bronze-256.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-argent-256.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-or-256.webp"),
-  sysAsset("/assets/njambo/books/book-normal-256.webp"),
-  sysAsset("/assets/njambo/books/book-rare-256.webp"),
-  sysAsset("/assets/njambo/books/book-exceptionnel-256.webp"),
-  sysAsset("/assets/njambo/books/card-back-256.webp"),
-  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
-  sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
-  sysAsset("/assets/njambo/economy/cauri-64.webp"),
-  sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/coin-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/cards-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/sparkle-64.webp"),
-  sysAsset("/assets/njambo/ui/icons/trophy-64.webp"),
+const SHOP_STATIC_PATHS = [
+  "/assets/njambo/economy/pack-mboa-256.webp",
+  "/assets/njambo/economy/pack-quartier-256.webp",
+  "/assets/njambo/economy/pack-chefferie-256.webp",
+  "/assets/njambo/economy/cauris-pouch-256.webp",
+  "/assets/njambo/economy/nkap-stack-256.webp",
+  "/assets/njambo/economy/energy-flask-256.webp",
+  "/assets/njambo/tickets/ticket-bronze-256.webp",
+  "/assets/njambo/tickets/ticket-argent-256.webp",
+  "/assets/njambo/tickets/ticket-or-256.webp",
+  "/assets/njambo/books/book-normal-256.webp",
+  "/assets/njambo/books/book-rare-256.webp",
+  "/assets/njambo/books/book-exceptionnel-256.webp",
+  "/assets/njambo/books/card-back-256.webp",
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/economy/cauris-pouch-64.webp",
+  "/assets/njambo/economy/cauri-64.webp",
+  "/assets/njambo/economy/energy-flask-64.webp",
+  "/assets/njambo/tickets/ticket-bronze-64.webp",
+  "/assets/njambo/tickets/ticket-argent-64.webp",
+  "/assets/njambo/tickets/ticket-or-64.webp",
+  "/assets/njambo/ui/icons/coin-64.webp",
+  "/assets/njambo/ui/icons/cards-64.webp",
+  "/assets/njambo/ui/icons/sparkle-64.webp",
+  "/assets/njambo/ui/icons/trophy-64.webp",
 ] as const;
 
-const EVENTS_STATIC = [
-  sysAsset("/assets/njambo/tickets/ticket-bronze-64.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-argent-64.webp"),
-  sysAsset("/assets/njambo/tickets/ticket-or-64.webp"),
-  sysAsset("/assets/njambo/economy/nkap-stack-64.webp"),
-  sysAsset("/assets/njambo/economy/cauris-pouch-64.webp"),
-  sysAsset("/assets/njambo/economy/energy-flask-64.webp"),
+const EVENTS_STATIC_PATHS = [
+  "/assets/njambo/tickets/ticket-bronze-64.webp",
+  "/assets/njambo/tickets/ticket-argent-64.webp",
+  "/assets/njambo/tickets/ticket-or-64.webp",
+  "/assets/njambo/economy/nkap-stack-64.webp",
+  "/assets/njambo/economy/cauris-pouch-64.webp",
+  "/assets/njambo/economy/energy-flask-64.webp",
   "/assets/njambo/events/defi-du-mboa-480.webp",
   "/assets/njambo/events/tournoi-du-ter-480.webp",
-  "/assets/njambo/events/event-fallback.webp",
 ] as const;
+
+const EVENT_FALLBACK_PATH = "/assets/njambo/events/event-fallback.webp";
 
 const PLAY_STATIC = [
   "/assets/njambo/economy/energy-flask-64.webp",
@@ -319,23 +320,26 @@ const PROFILE_STATIC = [
 function powerCollectionManifest(): AssetManifest {
   const arts = listPowerModules()
     .filter((entry) => !entry.dev && !entry.def.archived)
-    .map((entry) => imageAsset(sysAsset(entry.def.art)))
+    .map((entry) => imageAsset(powerCardImage(entry.def.art, "thumb")))
     .filter(Boolean) as AssetRef[];
   return {
     critical: arts.slice(0, 24),
     background: [
       ...arts.slice(24),
-      ...SHOP_STATIC.map((url) => imageAsset(url)!),
+      ...SHOP_STATIC_PATHS.map((url) => imageAsset(sysAsset(url))!),
       ...catalogPowerAssets(),
     ],
   };
 }
 
-/** Liste des événements : icônes + vignettes des événements connus. */
+/** Liste des événements : icônes résolues dans le pack actif + vignettes des événements connus. */
 export function eventsManifest(events: Array<{ imageUrl?: string | null }> = []): AssetManifest {
   return {
-    critical: EVENTS_STATIC.map((url) => imageAsset(url)!),
-    background: events.map((event) => imageAsset(eventArt(event, "thumb").src)).filter(Boolean) as AssetRef[],
+    critical: EVENTS_STATIC_PATHS.map((url) => imageAsset(sysAsset(url))!),
+    background: [
+      imageAsset(EVENT_FALLBACK_PATH)!,
+      ...events.map((event) => imageAsset(eventArt(event, "thumb").src)).filter(Boolean) as AssetRef[],
+    ],
   };
 }
 
@@ -375,7 +379,7 @@ export function sceneManifest(scene: string): AssetManifest {
       return { critical: PROFILE_STATIC.map((url) => imageAsset(url)!), background: [] };
     case "shop":
     case "power_shop":
-      return { critical: SHOP_STATIC.map((url) => imageAsset(url)!), background: catalogPowerAssets() };
+      return { critical: SHOP_STATIC_PATHS.map((url) => imageAsset(sysAsset(url))!), background: catalogPowerAssets() };
     case "power_collection":
       return powerCollectionManifest();
     case "events":

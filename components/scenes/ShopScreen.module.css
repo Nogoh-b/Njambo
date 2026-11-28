@@ -989,6 +989,17 @@
   object-position: center 22%;
 }
 
+.gridFullBleed .gridArtMask {
+  inset: 0;
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+.gridFullBleed .gridArtMask .gridCardImg {
+  object-fit: cover;
+  object-position: center center;
+}
+
 .gridMotifSvg {
   position: absolute;
   inset: 0;
